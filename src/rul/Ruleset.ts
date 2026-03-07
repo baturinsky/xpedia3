@@ -1,0 +1,995 @@
+import SearchApi from 'js-worker-search';
+import { addAllIfNew, addIfNew, capital, cullDoubles, delay, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
+import * as util from "../util"
+import { Section } from './Section';
+import { Sprite } from './Sprite';
+import { Article } from './Article';
+import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit } from './Entry';
+
+export let rul!: Ruleset;
+export type SortFirstLastOptions = { first?: string[], last?: string[], exclude?: string[], sortBy?: Function }
+type StringValue = [string, any]
+export const defaultLanguage = "en-US"
+
+export const obsTables = { "BIGOBS.PCK": "big", "FLOOROB.PCK": "floor", "HANDOB.PCK": "hand", "BASEBITS.PCK": "base", "INTICON.PCK": "icon" };
+
+export type Mod = {
+  lng: { [langName: string]: { [id: string]: string } }
+  meta: { id: string, master: string, isMaster: boolean }
+  dir: string,
+  rul: any[]
+};
+
+function orderedFilteredEntries(item: Object, fields?: string[]) {
+  if (item == null)
+    return;
+  return fields ? fields.map(key => item[key] != null ? [key, item[key]] as StringValue : null).filter(v => v != null) : [];
+}
+
+/**
+ * Sorts item's keys, putting "first" first, "last" last, excluding "exclude" and using "sortBy" function
+ * returns lists of key-value pairs
+ * "misc" in return is everything that is not "first" or "last"
+ */
+export function sortFirstLast(item: Object, options: SortFirstLastOptions = {}): { first: StringValue[], misc: StringValue[], last: StringValue[], exclude: StringValue[], all: StringValue[] } {
+  if (item == null)
+    return { all: [], first: [], misc: [], last: [], exclude: [] };
+
+  if (options.exclude) {
+    if (options.first)
+      options.first = util.exclude(options.first, options.exclude);
+    if (options.last)
+      options.last = util.exclude(options.last, options.exclude);
+  }
+
+  let first = orderedFilteredEntries(item, options.first);
+  let last = orderedFilteredEntries(item, options.last);
+  let exclude = orderedFilteredEntries(item, options.exclude);
+  let special = new Set([...(options.first || []), ...(options.last || []), ...(options.exclude || []), "id", "list", "name"]);
+  let misc = Object.entries(item).filter(([k, v]) => !special.has(k));
+  if (options.sortBy) {
+    misc = misc.sort((a, b) => options.sortBy(a[1]) > options.sortBy(b[1]) ? 1 : -1)
+  } else {
+    misc = misc.sort((a, b) => a[0] > b[0] ? 1 : -1)
+  }
+  let all = [...first, ...misc, ...last]
+  return { first, misc, last, exclude, all };
+}
+
+export class Search {
+  articles = new SearchApi();
+
+  constructor() {
+    for (let a of Object.values(rul.articles)) {
+      let texts = ["id", "type", "title", "text"].map(key => `${a[key]}`.toLowerCase()).join(" ");
+      this.articles.indexDocument(a.id, texts);
+    }
+  }
+
+  async findArticles(query: string) {
+    return this.articles.search(query.toLowerCase());
+  }
+}
+
+
+export class Service {
+  constructor(public id: string) {
+    Article.create(id, "SERVICES");
+  }
+
+  static add(prop: string, id: string, entries: string[]) {
+    if (entries) {
+      for (let s of entries) {
+        if (!(s in rul.baseServices)) rul.baseServices[s] = new Service(s);
+        if (!(prop in rul.baseServices[s])) rul.baseServices[s][prop] = [];
+        rul.baseServices[s][prop].push(id);
+      }
+    }
+  }
+}
+
+
+export default class Ruleset {
+  articles: { [key: string]: Article } = {};
+  articlesOrder: Article[] = [];
+  sections: { [key: string]: Section } = {};
+  sectionsOrder: Section[] = [];
+  typeSectionsOrder: Section[] = [];
+  sprites: { [key: string]: Sprite } = {};
+  src: { ruls, langs, mods };
+  raw: any = {};
+  search: { [key: string]: Search } = {};
+  ourArmors: string[];
+  items: { [key: string]: Item } = {};
+  categories: { [key: string]: string[] } = {};
+  manufactureCategories: { [key: string]: string[] } = {};
+  armors: { [key: string]: Armor } = {};
+  units: { [key: string]: Unit } = {};
+  crafts: { [key: string]: Craft } = {};
+  facilities: { [key: string]: Facility } = {};
+  enviroEffects: { [key: string]: Entry } = {};
+  craftWeapons: { [key: string]: CraftWeapon } = {};
+  weaponTypes: { [key: string]: Entry } = {};
+  itemTypes: { [key: string]: Entry } = {};
+  stats: { [key: string]: Entry } = {};
+  battleTypes: { [key: string]: Entry } = {};
+  countries: { [key: string]: Entry } = {};
+  damageTypes: { [key: string]: DamageType } = {};
+  research: { [key: string]: Research } = {};
+  soldierBonuses: { [key: string]: Entry } = {};
+  commendations: { [key: string]: Commendation } = {};
+  soldierTransformation: { [key: string]: SoldierTransformation } = {};
+  soldiers: { [key: string]: Soldiers } = {};
+  alienDeployments: { [key: string]: AlienDeployment } = {};
+  alienRaces: { [key: string]: Entry } = {};
+  manufacture: { [key: string]: Manufacture } = {};
+  startingConditions: { [key: string]: StartingConditions } = {};
+  events: { [key: string]: EventEntry } = {};
+  eventScripts: { [key: string]: EventScript } = {};
+  missionScripts: { [key: string]: MissionScript } = {};
+  alienMissions: { [key: string]: Entry } = {};
+  ufos: { [key: string]: Entry } = {};
+  terrains: { [key: string]: Entry } = {};
+  obs = { big: [], floor: [], hand: [], base: [], icon: [] };
+  sounds: string[] = [];
+  config: any;
+  baseServices: { [key: string]: Service } = {};
+  redirect: { [key: string]: string } = {};
+  attacks: Attack[] = [];
+  globeMarkers: string[];
+
+  itemFields = new Set<string>();
+  unitFields = new Set<string>();
+
+  meta: any
+  lang: { [key: string]: string } = {};
+  langs: { [key: string]: { [key: string]: string } } = {};
+  mods: { [key: string]: { [key: string]: string } } = {};
+  langName: string;
+  langNames: string[];
+  convertedLangs = {};
+
+  constructor(processed?: {
+    mods: Mod[],
+    langs: any
+  }) {
+    rul = this;
+    if (processed)
+      this.loadProcessedMods(processed);
+  }
+
+  tr(str: string, props?: { capital?, icon?}) {
+    const bigSnakeCase = /^[A-Z0-9_]+$/;
+
+    //if(str == "STR_ELECTRO_FLARE")      debugger
+
+    if (str in rul.lang) {
+      str = rul.lang[str]
+      str = stripPediaMarkup(str);
+    } else if (typeof str == "string") {
+      if (props?.icon && props?.icon != "none")
+        str = null;
+      else {
+        if (str.substr(0, 4) == "STR_")
+          str = str.substr(4);
+
+        if (str.match(bigSnakeCase))
+          str = str.replace(/_/g, " ");
+
+        str = str.replace(/([a-z])([A-Z])/g, "$1 $2");
+      }
+    }
+
+    if (props?.capital)
+      str = capital(str);
+
+    return str;
+  }
+
+  addCategory(catName: string, id: string, where?) {
+    if (where == null)
+      where = rul.categories;
+    let cat = where[catName] || [];
+    if (!cat.includes(id)) cat.push(id);
+    where[catName] = cat;
+  }
+
+  damageTypeName(type: number) {
+    return this.lang[damageTypes[type]];
+  }
+
+  sound(id: number) {
+    return this.sounds[id];
+  }
+
+  obsSprite(type: string, num: number) {
+    let path = (this.obs[type] || [])[num]?.path;
+    return path;
+  }
+
+  combineRuls(ruls: any[], reversed = false) {
+    for (let file of reversed ? ruls.reverse() : ruls) {
+      if (file == null)
+        continue;
+      for (let key in file) {
+        let table = file[key];
+
+        let modDir = file.file.modDir;
+        if (Array.isArray(table))
+          for (let entry of table) {
+            if (typeof entry == "object" && !Array.isArray(entry))
+              entry.modDir = modDir;
+          }
+
+        if (key.substr(0, 4) == "lang") {
+          Object.assign(this.lang, table);
+        }
+        if (!(key in this.raw)) {
+          this.raw[key] = table;
+        } else {
+          let old = this.raw[key];
+          let adding = table;
+
+          if (old.concat) {
+            this.raw[key] = old.concat(adding);
+          } else {
+            if (Array.isArray(adding))
+              for (let k of adding) {
+                if (k in old && typeof old[k] == "object")
+                  Object.assign(old[k], adding[k]);
+                else
+                  old[k] = adding[k];
+              }
+          }
+        }
+      }
+    }
+  }
+
+  mergeRuls(reversed = false) {
+    for (let categoryName in this.raw) {
+      let merged = {};
+      let deleted = {};
+
+      if (categoryName == "extraSprites")
+        continue;
+
+      let category = this.raw[categoryName];
+      if (!Array.isArray(category)) {
+        continue;
+      }
+
+      for (let data of category) {
+        let id =
+          data.type || data.id || data.name || data.delete || data.typeSingle;
+
+        if (!id || deleted[id]) continue;
+
+        if ("delete" in data) {
+          if (reversed) deleted[id] = true;
+          else delete merged[id];
+          continue;
+        }
+
+        if (id && id in merged) {
+          if (reversed) {
+            for (let k in data) {
+              if (!(k in merged[id])) merged[id][k] = data[k];
+            }
+          } else {
+            if (data.files) {
+              let files = { ...merged[id].files, ...data.files }
+              Object.assign(merged[id], data);
+              merged[id].files = files;
+            } else {
+              if (Array.isArray(data)) {
+                debugger;
+                merged[id] = merged[id].concat(data);
+              } else
+                Object.assign(merged[id], data);
+            }
+          }
+        } else {
+          merged[id] = data;
+        }
+      }
+      this.raw[categoryName] = Object.values(merged);
+    }
+  }
+
+  convertLang(langName: string) {
+    if (this.convertedLangs[langName])
+      return false;
+
+    let lang = this.langs[langName];
+
+    if (lang == null || lang.ALREADYCONVERTED)
+      return;
+    lang.ALREADYCONVERTED = "true";
+
+    if (langName == defaultLanguage)
+      lang = {
+        ...{
+          dependencies: "STR_DEPENDS_ON",
+          seeAlso: "STR_ITEM_REQUIRED",
+          requiresBaseFunc: "STR_SERVICES_REQUIRED",
+          freeFrom: "STR_GET_FOR_FREE_FROM",
+          leadsTo: "STR_LEADS_TO",
+          unlocks: "STR_UNLOCKS",
+          disables: "STR_DISABLES",
+          getOneFree: "STR_GIVES_ONE_FOR_FREE",
+          manufacture: "STR_REQUIRED_BY",
+          randomProducedItems: "STR_RANDOM_PRODUCTION_DISCLAIMER",
+          cost: "STR_COST",
+        }, ...lang
+      };
+
+    this.convertedLangs[langName] = true;
+    return true;
+  }
+
+  parseType(type, klass) {
+    for (let data of Object.values(this.raw[type] ?? {})) {
+      new (klass || Entry)(data, type)
+    }
+  }
+
+  deleteModDirs() {
+    for (let tableKind in this.raw)
+      if (Array.isArray(this.raw[tableKind]))
+        for (let table of this.raw[tableKind]) {
+          if ("modDir" in table)
+            delete table.modDir;
+        }
+    //if (this.raw.musics?.lengths) this.sounds = [...this.sounds, ...this.raw.musics.map(v=>`SOUND/${v.type}.ogg`)]
+  }
+
+  combineModRuls(mods: Mod[]) {
+    let rul = {}
+    for (let mod of mods) {
+      for (let file of mod.rul) {
+        for (let categoryName in file) {
+          rul[categoryName] ||= {};
+          let category = rul[categoryName];
+          let rawCategory = file[categoryName];
+          if (Array.isArray(rawCategory)) {
+            for (let data of rawCategory) {
+              let id = data.type || data.id || data.name || data.delete || data.typeSingle;
+              if (data.delete) {
+                delete category[id];
+                continue
+              }
+              let old = category[id];
+              if (!old) {
+                category[id] = data;
+              } else {
+                if (Array.isArray[data]) {
+                  category[id] = [...old, ...data];
+                } else {
+                  category[id] = { ...old, ...data }
+                };
+              }
+            }
+          } else {
+            Object.assign(category, rawCategory);
+          }
+        }
+      }
+    }
+    return rul
+  }
+
+  parseRuls(mods: Mod[]) {
+
+    /*let reversed = false;
+    this.combineRuls(data, reversed);
+    this.mergeRuls(reversed);*/
+
+    new Section("MAIN", true);
+
+    this.raw = this.combineModRuls(mods);
+
+    console.log(this.raw);
+
+    this.sounds = []
+
+    if (this.raw?.extraSounds?.length)
+      for (let table of this.raw.extraSounds) {
+        for (let e of Object.entries(table.files)) {
+          this.sounds[e[0]] = table.modDir + e[1]
+        }
+      }
+
+
+    for (let mod of mods) {
+      for (let rul of mod.rul)
+        for (let spriteDataName in rul.extraSprites ?? {}) {
+          new Sprite({ type: spriteDataName, dir: mod.dir, ...rul.extraSprites[spriteDataName] });
+        }
+    }
+
+    this.deleteModDirs();
+
+    this.parseArticles(this.raw.ufopaedia);
+
+    for (let [typeName, typeConstructor] of Object.entries(entryConstructors) || []) {
+      this.parseType(typeName, typeConstructor);
+    }
+
+    function blockItems(blocks) {
+      if (blocks == null)
+        return [];
+      blocks = Object.values(blocks || []);
+      if (blocks == null)
+        return [];
+      blocks = blocks.flat();
+      let x = blocks.map(b => b.randomizedItems || []).flat().map(c => c?.itemList || []).flat();
+      let y = blocks.map(b => b.items ? Object.keys(b.items) : []).flat();
+      return [...x, ...y];
+    }
+
+    new Section("ATTACKS", true);
+
+    crosslink(this.eventScripts, "_xcomBaseInCountryTrue", "countries", "events");
+    crosslink(this.units, "race", "alienRaces", "hasThisRace");
+    crosslink(this.units, "rank", "alienRanks", "hasThisRank");
+    crosslink(this.alienRaces, "members", "units", "memberOf");
+    crosslink(this.soldierTransformation, "forbiddenPreviousTransformations", this.soldierTransformation, "blocksTransformations");
+    crosslink(this.alienDeployments, "loot", this.items, "loot");
+    crosslink(this.alienDeployments, "enviroEffects", this.enviroEffects, "deployments");
+    crosslink(this.craftWeapons, "weaponType", this.weaponTypes, "weapons", "weaponTypes");
+    crosslink(this.crafts, "allWeaponTypes", this.weaponTypes, "crafts", "weaponTypes");
+    crosslink(this.alienDeployments, "startingCondition", this.startingConditions, "deployments");
+    crosslink(this.missionScripts, "researchNeeded", this.research, "unlocksMissions");
+    crosslink(this.missionScripts, "researchForbidden", this.research, "stopsMissions");
+    crosslink(this.alienMissions, t => Object.values(t.raceWeights || {})?.map(w => Object.keys(w)).flat(), "alienRaces", "missions");
+    crosslink(this.ufos, t => blockItems(t.battlescapeTerrainData?.mapBlocks), this.items, "ufos");
+    crosslink(this.terrains, t => blockItems(t.mapBlocks), this.items, "terrains");
+    crosslink(this.terrains, "civilianTypes", this.units, "terrains");
+    crosslink(this.items, "spawnUnit", this.units, "spawnedBy");
+    crosslink(this.items, "internalBattleType", "battleTypes", "items");
+    crosslink(this.items, "supportedInventorySections", "inventorySections", "items");
+    crosslink(this.commendations, "damageTypes", this.damageTypes, "commendations");
+    crosslink(this.events, "researchList", this.research, "events");
+    crosslink(this.armors, "builtInWeapons", this.items, "builtIn");
+    crosslink(this.armors, "specialWeapon", this.items, "builtIn");
+    crosslink(this.eventScripts, "_relatedEvents", this.events, "relatedScripts");
+    crosslink(this.eventScripts, "_relatedResearch", this.research, "relatedScripts");
+    crosslink(this.manufacture, "spawnedPersonType", this.soldiers, "manufacture");
+    crosslink(this.events, "spawnedPersonType", this.soldiers, "events");
+    crosslink(this.missionScripts, "_missions", this.alienMissions, "scripts");
+    crosslink(this.alienDeployments, "terrains", this.terrains, "alienDeployments");
+    crosslink(this.terrains, "enviroEffects", this.enviroEffects, "terrains");
+
+    let all = {
+      Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),
+      SoldierTypes: Object.keys(rul.soldiers),
+      Vehicles: Object.keys(rul.units).filter(k => rul.items[k]?.battleType == 3),
+      Craft: Object.keys(rul.crafts)
+    }
+
+    for (let sc of Object.values(this.startingConditions)) {
+      if (sc.forbiddenSoldierTypes?.length > 0) {
+        let forbiddenSoldierTypes = new Set(sc.forbiddenSoldierTypes);
+        sc.allowedSoldierTypes = Object.keys(rul.soldiers).filter(st => !forbiddenSoldierTypes.has(st));
+      }
+
+      sc.allowedSoldierTypes ||= all.SoldierTypes;
+      sc.allowedArmors ||= all.Armors;
+
+      if (sc.forbiddenArmors?.length > 0) {
+        let forbiddenArmors = new Set(sc.forbiddenArmors);
+        sc.allowedArmors = all.Armors.filter(a => !forbiddenArmors.has(a));
+      }
+
+      let armorsAllowedForSoldiers = new Set();
+      for (let st of sc.allowedSoldierTypes)
+        for (let a of (rul.soldiers[st].armors || [rul.soldiers[st].armor] || []))
+          armorsAllowedForSoldiers.add(a)
+
+      sc.allowedArmors = sc.allowedArmors.filter(a => armorsAllowedForSoldiers.has(a));
+    }
+
+    for (let option of [
+      ["Craft", this.crafts],
+      ["SoldierTypes", this.soldiers],
+      ["Vehicles", this.units],
+      ["Armors", this.armors],
+    ] as [string, { [key: string]: Craft | Soldiers | Unit | Armor }][]
+    ) {
+      for (let sc of Object.values(this.startingConditions)) {
+        if (sc[`allowed${option[0]}`])
+          sc[`forbidden${option[0]}`] = all[option[0]].filter(e => !sc[`allowed${option[0]}`].includes(e))
+      }
+      crosslink(this.startingConditions, `allowed${option[0]}`, option[1], "allowedIn");
+      crosslink(this.startingConditions, `forbidden${option[0]}`, option[1], "forbiddenIn");
+    }
+
+    for (let c of Object.values(this.commendations)) {
+      c.parseKillCriteria();
+    }
+
+    for (let facility of Object.values(this.facilities)) {
+      if (facility.buildCostItems) {
+        for (let itemName of Object.keys(facility.buildCostItems)) {
+          let item = rul.items[itemName];
+          if (!item) continue;
+          if (!item.componentOf) item.componentOf = {};
+          item.componentOf[facility.type] =
+            facility.buildCostItems[itemName].build;
+          if (!item.manufacture) item.manufacture = {};
+          item.manufacture[facility.type] =
+            facility.buildCostItems[itemName].refund;
+        }
+      }
+    }
+
+    for (let item of Object.values(this.items)) {
+
+      for (let ammoId of item.compatibleAmmo || []) {
+        let ammo = this.items[ammoId];
+        if (ammo) {
+          ammo.compatibleWeapons = ammo.compatibleWeapons || [];
+          ammo.compatibleWeapons.push(item.type);
+        }
+      }
+      for (let rb of item.requiresBuy || []) {
+        let r = this.research[rb];
+        if (r) {
+          r.allowsBuying = [...(r.allowsBuying || []), item.type];
+        }
+      }
+
+    }
+
+    for (let research of [...Object.values(this.research)]) {
+      backLink(research.name, research.dependencies, rul.research, "leadsTo");
+      backLink(research.name, research.getOneFree, rul.research, "freeFrom");
+
+      if (
+        research.lookup &&
+        research.name != research.lookup &&
+        this.research[research.lookup]
+      ) {
+        let lookup = this.research[research.lookup];
+        lookup.seeAlso = lookup.seeAlso || [];
+        lookup.seeAlso.push(research.name);
+        let lookUpArticle = this.article(research.lookup);
+        let article = this.article(research.name);
+        if (!rul.lang[article.id]) article._title = lookUpArticle._title;
+        article._text = lookUpArticle._text;
+        article.image_id = lookUpArticle.image_id;
+      }
+      if (research.spawnedItem) {
+        let item = rul.items[research.spawnedItem];
+        item.spawnedBy = item.spawnedBy || [];
+        item.spawnedBy.push(research.name);
+      }
+    }
+
+    this.ourArmors = Object.values(this.armors)
+      .filter((a) => a.units)
+      .map((a) => a.type);
+
+    for (let cat of Object.keys(this.categories)) {
+      if (this.categories[cat].length)
+        Article.create(cat, "CATEGORIES");
+    }
+
+    for (let cat of Object.keys(this.manufactureCategories)) {
+      if (this.manufactureCategories[cat].length)
+        Article.create(cat, "MANUFACTURE_CATEGORIES");
+    }
+
+    this.loadMarkers()
+
+    console.log("parse done", this);
+  }
+
+  async loadMarkers() {
+    if (rul.globeMarkers)
+      return rul.globeMarkers;
+    if (!window["GlobeMarkers"]) {
+      let markers = this.sprites["GlobeMarkers"];
+      let path = markers?.path;
+      /*let image = await util.loadImage(path);
+      console.log(util.canvasToBase64(util.imageToCanvas(image)));*/
+      let dataUrl = await util.pathToDataUrl(path);
+      window["GlobeMarkers"] = dataUrl;
+    }
+    let dataURL = window["GlobeMarkers"];
+
+    let canvas = imageToCanvas(await loadImage(dataURL));
+    let parts = util.splitCanvas(canvas)
+    rul.globeMarkers = parts.map(p => p.toDataURL());
+    return rul.globeMarkers;
+  }
+
+  orderedTypeSections() {
+    let sections = this.sortStrings(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
+    sections.splice(sections.findIndex(s => s.id == "MAIN"), 1)
+    return [this.sections.MAIN, ...sections]
+  }
+
+  parseArticles(data: Object) {
+    if (!data)
+      return;
+    for (let articleData of Object.values(data)) {
+      if (articleData.id) {
+        let article = new Article(articleData);
+        this.articlesOrder.push(article);
+        this.articles[article.id] = article;
+      }
+    }
+  }
+
+  /** Returns an article nearby in the same section */
+  findNearbyArticle(current: Article, delta: number, currentSection: Section, ordered = false) {
+    if (!current) return null;
+    if (!currentSection)
+      currentSection = current.sections[0];
+    if (current.id == currentSection.id) {
+      return currentSection.nearbySection(delta);
+    }
+    let list = currentSection ? currentSection.articles(ordered) : this.articlesOrder;
+    let index = list.findIndex((a) => a.id == current.id);
+    if (index != undefined) {
+      let nextIndex = index + delta;
+      let nextArticle = list[nextIndex];
+      if (nextIndex == -1) {
+        nextArticle = currentSection.nearbySection(-1).lastArticle(ordered);
+      } else if (nextIndex == list.length) {
+        nextArticle = currentSection.nearbySection(1).firstArticle(ordered);
+      }
+      return nextArticle;
+    }
+  }
+
+  sortArticlesByName(list: Article[]) {
+    return this.sortStrings(list.map(a => a.id)).map(id => this.articles[id]);
+  }
+
+  str(id: string) {
+    return this.lang[id] || id;
+  }
+
+  icon(name: string) {
+    return this.langs?.icon ? this.langs.icon[name] : null;
+  }
+
+  hasSprite(id: string) {
+    return this.sprites[id];
+  }
+
+  async sprite(id: string | Promise<any>, onlyIfExists = false) {
+    if (id instanceof Promise)
+      return id;
+    if (id in this.sprites)
+      return this.sprites[id].data();
+
+    return onlyIfExists ? null : id;
+  }
+
+  loadMods(mods: { [modName: string]: Mod }) {
+    this.loadProcessedMods(Ruleset.preprocessMods(mods))
+  }
+
+  /**Orders mods and merges languages*/
+  static preprocessMods(mods: { [modName: string]: Mod }) {
+
+    /** Sort orders by master/id in their metadata */
+    let modOrder = Object.keys(mods).sort((a, b) => {
+      let [ma, mb] = [mods[a].meta, mods[b].meta]
+      return ma.master == mb.id ? 1 : mb.master == ma.id ? -1 : 0;
+    }).map(key => mods[key]);
+
+    let langs = {}
+
+    for (let mod of modOrder) {
+      for (let lname in mod.lng) {
+        langs[lname] ||= {}
+        Object.assign(langs[lname], mod.lng[lname])
+      }
+      delete mod.lng;
+    }
+    for (let lname in langs) {
+      langs[lname] = { ...langs[defaultLanguage], ...langs[lname] }
+    }
+
+    return { mods: modOrder, langs }
+  }
+
+  loadProcessedMods(data: { mods: Mod[], langs: any }) {
+
+    let master = data.mods.find(m => m.meta.isMaster)
+    this.meta = master.meta;
+    this.langs = data.langs;
+    this.langNames = Object.keys(data.langs);
+    this.parseRuls(data.mods);
+    this.selectLang(defaultLanguage);
+  }
+
+  /** replaced with loadProcessedMods */
+  loadOld({ ruls, langs, mods }: {
+    ruls,
+    langs: { [key: string]: { [key: string]: string } },
+    mods: { [key: string]: { [key: string]: string } }
+  }) {
+    this.src = { ruls, langs: {}, mods };
+    this.mods = mods;
+    this.langs = langs;
+    for (let langName in this.langs) {
+      this.src.langs[langName] = { ...this.langs[langName] };
+    }
+    let langWeight = Object.fromEntries(Object.keys(langs).map(n => [n, n == defaultLanguage ? 1e6 : Object.keys(langs[n]).length]));
+    this.langNames = Object.keys(langs).sort((a, b) => langWeight[b] - langWeight[a]);
+    if (this.langs.icon)
+      this.langNames.splice(this.langNames.indexOf("icon"));
+
+    for (let name of this.langNames) {
+      if (!this.langs[defaultLanguage][name]) {
+        let country = name.match(/([a-z]+)/i);
+        if (country?.length > 0) {
+          let flag = getFlagEmoji(country[1]);
+          if (flag)
+            this.langs[defaultLanguage][name] = flag;
+        }
+      }
+    }
+
+    this.parseRuls(ruls);
+    this.convertLang(defaultLanguage);
+    let l = Object.keys(this.langs);
+    if (l.length == 3) {
+      this.selectLang(l.find(n => n != defaultLanguage && n != "icon"));
+    } else {
+      this.selectLang(defaultLanguage)
+    }
+  }
+
+  selectLang(name: string) {
+    if (!this.langs[name]) {
+      console.log("no language", name);
+      return false;
+    }
+
+    this.langName = name
+
+    if (name == defaultLanguage) {
+      this.lang = this.langs[defaultLanguage];
+    } else {
+      this.convertLang(name)
+      this.lang = { ...this.langs[defaultLanguage], ...this.langs[name] };
+    }
+
+    if (!this.search[name])
+      this.search[name] = new Search();
+
+    return true;
+  }
+
+  linksByType(type: string) {
+    switch (type) {
+      case "CONDITIONS":
+        return Object.keys(this.startingConditions).map(
+          (a) => "CONDITIONS_" + a
+        );
+    }
+    return [];
+  }
+
+  bodiesCompare(strs: string[]) {
+    for (let i in strs) {
+      if (strs[i].length == 2)
+        strs[i] =
+          (strs[i].charAt(0) == "M" ? "A" : "B") + "0" + strs[i].substr(1);
+    }
+    return strs[0] > strs[1] ? 1 : -1;
+  }
+
+  article(id: string) {
+    let redirect = this.redirect[id];
+    let a = (redirect && this.articles[redirect]) || this.articles[id];
+    return a;
+  }
+
+  sortStrings(s: string[]) {
+    let tl: [string, string][] = s.map(s => [s, this.tr(s)])
+    tl = tl.sort((a, b) => a[1] > b[1] ? 1 : -1)
+    return tl.map(a => a[0]);
+  }
+
+  /*sortIds(s: {id:string}[]) {
+    return this.sortStrings(s.map(v=>v.id)).map(v=?);
+  }*/
+
+}
+
+/**Main class to figure what to do with data in Ruls */
+export const entryConstructors = {
+  items: Item,
+  battleTypes: Entry,
+  soldiers: Soldiers,
+  alienRaces: Entry,
+  countries: Entry,
+  armors: Armor,
+  units: Unit,
+  crafts: Craft,
+  craftWeapons: CraftWeapon,
+  weaponTypes: Entry,
+  ufos: Entry,
+  facilities: Facility,
+  events: EventEntry,
+  eventScripts: EventScript,
+  soldierTransformation: SoldierTransformation,
+  startingConditions: StartingConditions,
+  missionScripts: MissionScript,
+  alienMissions: Entry,
+  alienDeployments: AlienDeployment,
+  research: Research,
+  soldierBonuses: Entry,
+  manufacture: Manufacture,
+  enviroEffects: Entry,
+  terrains: Entry,
+  mapScripts: Entry,
+  stats: Entry,
+  damageTypes: DamageType,
+  commendations: Commendation,
+}
+
+export const statsList = ["tu", "stamina", "health", "bravery", "reactions", "firing", "throwing", "strength", "psiStrength", "psiSkill", "melee"];
+
+export const damageTypes = [
+  "STR_DAMAGE_NONE",
+  "STR_DAMAGE_ARMOR_PIERCING",
+  "STR_DAMAGE_INCENDIARY",
+  "STR_DAMAGE_HIGH_EXPLOSIVE",
+  "STR_DAMAGE_LASER_BEAM",
+  "STR_DAMAGE_PLASMA_BEAM",
+  "STR_DAMAGE_STUN",
+  "STR_DAMAGE_MELEE",
+  "STR_DAMAGE_ACID",
+  "STR_DAMAGE_SMOKE",
+  "STR_DAMAGE_10",
+  "STR_DAMAGE_11",
+  "STR_DAMAGE_12",
+  "STR_DAMAGE_13",
+  "STR_DAMAGE_14",
+  "STR_DAMAGE_15",
+  "STR_DAMAGE_16",
+  "STR_DAMAGE_17",
+  "STR_DAMAGE_18",
+  "STR_DAMAGE_19",
+  "STR_DAMAGE_20",
+  "STR_DAMAGE_21",
+  "STR_DAMAGE_22",
+  "STR_MANA",
+];
+
+export const internalDamageTypes = [
+  "DT_NONE", "DT_AP", "DT_IN", "DT_HE", "DT_LASER", "DT_PLASMA", "DT_STUN", "DT_MELEE", "DT_ACID", "DT_SMOKE",
+  "DT_10", "DT_11", "DT_12", "DT_13", "DT_14", "DT_15", "DT_16", "DT_17", "DT_18", "DT_19"
+];
+
+export const killStatuses = ["STATUS_DEAD", "STATUS_UNCONSCIOUS", "STATUS_PANICKED", "STATUS_TURNING"];
+export const killFactions = ["FACTION_HOSTILE", "FACTION_NEUTRAL", "FACTION_PLAYER"]
+
+export const battleTypes = [
+  "ammo",
+  "melee",
+  "snap",
+  "aimed",
+  "auto",
+  "throw",
+  "psi",
+  "panic",
+  "mindControl",
+  "use",
+]
+
+export const internalBattleTypes = [
+  "BT_NONE",
+  "BT_FIREARM",
+  "BT_AMMO",
+  "BT_MELEE",
+  "BT_GRENADE",
+  "BT_PROXIMITYGRENADE",
+  "BT_MEDIKIT",
+  "BT_SCANNER",
+  "BT_MINDPROBE",
+  "BT_PSIAMP",
+  "BT_FLARE",
+  "BT_CORPSE",
+]
+
+export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"]
+
+
+export function backLink2(entry: Entry, list: string[] | { [key: string]: any }, to: any, field: string, field2?: string) {
+  backLink(entry.id, list, to, field);
+  addAllIfNew(entry[field2], list as any);
+}
+
+export function backLink(id: string, list: string[] | { [key: string]: any }, to: any, field: string, collection?: string) {
+  /*if(list && list.includes("STR_LASER_PISTOL_CLIP_HI") && field == "commendation") 
+    debugger;*/
+  if (typeof to === "string") {
+    collection = to;
+    to = rul[to];
+    if (!to)
+      to = rul[to] = {};
+  }
+  if (list == null) return;
+  if (typeof list == "object" && !Array.isArray(list)) {
+    for (let key of Object.keys(list)) {
+      let back = to[key];
+      if (back == null && collection != null) {
+        back = to[key] = new (entryConstructors[collection] || Entry)({ id: key }, collection)
+      }
+      if (back == null)
+        continue;
+      addFields(back, field, { [key]: list[key] })
+    }
+
+  } else {
+    if (!Array.isArray(list))
+      list = [list]
+
+    for (let key of list as any[]) {
+      let back = to[key];
+      if (back == null && collection != null)
+        back = to[key] = new Entry({ id: key }, collection)
+      if (back == null)
+        continue;
+      addFields(back, field, [id])
+    }
+  }
+}
+
+function addFields(entry: Entry, field: string, list) {
+  if (entry == null || field == null || list == null)
+    return;
+  if (Array.isArray(list)) {
+    entry[field] = entry[field] || [];
+    for (let id of list) {
+      if (entry[field].indexOf(id) == -1)
+        entry[field].push(id);
+    }
+  } else {
+    entry[field] = { ...entry[field] || {}, ...list };
+  }
+}
+
+function crosslink(collection1, prop1, collection2, prop2, prefix?) {
+  let f = typeof prop1 === "function" ? prop1 : t => t[prop1];
+  for (let t of [...Object.values(collection1)] as { id: string }[]) {
+    backLink(t.id, f(t), collection2, prop2, prefix);
+  }
+}
+
+export function deedDescription(deed) {
+  let s = `${rul.tr(deed.status)} ${rul.tr(deed.times)} ${link(deed.race)} ${link(deed.unit)} ${link(deed.faction)}`;
+  if (deed.element || deed.type || deed.item) {
+    s += ` ${rul.tr("commendationWith")} ${link(deed.item)} ${link(deed.type)} ${link(deed.element)}`
+  }
+  return s;
+}
+
+export function link(id) {
+  if (id == null)
+    return "";
+  return `<a href="${'##' + id}" class="${rul.article(id) ? "" : "dead"}">${rul.tr(id)}</a>`;
+}
+
+/*function nullIfEmpty(a){
+  return a?.length == 0?undefined:a;
+}*/
+
+export function stripPediaMarkup(t: string) {
+  if (t != null && t.indexOf("{") != -1) {
+    t = t.replace(/\{NEWLINE\}/g, "\n")
+    t = t.replace(/^\s+/g, "")
+    t = t.replace(/\{[^}]+\}/g, " ")
+  }
+  return t;
+}

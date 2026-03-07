@@ -1,0 +1,46 @@
+{
+  "name": "xpedia3",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "esbuild": "^0.14.49",
+    "open": "^8.4.0",
+    "vite": "^7.2.2",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
+  },
+  "scripts": {
+    "start": "vite",
+    "build": "vite build"
+  },
+  "description": "A simple tactics engine",
+  "main": "main.js",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@knadh/oat": "^0.2.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "bite": "^0.1.0-4",
+    "fflate": "^0.8.2",
+    "file-type": "^21.3.0",
+    "immer": "^11.1.3",
+    "js-worker-search": "^2.0.0",
+    "js-yaml": "^4.1.0",
+    "jsfxr": "^1.2.2",
+    "jszip": "^3.10.1",
+    "linkstate": "^2.0.1",
+    "node-unrar-js": "^2.0.2",
+    "normalize.css": "^8.0.1",
+    "react": "^19.2.3",
+    "react-async": "^10.0.1",
+    "react-data-grid": "^7.0.0-beta.59",
+    "react-dom": "^19.2.3",
+    "use-immer": "^0.11.0",
+    "yaml": "^2.8.2",
+    "zustand": "^5.0.9"
+  }
+}

@@ -1,0 +1,97 @@
+manufacture:
+  - name: STR_HUMAN_MALE_3_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_FEMALE_4_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_FATMAN_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_CITY_GIRL_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_HOE_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_LABOURER_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_LABOURER_FEM_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_SHARP_GUY_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_SHARP_GIRL_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NAZI_KKK_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NINJA_GAL_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NINJA_WARRIOR_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NINJA_ASSAULT_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NINJA_ASSASSIN_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_NINJA_MEDIC_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_BANDIT_RATMAN_LEADER_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_RET_SIREN_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_GUILD_ATTENDANT_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_ACADEMY_STUDENT_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_SECTOID_EXPLORER_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_CHURCH_HANDMAID_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_CHURCH_MAIDEN_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_HUMAN_SOLDIER_COMMANDO_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
+  - name: STR_GOVT_GENERAL_ROBBERY
+    randomProducedItems: !add
+      - [80, {}]
+      - [20, {STR_POSTCARD: 1}]
