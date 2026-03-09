@@ -12,7 +12,6 @@ export class Sprite {
     this.id = raw.typeSingle ?? raw.type;
     this.modDir = raw.dir;
 
-    //if(raw.typeSingle == "CorsairInventoryImage")      debugger
     if (raw.files) {
       this._path = raw.files[0];
       if (obsTables[this.id]) {

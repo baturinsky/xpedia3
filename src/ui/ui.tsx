@@ -7,8 +7,13 @@ import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
-import { Divider, Link, LinksList, Tr, Img, Value } from "./components";
+import { Img } from "./components";
 import { rul } from "../rul/Ruleset";
+import MainTable from "./MainTable";
+import ResearchInfo from "./ResearchInfo";
+import UnitInfo from "./UnitInfo";
+import { Val } from "./Val";
+import { ArticleInfo } from "./ArticleInfo";
 
 
 export const StoreContext = createContext({} as StoreType);
@@ -21,7 +26,7 @@ function UI() {
       <div className="all">
         <NavTop />
         <div className="content">
-          <Article />
+          <ArticleInfo />
         </div>
       </div>
     </StoreContext>
@@ -40,47 +45,12 @@ export function LandingPage() {
   </>
 }
 
-export function ArticleTitle() {
-  let [left, right] = [-1, 1].map(delta => rul.findNearbyArticle(article, delta, section, store.ordered));
-  return <div className="article-title">
-    <div className="left">{left && <>&lt;&nbsp;<Link href={left} /></>}</div>
-    <div className="central">{article?.title}</div>
-    <div className="sections"><LinksList items={article.sections} /></div>
-    <div className="right">{right && <><Link href={right} />&nbsp;&gt;</>}</div>
-  </div>
-}
-
-export function Article() {
-  if (!article)
-    return
-  return <div className="article">
-    <ArticleTitle />
-    <div className="article-body">
-      <div className="article-text-and-image">
-        <Img src={article.image_id} scale={1} />
-        {article?.text}
-        {article.requires && article.requires.join('') != article.id && <>
-          <br />
-          <Tr s="Research required:" />
-          {article.requires.map(req => <Value val={req} />)}
-        </>}
-      </div>
-    </div>
-    {(section?.id == article?.id) &&
-      <div className="articles-list">
-        <LinksList items={section.articles(store.ordered)} divider={'br'} />
-      </div>
-    }
-    {(section?.id == "MAIN" || !rul) && <LandingPage />}
-
-  </div>
-}
 
 export function NavTop() {
   return <nav className="top">
     <div className="left">
-      <Link href="MAIN">{rul ? `${rul.meta.name} ${rul.meta.version}` : "Upload"}</Link>
-      {section && section.id != "MAIN" && <Link href={section.id} />}
+      <Val of="MAIN">{rul ? `${rul.meta.name} ${rul.meta.version}` : "Upload"}</Val>
+      {section && section.id != "MAIN" && <Val of={section.id} />}
     </div>
     <div className="right">
       <button onClick={() => update({ ordered: !store.ordered })}>{store.ordered ? "A-Z" : <s>A-Z</s>}</button>
@@ -95,10 +65,10 @@ function SectionsList() {
   return <div className="sections-list">
     <div>
       <h4>Chapters</h4>
-      <LinksList items={rul.sectionsOrder} /></div>
+      <Val of={rul.sectionsOrder} vertical={true}/></div>
     <div>
       <h4>Categories</h4>
-      <LinksList items={rul.orderedTypeSections()} /></div>
+      <Val of={rul.orderedTypeSections()} vertical={true} /></div>
   </div>
 }
 

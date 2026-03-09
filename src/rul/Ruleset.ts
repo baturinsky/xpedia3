@@ -4,7 +4,7 @@ import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
-import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit } from './Entry';
+import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry } from './Entry';
 
 export let rul!: Ruleset;
 export type SortFirstLastOptions = { first?: string[], last?: string[], exclude?: string[], sortBy?: Function }
@@ -328,9 +328,10 @@ export default class Ruleset {
     return true;
   }
 
+  /** Calls the respective class constructor for the entry */
   parseType(type, klass) {
     for (let data of Object.values(this.raw[type] ?? {})) {
-      new (klass || Entry)(data, type)
+      let entry: Entry = new (klass || SimpleEntry)(data, type)
     }
   }
 
@@ -808,33 +809,35 @@ export default class Ruleset {
 /**Main class to figure what to do with data in Ruls */
 export const entryConstructors = {
   items: Item,
-  battleTypes: Entry,
-  soldiers: Soldiers,
-  alienRaces: Entry,
-  countries: Entry,
   armors: Armor,
   units: Unit,
   crafts: Craft,
   craftWeapons: CraftWeapon,
-  weaponTypes: Entry,
-  ufos: Entry,
   facilities: Facility,
   events: EventEntry,
   eventScripts: EventScript,
   soldierTransformation: SoldierTransformation,
   startingConditions: StartingConditions,
   missionScripts: MissionScript,
-  alienMissions: Entry,
   alienDeployments: AlienDeployment,
   research: Research,
-  soldierBonuses: Entry,
   manufacture: Manufacture,
-  enviroEffects: Entry,
-  terrains: Entry,
-  mapScripts: Entry,
-  stats: Entry,
   damageTypes: DamageType,
   commendations: Commendation,
+  soldiers: Soldiers,
+
+  ufos: SimpleEntry,
+  battleTypes: SimpleEntry,
+  alienRaces: SimpleEntry,
+  countries: SimpleEntry,
+  weaponTypes: SimpleEntry,
+  soldierBonuses: SimpleEntry,
+  enviroEffects: SimpleEntry,
+  terrains: SimpleEntry,
+  mapScripts: SimpleEntry,
+  stats: SimpleEntry,
+  alienMissions: SimpleEntry,
+
 }
 
 export const statsList = ["tu", "stamina", "health", "bravery", "reactions", "firing", "throwing", "strength", "psiStrength", "psiSkill", "melee"];
@@ -924,7 +927,7 @@ export function backLink(id: string, list: string[] | { [key: string]: any }, to
     for (let key of Object.keys(list)) {
       let back = to[key];
       if (back == null && collection != null) {
-        back = to[key] = new (entryConstructors[collection] || Entry)({ id: key }, collection)
+        back = to[key] = new (entryConstructors[collection] || SimpleEntry)({ id: key }, collection)
       }
       if (back == null)
         continue;
@@ -938,7 +941,7 @@ export function backLink(id: string, list: string[] | { [key: string]: any }, to
     for (let key of list as any[]) {
       let back = to[key];
       if (back == null && collection != null)
-        back = to[key] = new Entry({ id: key }, collection)
+        back = to[key] = new Entry(collection).from({ id: key })
       if (back == null)
         continue;
       addFields(back, field, [id])

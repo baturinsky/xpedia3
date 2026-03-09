@@ -70,7 +70,7 @@ export function Article() {
     </div>
     {(section?.id == article?.id) &&
       <div className="articles-list">
-        <LinksList ids={section.articles(store.ordered)} divider={'br'} />
+        <LinksList items={section.articles(store.ordered)} divider={'br'} />
       </div>
     }
   </>
@@ -93,9 +93,9 @@ function SectionsList() {
   if (!rul)
     return;
   return <>
-    <LinksList ids={rul.sectionsOrder} />
+    <LinksList items={rul.sectionsOrder} />
     <hr key="-" />
-    <LinksList ids={rul.orderedTypeSections()} />
+    <LinksList items={rul.orderedTypeSections()} />
   </>
 }
 

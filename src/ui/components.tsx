@@ -4,6 +4,7 @@ import { type Column } from 'react-data-grid';
 
 import { getImg } from "../idb";
 import { rul, stripPediaMarkup } from "../rul/Ruleset";
+import { Val } from "./Val";
 
 export async function viewImage(path: string) {
   let img = await getImg(path);
@@ -56,42 +57,6 @@ const columnsSizeName: readonly Column<FilesRow>[] = [
   { key: 'name', name: 'name' },
 ];
 
-/**Element for the translated text, possibly with icon */
-export function Tr(props: { children?, s?: string, icon?: string, capital?: boolean, nobr?: number, notip?: boolean }) {
-
-  let options = { icon: "compact", nobr: 30, ...(props || {}) }
-
-  let id = options.s ?? options.children;
-
-  if (!rul) {
-    return id;
-  }
-
-  if (id == null)
-    return "";
-
-  let icon = rul.icon(id);
-
-  let str = rul.tr(id);
-
-  let element = (str?.length < options?.nobr) ? <span className="nobr">{str}</span> : <>{str}</>
-
-  if (icon) {
-    if (options?.icon == "monospace")
-      element = <><div className='inem'>${icon}</div>{element}</>
-    else if (options?.icon == "simple")
-      element = <>{icon}{str || ""}</>
-    else if (options?.icon != "none")
-      element = <><div className='comem'>{icon}</div>{element}</>
-  }
-
-  if (!options?.notip && ('tip_' + id) in rul.lang) {
-    element = <span data-tooltip={'tip_' + id}>{element}<sup className="tipmark">?</sup></span>;
-  }
-
-  return element;
-}
-
 export function MyTable<T extends { key: any }>(props: {
   className?: string,
   style?,
@@ -116,35 +81,29 @@ export function MyTable<T extends { key: any }>(props: {
 export type AnyRef = string | { type: string } | { id: string };
 
 export function fromAnyRef(href: AnyRef) {
-  return (href as any)?.type ?? (href as any)?.id ?? href;
-}
-
-/** Link to article. May have icon and tooltip */
-export function Link({ children, href, icon }: { children?, href: string | { type: string } | { id: string }, icon?: string }) {
-  let ref = fromAnyRef(href);
-  let hasTip = rul && 'tip_' + href in rul.lang;
-
-  let link = <a href={'##' + ref} className={rul?.article(ref) ? null : "dead"} ><Tr icon={icon}>{children ?? ref}</Tr></a>;
-
-  if (hasTip) {
-    link = <span data-tooltip={'tip_' + href}>{link}<sup className="tipmark">?</sup></span>
-  }
-
-  return link;
+  return (href as any)?.type ?? (href as any)?.id ?? (rul.articles[href as string] ? href : null);
 }
 
 export const emptyImageData = `data:image/bmp;base64,Qk0+AAAAAAAAADoAAAAoAAAAAQAAAAEAAAABAAEAAAAAAAAAAADEDgAAxA4AAAEAAAABAAAA/////wAAAAA=`
 
-export const Divider = () => <span className='list-divider'>&nbsp;· </span>;
+export const Divider = (props: { vertical?: boolean, cols?}) =>
+  props.vertical ? <br /> : <span className='list-divider'>&nbsp;· </span>;
 
-export function LinksList({ items = null as AnyRef[], divider = null }) {
+
+/*export function LinksList({ items = null as AnyRef[], divider = null }) {
+  if (items == null)
+    return
   divider ??= <Divider />;
   if (divider == "br")
     divider = <br />
+  if (!items.map) {
+    return Object.entries(items).map(([k, el], i) => <Fragment key={k}>{i > 0 && divider}<Value val={k} />:<Link href={el} /></Fragment>)
+  }
+
   return items.map((el, i) => {
     return <Fragment key={fromAnyRef(el)}>{i > 0 && divider}<Link href={el} /></Fragment>
   })
-}
+}*/
 
 export const CogAnimation = (props: { size?: number }) => {
   let size = props.size ?? 100;
@@ -172,79 +131,22 @@ export const CogAnimation = (props: { size?: number }) => {
   </svg>
 }
 
-/** Polymorphic value view */
-export const Value = ({
-  val,
-  obs = null,
-  depth = 2,
-  simple = false,
-  nobr = 30,
-  icon = null,
-  key = null,
-  capital = false
-}) => {
+export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
+  return <table className="main-table">
 
-  // Depth 0 case
-  if (depth === 0) {
-    return <span>...</span>;
-  }
+    {Object.entries(entry).sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1)).map(prop =>
+    (!['id'].includes(prop[0]) &&
+      <tr><td><Val of={prop[0]} /></td>
+        <td><Val of={prop[1]} /></td></tr>
+    ))}
 
-  // Null case
-  if (val == null) {
-    return <span>‒</span>;
-  }
+  </table>
 
-  // Observer sprite case
-  if (obs) {
-    return <Img src={rul.obsSprite(obs, val)} alt={val} style={{ maxWidth: '320px' }} />;
-  }
+}
 
-  // Marker cases
-  if (["marker", "markerCrash", "markerLand"].includes(key)) {
-    if (rul.globeMarkers) {
-      return <Img src={rul.globeMarkers[val]} scale={2} />;
-    }
-    return <span>{val}</span>;
-  }
-
-  // Array case
-  if (Array.isArray(val)) {
-    return <LinksList items={val} />;
-  }
-
-  // Object case
-  if (val instanceof Object) {
-    return <LinksList items={val} />;
-  }
-
-  // Boolean case
-  if (val === true || val === false) {
-    return (
-      <span style={{ color: val ? 'lime' : 'red' }}>
-        <Tr s={val.toString()} />
-      </span>
-    );
-  }
-
-  // Number case
-  if (!isNaN(Number(val))) {
-    return (
-      <em className="num">
-        {Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".")}
-      </em>
-    );
-  }
-
-  // Article case
-  if (rul.article(val) && !simple) {
-    return <Link href={val} icon={icon} />;
-  }
-
-  // Sprite case
-  if (rul.hasSprite(val)) {
-    return <Img src={val} style={{ maxWidth: '320px' }} />;
-  }
-
-  // Default case
-  return <Tr s={val} nobr={nobr} icon={icon} capital={capital} />;
-};
+export function BaseServiceList({ items, vertical = false }) {
+  return items.map((item, i) => <>
+    {i == 0 ? "" : (vertical ? "</br > " : ", ")}
+    <Val of={item} />
+  </>)
+}

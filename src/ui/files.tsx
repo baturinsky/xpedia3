@@ -4,7 +4,6 @@ import { DataGrid } from 'react-data-grid';
 import { listArchiveFiles, getStats, wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, getRul } from "../idb";
 import { interpretPath } from "../load";
 import { CogAnimation, MyTable, useStateAsync, viewImage } from "./components";
-import { StoreContext } from "../old/_ui";
 import { store, update } from "../store";
 import { asMB, localeFixed2 } from "../util";
 

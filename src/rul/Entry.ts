@@ -1,24 +1,33 @@
 import { addIfNew, camelToUnderscore, unique } from '../util';
 import { Article } from './Article';
-import { backLink, backLink2, battleTypes, damageTypes, internalBattleTypes, internalDamageTypes, 
-  killFactions, killStatuses, rul, Service, statsList } from './Ruleset';
+import {
+  backLink, backLink2, battleTypes, damageTypes, internalBattleTypes, internalDamageTypes,
+  killFactions, killStatuses, rul, Service, statsList
+} from './Ruleset';
 
-
+/** Root class for all ruleset entries */
 export class Entry {
   id: string;
-  //article: Article;
   armors: string[];
   [id: string]: any;
 
-  constructor(raw: any, collection: string) {
-    Object.assign(this, JSON.parse(JSON.stringify(raw)));
+  constructor(public collection: string) {
+  }
 
-    if (rul[collection] == null)
-      rul[collection] = {};
+  from(raw: any) {
+    this.id = raw.id
+    raw = JSON.parse(JSON.stringify(raw));
+    for (let k in raw)
+      this[k] = raw[k];
 
-    rul[collection][this.id] = this;
+    if (rul[this.collection] == null)
+      rul[this.collection] = {};
 
-    this.addToSection(camelToUnderscore(collection).toUpperCase());
+    rul[this.collection][this.id] = this;
+
+    this.addToSection(camelToUnderscore(this.collection).toUpperCase());
+
+    return this
   }
 
   addToSection(section: string) {
@@ -31,7 +40,6 @@ export class Entry {
     return this[field];
   }
 
-
   get title() {
     return rul.tr(this.id);
   }
@@ -41,7 +49,7 @@ export class Entry {
     if (rul[collection][id]) {
       return rul[collection][id];
     } else {
-      return new Entry(raw, collection);
+      return new Entry(collection).from(raw);
     }
   }
 
@@ -62,6 +70,15 @@ export class Entry {
     this.id = val;
   }
 
+  fillSimpleEntry(raw) {
+  }
+}
+
+export class SimpleEntry extends Entry {
+  constructor(raw, collection){
+    super(collection)
+    this.from(raw)
+  }
 }
 
 export class MissionScript extends Entry {
@@ -69,7 +86,8 @@ export class MissionScript extends Entry {
   researchNeeded: string[];
   researchForbidden: string[];
   constructor(raw) {
-    super(raw, "missionScripts")
+    super("missionScripts")
+    this.from(raw)
     if (this.researchTriggers) {
       this.researchNeeded = Object.keys(this.researchTriggers).filter(k => this.researchTriggers[k]);
       this.researchForbidden = Object.keys(this.researchTriggers).filter(k => !this.researchTriggers[k]);
@@ -80,15 +98,26 @@ export class MissionScript extends Entry {
   }
 }
 
-
 export class Soldiers extends Entry {
   statCaps: { [id: string]: number }
+
+  constructor(raw: any) {
+    super("soldiers")
+    this.from(raw)
+  }
+
   sortField(n: string) {
     return this[n] || this.statCaps[n];
   }
 }
 
 export class EventEntry extends Entry {
+
+  constructor(raw: any) {
+    super("events")
+    this.from(raw)
+  }
+
   relatedScripts: string[] = [];
 }
 
@@ -103,7 +132,8 @@ export class EventScript extends Entry {
   _xcomBaseInCountryFalse = [];
 
   constructor(raw: any) {
-    super(raw, "eventScripts")
+    super("eventScripts")
+    this.from(raw)
     let relatedEvents = new Set<string>([
       ...Object.values(this.eventWeights || []).map(w => Object.keys(w)).flat(),
       ...Object.keys(this.oneTimeRandomEvents || {})
@@ -145,7 +175,8 @@ export class Manufacture extends Entry {
   cost: number;
 
   constructor(raw: any) {
-    super(raw, "manufacture")
+    super("manufacture")
+    this.from(raw)
 
     this.cost = this.cost || 0;
 
@@ -207,13 +238,20 @@ export class SoldierTransformation extends Entry {
   blocksTransformations: string[];
 
   constructor(raw: any) {
-    super(raw, "soldierTransformation")
+    super("soldierTransformation")
+    this.from(raw)
   }
 }
 
 export class DamageType extends Entry {
   items: string[];
   commendations: string[];
+
+  constructor(raw: any) {
+    super("damageTypes")
+    this.from(raw)
+  }
+
 }
 
 export class Commendation extends Entry {
@@ -228,7 +266,8 @@ export class Commendation extends Entry {
   killCriteria2 = []
 
   constructor(raw: any) {
-    super(raw, "commendations")
+    super("commendations")
+    this.from(raw)
     this.finalBonus = this.soldierBonusTypes && rul.soldierBonuses[this.soldierBonusTypes[this.soldierBonusTypes.length - 1]];
   }
 
@@ -331,6 +370,7 @@ export class Commendation extends Entry {
 }
 
 export class Research extends Entry {
+
   getOneFree: string[];
   unlocks: string[];
   dependencies: string[];
@@ -344,7 +384,9 @@ export class Research extends Entry {
   spawnedItem: string;
 
   constructor(raw: any) {
-    super(raw, "research");
+    //if (raw.getOneFree) debugger
+    super("research");
+    this.from(raw)
     Service.add("allowsResearching", this.name, this.requiresBaseFunc);
   }
 }
@@ -356,7 +398,8 @@ export class AlienDeployment extends Entry {
   loot: string[];
 
   constructor(raw: any) {
-    super(raw, "alienDeployments");
+    super("alienDeployments");
+    this.from(raw)
     let allItems = new Set<string>();
     for (let d of this.data || []) {
       if (Array.isArray(d.itemSets)) {
@@ -374,7 +417,8 @@ export class CraftWeapon extends Entry {
   requiresBuyBaseFunc: string[];
 
   constructor(raw: any) {
-    super(raw, "craftWeapons");
+    super("craftWeapons");
+    this.from(raw)
     Service.add("canBuy", this.type, this.requiresBuyBaseFunc);
     //if(Number.isInteger(this.weaponType))
     this.weaponType = "weaponType" + (this.weaponType || 0)
@@ -390,7 +434,8 @@ export class Craft extends Entry {
   sprite: number;
 
   constructor(raw: any) {
-    super(raw, "crafts");
+    super("crafts");
+    this.from(raw)
     this.allWeaponTypes = this.allWeaponTypes || [];
     if (this.weaponTypes) {
       for (let slot in this.weaponTypes) {
@@ -418,7 +463,8 @@ export class Facility extends Entry {
   buildCostItems: { [key: string]: { [key: string]: number } };
 
   constructor(raw: any) {
-    super(raw, "facilities")
+    super("facilities")
+    this.from(raw)
 
     Service.add("providedBy", this.type, this.provideBaseFunc);
     Service.add("allowsBuilding", this.type, this.requiresBaseFunc);
@@ -451,7 +497,8 @@ export class StartingConditions extends Entry {
   deployments: string[];
 
   constructor(raw: any) {
-    super(raw, "startingConditions")
+    super("startingConditions")
+    this.from(raw)
   }
 }
 
@@ -476,7 +523,8 @@ export class Unit extends Entry {
   builtInWeaponSets: string[][];
 
   constructor(raw: any) {
-    super(raw, "units")
+    super("units")
+    this.from(raw)
     for (let k in { ...raw }) {
       if (typeof raw[k] == "string" || typeof raw[k] == "number") {
         rul.unitFields.add(k);
@@ -710,7 +758,8 @@ export class Armor extends Entry {
   tags: string[];
 
   constructor(raw: any) {
-    super(raw, "armors")
+    super("armors")
+    this.from(raw)
     if (!this.size)
       this.size = 1;
 
@@ -858,7 +907,8 @@ export class Item extends Entry {
   }
 
   constructor(raw: any) {
-    super(raw, "items")
+    super("items")
+    this.from(raw)
     for (let k in { ...raw, ...(raw.damageAlter || {}) }) {
       if (typeof raw[k] == "string" || typeof raw[k] == "number" || raw.damageAlter && raw.damageAlter[k] != null) {
         rul.itemFields.add(k);
