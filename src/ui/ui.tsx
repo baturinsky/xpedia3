@@ -7,11 +7,7 @@ import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
-import { Img } from "./components";
 import { rul } from "../rul/Ruleset";
-import MainTable from "./MainTable";
-import ResearchInfo from "./ResearchInfo";
-import UnitInfo from "./UnitInfo";
 import { Val } from "./Val";
 import { ArticleInfo } from "./ArticleInfo";
 
@@ -65,10 +61,10 @@ function SectionsList() {
   return <div className="sections-list">
     <div>
       <h4>Chapters</h4>
-      <Val of={rul.sectionsOrder} vertical={true}/></div>
+      <Val of={rul.sectionsOrder}/></div>
     <div>
       <h4>Categories</h4>
-      <Val of={rul.orderedTypeSections()} vertical={true} /></div>
+      <Val of={rul.orderedTypeSections()}/></div>
   </div>
 }
 

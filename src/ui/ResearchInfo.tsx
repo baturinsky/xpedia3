@@ -6,7 +6,7 @@ import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Entry } from "../rul/Entry";
 import { Val } from "./Val";
 
-export const ResearchInfo = ({ entry, title = rul.tr("Research") }: { entry: Entry, title?}) => {
+export const ResearchInfo = ({ entry }: { entry: Entry }) => {
   const longLists = [
     "unlocks",
     "seeAlso",
@@ -24,10 +24,10 @@ export const ResearchInfo = ({ entry, title = rul.tr("Research") }: { entry: Ent
   const sortedEntries = sortFirstLast(entry, { last: longLists, exclude: ["name"] }).all;
 
   return (
-    <table className="main-table">
+    <table className="main-table" key="research">
       <thead>
         <tr>
-          <td colSpan={2}>{title}</td>
+          <td colSpan={2}><Val of={"Research"} /></td>
         </tr>
       </thead>
       <tbody>

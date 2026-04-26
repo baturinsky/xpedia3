@@ -15,10 +15,15 @@ export const Val = ({
   depth = 3,
   notip = false,
   nobr = 30,
-  icon = null,
-  vertical = false,
-  numberTable = false
+  icon = null as ("monospace" | "simple" | "none"),
+  className = null as string,
+  table = null,
+  sorted = null,
+  vertical = null as boolean,
+  prefix = null,
+  postfix = null
 }) => {
+
 
   if (!rul) {
     return val;
@@ -60,34 +65,35 @@ export const Val = ({
   // It should be an entry, passed by direct link or id. Converting it to id
   let id = fromAnyRef(val);
 
+  function tr1(text){
+    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} prefix={prefix} postfix={postfix} />
+  }
+
   if (id) {
     if (rul.hasSprite(id)) {
       return <Img src={val} />;
     }
 
-    return <a href={'##' + id} className={rul?.article(id) ? null : "dead"} ><Tr icon={icon} text={children ?? id}></Tr></a>;
+    return <a href={'##' + id} className={rul?.article(id) ? null : "dead"} >{tr1(children ?? id)}</a>;
   }
 
   // Array case
-  if (Array.isArray(val)) {
-    return <LinksList items={val} depth={depth - 1} vertical={vertical} numberTable={numberTable} />;
+  if (Array.isArray(val) || val instanceof Set || val instanceof Object) {
+    return <LinksList items={val} depth={depth - 1} className={className} table={table} sorted={sorted} vertical={vertical} />;
   }
 
-  // Object case
-  if (val instanceof Object) {
-    debugger
-    //return <LinksList items={val} />;
-    return "!!!!!!!can't render object"
-  }
+  let text = id ?? val;
+  if (typeof text == "string")
+    return tr1(text)
 
-  return <Tr text={id ?? val} icon={icon} nobr={nobr} notip={notip} />
+  debugger
 };
 
 /**Translate text and possible add the emoji icon to it */
-function Tr({ text, icon = null, nobr = 30, notip = false }: { text: string, icon?: string, nobr?: number, notip?: boolean }) {
+function Tr({ text, icon = null, nobr = 30, notip = false, prefix = null, postfix = null }) {
   let iconText = rul.icon(text);
 
-  let valtr = rul.tr(text);
+  let valtr = `${prefix??""}${rul.tr(text)}${postfix??""}`;  
 
   let element = (valtr?.length < nobr) ? <span className="nobr">{valtr}</span> : <>{valtr}</>
 
@@ -115,127 +121,65 @@ interface LinksListProps {
   numberTable?: boolean;
   depth?: number;
   sorted?: boolean;
+  table?: boolean;
+  className?: string
 }
+
+const alphabeticLocalizedSorter = (a: string[]) => rul.sortStrings(a)
+const noSorter = (a: string[]) => a
 
 const LinksList: FC<LinksListProps> = ({
   items: initialItems,
-  cols = 0,
-  vertical = false,
-  numberTable = false,
   depth = 2,
+  table = null,
+  className,
   sorted
 }) => {
 
-  // Handle sorted default
   sorted ??= initialItems?.length > 9;
+  className ??= "";
 
-  // Handle items transformation
-  const items = (initialItems instanceof Set) ? [...initialItems] : initialItems;;
+  const sorter = sorted ? alphabeticLocalizedSorter : noSorter;
 
-  // Create sorter function
-  const sorter = sorted ? (a: any[]) => rul.sortStrings(a) : (a: any[]) => a;
+  let items: any[], isObject: boolean;
 
-  // Columns layout
-  if (cols) {
-    return (
-      <div className="cols" style={{ columns: cols }}>
-        {items.map((field: any, i: number) => (
-          <div key={i}>
-            <Val of={field} />
-          </div>
-        ))}
-      </div>
-    );
+  if (!Array.isArray(initialItems)) {
+    isObject = true;
+    items = sorted ?
+      sorter(Object.keys(initialItems)).map(k => [k, initialItems[k]]) :
+      Object.entries(initialItems);
+    table ??= true;
+  } else if (initialItems instanceof Set) {
+    items = [...initialItems]
+  } else {
+    items = initialItems
   }
 
-  // Number table layout
-  if (numberTable) {
+  if (sorted && !isObject) {
+    items = sorter(items);
+  }
+
+  if (table) {
     return (
-      <table className="number-table">
+      <table className={"properties-table " + className}>
         <tbody>
-          {Object.keys(items)
-            .sort()
-            .map((field, i) => (
-              <tr key={i}>
-                <td>
-                  <Val of={field} />
-                </td>
-                <td>
-                  <em>
-                    <Val of={items[field]} />
-                  </em>
-                </td>
-              </tr>
-            ))}
+          {items.map((field, i) => (
+            <tr key={i}>
+              {field.map((v, i) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
+            </tr>
+          ))}
         </tbody>
       </table>
     );
-  }
-
-  // Check for nested objects
-  const hasNestedObjects = (Object.values(items) || []).some(
-    (a) => typeof a === "object" && !fromAnyRef(a as any)
-  );
-
-  if (hasNestedObjects) {
+  } else {
     return (
-      <>
-        {Object.keys(items).map((subfield, j) => (
-          <div key={subfield} className={j > 0 ? "top-border" : ""}>
-            {!Array.isArray(items) && (
-              <>
-                <Val of={subfield} depth={depth - 1} /> :
-              </>
-            )}
-            <div className="sublist">
-              <Val of={items[subfield]} depth={depth - 1} />
-            </div>
-          </div>
-        ))}
-      </>
+      <ol className={"links-list " + className}>
+        {items.map((item, i) =>
+          <li key={i}>
+            <Val of={item} depth={depth - 1} />
+          </li>
+        )}
+      </ol>
     );
   }
-
-  // Items with no length property (object)
-  if (items.length == null) {
-    return (
-      <span className="links-list">
-        {sorter(Object.keys(items)).map((field: string, i: number) => (
-          <Fragment key={field}>
-            {i > 0 && <Divider key={i} cols={cols} />}
-            <Val of={items[field]} depth={depth - 1} />&nbsp;
-            <Val of={field} depth={depth - 1} />
-          </Fragment>
-        ))}
-      </span>
-    );
-  }
-
-  // Items with map method (array)
-  if (items.map) {
-    return (
-      <span className="links-list">
-        {sorter(items.map((i: any) => i?.type || i)).map((item: any, i: number) => {
-          if (Array.isArray(item)) {
-            return (
-              <div key={i} className="sublist">
-                <LinksList items={item} depth={depth - 1} />
-              </div>
-            );
-          }
-          return (
-            <Fragment key={i}>
-              {i > 0 && <Divider key={i} vertical={vertical} cols={cols} />}
-              <Val of={item} depth={depth - 1} />
-            </Fragment>
-          );
-        })}
-      </span>
-    );
-  }
-
-  // Debug fallback (console.warn instead of @debug)
-  console.warn("Unexpected items structure:", items);
-  debugger
-  return null;
 };

@@ -1,12 +1,15 @@
 import { wasmBinary } from "./main";
 import { update } from "./store";
 import * as unrar from 'node-unrar-js'
-import { listDir, delay, readTextFile, inform, warn } from "./util";
+import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer } from "./util";
 import { fileTypeFromBuffer } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { Mod } from "./rul/Ruleset";
 import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets } from "./idb";
+//@ts-ignore
+import builtinModsArchive from './builtinMods.zip?base64'
+
 
 const assetName = /.*(\/mods\/|^)([^\/]+)\/(.*\/)([^\/]+)\.(rul|nam|png|gif)/i
 const lngName = /.*(\/mods\/|^)([^\/]+)\/(Language.*)\/([^\/]+)\.(yml|html|txt)/i
@@ -14,6 +17,12 @@ const metaName = /.*(\/mods\/|^)([^\/]+)\/metadata\.yml/i
 
 
 type AssetType = "lng" | "rul" | "meta" | "img"
+
+async function loadBuiltinPack(packname: string, rawPack: string) {
+  let binary = base64ToArrayBuffer(rawPack);
+  let files = await unpackData(packname, binary);
+}
+
 
 /**From the path, figure the type and mod of the file */
 export function interpretPath(s: string): {
@@ -25,10 +34,13 @@ export function interpretPath(s: string): {
 } {
   let match: RegExpExecArray;
   //console.log("PTEST", s, rulName.exec(s));
+  
+  /** for when "mods" is in root dir */
+  s = `/${s}`
 
   if (match = assetName.exec(s)) {
     let ext = match[5].toLowerCase(), mod = match[2];
-    if (ext == "png") debugger
+
     return {
       type: { nam: 'nam', rul: 'rul', gif: 'img', png: 'img' }[ext] as AssetType,
       mod, name: match[4], path: mod + "/" + match[3] + match[4] + '.' + match[5],
@@ -37,6 +49,7 @@ export function interpretPath(s: string): {
   }
   if (match = lngName.exec(s)) {
     let mod = match[2];
+    //if(mod == "")
     return { type: "lng", mod, name: match[4], path: mod + "/" + match[3] + "/" + match[4] + '.yml', ext: match[5] }
   }
   if (match = metaName.exec(s)) {
@@ -109,9 +122,7 @@ export async function unpackRar(name: string, data: ArrayBuffer) {
   return Object.fromEntries(files.map(file => [file.fileHeader.name, file.extraction]));
 }
 
-export async function unpackData(packName: string, data: ArrayBuffer) {
-  let archiveSize = data.byteLength;
-
+async function unpackArchive(packName: string, data: ArrayBuffer) {
   update({ slowProcessStatus: `Unpacking archive ${packName ?? ''}..., ${data.byteLength} bytes` })
 
   let fileType = await fileTypeFromBuffer(data);
@@ -133,8 +144,21 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
   update({ slowProcessStatus: `Unpacked ${Object.keys(files).length} files in ${packName ?? 'archive'}` })
 
+  return files;
+
+}
+
+export async function unpackData(packName: string, data: ArrayBuffer) {
+
+  let builtinMods = await unpackArchive("builtin", base64ToArrayBuffer(builtinModsArchive));
+
+  let files = await unpackArchive(packName, data);
+
+  files = { ...builtinMods, ...files };
+
   let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
 
+  /**A list of all lng/rul/meta files in the pack, with the full pathes */
   let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
     .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
 
@@ -159,7 +183,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
   let compressedRul = fflate.compressSync(new TextEncoder().encode(stringifiedRul))
 
-  await saveStats(packName, archiveSize, assetsSize, compressedRul.length)
+  await saveStats(packName, data.byteLength, assetsSize, compressedRul.length)
   await saveRul(packName, compressedRul)
 
   console.log("saved assets");
@@ -238,10 +262,9 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
 
 export async function uploadUsersFiles(fileList: FileList) {
   const files = Array.from(fileList);
-  update({slowProcessStatus:"Uploading"})
+  update({ slowProcessStatus: "Uploading" })
 
   if (files.length > 0) {
-    const data = new FormData();
     for (const file of files) {
       let data = await file.arrayBuffer();
       saveFile(file.name, data);

@@ -150,6 +150,12 @@ nav.top .left * {
   margin-right: .5rem;
 }
 
+nav.top .left {
+  display: flex;
+  flex-direction: row;
+}
+
+
 nav.top .rigth {
   text-align: right;
 }
@@ -219,55 +225,32 @@ button.current-file {
 
 .article-title div {
   grid-row: 1;
-  grid-column: 1;
+  grid-column: 1/3;
   text-align: center;
 }
 
 .article-title .central {
   font-size: 120%;
+  pointer-events: none;
 }
 
 .article-title .left {
   text-align: left;
+  grid-column: 1;
 }
 
 .article-title .right {
   text-align: right;
+  grid-column: 2;
 }
 
 .article-title .sections {
   font-size: 70%;
   grid-row: 2;
-  grid-column: 1;
+  grid-column: 1/3;
   margin: -.3rem 0 -.6rem 0;
 }
 
-
-@media (width <=800px) {
-  .article-title {
-    display: grid;
-  }
-
-  .article-title .central {
-    grid-row: 2;
-    grid-column: 1/3;
-  }
-
-  .article-title .left {
-    grid-row: 1;
-    grid-column: 1;
-  }
-
-  .article-title .right {
-    grid-row: 1;
-    grid-column: 2;
-  }
-
-  .article-title .sections {
-    grid-row: 3;
-    grid-column: 1/3;
-  }
-}
 
 .articles-list {
   max-width: 100%;
@@ -289,7 +272,9 @@ button.current-file {
 .article-text {
   text-align: justify;
   padding: 0 0.5rem;
+  display: block;
 }
+
 
 .sections-list {
   display: flex;
@@ -312,11 +297,14 @@ button.current-file {
 .article-text-and-image {
   border: solid 1px var(--border);
   padding: 0.5rem;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
 }
 
 .article-text-and-image .x-image {
-  float: left;
   padding: 0.5rem;
+  height: auto;
 }
 
 /** Main table */
@@ -362,4 +350,66 @@ button.current-file {
 .table-header {
   font-size: larger;
   padding-bottom: 0.2rem;
+}
+
+ol {
+  margin-block-start: 0;
+  padding-inline-start: 0;
+}
+
+ol>li {
+  display: inline-block;
+}
+
+ol>li::after {
+  content: "·";
+  opacity: 30%;
+  padding: 0 0.1rem;
+}
+
+ol>li:last-child::after {
+  content: "";
+}
+
+
+.articles-list ol>li {
+  display: list-item;
+}
+
+.articles-list ol {
+  padding-inline-start: 2rem;
+}
+
+.articles-list ol>li::after {
+  content: "";
+}
+
+@media (width <=1000px) {
+  .article-title {
+    display: grid;
+  }
+
+  .article-title .central {
+    grid-row: 2;
+    grid-column: 1/3;
+  }
+
+  .article-title .left {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .article-title .right {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .article-title .sections {
+    grid-row: 3;
+    grid-column: 1/3;
+  }
+
+  .article-body {
+    columns: 1;
+  }
 }

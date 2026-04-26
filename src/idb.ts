@@ -44,7 +44,7 @@ export function initDB() {
 }
 
 export async function saveFile(name: string, data: ArrayBuffer) {
-  
+  update({article:null, section:null})
   await queryDB(transaction => {
     return transaction.objectStore("files").put({ name, data })
   })

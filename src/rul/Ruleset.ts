@@ -154,6 +154,7 @@ export default class Ruleset {
     langs: any
   }) {
     rul = this;
+    window["rul"] = this;
     if (processed)
       this.loadProcessedMods(processed);
   }
@@ -703,7 +704,10 @@ export default class Ruleset {
   loadProcessedMods(data: { mods: Mod[], langs: any }) {
 
     let master = data.mods.find(m => m.meta.isMaster)
-    this.meta = master.meta;
+    if(master)
+      this.meta = master.meta;
+    else
+      this.meta = {}
     this.langs = data.langs;
     this.langNames = Object.keys(data.langs);
     this.parseRuls(data.mods);
@@ -794,10 +798,17 @@ export default class Ruleset {
     return a;
   }
 
+  /** Sort strings by their translated values */
   sortStrings(s: string[]) {
     let tl: [string, string][] = s.map(s => [s, this.tr(s)])
     tl = tl.sort((a, b) => a[1] > b[1] ? 1 : -1)
     return tl.map(a => a[0]);
+  }
+
+  /** Compare strings by their translated values */
+  compareStrings(a: string, b: string) {
+    let [tra, trb] = [this.tr(a), this.tr(b)]
+    return tra > trb ? -1 : tra < trb ? 1 : 0;
   }
 
   /*sortIds(s: {id:string}[]) {
@@ -806,7 +817,7 @@ export default class Ruleset {
 
 }
 
-/**Main class to figure what to do with data in Ruls */
+/** Main class to figure what to do with data in Ruls */
 export const entryConstructors = {
   items: Item,
   armors: Armor,

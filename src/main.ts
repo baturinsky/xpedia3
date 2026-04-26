@@ -1,24 +1,17 @@
 //@ts-ignore
 import wasmRaw from './unrar.wasm?base64'
-//@ts-ignore
-//import xcom1Raw from './xcom1.rar?base64'
 
 import { initUI } from './ui/ui';
 import { makeDropzone } from './dropzone';
 import { base64ToArrayBuffer } from './util';
 import { article, section, store, update } from './store';
 import { saveFile, initDB, queryDB, getRul } from './idb';
-import { createDirTree, unpackData, uploadUsersFiles } from './load';
+import { uploadUsersFiles } from './load';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 
 export let wasmBinary: ArrayBuffer;
 
-async function loadVanilla(xcom1Raw: string) {
-  let xcom1Binary = base64ToArrayBuffer(xcom1Raw);
-  let xcom1Files = await unpackData("xcom1.rar", xcom1Binary);
-  let tree = createDirTree(xcom1Files);
-}
 
 export function goToArticle(href: AnyRef) {
   if (!rul)

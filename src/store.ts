@@ -52,7 +52,6 @@ export const externalStore = {
   subscribe: (callback: () => void) => {
     onUpdate.add(() => {
       callback()
-      console.log(article.title, section.title);
     });
     return () => {
       onUpdate.delete(callback);
