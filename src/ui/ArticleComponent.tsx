@@ -1,6 +1,7 @@
 import { rul } from "../rul/Ruleset";
 import { article, section, store } from "../store";
 import { Img } from "./components";
+//import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ResearchInfo from "./ResearchInfo";
 import { LandingPage } from "./ui";
@@ -13,15 +14,15 @@ export function ArticleTitle() {
     <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
     <div className="central">{article?.title}</div>
     <div className="sections"><Val of={article.sections} /></div>
-    <div className="right">{right && <Val of={right} postfix={">"}/>}</div>
+    <div className="right">{right && <Val of={right} postfix={">"} />}</div>
   </div>
 }
 
 const renderers = {
   units: UnitInfo,
   //armors: Armor,
-  //items: Item,
   battleTypes: {},
+  items: {} /*ItemComponent*/,
   research: ResearchInfo,
   stats: {},
   damageTypes: {},
@@ -55,8 +56,8 @@ const renderers = {
   inventorySections: {},
 };
 
-export function ArticleInfo() {
-  if(!article)
+export function ArticleComponent() {
+  if (!article)
     return <LandingPage />;
 
   let id = article?.id ?? "MAIN";
@@ -77,15 +78,15 @@ export function ArticleInfo() {
         </div>
       }
       {Object.entries(renderers).filter(([key]) => {
-        return rul[key] ? rul[key][id] : ""
+        return (rul as any)[key] ? (rul as any)[key][id] : ""
       }
       ).map(([key, ren]) => {
         if (typeof ren == "function") {
-          return (ren as Function)({ entry: rul[key][id], text: article?.text })
+          return (ren as Function)({ entry: (rul as any)[key][id], text: article?.text })
         } else {
           let { sort, title } = ren as any;
           return <MainTable
-            entry={rul[key][id]}
+            entry={(rul as any)[key][id]}
             sort={sort}
             title={title != null ? title : key}
           />
@@ -94,7 +95,7 @@ export function ArticleInfo() {
     </div>
   </>
 
-  
+
   return <div className="article">
     {main}
     {(section?.id == article?.id && article?.id != "MAIN") &&

@@ -5,6 +5,7 @@
     "module": "commonjs",
     "jsx": "react-jsx",
     "skipLibCheck": true,
+    "noUncheckedIndexedAccess": false
   },
   "exclude": [
     "node_modules"

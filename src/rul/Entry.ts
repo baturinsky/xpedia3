@@ -7,8 +7,8 @@ import {
 
 /** Root class for all ruleset entries */
 export class Entry {
-  id: string;
-  armors: string[];
+  id: string = "";
+  armors?: string[];
   [id: string]: any;
 
   constructor(public collection: string) {
@@ -20,10 +20,10 @@ export class Entry {
     for (let k in raw)
       this[k] = raw[k];
 
-    if (rul[this.collection] == null)
-      rul[this.collection] = {};
+    if ((rul as any)[this.collection] == null)
+      (rul as any)[this.collection] = {};
 
-    rul[this.collection][this.id] = this;
+    (rul as any)[this.collection][this.id] = this;
 
     this.addToSection(camelToUnderscore(this.collection).toUpperCase());
 
@@ -371,17 +371,17 @@ export class Commendation extends Entry {
 
 export class Research extends Entry {
 
-  getOneFree: string[];
-  unlocks: string[];
-  dependencies: string[];
-  leadsTo: string[];
-  freeFrom: string[];
-  manufacture: string[];
-  requiresBaseFunc: string[];
-  lookup: string;
-  seeAlso: string[];
-  allowsBuying: string[];
-  spawnedItem: string;
+  getOneFree?: string[];
+  unlocks?: string[];
+  dependencies?: string[];
+  leadsTo?: string[];
+  freeFrom?: string[];
+  manufacture?: string[];
+  requiresBaseFunc?: string[];
+  lookup?: string;
+  seeAlso?: string[];
+  allowsBuying?: string[];
+  spawnedItem?: string;
 
   constructor(raw: any) {
     //if (raw.getOneFree) debugger
@@ -393,8 +393,8 @@ export class Research extends Entry {
 
 
 export class AlienDeployment extends Entry {
-  startingCondition: string;
-  data: any[];
+  startingCondition?: string;
+  data?: any[];
   loot: string[];
 
   constructor(raw: any) {
@@ -414,7 +414,7 @@ export class AlienDeployment extends Entry {
 
 export class CraftWeapon extends Entry {
   weaponType: string;
-  requiresBuyBaseFunc: string[];
+  requiresBuyBaseFunc?: string[];
 
   constructor(raw: any) {
     super("craftWeapons");

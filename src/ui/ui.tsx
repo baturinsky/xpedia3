@@ -1,4 +1,4 @@
-import { Children, Component, createContext, Fragment, MouseEventHandler, useContext, useSyncExternalStore } from "react";
+import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useSyncExternalStore } from "react";
 import { createRoot } from 'react-dom/client';
 import { article, externalStore, PageName, section, store, update, type StoreType } from "../store";
 
@@ -9,7 +9,7 @@ import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
 import { rul } from "../rul/Ruleset";
 import { Val } from "./Val";
-import { ArticleInfo } from "./ArticleInfo";
+import { ArticleComponent } from "./ArticleComponent";
 
 
 export const StoreContext = createContext({} as StoreType);
@@ -22,7 +22,7 @@ function UI() {
       <div className="all">
         <NavTop />
         <div className="content">
-          <ArticleInfo />
+          <ArticleComponent />
         </div>
       </div>
     </StoreContext>
@@ -61,10 +61,10 @@ function SectionsList() {
   return <div className="sections-list">
     <div>
       <h4>Chapters</h4>
-      <Val of={rul.sectionsOrder}/></div>
+      <Val of={rul.sectionsOrder} /></div>
     <div>
       <h4>Categories</h4>
-      <Val of={rul.orderedTypeSections()}/></div>
+      <Val of={rul.orderedTypeSections()} /></div>
   </div>
 }
 
@@ -72,7 +72,7 @@ export function NavSide() {
   return <nav className="side"><SectionsList /></nav>
 }
 
-export function Clickable(props: { onClick: MouseEventHandler<HTMLDivElement>, className?: string, children }) {
+export function Clickable(props: { onClick: MouseEventHandler<HTMLDivElement>, className?: string, children: JSX.Element }) {
   return <div onClick={props.onClick} className={"link " + (props.className ?? "")}>{props.children}</div>
 }
 

@@ -4,12 +4,12 @@ import { Section } from './Section';
 
 export class Article {
   id: string;
-  image_id: string;
-  type_id: string;
-  _text: string;
+  image_id?: string;
+  type_id?: string;
+  _text?: string;
   _title: string;
   sections: Section[] = [];
-  requires: string[];
+  requires?: string[];
 
   get section() {
     return this.sections[0]?.id;
@@ -32,7 +32,7 @@ export class Article {
     return new Article({ id, section });
   }
 
-  constructor(raw: any) {
+  constructor(raw: { id: string, section: string, text?: string, title?: string, image_id?: string, requires?: any }) {
     this.id = raw.id;
     this._text = raw.text;
     this._title = raw.title || raw.id;
@@ -66,7 +66,7 @@ export class Article {
   }
 
   get text() {
-    let t = rul.lang[this._text] || rul.lang[this.id + "_UFOPEDIA"] || rul.lang[rul.research[this.id]?.lookup];
+    let t = rul.lang[this._text ?? ''] || rul.lang[this.id + "_UFOPEDIA"] || rul.lang[rul.research[this.id]?.lookup];
     t = stripPediaMarkup(t);
     return t;
   }

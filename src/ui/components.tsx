@@ -1,9 +1,9 @@
-import { Fragment, MouseEventHandler, useEffect, useState } from "react";
+import { CSSProperties, Fragment, MouseEventHandler, useEffect, useState } from "react";
 import { store, update } from "../store";
 import { type Column } from 'react-data-grid';
 
 import { getImg } from "../idb";
-import { rul, stripPediaMarkup } from "../rul/Ruleset";
+import { rul } from "../rul/Ruleset";
 import { Val } from "./Val";
 
 export async function viewImage(path: string) {
@@ -12,7 +12,7 @@ export async function viewImage(path: string) {
   update({ imagePreview: a })
 }
 
-export function Img(props: { src: string, scale?: number, alt?: string, style?}) {
+export function Img(props: { src?: string, scale?: number, alt?: string, style?: any }) {
   if (!props.src)
     return
   let sprite = rul.sprites[props.src];
@@ -30,7 +30,7 @@ export function Img(props: { src: string, scale?: number, alt?: string, style?})
     style={{ zoom: (props.scale ?? 1) / devicePixelRatio, imageRendering: "pixelated", ...props.style ?? {} }}></img>
 }
 
-export function useStateAsync<T>(p: Promise<T>, initialValue: T = null) {
+export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
 
   let [getter, setter] = useState(initialValue)
 
@@ -43,7 +43,7 @@ export function useStateAsync<T>(p: Promise<T>, initialValue: T = null) {
   return getter;
 }
 
-function adHocColumns(a: Object) {
+function adHocColumns(a: any[]) {
   return Object.keys(a[0]).map(key => ({ key, name: key }))
 }
 
@@ -59,15 +59,18 @@ const columnsSizeName: readonly Column<FilesRow>[] = [
 
 export function MyTable<T extends { key: any }>(props: {
   className?: string,
-  style?,
-  columns: { key?, name?, cellClass?, renderCell?, maxWidth?, minWidth?}[],
+  style?: CSSProperties,
+  columns: { 
+    key: string, name?: string, cellClass?: string, 
+    renderCell?: (data:{row:T,column:any})=>any, maxWidth?: number, minWidth?: number 
+  }[],
   rows: T[],
-  rowClass
+  rowClass?: (row:T)=>string
 }) {
   return <table className={props.className} style={props.style}>
     <thead><tr>{props.columns.map(col => <td key={col.name}>{col.name}</td>)}</tr></thead>
     <tbody>
-      {props.rows.map(row => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
+      {props.rows.map((row:any) => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
         {props.columns.map(column =>
           <td key={column.key}>{
             column.renderCell ? column.renderCell({ row, column }) : row[column.key]
@@ -86,24 +89,9 @@ export function fromAnyRef(href: AnyRef) {
 
 export const emptyImageData = `data:image/bmp;base64,Qk0+AAAAAAAAADoAAAAoAAAAAQAAAAEAAAABAAEAAAAAAAAAAADEDgAAxA4AAAEAAAABAAAA/////wAAAAA=`
 
-export const Divider = (props: { vertical?: boolean, cols?}) =>
+export const Divider = (props: { vertical?: boolean, cols?: number }) =>
   props.vertical ? <br /> : <span className='list-divider'>&nbsp;· </span>;
 
-
-/*export function LinksList({ items = null as AnyRef[], divider = null }) {
-  if (items == null)
-    return
-  divider ??= <Divider />;
-  if (divider == "br")
-    divider = <br />
-  if (!items.map) {
-    return Object.entries(items).map(([k, el], i) => <Fragment key={k}>{i > 0 && divider}<Value val={k} />:<Link href={el} /></Fragment>)
-  }
-
-  return items.map((el, i) => {
-    return <Fragment key={fromAnyRef(el)}>{i > 0 && divider}<Link href={el} /></Fragment>
-  })
-}*/
 
 export const CogAnimation = (props: { size?: number }) => {
   let size = props.size ?? 100;
@@ -144,7 +132,9 @@ export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
 
 }
 
-export function BaseServiceList({ items, vertical = false }) {
+export function BaseServiceList({ items = null as string[] | null, vertical = false }) {
+  if (!items)
+    return "";
   return items.map((item, i) => <>
     {i == 0 ? "" : (vertical ? "</br > " : ", ")}
     <Val of={item} />

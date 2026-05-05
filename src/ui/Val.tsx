@@ -4,24 +4,26 @@ import { Divider, fromAnyRef, Img } from "./components";
 
 /** Polymorphic value view */
 
-
+export type IconType = "monospace" | "simple" | "none" | null;
 
 export const Val = ({
-  of: val = null,
-  children = null,
+  of: val = null as any,
+  children = null as any,
   /**obs sprite */
-  obs = null,
+  obs = null as string | null,
   /** Maximum depth */
   depth = 3,
   notip = false,
   nobr = 30,
-  icon = null as ("monospace" | "simple" | "none"),
-  className = null as string,
-  table = null,
-  sorted = null,
-  vertical = null as boolean,
-  prefix = null,
-  postfix = null
+  icon = undefined as IconType | undefined,
+  className = undefined as string | undefined,
+  table = undefined as boolean | undefined,
+  sorted = false,
+  vertical = undefined as boolean | undefined,
+  /** Prefix to be inlcuded in text/link */
+  prefix = undefined as string | undefined,
+  /** Postfix to be inlcuded in text/link */
+  postfix = undefined as string | undefined
 }) => {
 
 
@@ -65,7 +67,7 @@ export const Val = ({
   // It should be an entry, passed by direct link or id. Converting it to id
   let id = fromAnyRef(val);
 
-  function tr1(text){
+  function tr1(text: string) {
     return <Tr text={text} icon={icon} nobr={nobr} notip={notip} prefix={prefix} postfix={postfix} />
   }
 
@@ -74,7 +76,7 @@ export const Val = ({
       return <Img src={val} />;
     }
 
-    return <a href={'##' + id} className={rul?.article(id) ? null : "dead"} >{tr1(children ?? id)}</a>;
+    return <a href={'##' + id} className={rul?.article(id) ? undefined : "dead"} >{tr1(children ?? id)}</a>;
   }
 
   // Array case
@@ -89,11 +91,18 @@ export const Val = ({
   debugger
 };
 
-/**Translate text and possible add the emoji icon to it */
-function Tr({ text, icon = null, nobr = 30, notip = false, prefix = null, postfix = null }) {
+/**Translate text if possible add the emoji icon to it. For internal use by Val only */
+function Tr({
+  text = undefined as string | undefined,
+  icon = undefined as IconType | undefined,
+  nobr = 30,
+  notip = false,
+  prefix = undefined as string | undefined,
+  postfix = undefined as string | undefined
+}) {
   let iconText = rul.icon(text);
 
-  let valtr = `${prefix??""}${rul.tr(text)}${postfix??""}`;  
+  let valtr = `${prefix ?? ""}${rul.tr(text)}${postfix ?? ""}`;
 
   let element = (valtr?.length < nobr) ? <span className="nobr">{valtr}</span> : <>{valtr}</>
 
@@ -131,7 +140,7 @@ const noSorter = (a: string[]) => a
 const LinksList: FC<LinksListProps> = ({
   items: initialItems,
   depth = 2,
-  table = null,
+  table = undefined,
   className,
   sorted
 }) => {
@@ -141,7 +150,7 @@ const LinksList: FC<LinksListProps> = ({
 
   const sorter = sorted ? alphabeticLocalizedSorter : noSorter;
 
-  let items: any[], isObject: boolean;
+  let items: any[], isObject = false;
 
   if (!Array.isArray(initialItems)) {
     isObject = true;
@@ -165,7 +174,7 @@ const LinksList: FC<LinksListProps> = ({
         <tbody>
           {items.map((field, i) => (
             <tr key={i}>
-              {field.map((v, i) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
+              {field.map((v: any, i: number) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
             </tr>
           ))}
         </tbody>

@@ -155,7 +155,7 @@ export function isAncestorOf(ancestor, descendant) {
   return false;
 }
 
-export function capital(str: string) {
+export function capital(str: string|null) {
   if (str == null)
     return;
   return str.substr(0, 1).toUpperCase() + str.substr(1).toLowerCase()

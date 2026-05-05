@@ -1,3 +1,4 @@
+//@ts-ignore
 import SearchApi from 'js-worker-search';
 import { addAllIfNew, addIfNew, capital, cullDoubles, delay, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
 import * as util from "../util"
@@ -77,7 +78,7 @@ export class Service {
     Article.create(id, "SERVICES");
   }
 
-  static add(prop: string, id: string, entries: string[]) {
+  static add(prop: string, id: string, entries?: string[]) {
     if (entries) {
       for (let s of entries) {
         if (!(s in rul.baseServices)) rul.baseServices[s] = new Service(s);
@@ -136,7 +137,7 @@ export default class Ruleset {
   baseServices: { [key: string]: Service } = {};
   redirect: { [key: string]: string } = {};
   attacks: Attack[] = [];
-  globeMarkers: string[];
+  globeMarkers: string[] = [];
 
   itemFields = new Set<string>();
   unitFields = new Set<string>();
@@ -145,8 +146,8 @@ export default class Ruleset {
   lang: { [key: string]: string } = {};
   langs: { [key: string]: { [key: string]: string } } = {};
   mods: { [key: string]: { [key: string]: string } } = {};
-  langName: string;
-  langNames: string[];
+  langName: string | null = null;
+  langNames: string[] = [];
   convertedLangs = {};
 
   constructor(processed?: {
@@ -159,8 +160,10 @@ export default class Ruleset {
       this.loadProcessedMods(processed);
   }
 
-  tr(str: string, props?: { capital?, icon?}) {
+  tr(str?: string | null, props?: { capital?: boolean, icon?}) {
     const bigSnakeCase = /^[A-Z0-9_]+$/;
+    if (str == null)
+      return null;
 
     //if(str == "STR_ELECTRO_FLARE")      debugger
 
@@ -180,6 +183,7 @@ export default class Ruleset {
         str = str.replace(/([a-z])([A-Z])/g, "$1 $2");
       }
     }
+
 
     if (props?.capital)
       str = capital(str);
@@ -248,9 +252,10 @@ export default class Ruleset {
   }
 
   mergeRuls(reversed = false) {
+    
     for (let categoryName in this.raw) {
-      let merged = {};
-      let deleted = {};
+      let merged = {} as {[id:string]:boolean};
+      let deleted = {} as {[id:string]:boolean};
 
       if (categoryName == "extraSprites")
         continue;
@@ -294,6 +299,7 @@ export default class Ruleset {
           merged[id] = data;
         }
       }
+      
       this.raw[categoryName] = Object.values(merged);
     }
   }
@@ -655,7 +661,9 @@ export default class Ruleset {
     return this.lang[id] || id;
   }
 
-  icon(name: string) {
+  icon(name?: string) {
+    if (name == null)
+      return null;
     return this.langs?.icon ? this.langs.icon[name] : null;
   }
 
@@ -704,7 +712,7 @@ export default class Ruleset {
   loadProcessedMods(data: { mods: Mod[], langs: any }) {
 
     let master = data.mods.find(m => m.meta.isMaster)
-    if(master)
+    if (master)
       this.meta = master.meta;
     else
       this.meta = {}
