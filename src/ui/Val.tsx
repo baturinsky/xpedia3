@@ -14,6 +14,7 @@ export const Val = ({
   /** Maximum depth */
   depth = 3,
   notip = false,
+  capital = false,
   nobr = 30,
   icon = undefined as IconType | undefined,
   className = undefined as string | undefined,
@@ -108,7 +109,7 @@ function Tr({
 
   if (iconText) {
     if (icon == "monospace")
-      element = <><div className='inem'>${icon}</div>{element}</>
+      element = <><div className='inem'>{icon}</div>{element}</>
     else if (icon == "simple")
       element = <>{icon}{valtr || ""}</>
     else if (icon != "none")

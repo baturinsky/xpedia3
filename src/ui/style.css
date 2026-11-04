@@ -292,6 +292,7 @@ button.current-file {
 .article-body .x-image:hover {
   transform-origin: left top;
   transform: scale(3);
+  transition: .2s;
 }
 
 .article-text-and-image {
@@ -412,4 +413,69 @@ ol>li:last-child::after {
   .article-body {
     columns: 1;
   }
+}
+
+.tooltip {
+  max-width: 20rem;
+  position: fixed;
+  z-index: 10;
+  background: var(--background);
+  opacity: 0.5;
+  border: solid 1px var(--border);
+  padding: 0.5rem;
+  transform: translateX(-50%);
+  display: inline;
+  pointer-events: none;
+}
+
+[data-tooltip] {
+  cursor: default;
+}
+
+.tipmark {
+  opacity: 0.2;
+  font-size: 50%;
+}
+
+
+.fadein.visible {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.2s ease-in;
+  transition-delay: 0.5s;
+}
+
+.fadein:not(.visible) {
+  visibility: hidden;
+  opacity: 0;
+}
+
+
+.attacks-table {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border-spacing: 0;
+}
+
+.td-attacks-table > div {
+  display: flex;
+  align-items: flex-start;
+  margin: 0;
+}
+
+.attacks-table td {
+  border-top: solid 1px var(--border);
+  border-right: solid 1px var(--lighter);
+  vertical-align: top;
+  padding: 0.2rem;
+  text-align: center;
+}
+
+.attacks-table td:last-child {
+  border-right: 0;
+}
+
+.attacks-table thead {
+  white-space: nowrap;
 }

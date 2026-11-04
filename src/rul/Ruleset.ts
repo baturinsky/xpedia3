@@ -252,10 +252,10 @@ export default class Ruleset {
   }
 
   mergeRuls(reversed = false) {
-    
+
     for (let categoryName in this.raw) {
-      let merged = {} as {[id:string]:boolean};
-      let deleted = {} as {[id:string]:boolean};
+      let merged = {} as { [id: string]: boolean };
+      let deleted = {} as { [id: string]: boolean };
 
       if (categoryName == "extraSprites")
         continue;
@@ -299,7 +299,7 @@ export default class Ruleset {
           merged[id] = data;
         }
       }
-      
+
       this.raw[categoryName] = Object.values(merged);
     }
   }
@@ -632,8 +632,8 @@ export default class Ruleset {
   }
 
   /** Returns an article nearby in the same section */
-  findNearbyArticle(current: Article, delta: number, currentSection: Section, ordered = false) {
-    if (!current) return null;
+  findNearbyArticle(current: Article | undefined, delta: number, currentSection: Section | undefined, ordered = false) {
+    if (!current) return undefined;
     if (!currentSection)
       currentSection = current.sections[0];
     if (current.id == currentSection.id) {
@@ -932,7 +932,7 @@ export function backLink2(entry: Entry, list: string[] | { [key: string]: any },
   addAllIfNew(entry[field2], list as any);
 }
 
-export function backLink(id: string, list: string[] | { [key: string]: any }, to: any, field: string, collection?: string) {
+export function backLink(id: string, list: string[] | { [key: string]: any } | null, to: any, field: string, collection?: string) {
   /*if(list && list.includes("STR_LASER_PISTOL_CLIP_HI") && field == "commendation") 
     debugger;*/
   if (typeof to === "string") {
@@ -982,30 +982,19 @@ function addFields(entry: Entry, field: string, list) {
   }
 }
 
-function crosslink(collection1, prop1, collection2, prop2, prefix?) {
-  let f = typeof prop1 === "function" ? prop1 : t => t[prop1];
+/** Adds back links */
+function crosslink(
+  collection1: { [id: string]: any },
+  prop1: string | ((v: { [id: string]: any }) => any),
+  collection2: { [id: string]: any },
+  prop2: string,
+  prefix?: string) {
+  let f = typeof prop1 === "function" ? prop1 : (t: any) => t[prop1];
   for (let t of [...Object.values(collection1)] as { id: string }[]) {
     backLink(t.id, f(t), collection2, prop2, prefix);
   }
 }
 
-export function deedDescription(deed) {
-  let s = `${rul.tr(deed.status)} ${rul.tr(deed.times)} ${link(deed.race)} ${link(deed.unit)} ${link(deed.faction)}`;
-  if (deed.element || deed.type || deed.item) {
-    s += ` ${rul.tr("commendationWith")} ${link(deed.item)} ${link(deed.type)} ${link(deed.element)}`
-  }
-  return s;
-}
-
-export function link(id) {
-  if (id == null)
-    return "";
-  return `<a href="${'##' + id}" class="${rul.article(id) ? "" : "dead"}">${rul.tr(id)}</a>`;
-}
-
-/*function nullIfEmpty(a){
-  return a?.length == 0?undefined:a;
-}*/
 
 export function stripPediaMarkup(t: string) {
   if (t != null && t.indexOf("{") != -1) {

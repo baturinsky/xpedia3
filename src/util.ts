@@ -17,7 +17,7 @@ declare const
   fsDir: (path: string, always: boolean) => string[]
   ;
 
-async function fetchAll(files) {
+async function fetchAll(files: { [name: string]: string }) {
   return Object.fromEntries(
     await Promise.all(
       Object.keys(files).map(async (path) => [
@@ -41,7 +41,7 @@ export async function readTextFile(path: string) {
   return text;
 }
 
-export async function fetchText(path) {
+export async function fetchText(path:string) {
   if (typeof fsFile != "undefined")
     return fsFile(path);
   else
@@ -51,7 +51,7 @@ export async function fetchText(path) {
 
 const dirFilesRegex = /<\s*a[^>]*>(.*?)<\s*\/\s*a>/gi;
 
-export async function listDir(path, full = false) {
+export async function listDir(path:string, full = false) {
   if (typeof fsDir != "undefined") {
     let files = fsDir(path, full)
     return files;
@@ -71,6 +71,8 @@ export async function listDir(path, full = false) {
 
 export async function readYaml(path: string) {
   let text = await readTextFile(path);
+  if(text == null)
+    return null;
   let parsed = parseYaml(text, path);
   return parsed as any;
 }
@@ -84,7 +86,7 @@ export function parseYaml(file: string, filename: string) {
         console.error(e.message);
       }
     });
-  } catch (e) {
+  } catch (e:any) {
     console.error(e.message);
     warn(e.message);
   }
@@ -97,7 +99,7 @@ export function delay(n: number) {
 
 //export const camelToSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
-export function camelToUnderscore(key) {
+export function camelToUnderscore(key:string) {
   var result = key.replace(/([A-Z])/g, " $1");
   return result.split(' ').join('_').toLowerCase();
 }
@@ -155,7 +157,7 @@ export function isAncestorOf(ancestor, descendant) {
   return false;
 }
 
-export function capital(str: string|null) {
+export function capital(str: string | null) {
   if (str == null)
     return;
   return str.substr(0, 1).toUpperCase() + str.substr(1).toLowerCase()
@@ -272,4 +274,5 @@ export const pngDataPrefix = "data:image/png;base64,"
 export const emptyImg = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjEuNv1OCegAAAANSURBVBhXY/j//z8DAAj8Av6IXwbgAAAAAElFTkSuQmCC";
 export const favicon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAMAUExURQAAAAMDAwMJCAgICAoKCg0NDQoTEQoTEgsUEg0XFQ0aGR4eHg0tKxMlIhUoJhgoKQ4zLw42LxUyLxcyLw45Mw45NRY0MBowMB81NxI9ORM/OBg+Ox8+OiEzMiE0NCA9PC89OjU2Nj09PRZDPRRFPR9BPBxEPSxCPxdEQRlFQhNLQhVKQxRMRBdPRR1MRh5ORx5VTiRKRCRKRihNSShOSDhHRDJIRTVLSDdOSjtKSD5KSiJVTClXTShVTzdTTSlXUCpWUSpXUCNbVCddVS9aUitfVyxcVz1SUDBYUiNhWStmXipuYThmYzdoYDdqYzl1az13bzV7ckVJSEBWUUNXU0hVVUBZV0JcWE9dXU5jW0pgXkZkYE1kYU1kYEZsZFBjYVBjYklwak51bUJ9dF91c1d4clt5dFp6dVt7dl55dF98eGBoaGZoaGhvbW1tbWdwb2J1b2Vyc2J6eWZ5eGN/e2h5eD2CeUGBd2aBfUiMgkOQg02Sh0qViU+ViUabi02Yjl6UjVabjVKfkWKFgGGLhX+AgH+KiWOakmick0ypm1WgklGhlFKpnFKrnlGwn1OvoFauoVWzpFaypVmwpFe8rlu5qW6xpmG8q2u5q265rX+2q1rBs17Jt1vLvF/NvVzPvGTDtmDHtmDIt2LIt2fJt2bLtmLGuGHHumXFuWbFumjHuW7FumHJuGHJuGPIuGDKuWPLuWPJu2DKumDKu2PKumLLumPLumPLu2XJuWXLuWXLu2TKumHNuWHNumDNu2PMu2TMu2XNu2HJvGPLvWLLvGPLvmXJvWXKvWbKvWfIvmHNvWHMvGHMvWLNvWLMvWPMvWPNvmfPvWnIumrJu2/Iu2jJvW7Lv2vMvWjOvGjNv2vNvm/MvW/Mv3LOv27QvmbPwG/RwnDSwnXSwX/Sx3rWyoePjYiMi4mSkJSXl5qfn6KlpIbDu4LEuYrIvYHSxIPTx4LUx47UyYrVzYPZyonYy5re08zMzMvQz9Hb2drf39rg39rh4N7k5ODj4uvs7AAAAOGYdbwAAAEAdFJOU////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wBT9wclAAAACXBIWXMAAA7DAAAOwwHHb6hkAAACCElEQVQ4T2P4TwCQpCA3pSIrPaMkPhvKBwOEAqvUt1/u3rp86fqjaXFQIRBAKGh4d2PnruPnzp08fnijClQMCOAKmj9snbf3zJnz5/fsurppiQRUFElBx61t+85DwZ6F0lBRJAVvNqzZD5U/f2qzF1QUpiAvL8jOxMPe3t7R0dHGwdbFRCYvLw8sA1XAyvD3lSIDEHAZqoIohp/c36BmwyilP79ZgBJG5ycBScZfzP9gdsPpl63fgVJHzh/hZWDIefEDJg5X8IwjmJOd/dKx8+d3sLNxhjBBhREK/ieuX75r8/lz589fmLd9QZ04VBRJwf8Z83dfOA9UcfzsugmuUDEgQCiIvrQRHAi7N0ytDoWKAQFCwX/r5ScO7jx6+viUGiGoCAggKfivu2zextNrJtaKQflggKzgv3zlhN56N4QDQQBZQYH5f36+/P+lMVA+GMAVRCS0fG4EMeK/fvANMwOLgQBMgdXrDw9X6IOZPmsu3qt6CmYCAUxBW7KzzsH9nhb/i9tvNIn6QZSCALIb1FZfmO70aWm5HJQPBsgK/qt3rrx/vAzKgQJkBc+T7vRPXn9FA8qFALiCkszCWXe6BP9rzt3nH5UZDhVFKEj4eO/JTW8FIMuk+9TDnT0QUSCAmyBlEDg7AMRwn9mnq8wDFgMBJDfISQqCaS0RUzANAciOxAoIKPj/HwDL5k4xG94BrQAAAABJRU5ErkJggg=="
 
-export const last = (list:any[]) => list[list.length-1];
+export const last = (list: any[]) => list[list.length - 1];
+

@@ -1,6 +1,5 @@
 import { Val } from "./Val";
-import { sortFirstLast, SortFirstLastOptions, rul } from "../rul/Ruleset";
-import { Children, cloneElement, FC, isValidElement, useMemo } from "react";
+import { sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
 
 interface MainTableProps {
   entry: any;
@@ -8,26 +7,24 @@ interface MainTableProps {
   title: string;
   subtitle?: string;
   /** Fields that use custom renderer for the value */
-  special?: string[];
+  special?: any;
   /** Fields that use custom renderer for both the key and rendered value */
   wide?: string[];
   styles?: { [field: string]: string }
-  children?
+  children?: any
 }
 
-const MainTable: FC<MainTableProps> = ({
+const MainTable = ({
   entry,
   sort = {},
   title,
   subtitle = "",
-  special = [],
-  wide = {},
+  special = [] as any,
+  wide = [],
   styles = {},
   children = null
-}) => {
-  const sorted = useMemo(() => {
-    return sortFirstLast(entry, sort);
-  }, [entry, sort]);
+}: MainTableProps) => {
+  const sorted =  sortFirstLast(entry, sort);
 
   if (entry == null) {
     return <div>No entry in main table</div>;

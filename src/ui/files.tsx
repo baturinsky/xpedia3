@@ -4,11 +4,11 @@ import { DataGrid } from 'react-data-grid';
 import { listArchiveFiles, getStats, wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, getRul } from "../idb";
 import { interpretPath } from "../load";
 import { CogAnimation, MyTable, useStateAsync, viewImage } from "./components";
-import { store, update } from "../store";
+import { state, update } from "../state";
 import { asMB, localeFixed2 } from "../util";
 
 export function ArchiveFiles() {
-  let files = store.files;
+  let files = state.files;
 
   if (!files || !Array.isArray(files))
     debugger
@@ -16,7 +16,7 @@ export function ArchiveFiles() {
   return <MyTable
     className="file-select"
     rowClass={(row) => {
-      let current = row.name == store.packName;
+      let current = row.name == state.packName;
       return current ? "current-file" : "";
     }}
     columns={[
@@ -32,12 +32,12 @@ export function ArchiveFiles() {
               update({slowProcessStatus: "Erasing pack data"})
               await wipeAssets(pack); 
               await eraseArchiveFile(pack);
-              update({slowProcessStatus: null})
+              update({slowProcessStatus: undefined})
             }}>delete</button>
             <button onClick={e => unpackArchiveFile(pack)}>unpack</button>
             <button onClick={e => wipeAssets(pack)}>wipe</button>
             <button onClick={e => viewAssets(pack)}>assets</button>
-            <button className={pack == store.packName ? "current-file" : ""} onClick={e => {
+            <button className={pack == state.packName ? "current-file" : ""} onClick={e => {
               update({ packName: pack })
               getRul(pack)
             }}>rul</button>
@@ -59,7 +59,7 @@ export function ArchiveFiles() {
 
 
 export function CurrentAssets() {
-  return !!store.assets?.size && <div>
+  return !!state.assets?.size && <div>
     Current Assets
     <DataGrid rowHeight={50}
       className="file-assets"
@@ -69,7 +69,7 @@ export function CurrentAssets() {
       columns={[
         { key: 'name', name: 'name' },
       ]}
-      rows={[...store.assets].map(asset => ({ name: asset, maxWidth: 200 }))}
+      rows={[...state.assets].map(asset => ({ name: asset, maxWidth: 200 }))}
       enableVirtualization={true}
     />
   </div>
@@ -77,11 +77,11 @@ export function CurrentAssets() {
 
 
 export function SlowProcessStatus() {
-  if (!store.slowProcessStatus)
+  if (!state.slowProcessStatus)
     return;
   return <div className="full-screen-centered">
     <div className="slow-process-status">
-      <CogAnimation size={store.fontSize * 2} /> {store.slowProcessStatus} <CogAnimation size={store.fontSize * 2} />
+      <CogAnimation size={state.fontSize * 2} /> {state.slowProcessStatus} <CogAnimation size={state.fontSize * 2} />
     </div>
   </div>
 }

@@ -1,5 +1,5 @@
 import { wasmBinary } from "./main";
-import { update } from "./store";
+import { update } from "./state";
 import * as unrar from 'node-unrar-js'
 import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer } from "./util";
 import { fileTypeFromBuffer } from "file-type";

@@ -1,19 +1,19 @@
-import { store, update } from "./store";
+import { dbVersion, state, update } from "./state";
 import { unpackData } from "./load";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
 
-const dbVersion = 11;
+
 export let idb: IDBDatabase;
 
 export async function updateFileStats() {
   let files = await getStats();
   console.log(files);
-  update({files})
+  update({ files })
 }
 
 export function initDB() {
-  let onDone;
+  let onDone: Function;
   let promise = new Promise<IDBDatabase>(done => onDone = done)
 
   let openRequest = indexedDB.open("xpedia3", dbVersion);
@@ -44,7 +44,7 @@ export function initDB() {
 }
 
 export async function saveFile(name: string, data: ArrayBuffer) {
-  update({article:null, section:null})
+  update({ article: undefined, section: undefined })
   await queryDB(transaction => {
     return transaction.objectStore("files").put({ name, data })
   })
@@ -73,7 +73,7 @@ export async function getRul(pack: string) {
 
 export async function viewAssets(pack: string) {
   let assets = await queryDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack));
-  update({ assets: new Set(assets.map(a => a.name)), packName: pack });
+  update({ assets: new Set(assets.map((a: any) => a.name)), packName: pack });
 }
 
 export async function saveStats(pack: string, archiveSize: number, assetsSize: number, rulSize: number) {
@@ -87,8 +87,8 @@ export async function getStats() {
 }
 
 
-export async function saveImg(pack: string, mod:string, path: string, data: Uint8Array) {
-  return await queryDB(transaction => transaction.objectStore("assets").add({ pack, mod:mod, name: path, data, kind: "img" }))
+export async function saveImg(pack: string, mod: string, path: string, data: Uint8Array) {
+  return await queryDB(transaction => transaction.objectStore("assets").add({ pack, mod: mod, name: path, data, kind: "img" }))
 }
 
 export async function getImg(path: string) {
@@ -118,7 +118,7 @@ export function wipeAssets(pack: string) {
   })
 }
 
-export async function queryDBCursor(db: string, index: string, match, cb: (IDBCursorWithValue) => void) {
+export async function queryDBCursor(db: string, index: string, match: any, cb: (v: IDBCursorWithValue) => void) {
   return new Promise<void>((success, error) => {
     let transaction = idb.transaction(db, "readwrite");
     let os = transaction.objectStore(db)

@@ -24,7 +24,7 @@ export const ResearchInfo = ({ entry }: { entry: Entry }) => {
   const sortedEntries = sortFirstLast(entry, { last: longLists, exclude: ["name"] }).all;
 
   return (
-    <table className="main-table" key="research">
+    <table className="main-table research-table" key="research">
       <thead>
         <tr>
           <td colSpan={2}><Val of={"Research"} /></td>

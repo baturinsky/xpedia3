@@ -1,28 +1,33 @@
 import { rul } from "../rul/Ruleset";
-import { article, section, store } from "../store";
+import { article, section, state } from "../state";
+import ArmorComponent from "./ArmorComponent";
 import { Img } from "./components";
-//import ItemComponent from "./ItemComponent";
+import CraftWeaponComponent from "./CraftWeaponComponent";
+import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ResearchInfo from "./ResearchInfo";
 import { LandingPage } from "./ui";
-import UnitInfo from "./UnitInfo";
+import UnitComponent from "./UnitComponent";
 import { Val } from "./Val";
 
 export function ArticleTitle() {
-  let [left, right] = [-1, 1].map(delta => rul.findNearbyArticle(article, delta, section, store.ordered));
+  if(!article)
+    debugger
+  let [left, right] = [-1, 1].map(delta => rul.findNearbyArticle(article, delta, section, state.ordered));
   return <div className="article-title">
     <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
     <div className="central">{article?.title}</div>
-    <div className="sections"><Val of={article.sections} /></div>
+    <div className="sections"><Val of={article?.sections} /></div>
     <div className="right">{right && <Val of={right} postfix={">"} />}</div>
   </div>
 }
 
+/*Which renderer to use for each article type */
 const renderers = {
-  units: UnitInfo,
-  //armors: Armor,
+  units: UnitComponent,
+  armors: ArmorComponent,
   battleTypes: {},
-  items: {} /*ItemComponent*/,
+  items: ItemComponent,
   research: ResearchInfo,
   stats: {},
   damageTypes: {},
@@ -32,7 +37,7 @@ const renderers = {
   //facilities: Facility,
   //manufacture: Manufacture,
   //crafts: Craft,
-  //craftWeapons: CraftWeapon,
+  craftWeapons: CraftWeaponComponent,
   weaponTypes: {},
   //soldierBonuses: SoldierBonuses,
   soldierTransformation: {},
@@ -86,6 +91,7 @@ export function ArticleComponent() {
         } else {
           let { sort, title } = ren as any;
           return <MainTable
+            key={key}
             entry={(rul as any)[key][id]}
             sort={sort}
             title={title != null ? title : key}
@@ -100,7 +106,7 @@ export function ArticleComponent() {
     {main}
     {(section?.id == article?.id && article?.id != "MAIN") &&
       <div className="articles-list">
-        <Val of={section?.articles(store.ordered)} vertical={true} />
+        <Val of={section?.articles(state.ordered)} vertical={true} />
       </div>
     }
     {(section?.id == "MAIN" || !rul) && <LandingPage />}

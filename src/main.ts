@@ -4,22 +4,23 @@ import wasmRaw from './unrar.wasm?base64'
 import { initUI } from './ui/ui';
 import { makeDropzone } from './dropzone';
 import { base64ToArrayBuffer } from './util';
-import { article, section, store, update } from './store';
+import { article, section, state, update } from './state';
 import { saveFile, initDB, queryDB, getRul } from './idb';
 import { uploadUsersFiles } from './load';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
+import { Section } from './rul/Section';
 
 export let wasmBinary: ArrayBuffer;
 
 
-export function goToArticle(href: AnyRef) {
+export function goToArticle(href?: AnyRef) {
   if (!rul)
     return;
   let ref = fromAnyRef(href);
   let article = rul.article(ref);
   if (article) {
-    if (article.sections && !article.sections.includes(store.section)) {
+    if (article.sections && !article.sections.includes(section as Section)) {
       update({ article, section: article.sections[0] });
     } else {
       update({ article })
@@ -37,7 +38,7 @@ function goToHash() {
 
 async function init() {
   await initDB();
-  if (store.packName) await getRul(store.packName);
+  if (state.packName) await getRul(state.packName);
 
   initUI();
 
@@ -60,14 +61,17 @@ addEventListener("keydown", e => {
   }[e.code];
   if (pageSwitch) {
     if (pageSwitch == "up") {
-      if (section.id == article.id)
-        goToArticle("MAIN")
-      else
-        goToArticle(section)
+      if (section) {
+        if (section.id == article?.id)
+          goToArticle("MAIN")
+        else
+          goToArticle(section)
+      }
     } else if (pageSwitch == "down") {
       history.go(-1);
     } else {
-      goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, store.ordered))
+      if(article && section)
+        goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.ordered))
     }
   }
 })

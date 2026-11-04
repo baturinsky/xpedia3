@@ -23,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "@knadh/oat": "^0.2.0",
+    "@types/js-yaml": "^4.0.9",
     "@vitejs/plugin-react": "^5.1.2",
     "bite": "^0.1.0-4",
     "fflate": "^0.8.2",

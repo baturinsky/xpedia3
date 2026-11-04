@@ -1,10 +1,13 @@
-import { CSSProperties, Fragment, MouseEventHandler, useEffect, useState } from "react";
-import { store, update } from "../store";
+import { CSSProperties, Fragment, JSX, MouseEventHandler, useEffect, useMemo, useState } from "react";
+import { state, update } from "../state";
 import { type Column } from 'react-data-grid';
 
 import { getImg } from "../idb";
 import { rul } from "../rul/Ruleset";
 import { Val } from "./Val";
+import React from "react";
+import ItemComponent from "./ItemComponent";
+import { CraftWeapon } from "../rul/Entry";
 
 export async function viewImage(path: string) {
   let img = await getImg(path);
@@ -12,19 +15,19 @@ export async function viewImage(path: string) {
   update({ imagePreview: a })
 }
 
-export function Img(props: { src?: string, scale?: number, alt?: string, style?: any }) {
+export function Img(props: { src?: string, scale?: number, alt?: string, style?: any, maxWidth?: number, maxHeight?: number, zoom?: number }) {
   if (!props.src)
     return
   let sprite = rul.sprites[props.src];
   let path = sprite?.path;
   if (!path)
     return;
-  if (!store.images[path]) {
+  if (!state.images[path]) {
     getImg(path).then(img => {
-      update({ images: { ...store.images, [path]: img } })
+      update({ images: { ...state.images, [path]: img } })
     });
   }
-  let img = store.images[path];
+  let img = state.images[path];
   let dataImage = img ? "data:image/png;base64," + btoa(String.fromCharCode(...img.data)) : emptyImageData;
   return <img className="x-image" src={dataImage} alt={props.alt}
     style={{ zoom: (props.scale ?? 1) / devicePixelRatio, imageRendering: "pixelated", ...props.style ?? {} }}></img>
@@ -38,7 +41,7 @@ export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
     p.then(a => {
       setter(a);
     })
-  }, [store.count])
+  }, [state.count])
 
   return getter;
 }
@@ -60,17 +63,17 @@ const columnsSizeName: readonly Column<FilesRow>[] = [
 export function MyTable<T extends { key: any }>(props: {
   className?: string,
   style?: CSSProperties,
-  columns: { 
-    key: string, name?: string, cellClass?: string, 
-    renderCell?: (data:{row:T,column:any})=>any, maxWidth?: number, minWidth?: number 
+  columns: {
+    key: string, name?: string, cellClass?: string,
+    renderCell?: (data: { row: T, column: any }) => any, maxWidth?: number, minWidth?: number
   }[],
   rows: T[],
-  rowClass?: (row:T)=>string
+  rowClass?: (row: T) => string
 }) {
   return <table className={props.className} style={props.style}>
     <thead><tr>{props.columns.map(col => <td key={col.name}>{col.name}</td>)}</tr></thead>
     <tbody>
-      {props.rows.map((row:any) => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
+      {props.rows.map((row: any) => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
         {props.columns.map(column =>
           <td key={column.key}>{
             column.renderCell ? column.renderCell({ row, column }) : row[column.key]
@@ -83,13 +86,13 @@ export function MyTable<T extends { key: any }>(props: {
 
 export type AnyRef = string | { type: string } | { id: string };
 
-export function fromAnyRef(href: AnyRef) {
+export function fromAnyRef(href?: AnyRef) {
   return (href as any)?.type ?? (href as any)?.id ?? (rul.articles[href as string] ? href : null);
 }
 
 export const emptyImageData = `data:image/bmp;base64,Qk0+AAAAAAAAADoAAAAoAAAAAQAAAAEAAAABAAEAAAAAAAAAAADEDgAAxA4AAAEAAAABAAAA/////wAAAAA=`
 
-export const Divider = (props: { vertical?: boolean, cols?: number }) =>
+export const Divider = (props: { vertical?: boolean }) =>
   props.vertical ? <br /> : <span className='list-divider'>&nbsp;· </span>;
 
 
@@ -120,7 +123,7 @@ export const CogAnimation = (props: { size?: number }) => {
 }
 
 export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
-  return <table className="main-table">
+  return <table className="main-table base-service-table">
 
     {Object.entries(entry).sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1)).map(prop =>
     (!['id'].includes(prop[0]) &&
@@ -140,3 +143,109 @@ export function BaseServiceList({ items = null as string[] | null, vertical = fa
     <Val of={item} />
   </>)
 }
+
+export function Nobr(props: any) {
+  return <span className="nobr">{props.children}</span>
+}
+
+
+export function SecondaryTable(props: { text: string, children: JSX.Element }) {
+  return <>
+    <tr>
+      <td colSpan={2} className="table-subheader">
+        <Val of={props.text} />
+      </td></tr
+    >
+    <tr>
+      <td colSpan={2} className="secondary-table-td">
+        {props.children}
+      </td>
+    </tr>
+  </>
+}
+
+
+export function AlterList(props: { items: { [id: string]: string } }) {
+  return (
+    <tr>
+      <td colSpan={4} className="attacks-alter">
+        <small>
+          {Object.keys(props.items)
+            .sort()
+            .map((field, i) => (
+              <React.Fragment key={field}>
+                <Divider />
+                &nbsp;
+                <Nobr>
+                  <span data-tooltip={`tip_${field}`}>
+                    <Val of={field} />
+                    {rul.lang && `tip_${field}` in rul.lang && (
+                      <sup className="tipmark">?</sup>
+                    )}
+                    :
+                  </span>
+
+                  <Val of={props.items[field]} />
+
+                  {rul.lang && rul.lang[`${field}_${props.items[field]}`] || ""}
+                </Nobr>
+              </React.Fragment>
+            ))}
+        </small>
+      </td>
+    </tr>
+  );
+};
+
+
+export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boolean }) => {
+  const flat = useMemo(() => {
+    if (!bonus) return [];
+
+    let flat = [];
+    for (let type of Object.keys(bonus)) {
+      if (bonus[type].length) {
+
+        for (let power = 0; power < bonus[type].length; power++) {
+          let b = bonus[type][power];
+          if (b !== 0) {
+            power = power * 1 + 1;
+            flat.push([
+              <>
+                <a href="##${type}">${rul.tr(type, { icon: "compact" })}</a>
+                {power === 1 ? "" : <sup>{power}</sup>}
+              </>,
+              b, type
+            ]);
+          }
+        }
+      } else {
+        if (bonus[type] !== 0) flat.push([<a href="##${type}">{rul.tr(type, { icon: "compact" })}</a>, bonus[type], type]);
+      }
+    }
+    flat = flat.sort((a, b) => (a[0] === "flatHundred" || a[0] === "flatOne" || a[0] < b[0] ? -1 : 1));
+    return flat;
+  }, [bonus]);
+
+  return (
+    <>
+      {flat.length > 0 && plus && "+"}
+      {flat.map((b, i) => (
+        <React.Fragment key={i}>
+          {i !== 0 && " +"}
+          {b[2] === "flatHundred" ? (
+            b[1] * 100
+          ) : b[2] === "flatOne" ? (
+            b[1]
+          ) : (
+            <Nobr>
+              {b[0]}
+              {b[1] !== 1 && <em>${b[1]}</em>}
+            </Nobr>
+          )}
+        </React.Fragment>
+      ))}
+    </>
+  );
+};
+
