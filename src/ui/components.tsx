@@ -3,7 +3,7 @@ import { state, update } from "../state";
 import { type Column } from 'react-data-grid';
 
 import { getImg } from "../idb";
-import { rul } from "../rul/Ruleset";
+import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Val } from "./Val";
 import React from "react";
 import ItemComponent from "./ItemComponent";
@@ -21,13 +21,22 @@ export async function viewImage(path: string) {
 function spritePath(src?: string) {
   if (!src)
     return undefined;
+  if (src.startsWith("data:"))
+    return src;
   return rul.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : undefined);
 }
 
-export function Img(props: { src?: string, scale?: number, alt?: string, style?: CSSProperties, maxWidth?: number, maxHeight?: number, zoom?: number }) {
+export function Img(props: {
+  src?: string, scale?: number, alt?: string, style?: CSSProperties,
+  maxWidth?: number, maxHeight?: number, zoom?: number, className?: string
+}) {
   let path = spritePath(props.src);
   let images = state.images;
   let [natural, setNatural] = useState<{ path: string, w: number, h: number }>();
+  // Images that can't be decoded fall back to the transparent placeholder, like
+  // old `Img.svelte`/`SmartImage` did. It is tracked per path so that switching
+  // articles retries instead of keeping the failure forever.
+  let [brokenPath, setBrokenPath] = useState<string>();
 
   // Load the sprite from the database once. `null` is stored for missing
   // images so that a missing sprite doesn't trigger a fetch on every render.
@@ -51,15 +60,22 @@ export function Img(props: { src?: string, scale?: number, alt?: string, style?:
     return null;
 
   let img = images[path];
-  let dataImage = path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
+  let broken = brokenPath === path;
+  let dataImage = broken ? emptyImg : path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
   // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
   let factor = props.zoom ?? props.scale ?? 1;
   let size = natural?.path === path ? natural : undefined;
-  let element = <img className="x-image" src={dataImage} alt={props.alt ?? props.src}
+  let element = <img className={"x-image" + (props.className ? " " + props.className : "")} src={dataImage} alt={props.alt ?? props.src}
     onLoad={e => {
       let t = e.currentTarget;
       if (t.naturalWidth && t.naturalHeight && (t.naturalWidth != size?.w || t.naturalHeight != size?.h))
         setNatural({ path: path!, w: t.naturalWidth, h: t.naturalHeight });
+    }}
+    onError={() => {
+      if (!broken) {
+        console.warn("Can't decode image", path);
+        setBrokenPath(path!);
+      }
     }}
     style={{
       imageRendering: "pixelated",
@@ -194,6 +210,29 @@ export function BaseServiceList({ items = null as string[] | null, vertical = fa
 
 export function Nobr(props: any) {
   return <span className="nobr">{props.children}</span>
+}
+
+
+/** Small-caps subheading row, follows old `Subheader.svelte` */
+export function Subheader(props: { text: string }) {
+  return <tr>
+    <td colSpan={2} className="table-subheader">
+      <Val of={props.text} />
+    </td>
+  </tr>
+}
+
+/** Rows of `SpecialBonus` values, follows old `RecoveryTable.svelte` */
+export function RecoveryTable(props: { recovery: any }) {
+  if (!props?.recovery)
+    return null;
+
+  return <>{sortFirstLast(props.recovery).all.map(([field, bonus]) =>
+    <tr key={field}>
+      <td><Val of={field} /></td>
+      <td><SpecialBonus bonus={bonus} /></td>
+    </tr>
+  )}</>;
 }
 
 

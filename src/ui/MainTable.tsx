@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { Fragment, ReactNode } from "react";
 import { Val } from "./Val";
 import { sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
 
@@ -45,6 +45,18 @@ const MainTable = ({
             return null;
           }
 
+          // Wide field - the renderer returns its own table rows, like the
+          // `wide` slot of old `MainTable.svelte`. Checked before `special`
+          // because a wide field looks its renderer up in the same map.
+          if (wide.includes(key)) {
+            let render = special[key];
+            if (typeof render !== "function") {
+              console.error(`Wide table function for '${key}' is not a function`)
+              return null;
+            }
+            return <Fragment key={key}>{render({ key, val, row })}</Fragment>;
+          }
+
           // Special field - custom renderer for the value only
           if (key in special) {
             let render = special[key];
@@ -55,14 +67,6 @@ const MainTable = ({
             return <tr key={key}>
               <td><Val of={key} capital={true} /></td>
               <td>{render({ key, val, row })}</td>
-            </tr>
-          }
-
-          // Wide field - rendered on its own full-width row
-          if (wide.includes(key)) {
-            let render = special[key];
-            return <tr key={key}>
-              <td colSpan={2}>{typeof render === "function" ? render({ key, val, row }) : <Val of={val} field={key} />}</td>
             </tr>
           }
 

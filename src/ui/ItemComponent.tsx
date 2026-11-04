@@ -208,9 +208,9 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
               <a style={{ verticalAlign: "top" }} href={rul.obsSprite(key, prop)}>
                 {prop}
               </a>
-              <img
+              <Img
                 className="item-img sprite"
-                alt={prop}
+                alt={String(prop)}
                 src={rul.obsSprite(key, prop)}
               />
             </>

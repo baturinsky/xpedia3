@@ -602,16 +602,12 @@ button.current-file {
 }
 
 .article-body {
-  columns: 2;
+  /* column-width + a hard max of 2: the browser makes a second column only
+     when both columns are at least 36rem (576px) wide, which is wider than
+     our widest table (568px). Below that it stays single-column instead of
+     letting a table spill into its neighbour; it never makes 3. */
+  columns: 36rem 2;
   column-gap: 1pt;
-}
-
-/* A multicolumn box never shrinks below its min-content width, and item
-   tables are intrinsically up to ~570px wide. Spanning the full body keeps
-   a wide table out of the neighbouring column instead of letting it overlap. */
-.article-body>.main-table {
-  column-span: all;
-  max-width: 100%;
 }
 
 /* Long text sits above the columns, see old `.main-text` */
@@ -968,3 +964,219 @@ ol>li:last-child::after {
 .pagination-button.current {
   background: var(--lighter);
 }
+
+/** Armor paper-doll, ported from old `main-old` */
+.armors {
+  min-width: 400px;
+}
+
+.armor {
+  pointer-events: none;
+  position: relative;
+}
+
+.armor-layer {
+  position: absolute;
+  top: -30px;
+  left: 0px;
+}
+
+.armor-variant {
+  left: 40px;
+  position: absolute;
+  opacity: 0.5;
+  font-size: small;
+}
+
+.armor-column header {
+  grid-column: 1 / -1;
+  font-variant: small-caps;
+  text-align: center;
+}
+
+.armor-column {
+  display: grid;
+  margin-right: 10px;
+  grid-template-columns: auto auto;
+}
+
+.armor-column>div:nth-child(odd) {
+  margin-right: 10px;
+}
+
+.armor-column>div:nth-child(even) {
+  margin-right: 30px;
+}
+
+.armor-column-resists {
+  grid-template-columns: auto auto auto auto auto auto;
+}
+
+/** Tables inside tables, ported from old `main-old` */
+.item-manufacture {
+  background: var(--table-main);
+  border-collapse: collapse;
+  text-align: center;
+  width: 100%;
+}
+
+.item-manufacture>tr:nth-child(4n+1),
+.item-manufacture>tr:nth-child(4n+2) {
+  background: var(--table-secondary);
+}
+
+.secondary-table-td {
+  padding: 0;
+  text-align: center;
+}
+
+.item-right-column {
+  vertical-align: top;
+  max-width: 45vw;
+}
+
+.item-img {
+  max-width: 100%;
+}
+
+.item-ammo-img {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0px 2px 0px 0px;
+}
+
+td.attacks-alter {
+  border-top: dashed 1px var(--lighter);
+}
+
+.number-table {
+  padding: 0px;
+}
+
+.number-table td:first-child {
+  text-align: right;
+  border-left: none;
+  padding-left: 0px;
+}
+
+.number-table-header {
+  font-variant: small-caps;
+}
+
+.number-table-header td:first-child {
+  text-align: center;
+}
+
+.centered-text {
+  text-align: center;
+}
+
+.padding-right {
+  padding-right: 5px;
+}
+
+.big-number {
+  font-size: 120%;
+}
+
+.no-break-column {
+  break-inside: avoid-column;
+}
+
+/** Facility and craft sprites */
+img.facility,
+img.craft {
+  height: 64px;
+  width: 64px;
+}
+
+.tight {
+  column-gap: 0rem;
+}
+
+.tight img {
+  display: block;
+  margin: 0px;
+}
+
+/** Old `btn-hover-effect` button, used by the armor and item components */
+.btn-hover-effect {
+  display: flex;
+  align-items: center;
+  color: white;
+  line-height: 1;
+  background-color: var(--hover);
+  font-family: inherit;
+  border: solid 1px var(--border);
+  margin: 5px;
+  padding: 7px 30px;
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition-property: all;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  content: "";
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(0, 1);
+  transform-origin: right top;
+  z-index: -1;
+  transition-property: transform;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:after {
+  position: absolute;
+  top: -2px;
+  right: -40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 40px;
+  content: ">>";
+  font-family: inherit;
+  line-height: inherit;
+  opacity: 0;
+  transition-property: all;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:hover {
+  padding-left: 26px;
+  padding-right: 46px;
+}
+
+.btn-hover-effect--effect-1:hover:before {
+  transform: scale(1, 1);
+  transform-origin: left top;
+}
+
+.btn-hover-effect--effect-1:hover:after {
+  right: 0;
+  opacity: 1;
+}
+
+/** Services table on the SERVICES article */
+a.services {
+  color: cyan;
+}
+
+.highlight td {
+  background: #685c74;
+}
+

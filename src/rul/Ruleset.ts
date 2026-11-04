@@ -1,6 +1,6 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
-import { addAllIfNew, addIfNew, capital, cullDoubles, delay, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
+import { addAllIfNew, addIfNew, capital, cullDoubles, delay, emptyImg, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
 import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
@@ -46,7 +46,7 @@ export function sortFirstLast(item: Object, options: SortFirstLastOptions = {}):
   let first = orderedFilteredEntries(item, options.first);
   let last = orderedFilteredEntries(item, options.last);
   let exclude = orderedFilteredEntries(item, options.exclude);
-  let special = new Set([...(options.first || []), ...(options.last || []), ...(options.exclude || []), "id", "list", "name"]);
+  let special = new Set([...(options.first || []), ...(options.last || []), ...(options.exclude || []), "id", "list", "name", "collection"]);
   let misc = Object.entries(item).filter(([k, v]) => !special.has(k));
   if (options.sortBy) {
     misc = misc.sort((a, b) => options.sortBy(a[1]) > options.sortBy(b[1]) ? 1 : -1)
@@ -207,9 +207,11 @@ export default class Ruleset {
     return this.sounds[id];
   }
 
+  /** Sprite from one of the obs tables (BIGOBS.PCK etc). Returns the asset path,
+   * or the transparent placeholder when this ruleset has no such sprite. */
   obsSprite(type: string, num: number) {
     let path = (this.obs[type] || [])[num]?.path;
-    return path;
+    return path || emptyImg;
   }
 
   combineRuls(ruls: any[], reversed = false) {

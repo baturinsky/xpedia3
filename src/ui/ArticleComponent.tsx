@@ -1,23 +1,31 @@
-import { createElement } from "react";
+import { createElement, useEffect } from "react";
 import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { Img, LinksPage, SectionTable } from "./components";
+import { BaseService, Img, LinksPage, SectionTable } from "./components";
+import CommendationComponent, { SoldierBonuses } from "./CommendationComponent";
+import Conditions from "./Conditions";
+import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
+import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
+import ManufactureComponent from "./ManufactureComponent";
 import ResearchInfo from "./ResearchInfo";
+import StartingConditionsComponent from "./StartingConditionsComponent";
 import { LandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 
 export function ArticleTitle() {
   let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.ordered) : undefined);
+  // Old `Article.svelte` filtered out the article's own section from the list
+  let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
   return <div className="article-title">
     <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
     {/* `Tr` so that the reveal mode shows the raw key, like old `Article.svelte` */}
     <div className="central"><Tr text={article?.id} nobr={1000} /></div>
-    <div className="sections"><Val of={article?.sections} /></div>
+    <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
     <div className="right">{right && <Val of={right} postfix={">"} />}</div>
   </div>
 }
@@ -32,14 +40,14 @@ const renderers = {
   stats: {},
   damageTypes: {},
   countries: {},
-  //commendations: Commendation,
-  //baseServices: BaseService,
-  //facilities: Facility,
-  //manufacture: Manufacture,
-  //crafts: Craft,
+  commendations: CommendationComponent,
+  baseServices: BaseService,
+  facilities: FacilityComponent,
+  manufacture: ManufactureComponent,
+  crafts: CraftComponent,
   craftWeapons: CraftWeaponComponent,
   weaponTypes: {},
-  //soldierBonuses: SoldierBonuses,
+  soldierBonuses: SoldierBonuses,
   soldierTransformation: {},
   soldiers: { sort: { first: ["statCaps"], last: ["armors"] } },
   ufos: { sort: { first: ["modSprite"], last: ["battlescapeTerrainData"] } },
@@ -52,7 +60,7 @@ const renderers = {
     sort: { exclude: ["researchNeeded", "researchForbidden"] },
   },
   alienMissions: {},
-  //startingConditions: StartingConditions,
+  startingConditions: StartingConditionsComponent,
   enviroEffects: {},
   terrains: { sort: { last: ["mapBlocks"] } },
   mapScripts: {},
@@ -141,6 +149,46 @@ function sectionTable() {
   return null;
 }
 
+/** Articles whose body is not the generic list of entry tables */
+function specialArticleBody() {
+  let id = article?.id;
+  if (!id)
+    return null;
+
+  if (id == "SERVICES")
+    return <ServicesTable />;
+
+  if (id == "CONDITIONS")
+    return <Conditions conditions={rul.startingConditions[id]} />;
+
+  return null;
+}
+
+/** All base services and the facilities that provide them, follows old `BaseServices.svelte` */
+function ServicesTable({ query = null as string | null }) {
+  let names = rul.sortStrings(Object.keys(rul.baseServices));
+  if (!names.length)
+    return null;
+
+  return <table className="main-table base-services">
+    <thead>
+      <tr className="table-header">
+        <td><Tr text="Service" /></td>
+        <td><Tr text="Facility" /></td>
+      </tr>
+    </thead>
+    <tbody>
+      {names.map(name => {
+        let items: any = rul.baseServices[name];
+        return <tr key={name} className={name == query ? "highlight" : ""}>
+          <td><a className="services" href={"##" + name}><Tr text={name} /></a></td>
+          <td><Val of={items.providedBy} /></td>
+        </tr>;
+      })}
+    </tbody>
+  </table>;
+}
+
 /** Full text search results, follows old `App.svelte` */
 function SearchResults() {
   let query = state.searchQuery.toLowerCase();
@@ -177,11 +225,28 @@ export function ArticleComponent() {
   let id = article?.id ?? "MAIN";
   let table = sectionTable();
   let item = rul?.items?.[id];
+
+  // Old `Article.svelte` set the document title from `<svelte:head>`
+  useEffect(() => {
+    document.title = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
+  }, [article?.id]);
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
   let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
 
   let main = article && <><ArticleTitle />
+    {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
+        tables get the full page width instead of a single column */}
+    {table}
+    {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
+      <LinksPage links={rul.categories[article.id]} cols={3} />}
+    {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
+      <LinksPage links={rul.manufactureCategories[article.id]} cols={3} />}
+    {!table && section?.id == article?.id && article?.id != "MAIN" &&
+      <div className="articles-list">
+        <LinksPage key={article.id} links={section.articles(state.ordered).map(a => a.id)} />
+      </div>
+    }
     {article.text &&
       <div className="main-table main-text">
         {itemImage &&
@@ -202,7 +267,7 @@ export function ArticleComponent() {
       </div>
     }
     <div className="article-body">
-      {table}
+      {!table && specialArticleBody()}
       {!table && Object.entries(renderers).filter(([key]) => {
         return (rul as any)[key] ? (rul as any)[key][id] : ""
       }
@@ -220,10 +285,6 @@ export function ArticleComponent() {
           />
         }
       })}
-      {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
-        <LinksPage links={rul.categories[article.id]} cols={3} />}
-      {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
-        <LinksPage links={rul.manufactureCategories[article.id]} cols={3} />}
       {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
       {!(article.id in (rul.units ?? {})) && article.image_id &&
         <Img src={article.image_id} scale={2} />}
@@ -233,11 +294,6 @@ export function ArticleComponent() {
 
   return <div className="article">
     {main}
-    {(!table && section?.id == article?.id && article?.id != "MAIN") &&
-      <div className="articles-list">
-        <LinksPage key={article?.id} links={section?.articles(state.ordered).map(a => a.id)} />
-      </div>
-    }
     {(section?.id == "MAIN" || !rul) && <LandingPage />}
 
   </div>

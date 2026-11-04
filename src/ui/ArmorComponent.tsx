@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { rul, sortFirstLast, damageTypes } from "../rul/Ruleset";
-import { SpecialBonus } from "./components";
+import { SpecialBonus, RecoveryTable, Subheader } from "./components";
 import { Val } from './Val';
 import { emptyImg } from '../util';
 import { state, update } from '../state';
@@ -289,27 +289,5 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
     </table>
   );
 };
-
-function Subheader(props: { text: string }) {
-  return <tr>
-    <td colSpan={2} className="table-subheader">
-      <Val of={props.text} />
-    </td>
-  </tr>
-}
-
-function RecoveryTable(props: { recovery: any }) {
-  if(!props?.recovery)
-    return
-
-  return Object.entries(props.recovery).map(([key2, bonus]: any) => <tr>
-    <td>
-      <Val of={key2} />
-    </td>
-    <td>
-      <SpecialBonus bonus={bonus} />
-    </td>
-  </tr>)
-}
 
 export default ArmorComponent;

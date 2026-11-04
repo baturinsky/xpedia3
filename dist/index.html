@@ -24167,6 +24167,13 @@ function capital(str) {
 function unique(a) {
   return [...new Set(a)];
 }
+function withoutKeys(o, keys) {
+  o = { ...o };
+  for (let k of keys) {
+    delete o[k];
+  }
+  return o;
+}
 function allFieldValuesOf(objects, field) {
   let s = /* @__PURE__ */ new Set();
   for (let o of objects) {
@@ -32267,7 +32274,7 @@ function sortFirstLast(item, options = {}) {
   let first = orderedFilteredEntries(item, options.first);
   let last = orderedFilteredEntries(item, options.last);
   let exclude$1 = orderedFilteredEntries(item, options.exclude);
-  let special = /* @__PURE__ */ new Set([...options.first || [], ...options.last || [], ...options.exclude || [], "id", "list", "name"]);
+  let special = /* @__PURE__ */ new Set([...options.first || [], ...options.last || [], ...options.exclude || [], "id", "list", "name", "collection"]);
   let misc = Object.entries(item).filter(([k, v]) => !special.has(k));
   if (options.sortBy) {
     misc = misc.sort((a, b) => options.sortBy(a[1]) > options.sortBy(b[1]) ? 1 : -1);
@@ -32402,9 +32409,11 @@ class Ruleset {
   sound(id) {
     return this.sounds[id];
   }
+  /** Sprite from one of the obs tables (BIGOBS.PCK etc). Returns the asset path,
+   * or the transparent placeholder when this ruleset has no such sprite. */
   obsSprite(type, num) {
     let path = (this.obs[type] || [])[num]?.path;
-    return path;
+    return path || emptyImg;
   }
   combineRuls(ruls, reversed = false) {
     for (let file of reversed ? ruls.reverse() : ruls) {
@@ -33576,12 +33585,15 @@ async function viewImage(path) {
 function spritePath(src) {
   if (!src)
     return void 0;
+  if (src.startsWith("data:"))
+    return src;
   return rul.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : void 0);
 }
 function Img(props) {
   let path = spritePath(props.src);
   let images = state.images;
   let [natural, setNatural] = reactExports.useState();
+  let [brokenPath, setBrokenPath] = reactExports.useState();
   reactExports.useEffect(() => {
     if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
       return;
@@ -33601,19 +33613,26 @@ function Img(props) {
   if (!path)
     return null;
   let img = images[path];
-  let dataImage = path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
+  let broken = brokenPath === path;
+  let dataImage = broken ? emptyImg : path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
   let factor = props.zoom ?? props.scale ?? 1;
   let size = natural?.path === path ? natural : void 0;
   let element = /* @__PURE__ */ jsxRuntimeExports.jsx(
     "img",
     {
-      className: "x-image",
+      className: "x-image" + (props.className ? " " + props.className : ""),
       src: dataImage,
       alt: props.alt ?? props.src,
       onLoad: (e) => {
         let t = e.currentTarget;
         if (t.naturalWidth && t.naturalHeight && (t.naturalWidth != size?.w || t.naturalHeight != size?.h))
           setNatural({ path, w: t.naturalWidth, h: t.naturalHeight });
+      },
+      onError: () => {
+        if (!broken) {
+          console.warn("Can't decode image", path);
+          setBrokenPath(path);
+        }
       },
       style: {
         imageRendering: "pixelated",
@@ -33674,6 +33693,12 @@ const CogAnimation = (props) => {
     }
   ) });
 };
+function BaseService({ entry }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("table", { className: "main-table base-service-table", children: /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: Object.entries(entry).sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1)).map((prop) => !["id"].includes(prop[0]) && /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: prop[0], capital: true }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: prop[1] }) })
+  ] }, prop[0])) }) });
+}
 function BaseServiceList({ items = null, vertical = false }) {
   if (!items || !items.length)
     return null;
@@ -33684,6 +33709,19 @@ function BaseServiceList({ items = null, vertical = false }) {
 }
 function Nobr(props) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "nobr", children: props.children });
+}
+function Subheader(props) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, className: "table-subheader", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: props.text }) }) });
+}
+function RecoveryTable(props) {
+  if (!props?.recovery)
+    return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: sortFirstLast(props.recovery).all.map(
+    ([field, bonus]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: field }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(SpecialBonus, { bonus }) })
+    ] }, field)
+  ) });
 }
 function SecondaryTable(props) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -34189,16 +34227,182 @@ const ArmorComponent = ({ entry }) => {
     ] })
   ] });
 };
-function Subheader(props) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, className: "table-subheader", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: props.text }) }) });
+
+const MainTable = ({
+  entry,
+  sort = {},
+  title,
+  subtitle = "",
+  special = {},
+  wide = []
+}) => {
+  if (entry == null) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: "No entry in main table" });
+  }
+  const sorted = sortFirstLast(entry, sort);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "main-table", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { colSpan: 2, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: title }),
+      " ",
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: subtitle })
+    ] }) }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: sorted.all.map(([key, val], row) => {
+      if (key.charAt(0) === "_") {
+        return null;
+      }
+      if (wide.includes(key)) {
+        let render = special[key];
+        if (typeof render !== "function") {
+          console.error(`Wide table function for '${key}' is not a function`);
+          return null;
+        }
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.Fragment, { children: render({ key, val, row }) }, key);
+      }
+      if (key in special) {
+        let render = special[key];
+        if (typeof render !== "function") {
+          console.error(`Special table function for '${key}' is not a function`);
+          return null;
+        }
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: key, capital: true }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: render({ key, val, row }) })
+        ] }, key);
+      }
+      if (val != null && !(val.length === 0)) {
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: key, capital: true }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, field: key }) })
+        ] }, key);
+      }
+      return null;
+    }) })
+  ] });
+};
+
+function deedLink(id) {
+  if (id == null)
+    return "";
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "##" + id, className: rul.article(id) ? "" : "dead", children: rul.tr(id) });
 }
-function RecoveryTable(props) {
-  if (!props?.recovery)
-    return;
-  return Object.entries(props.recovery).map(([key2, bonus]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: key2 }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(SpecialBonus, { bonus }) })
-  ] }));
+function deedDescription(deed) {
+  let parts = [
+    rul.tr(deed.status),
+    rul.tr(deed.times),
+    deedLink(deed.race),
+    deedLink(deed.unit),
+    deedLink(deed.faction)
+  ];
+  if (deed.element || deed.type || deed.item) {
+    parts.push(rul.tr("commendationWith"), deedLink(deed.item), deedLink(deed.type), deedLink(deed.element));
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: parts.filter((p) => p !== "" && p != null).map(
+    (p, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+      i != 0 && " ",
+      p
+    ] }, i)
+  ) });
+}
+function SoldierBonuses({ entry, title, subtitle }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MainTable,
+    {
+      entry,
+      title,
+      subtitle,
+      special: {
+        recovery: ({ val: prop }) => /* @__PURE__ */ jsxRuntimeExports.jsx("table", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(RecoveryTable, { recovery: prop }) }) })
+      }
+    }
+  );
+}
+function CommendationComponent({ entry }) {
+  let bonuses = [];
+  for (let i = 0; i < 10; i++) {
+    let bonusName = entry.soldierBonusTypes ? entry.soldierBonusTypes[i] : null;
+    let b = { ...rul.soldierBonuses[bonusName] || {}, criteria: {} };
+    for (let criteria in entry.criteria) {
+      b.criteria[criteria] = entry.criteria[criteria][i];
+    }
+    if (Object.keys(b).length > 0)
+      bonuses[i] = b;
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      MainTable,
+      {
+        entry,
+        title: "Commendation",
+        sort: {
+          last: ["items"],
+          exclude: ["type", "criteria", "soldierBonusTypes", "battleTypes", "damageTypes", "kcd", "killCriteria"]
+        },
+        special: {
+          killCriteria2: ({ val: prop }) => prop.length == 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "See stage descriptions" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: prop.map(
+            (deeds, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              i != 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: rul.tr("or") }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("br", {})
+              ] }),
+              deeds.map(
+                (deed, j) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                  j != 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    " ",
+                    rul.tr("and"),
+                    " "
+                  ] }),
+                  deedDescription(deed)
+                ] }, j)
+              )
+            ] }, i)
+          ) }),
+          finalBonus: ({ val: prop }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: withoutKeys(prop, ["stats", "recovery", "id"]) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+            "Stats: ",
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: prop?.stats }),
+            prop?.recovery && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "Recover per turn:",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("table", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(RecoveryTable, { recovery: prop.recovery }) }) })
+            ] })
+          ] })
+        }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "no-break-column", children: bonuses.map(
+      (bonus, i) => /* @__PURE__ */ jsxRuntimeExports.jsx(SoldierBonuses, { entry: bonus, title: "Stage", subtitle: `${i + 1}` }, i)
+    ) })
+  ] });
+}
+
+function Conditions({ conditions }) {
+  let sorted = sortFirstLast(conditions, { exclude: ["type"] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: sorted.all.map(
+    ([key, prop]) => /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: prop, title: rul.tr(key) }, key)
+  ) });
+}
+
+function CraftComponent({ entry }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MainTable,
+    {
+      entry,
+      title: "Craft",
+      sort: {
+        first: ["speedMax", "soldiers"],
+        exclude: ["type", "battlescapeTerrainData", "craftInventoryTile", "deployment"]
+      },
+      special: {
+        weaponStrings: ({ val }) => /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val.map((slot) => rul.tr(slot)?.replace(">{ALT}{0}", "") ?? "") }),
+        sprite: ({ val }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { obs: "base", of: 33 + val }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { obs: "icon", of: val + 11 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { obs: "icon", of: val })
+        ] })
+      }
+    }
+  );
 }
 
 const Damage = ({ attack }) => ("damage" in attack || "damageType" in attack) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -34350,10 +34554,10 @@ const ItemComponent = ({ entry, title }) => {
         ["floorSprite", "handSprite"].includes(key) && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("a", { style: { verticalAlign: "top" }, href: rul.obsSprite(key, prop), children: prop }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "img",
+            Img,
             {
               className: "item-img sprite",
-              alt: prop,
+              alt: String(prop),
               src: rul.obsSprite(key, prop)
             }
           )
@@ -34396,6 +34600,7 @@ const ItemComponent = ({ entry, title }) => {
             /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "accuracy" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "kneeling" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
               entry.kneelBonus || 120,
               "% -",
               entry.dropoff,
@@ -34518,53 +34723,96 @@ const CraftWeaponComponent = ({ entry }) => {
   ] }, entry.id);
 };
 
-const MainTable = ({
-  entry,
-  sort = {},
-  title,
-  subtitle = "",
-  special = {},
-  wide = []
-}) => {
-  if (entry == null) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: "No entry in main table" });
+function FacilitySprite(props) {
+  let size = props.size;
+  let cells = [];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let num = props.prop * 1 + x * size + y;
+      cells.push(/* @__PURE__ */ jsxRuntimeExports.jsx(
+        Img,
+        {
+          className: "facility sprite",
+          alt: "X",
+          src: rul.obsSprite("base", num),
+          style: { width: 64, height: 64 }
+        },
+        `${x}-${y}`
+      ));
+    }
   }
-  const sorted = sortFirstLast(entry, sort);
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "main-table", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { colSpan: 2, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: title }),
-      " ",
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: subtitle })
-    ] }) }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: sorted.all.map(([key, val], row) => {
-      if (key.charAt(0) === "_") {
-        return null;
-      }
-      if (key in special) {
-        let render = special[key];
-        if (typeof render !== "function") {
-          console.error(`Special table function for '${key}' is not a function`);
-          return null;
-        }
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: key, capital: true }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: render({ key, val, row }) })
-        ] }, key);
-      }
-      if (wide.includes(key)) {
-        let render = special[key];
-        return /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, children: typeof render === "function" ? render({ key, val, row }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, field: key }) }) }, key);
-      }
-      if (val != null && !(val.length === 0)) {
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: key, capital: true }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, field: key }) })
-        ] }, key);
-      }
-      return null;
-    }) })
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "tight", style: {
+    columns: size,
+    width: 64 * size,
+    marginBottom: props.bottom ? -64 * size : 0
+  }, children: cells });
+}
+function FacilityComponent({ entry }) {
+  let [seeStorageTiles, setSeeStorageTiles] = reactExports.useState(false);
+  let size = entry.size || 1;
+  let buildCostItems = ({ val: prop }) => !prop ? null : Object.keys(prop).sort().map(
+    (field, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+      i != 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: field }),
+      ": ",
+      prop[field].build,
+      " / ",
+      prop[field].refund
+    ] }, field)
+  );
+  let storageTiles = ({ val: prop }) => !prop ? null : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "button", onClick: () => setSeeStorageTiles(!seeStorageTiles), children: "Expand" }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: seeStorageTiles && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { columns: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: prop, vertical: true }) }) })
   ] });
-};
+  let sprites = ({ val: prop }) => prop == null ? null : entry.spriteFacility ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FacilitySprite, { size, prop, bottom: true }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FacilitySprite, { size, prop: entry.spriteFacility })
+  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(FacilitySprite, { size, prop });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MainTable,
+    {
+      entry,
+      title: "Facility",
+      sort: {
+        first: ["spriteShape"],
+        exclude: ["spriteFacility", "type", "battlescapeTerrainData", "craftInventoryTile", "deployment"]
+      },
+      special: {
+        buildCostItems,
+        storageTiles,
+        provideBaseFunc: ({ val }) => /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, vertical: true }),
+        requiresBaseFunc: ({ val }) => /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, vertical: true }),
+        forbiddenBaseFunc: ({ val }) => /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: val, vertical: true }),
+        spriteShape: sprites
+      }
+    }
+  );
+}
+
+function ManufactureComponent({ entry }) {
+  let randomProducedItems = ({ val }) => val ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, className: "table-subheader", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "randomProducedItems" }) }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, children: /* @__PURE__ */ jsxRuntimeExports.jsx("table", { className: "number-table", style: { width: "100%", margin: 0 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: entry.randomProducedItems.map(
+      (chance, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+          (chance[0] / entry.chanceSum * 100).toFixed(2),
+          "%"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: Object.keys(chance[1]).length == 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "NOTHING" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: chance[1] }) })
+      ] }, i)
+    ) }) }) }) })
+  ] }) : null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MainTable,
+    {
+      entry,
+      title: "Manufacture",
+      sort: { exclude: ["chanceSum", "totalProducedItems"] },
+      wide: entry.randomProducedItems ? ["randomProducedItems"] : [],
+      special: { randomProducedItems }
+    }
+  );
+}
 
 const ResearchInfo = ({ entry }) => {
   const longLists = [
@@ -34619,6 +34867,30 @@ const ResearchInfo = ({ entry }) => {
   ] }, "research");
 };
 
+function StartingConditionsComponent({
+  entry,
+  title = "Starting Conditions",
+  subtitle = ""
+}) {
+  let exclude = [];
+  for (let k of ["Craft", "SoldierTypes", "Vehicles", "Armors"]) {
+    exclude.push((entry[`allowed${k}`]?.length ?? 0) > 0 ? `forbidden${k}` : `allowed${k}`);
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    MainTable,
+    {
+      entry,
+      title,
+      subtitle,
+      sort: {
+        first: ["deployments"],
+        exclude,
+        last: ["allowedArmors", "forbiddenArmors", "defaultArmor"]
+      }
+    }
+  );
+}
+
 function UnitComponent({ entry }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -34640,10 +34912,11 @@ function UnitComponent({ entry }) {
 
 function ArticleTitle() {
   let [left, right] = [-1, 1].map((delta) => article ? rul.findNearbyArticle(article, delta, section, state.ordered) : void 0);
+  let sectionIds = article?.sections?.map((s) => s.id).filter((id) => id != article?.id) ?? [];
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article-title", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "left", children: left && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: left, prefix: "<" }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "central", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: article?.id, nobr: 1e3 }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sections", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: article?.sections }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sections", children: sectionIds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: sectionIds }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "right", children: right && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: right, postfix: ">" }) })
   ] });
 }
@@ -34656,14 +34929,14 @@ const renderers = {
   stats: {},
   damageTypes: {},
   countries: {},
-  //commendations: Commendation,
-  //baseServices: BaseService,
-  //facilities: Facility,
-  //manufacture: Manufacture,
-  //crafts: Craft,
+  commendations: CommendationComponent,
+  baseServices: BaseService,
+  facilities: FacilityComponent,
+  manufacture: ManufactureComponent,
+  crafts: CraftComponent,
   craftWeapons: CraftWeaponComponent,
   weaponTypes: {},
-  //soldierBonuses: SoldierBonuses,
+  soldierBonuses: SoldierBonuses,
   soldierTransformation: {},
   soldiers: { sort: { first: ["statCaps"], last: ["armors"] } },
   ufos: { sort: { first: ["modSprite"], last: ["battlescapeTerrainData"] } },
@@ -34676,7 +34949,7 @@ const renderers = {
     sort: { exclude: ["researchNeeded", "researchForbidden"] }
   },
   alienMissions: {},
-  //startingConditions: StartingConditions,
+  startingConditions: StartingConditionsComponent,
   enviroEffects: {},
   terrains: { sort: { last: ["mapBlocks"] } },
   mapScripts: {},
@@ -34839,6 +35112,34 @@ function sectionTable() {
   }
   return null;
 }
+function specialArticleBody() {
+  let id = article?.id;
+  if (!id)
+    return null;
+  if (id == "SERVICES")
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(ServicesTable, {});
+  if (id == "CONDITIONS")
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(Conditions, { conditions: rul.startingConditions[id] });
+  return null;
+}
+function ServicesTable({ query = null }) {
+  let names = rul.sortStrings(Object.keys(rul.baseServices));
+  if (!names.length)
+    return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "main-table base-services", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "table-header", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "Service" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "Facility" }) })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: names.map((name) => {
+      let items = rul.baseServices[name];
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: name == query ? "highlight" : "", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("a", { className: "services", href: "##" + name, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: name }) }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: items.providedBy }) })
+      ] }, name);
+    }) })
+  ] });
+}
 function SearchResults() {
   let query = state.searchQuery.toLowerCase();
   let found = state.found;
@@ -34882,9 +35183,16 @@ function ArticleComponent() {
   let id = article?.id ?? "MAIN";
   let table = sectionTable();
   let item = rul?.items?.[id];
+  reactExports.useEffect(() => {
+    document.title = rul ? rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia" : "XPedia";
+  }, [article?.id]);
   let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
   let main = article && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(ArticleTitle, {}),
+    table,
+    article.section == "CATEGORIES" && article.id != "CATEGORIES" && /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: rul.categories[article.id], cols: 3 }),
+    article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" && /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: rul.manufactureCategories[article.id], cols: 3 }),
+    !table && section?.id == article?.id && article?.id != "MAIN" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "articles-list", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: section.articles(state.ordered).map((a) => a.id) }, article.id) }),
     article.text && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "main-table main-text", children: [
       itemImage && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "article-text-image", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
         Img,
@@ -34905,7 +35213,7 @@ function ArticleComponent() {
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article-body", children: [
-      table,
+      !table && specialArticleBody(),
       !table && Object.entries(renderers).filter(
         ([key]) => {
           return rul[key] ? rul[key][id] : "";
@@ -34926,14 +35234,11 @@ function ArticleComponent() {
           );
         }
       }),
-      article.section == "CATEGORIES" && article.id != "CATEGORIES" && /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: rul.categories[article.id], cols: 3 }),
-      article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" && /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: rul.manufactureCategories[article.id], cols: 3 }),
       !(article.id in (rul.units ?? {})) && article.image_id && /* @__PURE__ */ jsxRuntimeExports.jsx(Img, { src: article.image_id, scale: 2 })
     ] })
   ] });
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article", children: [
     main,
-    !table && section?.id == article?.id && article?.id != "MAIN" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "articles-list", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LinksPage, { links: section?.articles(state.ordered).map((a) => a.id) }, article?.id) }),
     (section?.id == "MAIN" || !rul) && /* @__PURE__ */ jsxRuntimeExports.jsx(LandingPage, {})
   ] });
 }
@@ -36718,7 +37023,11 @@ button.current-file {
 }
 
 .article-body {
-  columns: 2;
+  /* column-width + a hard max of 2: the browser makes a second column only
+     when both columns are at least 36rem (576px) wide, which is wider than
+     our widest table (568px). Below that it stays single-column instead of
+     letting a table spill into its neighbour; it never makes 3. */
+  columns: 36rem 2;
   column-gap: 1pt;
 }
 
@@ -37075,6 +37384,221 @@ ol>li:last-child::after {
 
 .pagination-button.current {
   background: var(--lighter);
+}
+
+/** Armor paper-doll, ported from old `main-old` */
+.armors {
+  min-width: 400px;
+}
+
+.armor {
+  pointer-events: none;
+  position: relative;
+}
+
+.armor-layer {
+  position: absolute;
+  top: -30px;
+  left: 0px;
+}
+
+.armor-variant {
+  left: 40px;
+  position: absolute;
+  opacity: 0.5;
+  font-size: small;
+}
+
+.armor-column header {
+  grid-column: 1 / -1;
+  font-variant: small-caps;
+  text-align: center;
+}
+
+.armor-column {
+  display: grid;
+  margin-right: 10px;
+  grid-template-columns: auto auto;
+}
+
+.armor-column>div:nth-child(odd) {
+  margin-right: 10px;
+}
+
+.armor-column>div:nth-child(even) {
+  margin-right: 30px;
+}
+
+.armor-column-resists {
+  grid-template-columns: auto auto auto auto auto auto;
+}
+
+/** Tables inside tables, ported from old `main-old` */
+.item-manufacture {
+  background: var(--table-main);
+  border-collapse: collapse;
+  text-align: center;
+  width: 100%;
+}
+
+.item-manufacture>tr:nth-child(4n+1),
+.item-manufacture>tr:nth-child(4n+2) {
+  background: var(--table-secondary);
+}
+
+.secondary-table-td {
+  padding: 0;
+  text-align: center;
+}
+
+.item-right-column {
+  vertical-align: top;
+  max-width: 45vw;
+}
+
+.item-img {
+  max-width: 100%;
+}
+
+.item-ammo-img {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0px 2px 0px 0px;
+}
+
+td.attacks-alter {
+  border-top: dashed 1px var(--lighter);
+}
+
+.number-table {
+  padding: 0px;
+}
+
+.number-table td:first-child {
+  text-align: right;
+  border-left: none;
+  padding-left: 0px;
+}
+
+.number-table-header {
+  font-variant: small-caps;
+}
+
+.number-table-header td:first-child {
+  text-align: center;
+}
+
+.centered-text {
+  text-align: center;
+}
+
+.padding-right {
+  padding-right: 5px;
+}
+
+.big-number {
+  font-size: 120%;
+}
+
+.no-break-column {
+  break-inside: avoid-column;
+}
+
+/** Facility and craft sprites */
+img.facility,
+img.craft {
+  height: 64px;
+  width: 64px;
+}
+
+.tight {
+  column-gap: 0rem;
+}
+
+.tight img {
+  display: block;
+  margin: 0px;
+}
+
+/** Old `btn-hover-effect` button, used by the armor and item components */
+.btn-hover-effect {
+  display: flex;
+  align-items: center;
+  color: white;
+  line-height: 1;
+  background-color: var(--hover);
+  font-family: inherit;
+  border: solid 1px var(--border);
+  margin: 5px;
+  padding: 7px 30px;
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition-property: all;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  content: "";
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(0, 1);
+  transform-origin: right top;
+  z-index: -1;
+  transition-property: transform;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:after {
+  position: absolute;
+  top: -2px;
+  right: -40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 40px;
+  content: ">>";
+  font-family: inherit;
+  line-height: inherit;
+  opacity: 0;
+  transition-property: all;
+  transition-duration: 0.2s;
+  transition-timing-function: linear;
+  transition-delay: 0s;
+}
+
+.btn-hover-effect--effect-1:hover {
+  padding-left: 26px;
+  padding-right: 46px;
+}
+
+.btn-hover-effect--effect-1:hover:before {
+  transform: scale(1, 1);
+  transform-origin: left top;
+}
+
+.btn-hover-effect--effect-1:hover:after {
+  right: 0;
+  opacity: 1;
+}
+
+/** Services table on the SERVICES article */
+a.services {
+  color: cyan;
+}
+
+.highlight td {
+  background: #685c74;
 }</style>
 </head>
 
