@@ -6,17 +6,16 @@ import { fileTypeFromBuffer } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { Mod } from "./rul/Ruleset";
-import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets } from "./idb";
+import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets, applySavedLanguage } from "./idb";
 //@ts-ignore
 import builtinModsArchive from './builtinMods.zip?base64'
 
 
-const assetName = /.*(\/mods\/|^)([^\/]+)\/(.*\/)([^\/]+)\.(rul|nam|png|gif)/i
-const lngName = /.*(\/mods\/|^)([^\/]+)\/(Language.*)\/([^\/]+)\.(yml|html|txt)/i
-const metaName = /.*(\/mods\/|^)([^\/]+)\/metadata\.yml/i
+const assetExts = ["rul", "nam", "png", "gif"]
+const lngExts = ["yml", "html", "txt"]
 
 
-type AssetType = "lng" | "rul" | "meta" | "img"
+type AssetType = "lng" | "rul" | "meta" | "img" | "nam"
 
 async function loadBuiltinPack(packname: string, rawPack: string) {
   let binary = base64ToArrayBuffer(rawPack);
@@ -32,31 +31,34 @@ export function interpretPath(s: string): {
   name?: string;
   ext?: string;
 } {
-  let match: RegExpExecArray;
-  //console.log("PTEST", s, rulName.exec(s));
-  
-  /** for when "mods" is in root dir */
-  s = `/${s}`
+  let parts = s.split(/[/\\]/).filter(p => p != "");
 
-  if (match = assetName.exec(s)) {
-    let ext = match[5].toLowerCase(), mod = match[2];
+  // Mods may be packed either under "mods/<mod>/..." or directly as
+  // "<mod>/..." at the archive root
+  if (parts[0] == "mods")
+    parts.shift();
 
+  if (parts.length < 2)
+    return;
+
+  let mod = parts[0];
+  let file = parts[parts.length - 1];
+  let dirs = parts.slice(1, -1);
+  let [name, rawExt] = splitName(file);
+  let ext = (rawExt ?? "").toLowerCase();
+
+  if (file.toLowerCase() == "metadata.yml")
+    return { type: "meta", mod, path: `${mod}/metadata.yml` };
+
+  if (dirs.some(dir => /^Language$/i.test(dir)) && lngExts.includes(ext))
+    return { type: "lng", mod, name, path: parts.join("/"), ext };
+
+  if (assetExts.includes(ext)) {
     return {
-      type: { nam: 'nam', rul: 'rul', gif: 'img', png: 'img' }[ext] as AssetType,
-      mod, name: match[4], path: mod + "/" + match[3] + match[4] + '.' + match[5],
-      ext
+      type: { nam: "nam", rul: "rul", gif: "img", png: "img" }[ext] as AssetType,
+      mod, name, path: parts.join("/"), ext
     }
   }
-  if (match = lngName.exec(s)) {
-    let mod = match[2];
-    //if(mod == "")
-    return { type: "lng", mod, name: match[4], path: mod + "/" + match[3] + "/" + match[4] + '.yml', ext: match[5] }
-  }
-  if (match = metaName.exec(s)) {
-    let mod = match[2];
-    return { type: "meta", mod, path: mod + "/" + "metadata.yml" }
-  }
-
 }
 
 
@@ -189,8 +191,9 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
   console.log("saved assets");
 
   let rul = new Ruleset(processed);
+  applySavedLanguage(rul);
 
-  update({ rul, slowProcessStatus: null })
+  update({ rul, packName, slowProcessStatus: null })
 
   return files
 }
@@ -235,14 +238,14 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
       if (f.type == "lng") {
         let data = f.ext == "yml" ? loadYaml(f.text) : f.text;
 
-        if (typeof data == "object") {
+        if (typeof data == "object" && data != null) {
           let lngName = Object.keys(data)[0]
           addToLng(lngName, data[lngName])
-        } else {
-          if (f.ext != "yml") {
-            let [strName, lngName] = splitName(f.name);
-            addToLng(lngName, { [strName]: data[lngName] })
-          }
+        } else if (typeof data == "string") {
+          // Non-yaml translations are named "STR_ID.<lang>.html"
+          let [strName, lngName] = splitName(f.name);
+          if (lngName)
+            addToLng(lngName, { [strName]: data })
         }
       }
       if (f.type == "rul") {

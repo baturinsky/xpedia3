@@ -1,22 +1,22 @@
-import { rul } from "../rul/Ruleset";
+import { createElement } from "react";
+import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { Img } from "./components";
+import { Img, LinksPage, SectionTable } from "./components";
 import CraftWeaponComponent from "./CraftWeaponComponent";
 import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ResearchInfo from "./ResearchInfo";
 import { LandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
-import { Val } from "./Val";
+import { Val, Tr } from "./Val";
 
 export function ArticleTitle() {
-  if(!article)
-    debugger
-  let [left, right] = [-1, 1].map(delta => rul.findNearbyArticle(article, delta, section, state.ordered));
+  let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.ordered) : undefined);
   return <div className="article-title">
     <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
-    <div className="central">{article?.title}</div>
+    {/* `Tr` so that the reveal mode shows the raw key, like old `Article.svelte` */}
+    <div className="central"><Tr text={article?.id} nobr={1000} /></div>
     <div className="sections"><Val of={article?.sections} /></div>
     <div className="right">{right && <Val of={right} postfix={">"} />}</div>
   </div>
@@ -61,33 +61,155 @@ const renderers = {
   inventorySections: {},
 };
 
+/** Section articles that list their entries in a filterable table */
+function sectionTable() {
+  let id = article?.id;
+  if (!id || !rul)
+    return null;
+  let table = (entries: any[], fields: string[], extraFields?: string[], filters?: any) =>
+    <SectionTable key={id} aId={id} entries={entries} fields={fields}
+      extraFields={extraFields} filters={filters} />;
+
+  switch (id) {
+    case "FACILITIES":
+      return table(Object.values(rul.facilities), [
+        "size", "monthlyCost", "storage", "personnel", "workshops", "prisonType", "aliens"
+      ], ["buildCost", "buildTime", "manaRecoveryPerDay", "sickBayAbsoluteBonus",
+        "sickBayRelativeBonus", "defense", "hitRatio"]);
+    case "COMMENDATIONS":
+      return table(Object.values(rul.commendations), [...statsList, "visibilityAtDark"],
+        [...battleStats.map(s => "recovery." + s), "description", "visibilityAtDay",
+          "camouflageAtDark", "camouflageAtDay", "frontArmor", "sideArmor",
+          "rearArmor", "underArmor"]);
+    case "CRAFTS":
+      return table(Object.values(rul.crafts), [
+        "speedMax", "soldiers", "vehicles", "weapons", "damageMax", "repairRate", "costRent"
+      ]);
+    case "CRAFT_WEAPONS":
+      return table(Object.values(rul.craftWeapons), ["damage", "accuracy", "range", "ammoMax"], undefined, {
+        weaponType: ["any", ...Object.keys(rul.weaponTypes)]
+      });
+    case "SOLDIERS":
+      return table(Object.values(rul.soldiers), [...statsList, "manufacture", "events"]);
+    case "UFOS":
+      return table(Object.values(rul.ufos), [
+        "modSprite", "marker", "markerCrash", "markerLand", "speedMax", "armor",
+        "damageMax", "power", "huntBehavior", "huntMode", "hunterKillerPercentage",
+        "radarRange", "accel"
+      ]);
+    case "COUNTRIES":
+      return table(Object.values(rul.countries), ["fundingBase", "fundingCap", "events"]);
+    case "ATTACKS":
+      return table(rul.attacks, ["name", "accuracy", "damage", "damageType", "shots", "range"], [
+        "ToArmorPre", "ToStun", "RandomType", "ToHealth", "ToTile", "ResistType",
+        "ToWound", "SmokeThreshold", ...statsList, ...statsList.map(v => "acc*" + v)
+      ], {
+        internalBattleType: ["any", ...internalBattleTypes],
+        damageTypes: ["any", ...damageTypes],
+      });
+    case "ITEMS":
+      return table(Object.values(rul.items),
+        ["costSell", "costBuy", "size", "weight", "power", "invSize"],
+        [...rul.itemFields].sort(), {
+        internalBattleType: ["any", ...internalBattleTypes],
+        damageTypes: ["any", ...damageTypes],
+        category: ["any", ...rul.sortStrings(Object.keys(rul.categories))],
+        invSize: ["any", "auto"],
+      });
+    case "MANUFACTURE":
+      return table(Object.values(rul.manufacture),
+        ["cost", "profit", "profitPerHour", "sizeChange", "time"],
+        ["requiredItems", "producedItems", "requires", "requiresBaseFunc", "space"], {
+        category: ["any", ...Object.keys(rul.manufactureCategories)],
+      });
+    case "ARMORS":
+      return table(Object.values(rul.armors),
+        ["size", "frontArmor", "sideArmor", "rearArmor", "underArmor"],
+        [...damageTypes, ...statsList, "psiVision", "visibilityAtDark", "visibilityAtDay",
+          "camouflageAtDark", "camouflageAtDay", "heatVision", "fearImmune",
+          "ARMOR_ENERGY_SHIELD_CAPACITY", "ARMOR_ENERGY_SHIELD_PER_TURN",
+          "ARMOR_ENERGY_SHIELD_FLASH_COLOR", "ARMOR_ENERGY_SHIELD_TYPE"], {
+        armorUsers: ["any", "allies", "enemies", ...Object.keys(rul.soldiers)],
+        size: ["any", "auto"],
+        allowedIn: ["any", ...Object.keys(rul.startingConditions)],
+      });
+    case "UNITS":
+      return table(Object.values(rul.units),
+        ["canSurrender", "sniper", "spotter", "health"],
+        [...statsList, ...rul.unitFields].sort());
+  }
+  return null;
+}
+
+/** Full text search results, follows old `App.svelte` */
+function SearchResults() {
+  let query = state.searchQuery.toLowerCase();
+  let found = state.found;
+  let matches = (a: string) => (rul.tr(a) ?? "").toLowerCase().includes(query);
+
+  if (!found)
+    return <div>Searching "<em>{state.searchQuery}</em>":<br />
+      {query.length < 2 ? <i>Query too short</i> : <><Val of="Initializing search engine..." /><br /></>}
+    </div>;
+
+  if (found.length == 0)
+    return <div>Searching "<em>{state.searchQuery}</em>":<br /><i><Val of="Nothing found" /></i></div>;
+
+  let primary = found.filter(matches).slice(0, 200);
+  let secondary = found.filter(a => !matches(a)).slice(0, 200);
+
+  return <div>
+    Searching "<em>{state.searchQuery}</em>":<br />
+    <LinksPage key={"primary" + query} links={primary} />
+    <br />
+    <LinksPage key={"secondary" + query} links={secondary} title=" " />
+  </div>;
+}
+
 export function ArticleComponent() {
+  // Full text search results replace the article view
+  if (state.searchQuery)
+    return <SearchResults />;
+
   if (!article)
     return <LandingPage />;
 
   let id = article?.id ?? "MAIN";
+  let table = sectionTable();
+  let item = rul?.items?.[id];
+  // Old Article.svelte showed the item's inventory sprite next to the text,
+  // unless the item is a craft weapon
+  let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
 
   let main = article && <><ArticleTitle />
-    <div className="article-body">
-      {(article.text || article.image_id) &&
-        <div className="article-text-and-image">
-          <Img src={article.image_id} scale={1} />
-          <div className="article-text">
-            {article.text}
-            {article.requires && article.requires.join('') != article.id && <>
-              <br />
-              <Val of="Research required: " />
-              <Val of={article.requires} />
-            </>}
+    {article.text &&
+      <div className="main-table main-text">
+        {itemImage &&
+          <div className="article-text-image">
+            <Img src={itemImage.sprite} scale={2}
+              maxWidth={32 * (itemImage.invWidth ?? 1)}
+              maxHeight={32 * (itemImage.invHeight ?? 1)} />
           </div>
+        }
+        <div>
+          {article.text}
+          {article.requires && article.requires.join('') != article.id && <>
+            <br />
+            <Val of="Research required: " />
+            <Val of={article.requires} />
+          </>}
         </div>
-      }
-      {Object.entries(renderers).filter(([key]) => {
+      </div>
+    }
+    <div className="article-body">
+      {table}
+      {!table && Object.entries(renderers).filter(([key]) => {
         return (rul as any)[key] ? (rul as any)[key][id] : ""
       }
       ).map(([key, ren]) => {
         if (typeof ren == "function") {
-          return (ren as Function)({ entry: (rul as any)[key][id], text: article?.text })
+          // Render as an element so hooks inside the renderer work
+          return createElement(ren as any, { key, entry: (rul as any)[key][id], text: article?.text });
         } else {
           let { sort, title } = ren as any;
           return <MainTable
@@ -98,15 +220,22 @@ export function ArticleComponent() {
           />
         }
       })}
+      {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
+        <LinksPage links={rul.categories[article.id]} cols={3} />}
+      {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
+        <LinksPage links={rul.manufactureCategories[article.id]} cols={3} />}
+      {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
+      {!(article.id in (rul.units ?? {})) && article.image_id &&
+        <Img src={article.image_id} scale={2} />}
     </div>
-  </>
+  </>;
 
 
   return <div className="article">
     {main}
-    {(section?.id == article?.id && article?.id != "MAIN") &&
+    {(!table && section?.id == article?.id && article?.id != "MAIN") &&
       <div className="articles-list">
-        <Val of={section?.articles(state.ordered)} vertical={true} />
+        <LinksPage key={article?.id} links={section?.articles(state.ordered).map(a => a.id)} />
       </div>
     }
     {(section?.id == "MAIN" || !rul) && <LandingPage />}

@@ -1,17 +1,18 @@
+import { ReactNode } from "react";
 import { Val } from "./Val";
 import { sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
+
+export type MainTableRenderer = (props: { key: string, val: any, row: number }) => ReactNode;
 
 interface MainTableProps {
   entry: any;
   sort?: SortFirstLastOptions;
   title: string;
   subtitle?: string;
-  /** Fields that use custom renderer for the value */
-  special?: any;
+  /** Fields that use custom renderer for the value only */
+  special?: { [field: string]: MainTableRenderer };
   /** Fields that use custom renderer for both the key and rendered value */
   wide?: string[];
-  styles?: { [field: string]: string }
-  children?: any
 }
 
 const MainTable = ({
@@ -19,16 +20,14 @@ const MainTable = ({
   sort = {},
   title,
   subtitle = "",
-  special = [] as any,
+  special = {},
   wide = [],
-  styles = {},
-  children = null
 }: MainTableProps) => {
-  const sorted =  sortFirstLast(entry, sort);
-
   if (entry == null) {
     return <div>No entry in main table</div>;
   }
+
+  const sorted = sortFirstLast(entry, sort);
 
   return (
     <table className="main-table">
@@ -46,21 +45,24 @@ const MainTable = ({
             return null;
           }
 
+          // Special field - custom renderer for the value only
           if (key in special) {
-            if (!(special[key] instanceof Function)) {
+            let render = special[key];
+            if (typeof render !== "function") {
               console.error(`Special table function for '${key}' is not a function`)
-              return
+              return null;
             }
             return <tr key={key}>
-              <td><Val of={key} /></td>
-              <td>{special[key]({ key, val, row })}</td>
+              <td><Val of={key} capital={true} /></td>
+              <td>{render({ key, val, row })}</td>
             </tr>
           }
 
-          // Wide fields - custom renderer for entire row via named slot
-          if (key in wide) {
+          // Wide field - rendered on its own full-width row
+          if (wide.includes(key)) {
+            let render = special[key];
             return <tr key={key}>
-              <td colSpan={2}>{special[key]({ key, val, row })}</td>
+              <td colSpan={2}>{typeof render === "function" ? render({ key, val, row }) : <Val of={val} field={key} />}</td>
             </tr>
           }
 
@@ -68,8 +70,8 @@ const MainTable = ({
           if (val != null && !(val.length === 0)) {
             return (
               <tr key={key}>
-                <td><Val of={key} /></td>
-                <td><Val of={val} key={key} /></td>
+                <td><Val of={key} capital={true} /></td>
+                <td><Val of={val} field={key} /></td>
               </tr>
             );
           }

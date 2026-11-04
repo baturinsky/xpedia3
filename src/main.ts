@@ -33,7 +33,30 @@ export function goToArticle(href?: AnyRef) {
 function goToHash() {
   let hash = decodeURI(document.location.hash) || "##MAIN";
   if (hash.substring(0, 2) != "##") return;
-  goToArticle(hash.substring(2));
+  // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
+  update({ showDropdown: false, showLanguagesDropdown: false });
+  let id = hash.substring(2);
+
+  // `##SEARCH::query` shows full text search results instead of an article
+  let separator = id.indexOf("::");
+  if (separator != -1) {
+    let query = id.substring(separator + 2);
+    update({ searchQuery: query, found: undefined, article: undefined, section: undefined });
+    if (query.length >= 2)
+      Promise.resolve(rul?.findArticles(query)).then(found => update({ found }));
+    return;
+  }
+
+  update({ searchQuery: "" });
+
+  // `##HOME` shows the landing page and clears the current article,
+  // as in old `App.svelte` where `HOME` has no article behind it
+  if (id == "HOME") {
+    update({ article: undefined });
+    return;
+  }
+
+  goToArticle(id);
 }
 
 async function init() {

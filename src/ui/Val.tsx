@@ -1,5 +1,6 @@
 import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
+import { state } from "../state";
 import { Divider, fromAnyRef, Img } from "./components";
 
 /** Polymorphic value view */
@@ -21,6 +22,8 @@ export const Val = ({
   table = undefined as boolean | undefined,
   sorted = false,
   vertical = undefined as boolean | undefined,
+  /** Name of the field the value belongs to, needed for a few special fields */
+  field = undefined as string | undefined,
   /** Prefix to be inlcuded in text/link */
   prefix = undefined as string | undefined,
   /** Postfix to be inlcuded in text/link */
@@ -34,7 +37,6 @@ export const Val = ({
 
   //Too deep
   if (depth === 0) {
-    debugger
     return <span>...</span>;
   }
 
@@ -52,8 +54,20 @@ export const Val = ({
     );
   }
 
-  // Primitive: number
-  if (!isNaN(Number(val))) {
+  if (obs) {
+    return <Img src={rul.obsSprite(obs, val)} alt={val} />;
+  }
+
+  // Map markers are slices of a sprite sheet, see Ruleset.loadMarkers.
+  // Checked before numbers, markers themselves are numeric indices.
+  if (field && ["marker", "markerCrash", "markerLand"].includes(field)) {
+    if (rul.globeMarkers)
+      return <Img src={rul.globeMarkers[val]} style={{ transform: "scale(2)" }} />;
+    return <>{val}</>;
+  }
+
+  // Primitive: number. Empty strings are checked so they don't render as 0
+  if (val !== "" && !Array.isArray(val) && !isNaN(Number(val))) {
     return (
       <em className="num">
         {Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".")}
@@ -61,67 +75,82 @@ export const Val = ({
     );
   }
 
-  if (obs) {
-    return <Img src={rul.obsSprite(obs, val)} alt={val} />;
-  }
-
   // It should be an entry, passed by direct link or id. Converting it to id
   let id = fromAnyRef(val);
 
   function tr1(text: string) {
-    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} prefix={prefix} postfix={postfix} />
+    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} capital={capital} prefix={prefix} postfix={postfix} />
   }
 
-  if (id) {
-    if (rul.hasSprite(id)) {
-      return <Img src={val} />;
-    }
-
-    return <a href={'##' + id} className={rul?.article(id) ? undefined : "dead"} >{tr1(children ?? id)}</a>;
+  if (id && rul.article(id)) {
+    return <a href={'##' + id}>{tr1(children ?? id)}</a>;
   }
 
-  // Array case
+  if (id && rul.hasSprite(id)) {
+    return <Img src={id} />;
+  }
+
+  // Plain text, or a reference that has no article/sprite behind it
+  if (typeof val == "string")
+    return tr1(val);
+
+  // Array/object case
   if (Array.isArray(val) || val instanceof Set || val instanceof Object) {
     return <LinksList items={val} depth={depth - 1} className={className} table={table} sorted={sorted} vertical={vertical} />;
   }
 
-  let text = id ?? val;
-  if (typeof text == "string")
-    return tr1(text)
-
-  debugger
-};
+  return null;
+}
 
 /**Translate text if possible add the emoji icon to it. For internal use by Val only */
-function Tr({
+/** Compares two label strings ignoring markup, case and spacing */
+function sameText(a: string, b: string) {
+  let norm = (s: string) => String(s ?? "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  return norm(a) == norm(b);
+}
+
+export function Tr({
   text = undefined as string | undefined,
   icon = undefined as IconType | undefined,
   nobr = 30,
   notip = false,
+  capital = false,
   prefix = undefined as string | undefined,
   postfix = undefined as string | undefined
 }) {
-  let iconText = rul.icon(text);
+  // Raw keys are shown when the ruleset is in "revealed" mode
+  let valtr = state.revealed ? text : rul.tr(text, { capital });
 
-  let valtr = `${prefix ?? ""}${rul.tr(text)}${postfix ?? ""}`;
+  if (valtr == null)
+    return null;
 
-  let element = (valtr?.length < nobr) ? <span className="nobr">{valtr}</span> : <>{valtr}</>
+  // Icon and label are compared without the prefix/postfix decoration
+  let iconText = state.revealed ? null : rul.icon(text);
+  // The `icon` language file often repeats the very same label, skip it then
+  if (iconText && sameText(iconText, valtr))
+    iconText = null;
+
+  valtr = `${prefix ?? ""}${valtr}${postfix ?? ""}`;
+
+  let element: any = valtr;
 
   if (iconText) {
     if (icon == "monospace")
-      element = <><div className='inem'>{icon}</div>{element}</>
+      element = <><div className='inem'>{iconText}</div>{element}</>
     else if (icon == "simple")
-      element = <>{icon}{valtr || ""}</>
+      element = <>{iconText}{element}</>
     else if (icon != "none")
-      element = <><div className='comem'>{icon}</div>{element}</>
+      element = <><div className='comem'>{iconText}</div>{element}</>
   }
 
-  if (!notip && ('tip_' + text) in rul.lang) {
+  // The icon and the label are one unit: `Tr` never splits across lines
+  element = <span className="nobr">{element}</span>;
+
+  if (!notip && text && ('tip_' + text) in rul.lang) {
     element = <span data-tooltip={'tip_' + text}>{element}<sup className="tipmark">?</sup></span>;
   }
 
   return element;
-
 }
 
 interface LinksListProps {
@@ -138,58 +167,112 @@ interface LinksListProps {
 const alphabeticLocalizedSorter = (a: string[]) => rul.sortStrings(a)
 const noSorter = (a: string[]) => a
 
+/** Renders lists and objects of references as links, follows old LinksList.svelte */
 const LinksList: FC<LinksListProps> = ({
   items: initialItems,
+  cols = 0,
+  vertical = false,
+  numberTable = false,
   depth = 2,
   table = undefined,
-  className,
-  sorted
+  className = "",
+  sorted: initialSorted
 }) => {
-
-  sorted ??= initialItems?.length > 9;
-  className ??= "";
-
-  const sorter = sorted ? alphabeticLocalizedSorter : noSorter;
-
-  let items: any[], isObject = false;
-
-  if (!Array.isArray(initialItems)) {
-    isObject = true;
-    items = sorted ?
-      sorter(Object.keys(initialItems)).map(k => [k, initialItems[k]]) :
-      Object.entries(initialItems);
-    table ??= true;
-  } else if (initialItems instanceof Set) {
-    items = [...initialItems]
-  } else {
-    items = initialItems
+  if (initialItems == null) {
+    return <>{rul.tr("NULL")}</>;
+  }
+  if (depth === 0) {
+    return <span>...</span>;
   }
 
-  if (sorted && !isObject) {
-    items = sorter(items);
+  let items = initialItems instanceof Set ? [...initialItems] : initialItems;
+  let isArray = Array.isArray(items);
+  let keys = isArray ? items : Object.keys(items);
+
+  let sorted = initialSorted ?? keys.length > 9;
+  if (sorted) {
+    keys = isArray ? alphabeticLocalizedSorter(keys) : alphabeticLocalizedSorter(keys);
+  } else {
+    keys = noSorter(keys);
+  }
+
+  if (cols) {
+    return <div className={"cols " + className} style={{ columns: cols }}>
+      {keys.map((field: any) =>
+        <div key={field}><a href={"##" + field} className={rul.article(field) ? undefined : "dead"}>{rul.tr(field)}</a></div>
+      )}
+    </div>;
+  }
+
+  if (numberTable) {
+    return <table className={"number-table " + className}>
+      <tbody>
+        {Object.keys(items).sort().map(field =>
+          <tr key={field}>
+            <td><Val of={field} /></td>
+            <td><em><Val of={items[field]} /></em></td>
+          </tr>
+        )}
+      </tbody>
+    </table>;
+  }
+
+  // Objects holding further objects need one block per key to stay readable
+  if (!isArray && Object.values(items).some(a => typeof a == "object")) {
+    return <>
+      {keys.map((subfield: any, j: number) =>
+        <div key={subfield} className={j > 0 ? "top-border" : undefined}>
+          <Val of={subfield} depth={depth - 1} /> :
+          <div className="sublist">
+            <Val of={items[subfield]} depth={depth - 1} />
+          </div>
+        </div>
+      )}
+    </>;
   }
 
   if (table) {
     return (
       <table className={"properties-table " + className}>
         <tbody>
-          {items.map((field, i) => (
-            <tr key={i}>
-              {field.map((v: any, i: number) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
-            </tr>
-          ))}
+          {keys.map((field: any) => {
+            let cells = isArray ? (Array.isArray(field) ? field : [field]) : [field, items[field]];
+            return (
+              <tr key={isArray ? String(field) : field}>
+                {cells.map((v: any, i: number) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     );
-  } else {
-    return (
-      <ol className={"links-list " + className}>
-        {items.map((item, i) =>
-          <li key={i}>
-            <Val of={item} depth={depth - 1} />
-          </li>
-        )}
-      </ol>
-    );
   }
+
+  // Object of plain values: show the value, then the key as a reference
+  if (!isArray && keys.length > 0 && !table) {
+    return <span className={"links-list " + className}>
+      {keys.map((field: any, i: number) =>
+        <Fragment key={field}>
+          {i !== 0 && <Divider vertical={vertical} />}
+          <Val of={items[field]} depth={depth - 1} />&nbsp;
+          <Val of={field} depth={depth - 1} />
+        </Fragment>
+      )}
+    </span>;
+  }
+
+  return (
+    <span className={"links-list " + className}>
+      {keys.map((item: any, i: number) =>
+        Array.isArray(item)
+          ? <div key={i} className="sublist">
+            <LinksList items={item} depth={depth - 1} />
+          </div>
+          : <Fragment key={i}>
+            {i !== 0 && <Divider vertical={vertical} />}
+            <Val of={item?.type || item} depth={depth - 1} />
+          </Fragment>
+      )}
+    </span>
+  );
 };

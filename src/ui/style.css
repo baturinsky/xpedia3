@@ -23,6 +23,32 @@
 
 }
 
+:root[data-theme="light"] {
+  --saturation: 12%;
+
+  --text: #201810;
+  --background: hsl(var(--hue), var(--saturation), 94%);
+  --border: hsl(var(--hue), var(--saturation), 60%);
+  --lighter: hsl(var(--hue), var(--saturation), 78%);
+  --hover: hsl(var(--hue), var(--saturation), 84%);
+  --scrollbar: hsl(var(--hue), var(--saturation), 80%);
+
+  --table-subheader: hsl(var(--hue), var(--saturation), 80%);
+  --table-header: hsl(var(--hue), var(--saturation), 80%);
+  --table-secondary: hsl(var(--hue), var(--saturation), 90%);
+  --table-main: hsl(var(--hue), var(--saturation), 96%);
+  --dead-link: #7a6a58;
+  --link: #9a5a12;
+  --title: #3a2a18;
+  --shadow: transparent;
+  --em: #a05a00;
+}
+
+html {
+  background: var(--background);
+  font-size: 12pt;
+}
+
 body {
   font-family: "Didact Gothic";
   color: var(--text);
@@ -48,6 +74,26 @@ em.bad {
   white-space: nowrap;
 }
 
+/* `Tr` puts an icon next to its label in one of these wrappers. They must be
+   inline, otherwise the icon takes its own line and the label wraps below it. */
+.inem,
+.comem {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.inem {
+  min-width: 25px;
+  text-align: center;
+}
+
+.comem {
+  margin-right: -0.15rem;
+  padding-bottom: 0.1rem;
+}
+
 a {
   color: var(--link);
   text-decoration: none;
@@ -58,6 +104,11 @@ a {
 
 a:hover {
   background-color: var(--hover);
+}
+
+a.dead {
+  color: var(--dead-link);
+  opacity: .6;
 }
 
 .list-divider {
@@ -118,16 +169,25 @@ hr {
   display: grid;
   gap: 0;
   grid-template-columns: 15rem 1fr;
-  grid-template-rows: 1.5rem 1fr;
+  grid-template-rows: 2.5rem 1fr;
   height: 100vh;
-  width: 100vw;
+  /* `100vw` includes the vertical scrollbar, which makes the page scroll
+     sideways; `100%` is the actual available width */
+  width: 100%;
+  overflow: hidden;
 }
 
 .content {
-  overflow-y: auto;
+  overflow: auto;
   grid-row: 2;
-  grid-column: 1/3;
+  grid-column: 2;
   padding: 0 .5rem;
+  /* Prevent wide tables from stretching the grid column */
+  min-width: 0;
+}
+
+.all.no-side .content {
+  grid-column: 1;
 }
 
 .link.current {
@@ -144,6 +204,8 @@ nav.top {
   display: flex;
   width: 100%;
   justify-content: space-between;
+  align-items: center;
+  min-width: 0;
 }
 
 nav.top .left * {
@@ -153,20 +215,294 @@ nav.top .left * {
 nav.top .left {
   display: flex;
   flex-direction: row;
+  align-items: stretch;
+  height: 100%;
+  /* Let the left side shrink so a long title can't widen the page.
+     No `overflow` here: the main menu panel is a descendant and would
+     be clipped by it. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Long mod title shrinks instead of stretching the navbar */
+nav.top .left>a {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
-nav.top .rigth {
+nav.top .right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .25rem;
+  height: 100%;
   text-align: right;
-}
-
-nav.top .rigth * {
-  margin-left: .5rem;
+  flex-shrink: 0;
 }
 
 nav.side {
   grid-row: 2;
   grid-column: 1;
+}
+
+/* Sidebar (old App.svelte markup) */
+
+.all.no-side {
+  grid-template-columns: 1fr;
+}
+
+.all.no-side nav.top {
+  grid-column: 1;
+}
+
+.sidebar {
+  grid-row: 2;
+  grid-column: 1;
+  overflow-y: auto;
+  /* No horizontal scrolling in the sidebar; long labels wrap instead */
+  overflow-x: hidden;
+  border-right: solid 1px var(--border);
+  padding: 0 .25rem;
+  min-width: 0;
+}
+
+.sidebar .menu-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.side-link {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: .05rem .25rem;
+}
+
+.side-link.active-article-option {
+  background: var(--lighter);
+}
+
+.side-sort-button {
+  width: 100%;
+}
+
+.side-hide-button {
+  position: fixed;
+  top: 2rem;
+  left: calc(15rem - 1.9rem);
+  z-index: 5;
+  padding: 0 .3rem;
+}
+
+.navbar-button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 90%;
+  padding: 0 .4rem;
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+}
+
+.navbar-dropdown-container:hover .navbar-button,
+.navbar-button:hover {
+  background-color: var(--table-main);
+}
+
+.navbar-button.current,
+.navbar-button.reveal-lock {
+  background: var(--lighter);
+}
+
+/* Language picker and other navbar dropdowns */
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background-color: var(--hover);
+}
+
+.navbar-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.navbar-dropdown {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  top: 100%;
+  right: 0;
+  min-width: 100%;
+  background-color: var(--table-main);
+  border: solid 1px var(--border);
+}
+
+.navbar-dropdown>div {
+  background-color: var(--table-main);
+}
+
+/* Main menu (old App.svelte) opens to the left edge, right under the button.
+   It shrinks to fit its contents so it stays a compact menu, like the
+   language picker on the right side of the navbar. */
+.dropdown-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.navbar-dropdown-container.dropdown-button {
+  /* Fill the navbar height so the menu starts right under the bar */
+  height: 100%;
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+}
+
+.navbar-dropdown-container.dropdown-button>.navbar-dropdown {
+  left: 0;
+  right: auto;
+  width: max-content;
+  min-width: 0;
+  max-width: calc(100vw - 1rem);
+  /* Keep the menu inside the viewport, scroll if the font is huge */
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  /* Same panel look as the language picker on the right */
+  background: var(--table-main);
+  border: solid 1px var(--border);
+  font-size: 90%;
+}
+
+.navbar-dropdown>.flex-horisontal {
+  /* Pedia sections in one column on the left, type sections in a compact
+     2-column grid on the right, so the menu stays narrow */
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  width: auto;
+  gap: .75rem;
+  padding: .25rem;
+}
+
+.navbar-dropdown a {
+  padding: 0.1rem 0.35rem;
+  display: block;
+  line-height: 1.15;
+}
+
+.navbar-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Old `main-old` markup: the pedia block is a single column list, the type
+   sections block is a 2-column grid. Columns size to their widest label so
+   every `Tr` stays on one line. */
+.navbar-auto {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.navbar-custom {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: left;
+  align-content: start;
+  gap: 0 .75rem;
+}
+
+.navbar-auto a,
+.navbar-custom a {
+  box-sizing: border-box;
+  padding-right: 0.5rem;
+}
+
+/* Spacer after HOME spans the whole list width instead of taking a cell */
+.menu-spacer {
+  width: 100%;
+  height: 0.4em;
+}
+
+/* Marks sections that render as a table, kept out of the link's inline flow
+   so it can't push the label past the column width */
+.table-marker {
+  float: right;
+  margin-left: .25rem;
+  opacity: .7;
+}
+
+.flex-horisontal {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.xpedia-icon {
+  height: 2rem;
+  margin-right: .25rem;
+}
+
+/* Search box in the navbar */
+
+.navbar-search {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--text);
+  flex-wrap: nowrap;
+}
+
+.navbar-search .input {
+  background: var(--background);
+  color: var(--text);
+  border: solid 1px var(--border);
+  font-size: 80%;
+  max-width: 12rem;
+  padding: 0 .25rem;
+  margin: .1rem;
+}
+
+input::placeholder {
+  font-style: italic;
+  color: var(--text);
+  opacity: 20%;
+}
+
+@media screen and (max-width: 720px) {
+  .on-wide {
+    display: none;
+  }
+
+  .navbar-search .input {
+    max-width: 5rem;
+  }
+}
+
+.select-language .navbar-dropdown {
+  display: grid;
+  grid-template-columns: auto auto;
+}
+
+.select-language .navbar-dropdown div {
+  padding: .2rem .4rem;
 }
 
 
@@ -267,6 +603,35 @@ button.current-file {
 
 .article-body {
   columns: 2;
+  column-gap: 1pt;
+}
+
+/* A multicolumn box never shrinks below its min-content width, and item
+   tables are intrinsically up to ~570px wide. Spanning the full body keeps
+   a wide table out of the neighbouring column instead of letting it overlap. */
+.article-body>.main-table {
+  column-span: all;
+  max-width: 100%;
+}
+
+/* Long text sits above the columns, see old `.main-text` */
+.main-text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border: 0;
+  margin-bottom: .25rem;
+}
+
+.main-text>div {
+  padding: .3rem;
+}
+
+.main-text .article-text-image {
+  min-width: 100px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
 }
 
 .article-text {
@@ -279,6 +644,12 @@ button.current-file {
 .sections-list {
   display: flex;
   flex-direction: row;
+  gap: 2rem;
+}
+
+/* Multi-column lists on the landing page */
+.sections-list>div {
+  min-width: 15rem;
 }
 
 
@@ -287,25 +658,20 @@ button.current-file {
 .x-image {
   max-width: 100vw;
   position: relative;
+  image-rendering: pixelated;
+  vertical-align: top;
+}
+
+.img-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
 }
 
 .article-body .x-image:hover {
   transform-origin: left top;
   transform: scale(3);
   transition: .2s;
-}
-
-.article-text-and-image {
-  border: solid 1px var(--border);
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-}
-
-.article-text-and-image .x-image {
-  padding: 0.5rem;
-  height: auto;
 }
 
 /** Main table */
@@ -478,4 +844,127 @@ ol>li:last-child::after {
 
 .attacks-table thead {
   white-space: nowrap;
+}
+
+/** Section table / links page (old SectionTable.svelte, LinksPage.svelte) */
+
+.section-table {
+  border: solid 1px var(--border);
+  margin-bottom: 3px;
+  border-collapse: collapse;
+}
+
+.section-table td {
+  text-align: center;
+}
+
+.section-table thead {
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-table thead td {
+  max-width: 30rem;
+}
+
+.section-table tbody td {
+  padding-right: 0.5rem;
+  text-align: center;
+}
+
+.section-table>tbody>tr:nth-child(even) {
+  background: var(--table-secondary);
+}
+
+.section-table>thead {
+  background-color: var(--table-secondary);
+}
+
+.section-table>thead td {
+  cursor: move;
+  border: solid 1px var(--border);
+  padding: 0.1rem;
+}
+
+.sort-order-arrow {
+  opacity: 0.6;
+  font-size: 70%;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.extra-fields {
+  margin-bottom: 0.5rem;
+}
+
+.extra-fields .off {
+  opacity: 0.6;
+}
+
+.table-filters {
+  margin-bottom: 0.5rem;
+}
+
+.table-filters select {
+  margin: 0 0.5rem 0 0.2rem;
+}
+
+.sublist {
+  margin-left: 0.5rem;
+}
+
+.top-border {
+  border-top: solid 1px var(--border);
+}
+
+.links-page {
+  padding-right: 2rem;
+  padding-left: 1rem;
+}
+
+.links-page li {
+  list-style-type: decimal-leading-zero;
+  list-style-position: outside;
+}
+
+.links-page a {
+  white-space: normal;
+  overflow-x: hidden;
+  max-width: 13rem;
+  display: block;
+}
+
+.links-page-header {
+  text-align: center;
+  color: var(--em);
+  background: var(--table-header);
+}
+
+.links-page-button {
+  position: relative;
+  text-align: right;
+  padding-right: 0.5rem;
+  height: 0px;
+}
+
+.cols {
+  columns: 15rem;
+  text-align: left;
+  column-gap: 0.5rem;
+}
+
+.links-list {
+  display: inline-block;
+}
+
+.dark-pagination-nav {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0;
+}
+
+.pagination-button.current {
+  background: var(--lighter);
 }

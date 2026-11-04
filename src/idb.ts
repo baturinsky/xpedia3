@@ -66,9 +66,18 @@ export async function getRul(pack: string) {
 
   console.log(processed);
   let rul = new Ruleset(processed);
-  update({ rul })
+  applySavedLanguage(rul);
+  update({ rul, packName: pack })
 
   return str;
+}
+
+/** Restores the language chosen by the user, if the loaded ruleset has it */
+export function applySavedLanguage(rul: Ruleset) {
+  if (state.lang && rul.langs?.[state.lang])
+    rul.selectLang(state.lang);
+  // Keep the saved preference in sync with whatever language ended up active
+  state.lang = rul.langName ?? state.lang;
 }
 
 export async function viewAssets(pack: string) {

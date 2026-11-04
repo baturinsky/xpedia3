@@ -1,6 +1,6 @@
-import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useSyncExternalStore } from "react";
+import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from 'react-dom/client';
-import { article, externalStore, PageName, section, state, update, type StoreType } from "../state";
+import { article, externalStore, PageName, reveal, revealLock, section, state, update, type StoreType } from "../state";
 
 import 'react-data-grid/lib/styles.css';
 import 'normalize.css';
@@ -8,19 +8,38 @@ import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
 import { rul } from "../rul/Ruleset";
-import { Val } from "./Val";
+import { favicon } from "../util";
+import { Val, Tr } from "./Val";
 import { ArticleComponent } from "./ArticleComponent";
 
 
 export const StoreContext = createContext({} as StoreType);
 
+/** Applies UI preferences that live on the document root */
+function useDocumentSettings() {
+  useEffect(() => {
+    let root = document.documentElement;
+    root.style.fontSize = state.hugeFont ? "24pt" : "12pt";
+  }, [state.hugeFont]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = state.theme;
+  }, [state.theme]);
+}
+
 function UI() {
   const store = useSyncExternalStore(externalStore.subscribe, externalStore.getSnapshot);
+  useDocumentSettings();
 
   return (
     <StoreContext value={store}>
-      <div className="all">
+      <div className={"all" + (state.seeSide ? "" : " no-side")}>
         <NavTop />
+        {state.seeSide && <NavSide />}
+        <button className="side-hide-button" style={{ left: state.seeSide ? undefined : "1em" }}
+          onClick={() => update({ seeSide: !state.seeSide })}>
+          {state.seeSide ? "⇤" : "⇥"}
+        </button>
         <div className="content">
           <ArticleComponent />
         </div>
@@ -32,7 +51,8 @@ function UI() {
 
 export function LandingPage() {
   return <>
-    <SectionsList />
+    {rul && <SectionsList />}
+    {rul && <ModsList />}
     <h4>Modpacks</h4>
     Drag and drop modpack files in zip or rar format here to upload !
     <ArchiveFiles />
@@ -42,17 +62,160 @@ export function LandingPage() {
   </>
 }
 
+/** Loaded mods and their versions, see old `App.svelte` */
+function ModsList() {
+  let mods = (rul?.mods ?? []).map((m: any) => m?.meta).filter(m => m?.id);
+  if (mods.length == 0)
+    return null;
+  return <>
+    <h4><Tr text="Mods" /></h4>
+    <ul>
+      {mods.map((mod: any) =>
+        <li key={mod.id}>{mod.name} {mod.version}</li>
+      )}
+    </ul>
+    <h4><Tr text="About XPedia" /></h4>
+    <Tr text="STR_ABOUT_XPEDIA" />
+  </>;
+}
+
+
+/** Sections that render their entries as a filterable table, see old `Components.ts` */
+export const tableSections = [
+  "FACILITIES",
+  "COMMENDATIONS",
+  "CRAFTS",
+  "ARMORS",
+  "CRAFT_WEAPONS",
+  "SOLDIERS",
+  "MANUFACTURE",
+  "ITEMS",
+  "ATTACKS",
+  "UFOS",
+  "COUNTRIES",
+  "UNITS"
+];
+
+/** Top-left navigation dropdown: pedia sections and type sections */
+function NavDropdown() {
+  let visible = state.showDropdown;
+  return <div className="navbar-dropdown-container dropdown-button"
+    onMouseEnter={() => update({ showDropdown: true })}
+    onMouseLeave={() => update({ showDropdown: false })}>
+    <button className="navbar-button dropdown-button" onClick={() => update({ showDropdown: !state.showDropdown })}>
+      <img src={favicon} alt="XPedia" className="xpedia-icon" />
+      <nobr><span className="on-wide"><Val of="XPedia" notip />&nbsp;</span></nobr>
+      <span style={{ transform: "scale(1.5,0.75)", display: "inline-block" }}>?</span>
+    </button>
+    <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
+      <div className="flex-horisontal">
+        <div className="navbar-auto navbar-list">
+          <a href="##HOME" className="menu-home" style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
+          <div className="menu-spacer" />
+          {rul?.sectionsOrder?.map(section =>
+            <a key={section.id} href={"##" + section.id}><Tr text={section.id} /></a>
+          )}
+        </div>
+        <div className="navbar-custom navbar-list">
+          {rul?.sortedTypeSections()?.map(section =>
+            <a key={section.id} href={"##" + section.id}>
+              <Tr text={section.id} />
+              {tableSections.includes(section.id) && <span className="table-marker">☰</span>}
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>;
+}
 
 export function NavTop() {
+  let title = [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ");
+
+  function selectLanguage(lang: string) {
+    if (!rul.selectLang(lang))
+      return;
+    update({ lang, showLanguagesDropdown: false });
+  }
   return <nav className="top">
     <div className="left">
-      <Val of="MAIN">{rul ? `${rul.meta.name} ${rul.meta.version}` : "Upload"}</Val>
+      <NavDropdown />
+      <Val of="MAIN">{title || "XPedia"}</Val>
       {section && section.id != "MAIN" && <Val of={section.id} />}
     </div>
     <div className="right">
+      <button
+        className={"navbar-button" + (state.revealed ? " reveal-lock" : "")}
+        title="Hold to reveal language keys"
+        onMouseOver={() => reveal(true)}
+        onMouseOut={() => reveal(false)}
+        onClick={() => revealLock()}
+      >
+        Aa
+      </button>
+      <button className="navbar-button" onClick={() => update({ theme: state.theme == "light" ? "dark" : "light" })}>
+        {state.theme == "light" ? "◐" : "◑"}
+      </button>
+      <button className="navbar-button" onClick={() => update({ hugeFont: !state.hugeFont })}>
+        <span style={{ fontSize: "150%" }}>A</span><span style={{ fontSize: "75%" }}>A</span>
+      </button>
+      {rul && rul.langNames?.length > 1 && (
+        rul.langNames.length <= 3
+          ? rul.langNames.map(lang =>
+            <button key={lang} className={"navbar-button" + (lang == state.lang ? " current" : "")}
+              onClick={() => selectLanguage(lang)}>
+              <nobr><Val of={lang} /></nobr>
+            </button>
+          )
+          : <div className="navbar-dropdown-container select-language"
+            onMouseEnter={() => update({ showLanguagesDropdown: true })}
+            onMouseLeave={() => update({ showLanguagesDropdown: false })}>
+            <button className="navbar-button" onClick={() => update({ showLanguagesDropdown: !state.showLanguagesDropdown })}>
+              <big><Val of={state.lang ?? rul.langName ?? ""} /></big>
+            </button>
+            <div className="navbar-dropdown" style={{ visibility: state.showLanguagesDropdown ? "visible" : "hidden" }}>
+              {rul.langNames.map(lang =>
+                <div key={lang} className={"clickable" + (lang == state.lang ? " current" : "")}
+                  onClick={() => selectLanguage(lang)}>
+                  <nobr><Val of={lang} /></nobr>
+                </div>
+              )}
+            </div>
+          </div>
+      )}
       <button onClick={() => update({ ordered: !state.ordered })}>{state.ordered ? "A-Z" : <s>A-Z</s>}</button>
+      <SearchBox />
     </div>
   </nav>
+}
+
+/** Navbar full text search, mirrors old `App.svelte` */
+function SearchBox() {
+  let [handle, setHandle] = useState<number>();
+
+  /** Search is driven by the hash so it can be linked and reached with history */
+  function search(value: string) {
+    update({ searchQuery: value });
+    if (handle) clearTimeout(handle);
+    setHandle(globalThis.setTimeout(() => {
+      setHandle(undefined);
+      if (value)
+        location.hash = "##SEARCH::" + value;
+      else if (article)
+        location.hash = "##" + article.id;
+      else
+        location.hash = "##MAIN";
+    }, 400));
+  }
+
+  return <div className="navbar-search">
+    <input className="input" type="text" id="search-string" value={state.searchQuery ?? ""}
+      onChange={e => search(e.target.value)}
+      onKeyUp={e => {
+        if (e.key == "Enter") search(e.currentTarget.value);
+      }}
+      placeholder="Search..." />
+  </div>;
 }
 
 
@@ -61,16 +224,36 @@ function SectionsList() {
     return;
   return <div className="sections-list">
     <div>
-      <h4>Chapters</h4>
+      <h4><Tr text="Pedia sections" /></h4>
       <Val of={rul.sectionsOrder} /></div>
     <div>
-      <h4>Categories</h4>
-      <Val of={rul.orderedTypeSections()} /></div>
+      <h4><Tr text="Extra sections" /></h4>
+      <Val of={rul.typeSectionsOrder} /></div>
   </div>
 }
 
 export function NavSide() {
-  return <nav className="side"><SectionsList /></nav>
+  if (!rul)
+    return null;
+  let articlesList = section?.articles(state.ordered) ?? [];
+  if (state.sortArticles)
+    articlesList = [...articlesList].sort((a, b) => a.title > b.title ? 1 : -1);
+  return <nav className="sidebar">
+    <button className="side-sort-button"
+      style={state.sortArticles ? undefined : { textDecoration: "line-through" }}
+      onClick={() => update({ sortArticles: !state.sortArticles })}>
+      <Val of="A-Z" />
+    </button>
+    <div className="menu-list">
+      {articlesList.map(option =>
+        <a key={option.id} href={"##" + option.id}
+          className={"side-link" + (article?.id == option.id ? " active-article-option" : "")}>
+          <Tr text={option.id} />
+        </a>
+      )}
+    </div>
+    <br />
+  </nav>
 }
 
 export function Clickable(props: { onClick: MouseEventHandler<HTMLDivElement>, className?: string, children: JSX.Element }) {
@@ -83,18 +266,14 @@ export function initUI() {
 
 let isTouch = "ontouchstart" in window;
 
-let showDropdown = false;
-let showLanguagesDropdown = false;
-let tooltip: HTMLElement | undefined;
-let navbarDropDown: HTMLElement | undefined;
-
 window.addEventListener("pointermove", async (e) => {
-  if (e.screenX < 10 && e.screenY < innerHeight / 3) {
-    dropdown(true);
-  } else {
-    if (e.target && !isAncestorOf(navbarDropDown, e.target as Node)) {
-      dropdown(false);
-    }
+  let target = e.target as HTMLElement;
+  // Hovering the very left edge (and the top third) opens the main menu, mouse only
+  if (!isTouch && e.screenX < 10 && e.screenY < innerHeight / 3) {
+    if (!state.showDropdown)
+      update({ showDropdown: true });
+  } else if (state.showDropdown && !target?.closest?.(".navbar-dropdown-container")) {
+    update({ showDropdown: false });
   }
 
   let tooltip = document.getElementById("xpediaTooltip")
@@ -131,14 +310,6 @@ function toggleTooltip(text: string | undefined) {
     classes.add("visible");
   } else {
     classes.remove("visible");
-  }
-}
-
-function dropdown(val?: any) {
-  if (val === null) {
-    showDropdown = !showDropdown;
-  } else {
-    if (!isTouch) showDropdown = val;
   }
 }
 

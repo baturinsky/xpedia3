@@ -260,6 +260,21 @@ export function base64ToArrayBuffer(base64: string) {
   return Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
 }
 
+/** Base64 of binary data, chunked so large images don't overflow the call stack */
+export function bytesToBase64(data: Uint8Array | number[]) {
+  let bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+  let chunk = 0x8000, parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunk) {
+    parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as any));
+  }
+  return btoa(parts.join(""));
+}
+
+/** Data url for binary image data stored in the database */
+export function imageDataToUrl(data: Uint8Array | number[] | undefined | null) {
+  return data ? pngDataPrefix + bytesToBase64(data) : emptyImg;
+}
+
 /** Formatted number */
 export function localeFixed2(n, digits = 4) {
   return n && ((~~n) == n ? n : n.toFixed(digits));

@@ -8,29 +8,72 @@ import { Val } from "./Val";
 import React from "react";
 import ItemComponent from "./ItemComponent";
 import { CraftWeapon } from "../rul/Entry";
+import { emptyImg, imageDataToUrl, allFieldValuesOf } from "../util";
 
 export async function viewImage(path: string) {
   let img = await getImg(path);
-  let a = "data:image/png;base64," + btoa(String.fromCharCode(...img.data));
-  update({ imagePreview: a })
+  if (!img?.data)
+    return;
+  update({ imagePreview: imageDataToUrl(img.data) })
 }
 
-export function Img(props: { src?: string, scale?: number, alt?: string, style?: any, maxWidth?: number, maxHeight?: number, zoom?: number }) {
-  if (!props.src)
-    return
-  let sprite = rul.sprites[props.src];
-  let path = sprite?.path;
-  if (!path)
-    return;
-  if (!state.images[path]) {
+/** A sprite may be passed by its ruleset id, an asset path or a ready data url */
+function spritePath(src?: string) {
+  if (!src)
+    return undefined;
+  return rul.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : undefined);
+}
+
+export function Img(props: { src?: string, scale?: number, alt?: string, style?: CSSProperties, maxWidth?: number, maxHeight?: number, zoom?: number }) {
+  let path = spritePath(props.src);
+  let images = state.images;
+  let [natural, setNatural] = useState<{ path: string, w: number, h: number }>();
+
+  // Load the sprite from the database once. `null` is stored for missing
+  // images so that a missing sprite doesn't trigger a fetch on every render.
+  // Data urls (e.g. map markers) are used as they are.
+  useEffect(() => {
+    if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
+      return;
+    let cancelled = false;
     getImg(path).then(img => {
-      update({ images: { ...state.images, [path]: img } })
+      if (!cancelled)
+        update({ images: { ...state.images, [path!]: img ?? null } })
+    }).catch(e => {
+      console.warn("Can't load image", path, e);
+      if (!cancelled)
+        update({ images: { ...state.images, [path!]: null } })
     });
-  }
-  let img = state.images[path];
-  let dataImage = img ? "data:image/png;base64," + btoa(String.fromCharCode(...img.data)) : emptyImageData;
-  return <img className="x-image" src={dataImage} alt={props.alt}
-    style={{ zoom: (props.scale ?? 1) / devicePixelRatio, imageRendering: "pixelated", ...props.style ?? {} }}></img>
+    return () => { cancelled = true; };
+  }, [path]);
+
+  if (!path)
+    return null;
+
+  let img = images[path];
+  let dataImage = path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
+  // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
+  let factor = props.zoom ?? props.scale ?? 1;
+  let size = natural?.path === path ? natural : undefined;
+  let element = <img className="x-image" src={dataImage} alt={props.alt ?? props.src}
+    onLoad={e => {
+      let t = e.currentTarget;
+      if (t.naturalWidth && t.naturalHeight && (t.naturalWidth != size?.w || t.naturalHeight != size?.h))
+        setNatural({ path: path!, w: t.naturalWidth, h: t.naturalHeight });
+    }}
+    style={{
+      imageRendering: "pixelated",
+      width: size ? size.w * factor : undefined,
+      height: size ? size.h * factor : undefined,
+      ...props.style ?? {}
+    }} />;
+
+  if (props.maxWidth == null && props.maxHeight == null)
+    return element;
+
+  return <div className="img-clip" style={{ maxWidth: props.maxWidth, maxHeight: props.maxHeight }}>
+    {element}
+  </div>;
 }
 
 export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
@@ -86,11 +129,14 @@ export function MyTable<T extends { key: any }>(props: {
 
 export type AnyRef = string | { type: string } | { id: string };
 
+/** Normalizes a reference to the id it points to, if any */
 export function fromAnyRef(href?: AnyRef) {
-  return (href as any)?.type ?? (href as any)?.id ?? (rul.articles[href as string] ? href : null);
+  if (href == null)
+    return null;
+  if (typeof href == "object")
+    return (href as any).type ?? (href as any).id ?? null;
+  return href === "" ? null : href;
 }
-
-export const emptyImageData = `data:image/bmp;base64,Qk0+AAAAAAAAADoAAAAoAAAAAQAAAAEAAAABAAEAAAAAAAAAAADEDgAAxA4AAAEAAAABAAAA/////wAAAAA=`
 
 export const Divider = (props: { vertical?: boolean }) =>
   props.vertical ? <br /> : <span className='list-divider'>&nbsp;· </span>;
@@ -124,24 +170,26 @@ export const CogAnimation = (props: { size?: number }) => {
 
 export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
   return <table className="main-table base-service-table">
-
-    {Object.entries(entry).sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1)).map(prop =>
-    (!['id'].includes(prop[0]) &&
-      <tr><td><Val of={prop[0]} /></td>
-        <td><Val of={prop[1]} /></td></tr>
-    ))}
-
+    <tbody>
+      {Object.entries(entry).sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1)).map(prop =>
+      (!['id'].includes(prop[0]) &&
+        <tr key={prop[0]}><td><Val of={prop[0]} capital={true} /></td>
+          <td><Val of={prop[1]} /></td></tr>
+      ))}
+    </tbody>
   </table>
 
 }
 
 export function BaseServiceList({ items = null as string[] | null, vertical = false }) {
-  if (!items)
-    return "";
-  return items.map((item, i) => <>
-    {i == 0 ? "" : (vertical ? "</br > " : ", ")}
-    <Val of={item} />
-  </>)
+  if (!items || !items.length)
+    return null;
+  return <>
+    {items.map((item, i) => <React.Fragment key={item}>
+      {i == 0 ? "" : (vertical ? <br /> : ", ")}
+      <Val of={item} />
+    </React.Fragment>)}
+  </>
 }
 
 export function Nobr(props: any) {
@@ -174,7 +222,7 @@ export function AlterList(props: { items: { [id: string]: string } }) {
             .sort()
             .map((field, i) => (
               <React.Fragment key={field}>
-                <Divider />
+                {i !== 0 && <Divider />}
                 &nbsp;
                 <Nobr>
                   <span data-tooltip={`tip_${field}`}>
@@ -202,25 +250,18 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
   const flat = useMemo(() => {
     if (!bonus) return [];
 
-    let flat = [];
+    let flat: [string, number, string][] = [];
     for (let type of Object.keys(bonus)) {
       if (bonus[type].length) {
 
         for (let power = 0; power < bonus[type].length; power++) {
           let b = bonus[type][power];
           if (b !== 0) {
-            power = power * 1 + 1;
-            flat.push([
-              <>
-                <a href="##${type}">${rul.tr(type, { icon: "compact" })}</a>
-                {power === 1 ? "" : <sup>{power}</sup>}
-              </>,
-              b, type
-            ]);
+            flat.push([type, b, type, power + 1] as any);
           }
         }
       } else {
-        if (bonus[type] !== 0) flat.push([<a href="##${type}">{rul.tr(type, { icon: "compact" })}</a>, bonus[type], type]);
+        if (bonus[type] !== 0) flat.push([type, bonus[type], type]);
       }
     }
     flat = flat.sort((a, b) => (a[0] === "flatHundred" || a[0] === "flatOne" || a[0] < b[0] ? -1 : 1));
@@ -230,22 +271,267 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
   return (
     <>
       {flat.length > 0 && plus && "+"}
-      {flat.map((b, i) => (
-        <React.Fragment key={i}>
-          {i !== 0 && " +"}
-          {b[2] === "flatHundred" ? (
-            b[1] * 100
-          ) : b[2] === "flatOne" ? (
-            b[1]
-          ) : (
-            <Nobr>
-              {b[0]}
-              {b[1] !== 1 && <em>${b[1]}</em>}
-            </Nobr>
-          )}
-        </React.Fragment>
-      ))}
+      {flat.map((b, i) => {
+        let [type, value, kind, power = 1] = b as any;
+        return (
+          <React.Fragment key={i}>
+            {i !== 0 && " +"}
+            {kind === "flatHundred" ? (
+              value * 100
+            ) : kind === "flatOne" ? (
+              value
+            ) : (
+              <Nobr>
+                <a href={"##" + type}>{rul.tr(type, { icon: "compact" })}</a>
+                {power === 1 ? "" : <sup>{power}</sup>}
+                {value !== 1 && <em>×{value}</em>}
+              </Nobr>
+            )}
+          </React.Fragment>
+        );
+      })}
     </>
   );
 };
+
+
+/** Splits long lists into pages, following old PaginatedList.svelte */
+export function PaginatedList(props: {
+  items: any[],
+  pageSize?: number,
+  onePageMax?: number,
+  children: (items: any[]) => any
+}) {
+  let items = props.items instanceof Set ? [...props.items] : props.items ?? [];
+  let pageSize = props.pageSize ?? 40;
+  let onePageMax = props.onePageMax ?? 200;
+  let pages = items.length <= onePageMax ? 1 : Math.ceil(items.length / pageSize);
+  let [page, setPage] = useState(1);
+
+  if (page > pages)
+    setPage(1);
+
+  let shown = items.length <= onePageMax
+    ? items
+    : items.slice((page - 1) * pageSize, page * pageSize);
+
+  return <>
+    {pages > 1 &&
+      <div className="dark-pagination-nav">
+        {Array.from({ length: pages }, (_, i) => i + 1)
+          .filter(p => p == 1 || p == pages || Math.abs(p - page) <= 2)
+          .map((p, i, shownPages) =>
+            <React.Fragment key={p}>
+              {i > 0 && shownPages[i - 1] != p - 1 && <span> … </span>}
+              <button className={"pagination-button" + (p == page ? " current" : "")}
+                onClick={() => setPage(p)}>{p}</button>
+            </React.Fragment>
+          )}
+      </div>
+    }
+    <span className="links-list">
+      {props.children(shown)}
+    </span>
+  </>;
+}
+
+/** A page that is just a list of links, e.g. a section's article list */
+export function LinksPage(props: {
+  links?: AnyRef[],
+  cols?: number | false,
+  title?: any,
+}) {
+  let links = props.links ?? [];
+  if (!links.length)
+    return null;
+
+  let withButton = props.title == null;
+
+  let items = state.linksPageSorted
+    ? [...links].sort((a, b) => rul.tr(fromAnyRef(a) ?? "") > rul.tr(fromAnyRef(b) ?? "") ? 1 : -1)
+    : links;
+
+  return <>
+    {withButton &&
+      <div className="links-page-button">
+        <button style={state.linksPageSorted ? undefined : { textDecoration: "line-through" }}
+          onClick={() => update({ linksPageSorted: !state.linksPageSorted })}>
+          <Val of="A-Z" />
+        </button>
+      </div>
+    }
+    {props.title != null && <div className="links-page-header"><Val of={props.title} /></div>}
+    {props.cols
+      ? <div className="links-page">
+        <div className="cols" style={{ columns: props.cols }}>
+          <ol>
+            {items.map((option, i) => <li key={i}><Val of={option} /></li>)}
+          </ol>
+        </div>
+      </div>
+      : <PaginatedList items={items} pageSize={600}>
+        {shown => shown.map((item, i) =>
+          <React.Fragment key={i}>
+            {i !== 0 && <Divider />}
+            <Val of={item} />
+          </React.Fragment>
+        )}
+      </PaginatedList>
+    }
+  </>;
+}
+
+export interface SectionTableProps {
+  /** Id of the article that shows this table, used to persist column layout */
+  aId?: string,
+  entries: any[],
+  fields: string[],
+  extraFields?: string[],
+  filters?: { [key: string]: any[] },
+}
+
+/** Table of entries with selectable/sortable columns, follows old SectionTable.svelte */
+export function SectionTable(props: SectionTableProps) {
+  let entries = props.entries ?? [];
+  let storageKey = "xpediaColumnOrder" + (props.aId ?? "");
+  let fields = [...(props.fields ?? [])];
+  let extraFields = (props.extraFields ?? []).filter(f => !fields.includes(f));
+
+  let saved: any = {};
+  try {
+    saved = JSON.parse(localStorage[storageKey] ?? "null") ?? {};
+  } catch { saved = {}; }
+
+  let allFields: string[] = saved.allFields ?? ["id", ...fields];
+  let [shownFields, setShownFields] = useState<string[]>(allFields);
+  let [filtersSelected, setFiltersSelected] = useState<{ [key: string]: string }>(saved.filtersSelected ?? {});
+  let [sortField, setSortField] = useState<string | undefined>(saved.sortField);
+  let [sortDescending, setSortDescending] = useState<boolean>(saved.sortDescending ?? false);
+  let [filterId, setFilterId] = useState("");
+
+  // "auto" filter options are filled in from the entries themselves
+  let filters: { [key: string]: string[] } = {};
+  for (let [key, options] of Object.entries(props.filters ?? {})) {
+    filters[key] = [...options];
+    let autoAt = filters[key].indexOf("auto");
+    if (autoAt != -1) {
+      let values = allFieldValuesOf(entries, key);
+      if (values.length > 0)
+        filters[key].splice(autoAt, 1, ...values.sort());
+    }
+  }
+
+  useEffect(() => {
+    localStorage[storageKey] = JSON.stringify({ allFields: shownFields, filtersSelected, sortField, sortDescending });
+  }, [shownFields, filtersSelected, sortField, sortDescending]);
+
+  let sorted = [...entries];
+  for (let k in filtersSelected) {
+    if (filtersSelected[k] != null)
+      sorted = sorted.filter(a => {
+        if (filtersSelected[k] == "any") return true;
+        let v = a.sortField(k, filtersSelected[k]);
+        return v === true || v == filtersSelected[k] || (Array.isArray(v) && v.includes(filtersSelected[k]));
+      });
+  }
+  if (filterId.length > 0)
+    sorted = sorted.filter(a => String(a.sortField("id")).toLowerCase().match(filterId));
+
+  if (sortField) {
+    let nullValue = sortDescending ? Number.MIN_VALUE : Number.MAX_VALUE;
+    sorted = sorted.sort((a, b) =>
+      (a.sortField(sortField) ?? nullValue) > (b.sortField(sortField) ?? nullValue) == sortDescending ? -1 : 1);
+  }
+
+  function sortBy(field: string) {
+    if (field != sortField) {
+      setSortField(field);
+      setSortDescending(field != "id");
+    } else {
+      setSortDescending(!sortDescending);
+    }
+  }
+
+  function toggleField(field: string) {
+    setShownFields(shownFields.includes(field)
+      ? shownFields.filter(f => f != field)
+      : [...shownFields, field]);
+  }
+
+  let extraAll = [...fields, ...extraFields];
+
+  return <>
+    <div className="extra-fields">
+      {extraAll.map((field, i) =>
+        <React.Fragment key={field}>
+          {i !== 0 && <Divider />}
+          <span className={"clickable " + (shownFields.includes(field) ? "on" : "off")}
+            onClick={() => toggleField(field)}><Val of={field} /></span>
+        </React.Fragment>
+      )}
+    </div>
+    <div className="table-filters">
+      {Object.entries(filters).map(([filter, options]) =>
+        <React.Fragment key={filter}>
+          <Val of={filter} />:
+          <select value={filtersSelected[filter] ?? ""}
+            onChange={e => setFiltersSelected({ ...filtersSelected, [filter]: e.target.value })}>
+            {options.map(option =>
+              <option key={option} value={option}>{rul.tr(option)}</option>
+            )}
+          </select>
+        </React.Fragment>
+      )}
+      <input value={filterId} onChange={e => setFilterId(e.target.value)}
+        type="text" placeholder={rul.tr("Filter...")} />
+    </div>
+    <PaginatedList items={sorted} pageSize={40} onePageMax={200}>
+      {paginatedItems =>
+        <table className="section-table">
+          <thead>
+            <tr>
+              {shownFields.map(field =>
+                <td key={field} id={"thead " + field}
+                  draggable="true"
+                  onDragStart={e => e.dataTransfer.setData("field", field)}
+                  onDrop={e => moveField(shownFields, field, e.dataTransfer.getData("field"), setShownFields)}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move" }}
+                  onClick={() => sortBy(field)}>
+                  <span className="sort-order-arrow">&#9660;</span>
+                  <Val of={field} />
+                  <span className="sort-order-arrow">
+                    {sortField != field ? <span className="invisible">&#9660;</span> : sortDescending ? "▼" : "▲"}
+                  </span>
+                </td>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedItems.map((entry: any, i: number) =>
+              <tr key={entry.id ?? i}>
+                {shownFields.map(field =>
+                  <td key={field} className={"st-" + field}>
+                    <Val of={entry.sortField(field, true)} nobr={20} field={field} />
+                  </td>
+                )}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      }
+    </PaginatedList>
+  </>;
+}
+
+/** Moves a column so that it appears right after another one */
+function moveField(shownFields: string[], after: string, field: string, setShownFields: (v: string[]) => void) {
+  let fi = shownFields.indexOf(field);
+  if (fi == -1) return;
+  let next = shownFields.filter(f => f != field);
+  let ai = next.indexOf(after);
+  if (ai == -1) ai = 0;
+  else ai++;
+  next.splice(ai, 0, field);
+  setShownFields(next);
+}
 

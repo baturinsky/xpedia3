@@ -50,24 +50,27 @@ export const ResearchInfo = ({ entry }: { entry: Entry }) => {
             );
           }
 
-          // Handle requiresBaseFunc
+          // Handle requiresBaseFunc (only when the first branch didn't pick it up)
           if (key === "requiresBaseFunc") {
             return (
-              <BaseServiceList
-                key={key}
-                items={prop}
-                vertical={true}
-              />
+              <tr key={key}>
+                <td colSpan={2} className="centered-text">
+                  <BaseServiceList
+                    items={prop}
+                    vertical={true}
+                  />
+                </td>
+              </tr>
             );
           }
 
-          // Handle getOneFreeProtected (nested object)
+          // Handle getOneFreeProtected (nested object of lists)
           if (key === "getOneFreeProtected") {
             return (
               <Fragment key={key}>
                 <tr>
                   <td colSpan={2} className="table-subheader">
-                    {rul.tr(key)}
+                    <Val of={key} />
                   </td>
                 </tr>
                 {Object.entries(prop).map(([nestedKey, nestedValue]) => (

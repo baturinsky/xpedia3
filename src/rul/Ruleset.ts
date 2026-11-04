@@ -613,8 +613,13 @@ export default class Ruleset {
     return rul.globeMarkers;
   }
 
+  /** Sections that hold generated entries (items, units...) sorted by name */
+  sortedTypeSections() {
+    return this.sortStrings(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
+  }
+
   orderedTypeSections() {
-    let sections = this.sortStrings(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
+    let sections = this.sortedTypeSections();
     sections.splice(sections.findIndex(s => s.id == "MAIN"), 1)
     return [this.sections.MAIN, ...sections]
   }
@@ -711,13 +716,28 @@ export default class Ruleset {
 
   loadProcessedMods(data: { mods: Mod[], langs: any }) {
 
-    let master = data.mods.find(m => m.meta.isMaster)
-    if (master)
-      this.meta = master.meta;
-    else
-      this.meta = {}
+    let master = data.mods.find(m => m.meta?.isMaster)
+    this.meta = master?.meta ?? {}
+    this.mods = data.mods as any;
     this.langs = data.langs;
-    this.langNames = Object.keys(data.langs);
+    this.langNames = Object.keys(data.langs)
+      .filter(name => name != "icon")
+      .sort((a, b) => langWeight(b) - langWeight(a));
+
+    function langWeight(name: string) {
+      return name == defaultLanguage ? 1e6 : Object.keys(data.langs[name] ?? {}).length;
+    }
+
+    // Language buttons are labelled with a country flag, see old `loadOld`
+    for (let name of this.langNames) {
+      if (!this.langs[defaultLanguage][name]) {
+        let country = name.match(/([a-z]+)/i);
+        let flag = country?.length ? getFlagEmoji(country[1]) : undefined;
+        if (flag)
+          this.langs[defaultLanguage][name] = flag;
+      }
+    }
+
     this.parseRuls(data.mods);
     this.selectLang(defaultLanguage);
   }
@@ -779,6 +799,12 @@ export default class Ruleset {
       this.search[name] = new Search();
 
     return true;
+  }
+
+  /** Full text search over the current language's article index */
+  findArticles(query: string) {
+    let search = this.search[this.langName];
+    return search?.findArticles(query);
   }
 
   linksByType(type: string) {

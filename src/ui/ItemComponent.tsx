@@ -274,6 +274,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
                             <td>
                               <Val of="accuracy" />
                               <Val of="kneeling" />
+                              <br/>
                               {entry.kneelBonus || 120}% -{entry.dropoff}/<Val of="accPerTile" />
                               {hand1bonus}
                             </td>
