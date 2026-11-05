@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { rul, sortFirstLast, damageTypes } from "../rul/Ruleset";
 import { SpecialBonus, RecoveryTable, Subheader } from "./components";
 import { Val } from './Val';
-import { emptyImg } from '../util';
+import { emptyImg } from '../imgPlaceholders';
 import { state, update } from '../state';
 
 interface Entry {
@@ -198,7 +198,7 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
           <td colSpan={2}>
             <Val of="Armor" />
             {seeAlso.length > 0 && (
-              <span style={{ color: "white" }}>- see also</span>
+              <span style={{ color: "white" }}>- see also </span>
             )}
             <Val of={seeAlso} />
           </td>

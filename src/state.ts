@@ -9,6 +9,12 @@ export const dbVersion = 11;
 export let state = {
   /** File unpacking status */
   slowProcessStatus: "",
+  /** True once the status describes a finished load rather than work in progress */
+  slowProcessDone: false,
+  /** True when the last finished load failed, see `slowProcessDone` */
+  slowProcessError: false,
+  /** True while the running slow process can be cancelled from the status window */
+  slowProcessCancellable: false,
   files: [] as
     {
       pack: string,
@@ -27,7 +33,6 @@ export let state = {
   images: {} as { [id: string]: any },
   count: 0,
   fontSize: 10,
-  ordered: false,
   anal: false,
   seeAllArmorVariants: false,
 
@@ -36,14 +41,12 @@ export let state = {
   seeSide: true,
   /** Use a larger font (old `hugeFont`); actual size is derived in the UI */
   hugeFont: false,
-  /** Sort article lists alphabetically instead of rule order */
-  sortArticles: false,
+  /** Sort article lists, sidebar and link pages alphabetically instead of rule order */
+  alphabeticalSort: false,
   /** Selected language name, see `Ruleset.selectLang` */
   lang: undefined as string | undefined,
   /** Theme name, see `Theme` */
   theme: "dark" as Theme,
-  /** Sort the links page (old `linksPageSorted`) */
-  linksPageSorted: false,
 
   /* ---- Transient UI state, not persisted ---- */
   /** Show the `#STR_` language keys instead of translations */
@@ -62,23 +65,36 @@ export let state = {
 
 /** Settings that used to live in the separate `localStorage.xpediaSettings` entry */
 const legacySettingsKey = "xpediaSettings";
-const legacyFields = ["hugeFont", "seeSide", "sortArticles", "lang", "theme", "linksPageSorted"];
+const legacyFields = ["hugeFont", "seeSide", "lang", "theme"];
 
 Object.assign(state, load());
 
 /** Keys of `state` persisted to localStorage */
 export let savedFields = [
   "packName",
-  "ordered",
   "seeSide",
   "hugeFont",
-  "sortArticles",
+  "alphabeticalSort",
   "lang",
   "theme",
-  "linksPageSorted",
 ];
 
 export type StoreType = typeof state
+
+/** Set while the user has asked to abort the running slow process */
+export let slowProcessCancelRequested = false;
+
+/** Abort the running load/unpack, best effort: long stages check this flag */
+export function requestCancelSlowProcess() {
+  if (state.slowProcessDone)
+    return;
+  slowProcessCancelRequested = true;
+  update({ slowProcessStatus: "Cancelling...", slowProcessCancellable: false });
+}
+
+export function resetSlowProcessCancel() {
+  slowProcessCancelRequested = false;
+}
 
 export let article: Article | undefined, section: Section | undefined;
 
@@ -109,6 +125,12 @@ function load() {
   if (data == null || typeof data != "object")
     data = {};
 
+  // The three old sort flags are now one. Turn the new flag on if the user had
+  // any of them enabled and has not saved a choice for it yet.
+  if (data.alphabeticalSort === undefined
+    && (data.ordered || data.sortArticles || data.linksPageSorted))
+    data.alphabeticalSort = true;
+
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.
   try {
@@ -118,6 +140,8 @@ function load() {
         if (data[key] === undefined && legacy[key] !== undefined)
           data[key] = legacy[key];
       }
+      if (data.alphabeticalSort === undefined && legacy.sortArticles)
+        data.alphabeticalSort = true;
     }
   } catch (e) {
     console.warn("Can't parse legacy settings", e);

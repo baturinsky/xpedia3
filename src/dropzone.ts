@@ -1,3 +1,5 @@
+import { state } from "./state";
+
 export function makeDropzone(dropZone: HTMLElement, onDrop: (files: FileList) => void) {
   if (dropZone) {
     let hoverClassName = 'hover';
@@ -22,6 +24,11 @@ export function makeDropzone(dropZone: HTMLElement, onDrop: (files: FileList) =>
       dropZone.classList.remove(hoverClassName);
 
       if (!e.dataTransfer)
+        return;
+
+      // The status window is modal, so a second drop must not start a
+      // concurrent load on top of the running one
+      if (state.slowProcessStatus)
         return;
 
       onDrop(e.dataTransfer.files);

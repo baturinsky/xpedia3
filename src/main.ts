@@ -69,6 +69,9 @@ async function init() {
   wasmBinary = base64ToArrayBuffer(wasmRaw);
 
   onhashchange = goToHash;
+  // `saveFile` clears the current article while loading, so re-resolve the
+  // hash after a fresh ruleset is installed to keep the user where they were
+  addEventListener("xpedia:loaded", () => goToHash());
   goToHash()
 
 }
@@ -76,6 +79,9 @@ async function init() {
 init()
 
 addEventListener("keydown", e => {
+  // The load status window is modal, so navigation must wait for it
+  if (state.slowProcessStatus)
+    return;
   let pageSwitch = {
     "KeyA": -1, "ArrowLeft": -1,
     "KeyD": 1, "ArrowRight": 1,
@@ -94,7 +100,7 @@ addEventListener("keydown", e => {
       history.go(-1);
     } else {
       if(article && section)
-        goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.ordered))
+        goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort))
     }
   }
 })

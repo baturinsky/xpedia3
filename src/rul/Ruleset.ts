@@ -1,11 +1,12 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
-import { addAllIfNew, addIfNew, capital, cullDoubles, delay, emptyImg, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
+import { addAllIfNew, addIfNew, capital, cullDoubles, delay, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
 import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
 import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry } from './Entry';
+import { emptyImg } from '../imgPlaceholders';
 
 export let rul!: Ruleset;
 export type SortFirstLastOptions = { first?: string[], last?: string[], exclude?: string[], sortBy?: Function }
@@ -413,7 +414,7 @@ export default class Ruleset {
 
     for (let mod of mods) {
       for (let rul of mod.rul)
-        for (let spriteDataName in rul.extraSprites ?? {}) {
+        for (let spriteDataName in (rul?.extraSprites ?? {})) {
           new Sprite({ type: spriteDataName, dir: mod.dir, ...rul.extraSprites[spriteDataName] });
         }
     }
@@ -639,22 +640,22 @@ export default class Ruleset {
   }
 
   /** Returns an article nearby in the same section */
-  findNearbyArticle(current: Article | undefined, delta: number, currentSection: Section | undefined, ordered = false) {
+  findNearbyArticle(current: Article | undefined, delta: number, currentSection: Section | undefined, alphabetical = false) {
     if (!current) return undefined;
     if (!currentSection)
       currentSection = current.sections[0];
     if (current.id == currentSection.id) {
       return currentSection.nearbySection(delta);
     }
-    let list = currentSection ? currentSection.articles(ordered) : this.articlesOrder;
+    let list = currentSection ? currentSection.articles(alphabetical) : this.articlesOrder;
     let index = list.findIndex((a) => a.id == current.id);
     if (index != undefined) {
       let nextIndex = index + delta;
       let nextArticle = list[nextIndex];
       if (nextIndex == -1) {
-        nextArticle = currentSection.nearbySection(-1).lastArticle(ordered);
+        nextArticle = currentSection.nearbySection(-1).lastArticle(alphabetical);
       } else if (nextIndex == list.length) {
-        nextArticle = currentSection.nearbySection(1).firstArticle(ordered);
+        nextArticle = currentSection.nearbySection(1).firstArticle(alphabetical);
       }
       return nextArticle;
     }

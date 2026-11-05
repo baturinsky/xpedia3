@@ -18,7 +18,7 @@ import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 
 export function ArticleTitle() {
-  let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.ordered) : undefined);
+  let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
   // Old `Article.svelte` filtered out the article's own section from the list
   let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
   return <div className="article-title">
@@ -215,6 +215,12 @@ function SearchResults() {
 }
 
 export function ArticleComponent() {
+  // Old `Article.svelte` set the document title from `<svelte:head>`. This must
+  // run before any early return so the hook order stays stable.
+  useEffect(() => {
+    document.title = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
+  }, [article?.id]);
+
   // Full text search results replace the article view
   if (state.searchQuery)
     return <SearchResults />;
@@ -226,10 +232,6 @@ export function ArticleComponent() {
   let table = sectionTable();
   let item = rul?.items?.[id];
 
-  // Old `Article.svelte` set the document title from `<svelte:head>`
-  useEffect(() => {
-    document.title = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
-  }, [article?.id]);
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
   let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
@@ -244,7 +246,7 @@ export function ArticleComponent() {
       <LinksPage links={rul.manufactureCategories[article.id]} cols={3} />}
     {!table && section?.id == article?.id && article?.id != "MAIN" &&
       <div className="articles-list">
-        <LinksPage key={article.id} links={section.articles(state.ordered).map(a => a.id)} />
+        <LinksPage key={article.id} links={section.articles(state.alphabeticalSort).map(a => a.id)} />
       </div>
     }
     {article.text &&

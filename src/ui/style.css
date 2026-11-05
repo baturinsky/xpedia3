@@ -286,10 +286,6 @@ nav.side {
   background: var(--lighter);
 }
 
-.side-sort-button {
-  width: 100%;
-}
-
 .side-hide-button {
   position: fixed;
   top: 2rem;
@@ -475,7 +471,6 @@ nav.side {
   color: var(--text);
   border: solid 1px var(--border);
   font-size: 80%;
-  max-width: 12rem;
   padding: 0 .25rem;
   margin: .1rem;
 }
@@ -539,14 +534,52 @@ button.current-file {
   background: var(--background);
 }
 
+/** Modal layer for the file loading progress, see `SlowProcessStatus` */
+.status-overlay {
+  z-index: 100;
+  box-sizing: border-box;
+  /* Always modal: dim and block the page, until the window is dismissed */
+  background: #00000088;
+  backdrop-filter: blur(1px);
+}
+
 .slow-process-status {
-  max-width: fit-content;
+  max-width: min(60rem, 90vw);
   margin-inline: auto;
-  background: #ffffff20;
-  padding: 0.5rem;
+  background: var(--background);
+  border: solid 1px var(--border);
+  box-shadow: 0 0 1rem var(--shadow);
+  padding: 0.5rem 1rem;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 1rem;
+}
+
+.slow-process-status.done {
+  background: var(--table-subheader);
+}
+
+.slow-process-status.error {
+  border-color: #c33;
+}
+
+.slow-process-text {
+  text-align: center;
+}
+
+.slow-process-close,
+.slow-process-cancel {
+  margin-left: 0.5rem;
+}
+
+.slow-process-cancel {
+  background: var(--lighter);
+}
+
+.slow-process-cancel:hover {
+  background: #c33;
 }
 
 /** Article */
@@ -588,9 +621,11 @@ button.current-file {
 }
 
 
+/* The section's article list is one flowing list of links across the whole
+   page width, as in old `Article.svelte`; it must not be split into narrow
+   newspaper columns. */
 .articles-list {
   max-width: 100%;
-  column-width: 15rem;
 }
 
 .articles-list a {
@@ -665,9 +700,10 @@ button.current-file {
 }
 
 .article-body .x-image:hover {
+  /*
   transform-origin: left top;
   transform: scale(3);
-  transition: .2s;
+  transition: .2s;*/
 }
 
 /** Main table */
@@ -936,13 +972,6 @@ ol>li:last-child::after {
   text-align: center;
   color: var(--em);
   background: var(--table-header);
-}
-
-.links-page-button {
-  position: relative;
-  text-align: right;
-  padding-right: 0.5rem;
-  height: 0px;
 }
 
 .cols {

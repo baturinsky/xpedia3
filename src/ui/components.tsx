@@ -8,7 +8,8 @@ import { Val } from "./Val";
 import React from "react";
 import ItemComponent from "./ItemComponent";
 import { CraftWeapon } from "../rul/Entry";
-import { emptyImg, imageDataToUrl, allFieldValuesOf } from "../util";
+import { imageDataToUrl, allFieldValuesOf } from "../util";
+import { emptyImg } from "../imgPlaceholders";
 
 export async function viewImage(path: string) {
   let img = await getImg(path);
@@ -384,21 +385,12 @@ export function LinksPage(props: {
   if (!links.length)
     return null;
 
-  let withButton = props.title == null;
-
-  let items = state.linksPageSorted
+  // Sorting is controlled by the single `A-Z` button in the top navbar
+  let items = state.alphabeticalSort
     ? [...links].sort((a, b) => rul.tr(fromAnyRef(a) ?? "") > rul.tr(fromAnyRef(b) ?? "") ? 1 : -1)
     : links;
 
   return <>
-    {withButton &&
-      <div className="links-page-button">
-        <button style={state.linksPageSorted ? undefined : { textDecoration: "line-through" }}
-          onClick={() => update({ linksPageSorted: !state.linksPageSorted })}>
-          <Val of="A-Z" />
-        </button>
-      </div>
-    }
     {props.title != null && <div className="links-page-header"><Val of={props.title} /></div>}
     {props.cols
       ? <div className="links-page">

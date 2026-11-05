@@ -118,6 +118,16 @@ export function Tr({
   prefix = undefined as string | undefined,
   postfix = undefined as string | undefined
 }) {
+  if (text == null)
+    return null;
+
+  // Before any mod pack is loaded there is no ruleset to translate through, so
+  // fall back to the raw key rather than crashing the whole UI
+  if (!rul) {
+    let raw = `${prefix ?? ""}${text}${postfix ?? ""}`;
+    return <span className="nobr">{raw}</span>;
+  }
+
   // Raw keys are shown when the ruleset is in "revealed" mode
   let valtr = state.revealed ? text : rul.tr(text, { capital });
 

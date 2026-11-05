@@ -8,7 +8,7 @@ import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
 import { rul } from "../rul/Ruleset";
-import { favicon } from "../util";
+import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
 import { ArticleComponent } from "./ArticleComponent";
 
@@ -27,24 +27,37 @@ function useDocumentSettings() {
   }, [state.theme]);
 }
 
+/** The sidebar lists the articles of the current section. The front page has
+ * no such list, so there is nothing to show (or to toggle) there. */
+function hasSidebar() {
+  return !!article && section?.id !== "MAIN";
+}
+
 function UI() {
   const store = useSyncExternalStore(externalStore.subscribe, externalStore.getSnapshot);
   useDocumentSettings();
 
+  let canShowSide = hasSidebar();
+  let side = state.seeSide && canShowSide;
+
   return (
     <StoreContext value={store}>
-      <div className={"all" + (state.seeSide ? "" : " no-side")}>
+      <div className={"all" + (side ? "" : " no-side")}>
         <NavTop />
-        {state.seeSide && <NavSide />}
-        <button className="side-hide-button" style={{ left: state.seeSide ? undefined : "1em" }}
-          onClick={() => update({ seeSide: !state.seeSide })}>
-          {state.seeSide ? "⇤" : "⇥"}
-        </button>
+        {side && <NavSide />}
+        {canShowSide &&
+          <button className="side-hide-button" style={{ left: state.seeSide ? undefined : "1em" }}
+            onClick={() => update({ seeSide: !state.seeSide })}>
+            {state.seeSide ? "⇤" : "⇥"}
+          </button>
+        }
         <div className="content">
           <ArticleComponent />
         </div>
       </div>
       <div className="tooltip fadein" id="xpediaTooltip">Tooltip</div>
+      {/* The status overlay lives at the root so a drop is visible from any page */}
+      <SlowProcessStatus />
     </StoreContext>
   );
 }
@@ -58,7 +71,6 @@ export function LandingPage() {
     <ArchiveFiles />
     <CurrentAssets />
     {state.imagePreview && <img src={state.imagePreview}></img>}
-    <SlowProcessStatus />
   </>
 }
 
@@ -110,7 +122,7 @@ function NavDropdown() {
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
         <div className="navbar-auto navbar-list">
-          <a href="##HOME" className="menu-home" style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
+          <a href="##MAIN" className="menu-home" style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
           <div className="menu-spacer" />
           {rul?.sectionsOrder?.map(section =>
             <a key={section.id} href={"##" + section.id}><Tr text={section.id} /></a>
@@ -144,15 +156,7 @@ export function NavTop() {
       {section && section.id != "MAIN" && <Val of={section.id} />}
     </div>
     <div className="right">
-      <button
-        className={"navbar-button" + (state.revealed ? " reveal-lock" : "")}
-        title="Hold to reveal language keys"
-        onMouseOver={() => reveal(true)}
-        onMouseOut={() => reveal(false)}
-        onClick={() => revealLock()}
-      >
-        Aa
-      </button>
+      <SearchBox />
       <button className="navbar-button" onClick={() => update({ theme: state.theme == "light" ? "dark" : "light" })}>
         {state.theme == "light" ? "◐" : "◑"}
       </button>
@@ -183,8 +187,21 @@ export function NavTop() {
             </div>
           </div>
       )}
-      <button onClick={() => update({ ordered: !state.ordered })}>{state.ordered ? "A-Z" : <s>A-Z</s>}</button>
-      <SearchBox />
+      <button className="navbar-button" title="Alphabetical sort"
+        onClick={() => update({ alphabeticalSort: !state.alphabeticalSort })}>
+        <span style={state.alphabeticalSort ? undefined : { textDecoration: "line-through" }}>A-Z</span>
+      </button>
+
+      <button
+        className={"navbar-button" + (state.revealed ? " reveal-lock" : "")}
+        title="Hold to reveal language keys"
+        onMouseOver={() => reveal(true)}
+        onMouseOut={() => reveal(false)}
+        onClick={() => revealLock()}
+      >
+        STR
+      </button>
+
     </div>
   </nav>
 }
@@ -235,15 +252,8 @@ function SectionsList() {
 export function NavSide() {
   if (!rul)
     return null;
-  let articlesList = section?.articles(state.ordered) ?? [];
-  if (state.sortArticles)
-    articlesList = [...articlesList].sort((a, b) => a.title > b.title ? 1 : -1);
+  let articlesList = section?.articles(state.alphabeticalSort) ?? [];
   return <nav className="sidebar">
-    <button className="side-sort-button"
-      style={state.sortArticles ? undefined : { textDecoration: "line-through" }}
-      onClick={() => update({ sortArticles: !state.sortArticles })}>
-      <Val of="A-Z" />
-    </button>
     <div className="menu-list">
       {articlesList.map(option =>
         <a key={option.id} href={"##" + option.id}

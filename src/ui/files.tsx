@@ -4,7 +4,7 @@ import { DataGrid } from 'react-data-grid';
 import { listArchiveFiles, getStats, wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, getRul } from "../idb";
 import { interpretPath } from "../load";
 import { CogAnimation, MyTable, useStateAsync, viewImage } from "./components";
-import { state, update } from "../state";
+import { state, update, requestCancelSlowProcess } from "../state";
 import { asMB, localeFixed2 } from "../util";
 
 export function ArchiveFiles() {
@@ -77,11 +77,31 @@ export function CurrentAssets() {
 
 
 export function SlowProcessStatus() {
-  if (!state.slowProcessStatus)
+  let done = state.slowProcessDone;
+  let status = state.slowProcessStatus;
+  let cancellable = state.slowProcessCancellable;
+
+  function dismiss() {
+    update({ slowProcessStatus: "", slowProcessDone: false, slowProcessError: false,
+      slowProcessCancellable: false });
+  }
+
+  if (!status)
     return;
-  return <div className="full-screen-centered">
-    <div className="slow-process-status">
-      <CogAnimation size={state.fontSize * 2} /> {state.slowProcessStatus} <CogAnimation size={state.fontSize * 2} />
+
+  // The window is modal: it dims and blocks the page until it is dismissed.
+  // Escape/clicking the backdrop are deliberately ignored while work is in
+  // progress so that a stray click cannot abort or hide a running load.
+  return <div className="full-screen-centered status-overlay">
+    <div className={"slow-process-status" + (done ? " done" : "") + (state.slowProcessError ? " error" : "")}
+      role="dialog" aria-modal="true">
+      {!done && <CogAnimation size={state.fontSize * 2} />}
+      <span className="slow-process-text">{status}</span>
+      {!done && <CogAnimation size={state.fontSize * 2} />}
+      {!done && cancellable &&
+        <button className="slow-process-cancel" title="Cancel loading"
+          onClick={requestCancelSlowProcess}>Cancel</button>}
+      {done && <button className="slow-process-close" title="Dismiss" onClick={dismiss}>OK</button>}
     </div>
   </div>
 }

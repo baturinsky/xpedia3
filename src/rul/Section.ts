@@ -5,8 +5,8 @@ import { last } from '../util';
 export class Section {
   _articles: Article[] = [];
 
-  articles(ordered = false) {
-    return ordered ? rul.sortArticlesByName(this._articles) : this._articles;
+  articles(alphabetical = false) {
+    return alphabetical ? rul.sortArticlesByName(this._articles) : this._articles;
   }
 
   constructor(public id: string, xpediaOwn = false) {
@@ -41,11 +41,11 @@ export class Section {
     return as[nextInd]
   }
 
-  lastArticle(ordered: boolean) {
-    return last(this.articles(ordered));
+  lastArticle(alphabetical: boolean) {
+    return last(this.articles(alphabetical));
   }
 
-  firstArticle(ordered: boolean) {
-    return this.articles(ordered)[0];
+  firstArticle(alphabetical: boolean) {
+    return this.articles(alphabetical)[0];
   }
 }

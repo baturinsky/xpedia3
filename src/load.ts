@@ -1,12 +1,12 @@
 import { wasmBinary } from "./main";
-import { update } from "./state";
+import { state, update, slowProcessCancelRequested, resetSlowProcessCancel } from "./state";
 import * as unrar from 'node-unrar-js'
-import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer } from "./util";
+import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer, asMB } from "./util";
 import { fileTypeFromBuffer } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { Mod } from "./rul/Ruleset";
-import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets, applySavedLanguage } from "./idb";
+import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
 //@ts-ignore
 import builtinModsArchive from './builtinMods.zip?base64'
 
@@ -111,6 +111,7 @@ export async function unpackRar(name: string, data: ArrayBuffer) {
   let files: unrar.ArcFile<Uint8Array<ArrayBufferLike>>[] = []
 
   for (let f of extracted.files) {
+    throwIfCancelled();
     files.push(f);
     let name = f.fileHeader.name
     if (files.length % 1000 == 0) {
@@ -124,27 +125,57 @@ export async function unpackRar(name: string, data: ArrayBuffer) {
   return Object.fromEntries(files.map(file => [file.fileHeader.name, file.extraction]));
 }
 
-async function unpackArchive(packName: string, data: ArrayBuffer) {
-  update({ slowProcessStatus: `Unpacking archive ${packName ?? ''}..., ${data.byteLength} bytes` })
+/** Message shown when the user aborts a load from the status window */
+function cancelledMessage(packName?: string) {
+  return `Cancelled loading ${packName ?? "pack"}`;
+}
 
-  let fileType = await fileTypeFromBuffer(data);
+/** Thrown through the load pipeline once the user cancels, unwinds every stage */
+class LoadCancelled extends Error {
+  constructor() {
+    super("Load cancelled");
+  }
+}
+
+/** Aborts the current load if the Cancel button was pressed */
+function throwIfCancelled() {
+  if (slowProcessCancelRequested)
+    throw new LoadCancelled();
+}
+
+async function unpackArchive(packName: string, data: ArrayBuffer) {
+  throwIfCancelled();
+
+  update({ slowProcessDone: false, slowProcessError: false,
+    slowProcessStatus: `Unpacking ${packName ?? ''} (${asMB(data.byteLength)})...` })
+
+  let fileType = await fileTypeFromBuffer(data).catch(() => undefined);
 
   let files: { [name: string]: Uint8Array };
 
   try {
+    if (!fileType)
+      throw new Error("Unknown file type");
     if (fileType.ext == "rar") {
       files = await unpackRar(packName, data)
     } else {
       files = await unpackZip(packName, data)
     }
   } catch (e) {
+    // Cancellation is not a format error, let it unwind to `unpackData`
+    if (e instanceof LoadCancelled)
+      throw e;
     console.error(e);
-    alert("Failed to unpack. Only upload RAR or ZIP files.")
-    update({ slowProcessStatus: null })
-    return {}
+    update({
+      slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
+      slowProcessDone: true, slowProcessError: true
+    })
+    return null
   }
 
-  update({ slowProcessStatus: `Unpacked ${Object.keys(files).length} files in ${packName ?? 'archive'}` })
+  throwIfCancelled();
+
+  update({ slowProcessStatus: `Unpacked ${Object.keys(files).length} files from ${packName ?? 'archive'}` })
 
   return files;
 
@@ -152,50 +183,102 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
 
 export async function unpackData(packName: string, data: ArrayBuffer) {
 
-  let builtinMods = await unpackArchive("builtin", base64ToArrayBuffer(builtinModsArchive));
+  try {
+    let builtinMods = await unpackArchive("builtin", base64ToArrayBuffer(builtinModsArchive));
 
-  let files = await unpackArchive(packName, data);
+    let files = await unpackArchive(packName, data);
 
-  files = { ...builtinMods, ...files };
+    // The error state is already set by `unpackArchive`
+    if (!files)
+      return;
 
-  let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
+    if (!Object.keys(files).length) {
+      update({ slowProcessStatus: `Nothing usable found in ${packName}`,
+        slowProcessDone: true, slowProcessError: true })
+      return;
+    }
 
-  /**A list of all lng/rul/meta files in the pack, with the full pathes */
-  let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
-    .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
+    files = { ...builtinMods, ...files };
 
-  let mods = loadModsAndLng(decodedYamls);
+    update({ slowProcessStatus: `Reading ${Object.keys(files).length} files...` });
 
-  let processed = Ruleset.preprocessMods(mods)
+    let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
 
-  wipeAssets(packName);
+    /**A list of all lng/rul/meta files in the pack, with the full pathes */
+    let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
+      .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
 
-  let images = interpretedFiles.filter(f => f.type == "img");
+    let mods = loadModsAndLng(decodedYamls);
 
-  let assetsSize = 0;
+    update({ slowProcessStatus: `Building ruleset from ${Object.keys(mods).length} mod(s)...` });
 
-  console.log(`saving ${images.length} assets`);
+    let processed = Ruleset.preprocessMods(mods)
 
-  for (let img of images) {
-    saveImg(packName, img.mod, img.path, img.data);
-    assetsSize += img.data.byteLength;
+    throwIfCancelled();
+
+    await wipeAssets(packName);
+
+    throwIfCancelled();
+
+    let images = interpretedFiles.filter(f => f.type == "img");
+
+    let assetsSize = 0;
+
+    console.log(`saving ${images.length} assets`);
+
+    if (images.length)
+      update({ slowProcessStatus: `Saving ${images.length} images...` });
+
+    for (let img of images) {
+      // Let the Cancel button take effect between images instead of after all
+      // of them have been written
+      throwIfCancelled();
+      await saveImg(packName, img.mod, img.path, img.data);
+      assetsSize += img.data.byteLength;
+    }
+
+    throwIfCancelled();
+
+    let stringifiedRul = JSON.stringify(processed);
+
+    let compressedRul = fflate.compressSync(new TextEncoder().encode(stringifiedRul))
+
+    await saveStats(packName, data.byteLength, assetsSize, compressedRul.length)
+    await saveRul(packName, compressedRul)
+
+    console.log("saved assets");
+
+    let rul = new Ruleset(processed);
+    applySavedLanguage(rul);
+
+    let names = Object.values(rul.mods ?? {})
+      .map((m: any) => [m.meta?.name, m.meta?.version].filter(Boolean).join(" "))
+      .filter(Boolean);
+
+    update({
+      rul, packName,
+      slowProcessDone: true, slowProcessError: false,
+      slowProcessStatus: `Loaded ${packName}: ${Object.keys(rul.articles).length} articles, ` +
+        `${Object.keys(rul.items ?? {}).length} items, ${rul.langNames?.length ?? 0} languages` +
+        (names.length ? ` — ${names.join(", ")}` : "")
+    });
+
+    // The URL still names the article the user was reading, so let the
+    // navigation layer resolve it against the freshly loaded ruleset instead
+    // of stranding the user on the landing page
+    window.dispatchEvent(new CustomEvent("xpedia:loaded"));
+
+    return files
+  } catch (e) {
+    // Cancellation has to reach `uploadUsersFiles`, which owns the archive
+    // record and can remove it; only report real failures here
+    if (e instanceof LoadCancelled)
+      throw e;
+    console.error(e);
+    update({ slowProcessDone: true, slowProcessError: true,
+      slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}` })
+    throw e;
   }
-
-  let stringifiedRul = JSON.stringify(processed);
-
-  let compressedRul = fflate.compressSync(new TextEncoder().encode(stringifiedRul))
-
-  await saveStats(packName, data.byteLength, assetsSize, compressedRul.length)
-  await saveRul(packName, compressedRul)
-
-  console.log("saved assets");
-
-  let rul = new Ruleset(processed);
-  applySavedLanguage(rul);
-
-  update({ rul, packName, slowProcessStatus: null })
-
-  return files
 }
 
 const extRegexp = /^(.+)\.([0-9a-z\-]+)?$/i;
@@ -265,12 +348,59 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
 
 export async function uploadUsersFiles(fileList: FileList) {
   const files = Array.from(fileList);
-  update({ slowProcessStatus: "Uploading" })
+  if (!files.length)
+    return;
 
-  if (files.length > 0) {
-    for (const file of files) {
-      let data = await file.arrayBuffer();
-      saveFile(file.name, data);
+  resetSlowProcessCancel();
+  update({
+    slowProcessStatus: `Uploading ${files.length} file(s)...`,
+    slowProcessDone: false, slowProcessError: false, slowProcessCancellable: true
+  })
+
+  /** Removes the half-installed pack so it can't be opened later */
+  async function abandon(pack: string, reason: string) {
+    console.warn(`Cancelling ${pack}: ${reason}`);
+    resetSlowProcessCancel();
+    try {
+      await wipeAssets(pack);
+      await eraseArchiveFile(pack);
+    } catch (e) {
+      console.error("Could not clean up the cancelled pack", e);
     }
+    updateFileStats();
+    update({
+      slowProcessDone: true, slowProcessError: true, slowProcessCancellable: false,
+      slowProcessStatus: `${reason}. Nothing was installed.`
+    });
   }
+
+  for (const file of files) {
+    try {
+      throwIfCancelled();
+      let data = await file.arrayBuffer();
+      await saveFile(file.name, data);
+    } catch (e) {
+      await abandon(file.name, e instanceof LoadCancelled
+        ? cancelledMessage(file.name)
+        : `Could not load ${file.name}: ${e?.message ?? e}`);
+      return;
+    }
+    // The archive is already stored at this point, so a late cancel must
+    // still remove it — unless the load had in fact already succeeded
+    if (slowProcessCancelRequested && !state.slowProcessDone) {
+      await abandon(file.name, cancelledMessage(file.name));
+      return;
+    }
+    resetSlowProcessCancel();
+  }
+
+  // Every successful path ends in a "Loaded ..." status from `unpackData`
+  if (slowProcessCancelRequested && !state.slowProcessDone) {
+    let last = files[files.length - 1];
+    await abandon(last.name, cancelledMessage(last.name));
+  } else if (!state.slowProcessDone) {
+    update({ slowProcessDone: true, slowProcessCancellable: false });
+  }
+
+  resetSlowProcessCancel();
 }
