@@ -534,6 +534,95 @@ button.current-file {
   background: var(--background);
 }
 
+/** Toggle between the simple modpack list and the unpacking tools */
+.modpack-mode-switch {
+  margin: 0.2rem 0;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button:disabled:hover {
+  background: var(--background);
+}
+
+/** Developer-only button that unloads the current pack, see `deselectPack` */
+.modpack-deselect {
+  margin-left: 0.3rem;
+}
+
+/** Simple modpack list, see `ModpackList` */
+.modpack-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.modpack-panel {
+  position: relative;
+  box-sizing: border-box;
+  width: 14rem;
+  min-height: 4.5rem;
+  padding: 0.4rem 1.8rem 0.4rem 0.5rem;
+  border: solid 1px var(--border);
+  background: var(--table-main);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.modpack-panel:hover {
+  background: var(--hover);
+}
+
+.modpack-panel.current {
+  border-color: var(--link);
+  background: var(--lighter);
+}
+
+.modpack-name {
+  font-variant: small-caps;
+}
+
+.modpack-size,
+.modpack-current {
+  font-size: small;
+  opacity: 0.8;
+}
+
+.modpack-current {
+  color: var(--link);
+  font-variant: small-caps;
+}
+
+.modpack-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 1.5em;
+  line-height: 1;
+  padding: 0 0.25rem;
+  border: none;
+  background: none;
+  opacity: 0.6;
+}
+
+.modpack-delete:hover {
+  opacity: 1;
+  background: var(--hover);
+}
+
+.modpack-empty {
+  opacity: 0.7;
+}
+
+.modpack-hint {
+  margin: 0 0 0.5rem;
+  opacity: 0.8;
+}
+
 /** Modal layer for the file loading progress, see `SlowProcessStatus` */
 .status-overlay {
   z-index: 100;

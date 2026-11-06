@@ -344,7 +344,9 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     reportStage("Saving ruleset", 1);
 
-    await saveStats(packName, data.byteLength, assetsSize, compressedRul.length)
+    // The archive is only kept in developer mode, so it only takes storage
+    // there; in the normal mode the pedia consists of the images and ruleset
+    await saveStats(packName, state.developerMode ? data.byteLength : 0, assetsSize, compressedRul.length)
     await saveRul(packName, compressedRul)
 
     let rul = new Ruleset(processed);

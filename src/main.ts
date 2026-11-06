@@ -5,7 +5,7 @@ import { initUI } from './ui/ui';
 import { makeDropzone } from './dropzone';
 import { base64ToArrayBuffer } from './util';
 import { article, section, state, update } from './state';
-import { saveFile, initDB, queryDB, getRul } from './idb';
+import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
@@ -61,10 +61,24 @@ function goToHash() {
 
 async function init() {
   await initDB();
-  // With no modpack (or one whose ruleset was lost) fall back to the builtin
-  // mods alone, so the pedia still has a ruleset to browse
+  // With no modpack (or one whose data was lost) fall back to the builtin mods
+  // alone, so the pedia still has a ruleset to browse.
+  //
+  // A stored `packName` can outlive its data: the browser may evict the origin's
+  // storage, and the archive is not kept at all outside developer mode. Say so
+  // instead of silently pretending no modpack was ever selected.
   let loaded = state.packName ? await getRul(state.packName) : undefined;
-  if (!loaded) await loadBuiltinOnlyPack();
+  if (!loaded) {
+    let missingPack = state.packName;
+    if (missingPack) {
+      update({
+        slowProcessStatus: `${missingPack} is no longer stored. ` +
+          `Showing the builtin pedia — upload the modpack again to rebuild it.`,
+        slowProcessDone: true, slowProcessError: true, slowProcessCancellable: false
+      });
+    }
+    await loadBuiltinOnlyPack();
+  }
 
   initUI();
 

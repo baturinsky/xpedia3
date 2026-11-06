@@ -70,21 +70,29 @@ export function initDB() {
  * Stores an uploaded archive, then unpacks it straight from the bytes we
  * already have in memory.
  *
- * The bytes are kept as a `Blob` rather than as an `ArrayBuffer` record because
- * IndexedDB refuses a single serialized value above ~127 MiB (Chrome aborts the
- * transaction with "The serialized keys and/or value are too large") and real
- * modpacks commonly exceed that. A `Blob` is persisted by reference instead of
- * being serialized inline, so it is not subject to that limit.
+ * The archive blob exists only for the developer tools: re-unpacking is not an
+ * end-user scenario, and the pedia itself never reads it (the ruleset and images
+ * live in `assets`). So in the normal mode the bytes are unpacked and dropped,
+ * which also keeps the stored size down to what the pedia actually needs.
+ *
+ * In developer mode the bytes are kept as a `Blob` rather than as an
+ * `ArrayBuffer` record because IndexedDB refuses a single serialized value above
+ * ~127 MiB (Chrome aborts the transaction with "The serialized keys and/or value
+ * are too large") and real modpacks commonly exceed that. A `Blob` is persisted
+ * by reference instead of being serialized inline, so it is not subject to that
+ * limit.
  */
 export async function saveFile(name: string, data: ArrayBuffer) {
   update({ article: undefined, section: undefined })
-  try {
-    await queryDB(transaction =>
-      transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
-  } catch (e) {
-    // A pack that does not fit is a normal outcome, not a bug: report it in
-    // plain language instead of letting a bare DOMException reach the status
-    throw new Error(archiveWriteError(data.byteLength, e as DOMException));
+  if (state.developerMode) {
+    try {
+      await queryDB(transaction =>
+        transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
+    } catch (e) {
+      // A pack that does not fit is a normal outcome, not a bug: report it in
+      // plain language instead of letting a bare DOMException reach the status
+      throw new Error(archiveWriteError(data.byteLength, e as DOMException));
+    }
   }
   await unpackData(name, data);
   updateFileStats()
@@ -92,6 +100,11 @@ export async function saveFile(name: string, data: ArrayBuffer) {
 
 export async function saveRul(pack: string, data: Uint8Array) {
   return await queryDB(transaction => transaction.objectStore("assets").add({ pack, data, kind: "rul" }))
+}
+
+/** True when the stored archive bytes are gone, see `getRul` */
+export async function hasArchive(name: string) {
+  return !!(await readDB(transaction => transaction.objectStore("files").get(name)));
 }
 
 export async function getRul(pack: string) {
@@ -155,8 +168,19 @@ export async function saveImgs(pack: string, images: { mod: string, path: string
   }
 }
 
+/**
+ * Looks up an image for the currently shown pack. Images are stored per pack,
+ * so a plain `name` lookup could return the same path from another modpack
+ * (pack switches keep all packs installed). Builtin images live under the
+ * `builtin` pack, which every pack inherits.
+ */
 export async function getImg(path: string) {
-  return await readDB(transaction => transaction.objectStore("assets").index("name").get(path))
+  let records = await readDB(transaction => transaction.objectStore("assets").index("name").getAll(path)) as any[];
+  if (!records?.length)
+    return;
+  return records.find(r => r.kind == "img" && r.pack == state.packName)
+    ?? records.find(r => r.kind == "img" && r.pack == "builtin")
+    ?? records.find(r => r.kind == "img");
 }
 
 
@@ -175,10 +199,11 @@ export function wipeAssets(pack: string) {
       if (cursor) {
         os.delete(cursor.primaryKey)
         cursor.continue()
-      } else {
-        done()
       }
+      // Resolve on commit: callers read the stats right afterwards, and a
+      // cursor can reach its end while the transaction is still uncommitted
     }
+    transaction.oncomplete = () => done();
   })
 }
 
@@ -258,5 +283,15 @@ export async function eraseArchiveFile(name: string) {
 
 export async function unpackArchiveFile(name: string) {
   let archives = await listArchiveFiles();
+  // The archive can be gone while its unpacked ruleset and images survive, e.g.
+  // when the browser evicts the largest value first under storage pressure
+  if (!archives[name]) {
+    update({
+      slowProcessStatus: `The archive for ${name} is no longer stored, so it cannot be re-unpacked. ` +
+        `Its pedia is still usable; upload the archive again if you need to rebuild it.`,
+      slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined
+    });
+    return;
+  }
   await unpackData(name, archives[name]);
 }

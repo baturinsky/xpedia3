@@ -17388,6 +17388,8 @@ let state = {
   lang: void 0,
   /** Theme name, see `Theme` */
   theme: "dark",
+  /** Show the unpacking tools and tables instead of the simple modpack list */
+  developerMode: false,
   /* ---- Transient UI state, not persisted ---- */
   /** Show the `#STR_` language keys instead of translations */
   revealed: false,
@@ -17411,7 +17413,8 @@ let savedFields = [
   "hugeFont",
   "alphabeticalSort",
   "lang",
-  "theme"
+  "theme",
+  "developerMode"
 ];
 let slowProcessCancelRequested = false;
 function requestCancelSlowProcess() {
@@ -33335,7 +33338,7 @@ async function unpackData(packName, data) {
     let stringifiedRul = JSON.stringify(processed);
     let compressedRul = await gzipBytes(new TextEncoder().encode(stringifiedRul));
     reportStage("Saving ruleset", 1);
-    await saveStats(packName, data.byteLength, assetsSize, compressedRul.length);
+    await saveStats(packName, state.developerMode ? data.byteLength : 0, assetsSize, compressedRul.length);
     await saveRul(packName, compressedRul);
     let rul = new Ruleset(processed);
     applySavedLanguage(rul);
@@ -33517,10 +33520,12 @@ function initDB() {
 }
 async function saveFile(name, data) {
   update({ article: void 0, section: void 0 });
-  try {
-    await queryDB((transaction) => transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
-  } catch (e) {
-    throw new Error(archiveWriteError(data.byteLength, e));
+  if (state.developerMode) {
+    try {
+      await queryDB((transaction) => transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
+    } catch (e) {
+      throw new Error(archiveWriteError(data.byteLength, e));
+    }
   }
   await unpackData(name, data);
   updateFileStats();
@@ -33570,7 +33575,10 @@ async function saveImgs(pack, images, onProgress) {
   }
 }
 async function getImg(path) {
-  return await readDB((transaction) => transaction.objectStore("assets").index("name").get(path));
+  let records = await readDB((transaction) => transaction.objectStore("assets").index("name").getAll(path));
+  if (!records?.length)
+    return;
+  return records.find((r) => r.kind == "img" && r.pack == state.packName) ?? records.find((r) => r.kind == "img" && r.pack == "builtin") ?? records.find((r) => r.kind == "img");
 }
 function wipeAssets(pack) {
   return new Promise((done) => {
@@ -33582,10 +33590,9 @@ function wipeAssets(pack) {
       if (cursor) {
         os.delete(cursor.primaryKey);
         cursor.continue();
-      } else {
-        done();
       }
     };
+    transaction.oncomplete = () => done();
   });
 }
 async function queryDB(action, mode = "readwrite", dbNames = ["files", "assets"]) {
@@ -33627,6 +33634,15 @@ async function eraseArchiveFile(name) {
 }
 async function unpackArchiveFile(name) {
   let archives = await listArchiveFiles();
+  if (!archives[name]) {
+    update({
+      slowProcessStatus: `The archive for ${name} is no longer stored, so it cannot be re-unpacked. Its pedia is still usable; upload the archive again if you need to rebuild it.`,
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessProgress: void 0
+    });
+    return;
+  }
   await unpackData(name, archives[name]);
 }
 
@@ -34204,10 +34220,188 @@ function moveField(shownFields, after, field, setShownFields) {
   setShownFields(next);
 }
 
+function busy() {
+  return !!state.slowProcessStatus && !state.slowProcessDone;
+}
+function clearStatus() {
+  update({
+    slowProcessStatus: "",
+    slowProcessStage: "",
+    slowProcessProgress: void 0,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: false
+  });
+}
+function storedSize(pack) {
+  return (pack.assets ?? 0) + (pack.ruls ?? 0) + (pack.archive ?? 0);
+}
+async function selectPack(pack) {
+  if (busy() || pack == state.packName)
+    return;
+  update({
+    slowProcessStatus: `Switching to ${pack}...`,
+    slowProcessStage: "",
+    slowProcessProgress: void 0,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: false
+  });
+  let loaded;
+  try {
+    update({ article: void 0, section: void 0, images: {} });
+    loaded = await getRul(pack);
+  } catch (e) {
+    loaded = void 0;
+  }
+  if (!loaded) {
+    update({
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessStatus: `Could not open ${pack}: its pedia is missing from the browser storage. Upload the modpack again to rebuild it.`
+    });
+    return;
+  }
+  clearStatus();
+  window.dispatchEvent(new CustomEvent("xpedia:loaded"));
+}
+async function deletePack(pack) {
+  if (busy())
+    return;
+  if (!state.developerMode && !confirm(`Delete the pedia generated for ${pack}?`))
+    return;
+  update({
+    slowProcessStatus: `Deleting ${pack}...`,
+    slowProcessStage: "",
+    slowProcessProgress: void 0,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: false
+  });
+  try {
+    await wipeAssets(pack);
+    await eraseArchiveFile(pack);
+  } catch (e) {
+    update({
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessStatus: `Could not delete ${pack}: ${e?.message ?? e}`
+    });
+    return;
+  }
+  if (state.packName != pack) {
+    clearStatus();
+    return;
+  }
+  let next = state.files?.find((f) => f.pack != pack)?.pack;
+  update({ article: void 0, section: void 0, images: {}, packName: void 0 });
+  let loaded = next ? await getRul(next) : void 0;
+  if (!loaded) {
+    await loadBuiltinOnlyPack();
+    update({
+      slowProcessDone: true,
+      slowProcessError: false,
+      slowProcessStatus: `Deleted ${pack}. No modpacks left, showing the builtin pedia.`
+    });
+  } else {
+    update({
+      slowProcessDone: true,
+      slowProcessError: false,
+      slowProcessStatus: `Deleted ${pack}. Now showing ${next}.`
+    });
+    window.dispatchEvent(new CustomEvent("xpedia:loaded"));
+  }
+}
+async function deselectPack() {
+  if (busy() || !state.packName)
+    return;
+  let previous = state.packName;
+  update({
+    slowProcessStatus: `Unloading ${previous}...`,
+    slowProcessStage: "",
+    slowProcessProgress: void 0,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: false
+  });
+  update({ article: void 0, section: void 0, images: {}, packName: void 0 });
+  try {
+    await loadBuiltinOnlyPack();
+  } catch (e) {
+    update({
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessStatus: `Could not unload ${previous}: ${e?.message ?? e}`
+    });
+    return;
+  }
+  update({
+    slowProcessDone: true,
+    slowProcessError: false,
+    slowProcessStatus: `Unloaded ${previous}. No modpack selected, showing the builtin pedia.`
+  });
+  window.dispatchEvent(new CustomEvent("xpedia:loaded"));
+}
 function ArchiveFiles() {
-  let files = state.files;
-  if (!files || !Array.isArray(files))
-    debugger;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        className: "modpack-mode-switch",
+        title: state.developerMode ? "Hide the unpacking tools and show the simple modpack list" : "Show storage sizes and unpacking tools",
+        onClick: () => update({ developerMode: !state.developerMode }),
+        children: state.developerMode ? "Simple view" : "Developer view"
+      }
+    ),
+    state.developerMode && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        className: "modpack-deselect",
+        disabled: !state.packName,
+        title: state.packName ? "Unload the current modpack and show the builtin pedia" : "No modpack is selected",
+        onClick: deselectPack,
+        children: "deselect"
+      }
+    ),
+    state.developerMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(ArchiveFilesTable, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(ModpackList, {})
+  ] });
+}
+function ModpackList() {
+  let packs = state.files ?? [];
+  if (!packs.length)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "modpack-empty", children: "No modpacks uploaded yet." });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "modpack-list", children: packs.map((pack) => {
+    let current = pack.pack == state.packName;
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "modpack-panel" + (current ? " current" : ""),
+        title: current ? "Currently shown" : "Click to show this modpack",
+        onClick: () => selectPack(pack.pack),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: "modpack-delete",
+              title: "Delete this modpack",
+              onClick: (e) => {
+                e.stopPropagation();
+                deletePack(pack.pack);
+              },
+              children: "×"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "modpack-name", children: pack.pack }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "modpack-size", children: asMB(storedSize(pack)) }),
+          current && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "modpack-current", children: "currently shown" })
+        ]
+      },
+      pack.pack
+    );
+  }) });
+}
+function ArchiveFilesTable() {
+  let files = state.files ?? [];
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     MyTable,
     {
@@ -34228,19 +34422,21 @@ function ArchiveFiles() {
           renderCell: (a) => {
             let pack = a.row.name;
             return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: async (e) => {
-                update({ slowProcessStatus: "Erasing pack data" });
-                await wipeAssets(pack);
-                await eraseArchiveFile(pack);
-                update({ slowProcessStatus: void 0 });
-              }, children: "delete" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e) => deletePack(pack), children: "delete" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e) => unpackArchiveFile(pack), children: "unpack" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e) => wipeAssets(pack), children: "wipe assets" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: async (e) => {
+                await wipeAssets(pack);
+                await updateFileStats();
+              }, children: "wipe assets" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: (e) => viewAssets(pack), children: "assets" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: pack == state.packName ? "current-file" : "", onClick: (e) => {
-                update({ packName: pack });
-                getRul(pack);
-              }, children: "rul" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  className: pack == state.packName ? "current-file" : "",
+                  onClick: (e) => selectPack(pack),
+                  children: "rul"
+                }
+              )
             ] });
           }
         }
@@ -35563,9 +35759,9 @@ function LandingPage() {
     rul && /* @__PURE__ */ jsxRuntimeExports.jsx(SectionsList, {}),
     rul && /* @__PURE__ */ jsxRuntimeExports.jsx(ModsList, {}),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { children: "Modpacks" }),
-    "Drag and drop modpack files in zip or rar format here to upload !",
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "modpack-hint", children: "Drag and drop modpack files in zip or rar format anywhere on this page to add them." }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(ArchiveFiles, {}),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(CurrentAssets, {}),
+    state.developerMode && /* @__PURE__ */ jsxRuntimeExports.jsx(CurrentAssets, {}),
     state.imagePreview && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: state.imagePreview })
   ] });
 }
@@ -35885,7 +36081,18 @@ function goToHash() {
 async function init() {
   await initDB();
   let loaded = state.packName ? await getRul(state.packName) : void 0;
-  if (!loaded) await loadBuiltinOnlyPack();
+  if (!loaded) {
+    let missingPack = state.packName;
+    if (missingPack) {
+      update({
+        slowProcessStatus: `${missingPack} is no longer stored. Showing the builtin pedia — upload the modpack again to rebuild it.`,
+        slowProcessDone: true,
+        slowProcessError: true,
+        slowProcessCancellable: false
+      });
+    }
+    await loadBuiltinOnlyPack();
+  }
   initUI();
   makeDropzone(document.body, uploadUsersFiles);
   wasmBinary = base64ToArrayBuffer(wasmRaw);
@@ -37239,6 +37446,95 @@ tr.current-file {
 
 button.current-file {
   background: var(--background);
+}
+
+/** Toggle between the simple modpack list and the unpacking tools */
+.modpack-mode-switch {
+  margin: 0.2rem 0;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button:disabled:hover {
+  background: var(--background);
+}
+
+/** Developer-only button that unloads the current pack, see `deselectPack` */
+.modpack-deselect {
+  margin-left: 0.3rem;
+}
+
+/** Simple modpack list, see `ModpackList` */
+.modpack-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.modpack-panel {
+  position: relative;
+  box-sizing: border-box;
+  width: 14rem;
+  min-height: 4.5rem;
+  padding: 0.4rem 1.8rem 0.4rem 0.5rem;
+  border: solid 1px var(--border);
+  background: var(--table-main);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.modpack-panel:hover {
+  background: var(--hover);
+}
+
+.modpack-panel.current {
+  border-color: var(--link);
+  background: var(--lighter);
+}
+
+.modpack-name {
+  font-variant: small-caps;
+}
+
+.modpack-size,
+.modpack-current {
+  font-size: small;
+  opacity: 0.8;
+}
+
+.modpack-current {
+  color: var(--link);
+  font-variant: small-caps;
+}
+
+.modpack-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 1.5em;
+  line-height: 1;
+  padding: 0 0.25rem;
+  border: none;
+  background: none;
+  opacity: 0.6;
+}
+
+.modpack-delete:hover {
+  opacity: 1;
+  background: var(--hover);
+}
+
+.modpack-empty {
+  opacity: 0.7;
+}
+
+.modpack-hint {
+  margin: 0 0 0.5rem;
+  opacity: 0.8;
 }
 
 /** Modal layer for the file loading progress, see `SlowProcessStatus` */

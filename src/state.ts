@@ -51,6 +51,8 @@ export let state = {
   lang: undefined as string | undefined,
   /** Theme name, see `Theme` */
   theme: "dark" as Theme,
+  /** Show the unpacking tools and tables instead of the simple modpack list */
+  developerMode: false,
 
   /* ---- Transient UI state, not persisted ---- */
   /** Show the `#STR_` language keys instead of translations */
@@ -81,6 +83,7 @@ export let savedFields = [
   "alphabeticalSort",
   "lang",
   "theme",
+  "developerMode",
 ];
 
 export type StoreType = typeof state
