@@ -17360,6 +17360,10 @@ let state = {
   slowProcessError: false,
   /** True while the running slow process can be cancelled from the status window */
   slowProcessCancellable: false,
+  /** Completed share of the running slow process, 0..1, or undefined if unknown */
+  slowProcessProgress: void 0,
+  /** Short description of the current stage, e.g. "Unpacking" */
+  slowProcessStage: "",
   files: [],
   /** The name of the file (modpack) currently watched */
   packName: void 0,
@@ -29518,10 +29522,16 @@ function unzipSync(data, opts) {
             o = b4(data, ze + 48);
         }
     }
+    var fltr = opts && opts.filter;
     for (var i = 0; i < c; ++i) {
         var _a = zh(data, o, z), c_2 = _a[0], sc = _a[1], su = _a[2], fn = _a[3], no = _a[4], off = _a[5], b = slzh(data, off);
         o = no;
-        {
+        if (!fltr || fltr({
+            name: fn,
+            size: sc,
+            originalSize: su,
+            compression: c_2
+        })) {
             if (!c_2)
                 files[fn] = slc(data, b, b + sc);
             else if (c_2 == 8)
@@ -32587,7 +32597,6 @@ class Ruleset {
   parseRuls(mods) {
     new Section("MAIN", true);
     this.raw = this.combineModRuls(mods);
-    console.log(this.raw);
     this.sounds = [];
     if (this.raw?.extraSounds?.length)
       for (let table of this.raw.extraSounds) {
@@ -32743,7 +32752,6 @@ class Ruleset {
         Article.create(cat, "MANUFACTURE_CATEGORIES");
     }
     this.loadMarkers();
-    console.log("parse done", this);
   }
   async loadMarkers() {
     if (rul.globeMarkers)
@@ -33176,12 +33184,7 @@ function usefulFileName(name) {
 }
 async function unpackZip(name, data) {
   let u8 = new Uint8Array(data);
-  let files = unzipSync(u8);
-  for (let k of Object.keys(files)) {
-    if (!usefulFileName(k)) {
-      delete files[k];
-    }
-  }
+  let files = unzipSync(u8, { filter: (f) => !!usefulFileName(f.name) });
   return files;
 }
 async function unpackRar(name, data) {
@@ -33196,9 +33199,13 @@ async function unpackRar(name, data) {
     throwIfCancelled();
     files.push(f);
     let name2 = f.fileHeader.name;
-    if (files.length % 1e3 == 0) {
+    if (files.length % 100 == 0) {
       await delay(0);
-      update({ slowProcessStatus: `Unpacked ${files.length}/${rulHeaders.length} files... ${name2 ?? "archive"}` });
+      reportStage(
+        "Unpacking",
+        files.length / (rulHeaders.length || 1),
+        `${files.length}/${rulHeaders.length} files: ${name2 ?? "archive"}`
+      );
     }
   }
   files = files.sort((a, b) => a.fileHeader.name.localeCompare(b.fileHeader.name));
@@ -33216,23 +33223,37 @@ function throwIfCancelled() {
   if (slowProcessCancelRequested)
     throw new LoadCancelled();
 }
+function reportStage(stage, progress, detail) {
+  let pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  update({
+    slowProcessStage: stage,
+    slowProcessProgress: progress,
+    slowProcessStatus: detail ? `${stage}: ${detail} (${pct}%)` : `${stage}... ${pct}%`
+  });
+}
+function nextPaint() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+async function beginStage(stage, detail) {
+  reportStage(stage, 0, detail);
+  await nextPaint();
+}
 async function unpackArchive(packName, data) {
   throwIfCancelled();
-  update({
-    slowProcessDone: false,
-    slowProcessError: false,
-    slowProcessStatus: `Unpacking ${packName ?? ""} (${asMB(data.byteLength)})...`
-  });
+  reportStage("Reading archive", 0, `${packName ?? ""} (${asMB(data.byteLength)})`);
+  await nextPaint();
   let fileType = await fileTypeFromBuffer(data).catch(() => void 0);
   let files;
   try {
     if (!fileType)
       throw new Error("Unknown file type");
+    await beginStage("Unpacking", `${packName ?? "archive"} (${asMB(data.byteLength)})`);
     if (fileType.ext == "rar") {
       files = await unpackRar(packName, data);
     } else {
       files = await unpackZip(packName, data);
     }
+    reportStage("Unpacking", 1, `${Object.keys(files).length} files from ${packName ?? "archive"}`);
   } catch (e) {
     if (e instanceof LoadCancelled)
       throw e;
@@ -33240,31 +33261,33 @@ async function unpackArchive(packName, data) {
     update({
       slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
       slowProcessDone: true,
-      slowProcessError: true
+      slowProcessError: true,
+      slowProcessProgress: void 0
     });
     return null;
   }
   throwIfCancelled();
-  update({ slowProcessStatus: `Unpacked ${Object.keys(files).length} files from ${packName ?? "archive"}` });
   return files;
 }
-function buildRuleset(files, report) {
-  report(`Reading ${Object.keys(files).length} files...`);
+async function buildRuleset(files, report) {
+  await report("Reading files", 0, `${Object.keys(files).length} files`);
   let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
   let decodedYamls = interpretedFiles.filter((f) => ["lng", "rul", "meta"].includes(f.type)).map((f) => ({ ...f, text: new TextDecoder().decode(f.data) }));
+  await report("Parsing rules", 0, `${decodedYamls.length} files`);
   let mods = loadModsAndLng(decodedYamls);
-  report(`Building ruleset from ${Object.keys(mods).length} mod(s)...`);
-  return { processed: Ruleset.preprocessMods(mods), interpretedFiles };
+  await report("Building ruleset", 0, `${Object.keys(mods).length} mod(s)`);
+  let processed = Ruleset.preprocessMods(mods);
+  await report("Building ruleset", 1, `${Object.keys(mods).length} mod(s)`);
+  return { processed, interpretedFiles };
 }
 async function loadBuiltinOnlyPack() {
   let files = await builtinModFiles();
-  let { processed, interpretedFiles } = buildRuleset(files, () => {
+  let { processed, interpretedFiles } = await buildRuleset(files, async () => {
   });
   let images = interpretedFiles.filter((f) => f.type == "img");
   if (images.length) {
     await wipeAssets(builtinPackName);
-    for (let img of images)
-      await saveImg(builtinPackName, img.mod, img.path, img.data);
+    await saveImgs(builtinPackName, images.map((img) => ({ mod: img.mod, path: img.path, data: img.data })));
   }
   let rul = new Ruleset(processed);
   applySavedLanguage(rul);
@@ -33281,34 +33304,39 @@ async function unpackData(packName, data) {
       update({
         slowProcessStatus: `Nothing usable found in ${packName}`,
         slowProcessDone: true,
-        slowProcessError: true
+        slowProcessError: true,
+        slowProcessProgress: void 0
       });
       return;
     }
     files = { ...builtinMods, ...files };
-    let { processed, interpretedFiles } = buildRuleset(
-      files,
-      (status) => update({ slowProcessStatus: status })
-    );
-    throwIfCancelled();
-    await wipeAssets(packName);
+    let { processed, interpretedFiles } = await buildRuleset(files, async (stage, progress, detail) => {
+      reportStage(stage, progress, detail);
+      await nextPaint();
+    });
     throwIfCancelled();
     let images = interpretedFiles.filter((f) => f.type == "img");
-    let assetsSize = 0;
-    console.log(`saving ${images.length} assets`);
-    if (images.length)
-      update({ slowProcessStatus: `Saving ${images.length} images...` });
-    for (let img of images) {
-      throwIfCancelled();
-      await saveImg(packName, img.mod, img.path, img.data);
-      assetsSize += img.data.byteLength;
-    }
+    let assetsSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
+    await beginStage("Saving images", `${images.length} images`);
+    await wipeAssets(packName);
     throwIfCancelled();
+    await saveImgs(
+      packName,
+      images.map((img) => ({ mod: img.mod, path: img.path, data: img.data })),
+      async (done) => {
+        throwIfCancelled();
+        reportStage("Saving images", done / (images.length || 1), `${done}/${images.length}`);
+        await nextPaint();
+      }
+    );
+    throwIfCancelled();
+    reportStage("Saving ruleset", 0);
+    await nextPaint();
     let stringifiedRul = JSON.stringify(processed);
-    let compressedRul = gzipSync(new TextEncoder().encode(stringifiedRul));
+    let compressedRul = await gzipBytes(new TextEncoder().encode(stringifiedRul));
+    reportStage("Saving ruleset", 1);
     await saveStats(packName, data.byteLength, assetsSize, compressedRul.length);
     await saveRul(packName, compressedRul);
-    console.log("saved assets");
     let rul = new Ruleset(processed);
     applySavedLanguage(rul);
     let names = Object.values(rul.mods ?? {}).map((m) => [m.meta?.name, m.meta?.version].filter(Boolean).join(" ")).filter(Boolean);
@@ -33317,6 +33345,7 @@ async function unpackData(packName, data) {
       packName,
       slowProcessDone: true,
       slowProcessError: false,
+      slowProcessProgress: void 0,
       slowProcessStatus: `Loaded ${packName}: ${Object.keys(rul.articles).length} articles, ${Object.keys(rul.items ?? {}).length} items, ${rul.langNames?.length ?? 0} languages` + (names.length ? ` — ${names.join(", ")}` : "")
     });
     window.dispatchEvent(new CustomEvent("xpedia:loaded"));
@@ -33328,10 +33357,17 @@ async function unpackData(packName, data) {
     update({
       slowProcessDone: true,
       slowProcessError: true,
+      slowProcessProgress: void 0,
       slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}`
     });
     throw e;
   }
+}
+async function gzipBytes(bytes) {
+  if (typeof CompressionStream == "undefined")
+    return gzipSync(bytes);
+  let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 const extRegexp = /^(.+)\.([0-9a-z\-]+)?$/i;
 function splitName(name) {
@@ -33390,6 +33426,8 @@ async function uploadUsersFiles(fileList) {
   resetSlowProcessCancel();
   update({
     slowProcessStatus: `Uploading ${files.length} file(s)...`,
+    slowProcessStage: "Uploading",
+    slowProcessProgress: 0,
     slowProcessDone: false,
     slowProcessError: false,
     slowProcessCancellable: true
@@ -33408,12 +33446,14 @@ async function uploadUsersFiles(fileList) {
       slowProcessDone: true,
       slowProcessError: true,
       slowProcessCancellable: false,
+      slowProcessProgress: void 0,
       slowProcessStatus: `${reason}. Nothing was installed.`
     });
   }
   for (const file of files) {
     try {
       throwIfCancelled();
+      reportStage("Reading archive", 0, `${file.name} (${asMB(file.size)})`);
       let data = await file.arrayBuffer();
       await saveFile(file.name, data);
     } catch (e) {
@@ -33436,9 +33476,18 @@ async function uploadUsersFiles(fileList) {
 }
 
 let idb;
+function requestPersistence() {
+  navigator.storage?.persist?.().catch(() => {
+  });
+}
+function archiveWriteError(size, error) {
+  let quota = error?.name == "QuotaExceededError" || error?.name == "DataError";
+  if (!quota && error?.name && error.name != "UnknownError")
+    return `Could not save the archive: ${error.message || error.name}`;
+  return `Could not save the archive: it needs ${asMB(size)} of local storage, which is more than the browser allows (usually about 60% of free disk space)`;
+}
 async function updateFileStats() {
   let files = await getStats();
-  console.log(files);
   update({ files });
 }
 function initDB() {
@@ -33448,6 +33497,7 @@ function initDB() {
   openRequest.onsuccess = function() {
     idb = openRequest.result;
     onDone(idb);
+    requestPersistence();
     updateFileStats();
   };
   openRequest.onupgradeneeded = function() {
@@ -33467,23 +33517,24 @@ function initDB() {
 }
 async function saveFile(name, data) {
   update({ article: void 0, section: void 0 });
-  await queryDB((transaction) => {
-    return transaction.objectStore("files").put({ name, data });
-  });
-  await unpackArchiveFile(name);
+  try {
+    await queryDB((transaction) => transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
+  } catch (e) {
+    throw new Error(archiveWriteError(data.byteLength, e));
+  }
+  await unpackData(name, data);
   updateFileStats();
 }
 async function saveRul(pack, data) {
   return await queryDB((transaction) => transaction.objectStore("assets").add({ pack, data, kind: "rul" }));
 }
 async function getRul(pack) {
-  let data = await queryDB((transaction) => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
+  let data = await readDB((transaction) => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
   if (!data?.data)
     return;
   let unpacked = decompressSync(data.data);
   let str = new TextDecoder().decode(unpacked);
   let processed = JSON.parse(str);
-  console.log(processed);
   let rul = new Ruleset(processed);
   applySavedLanguage(rul);
   update({ rul, packName: pack });
@@ -33495,22 +33546,31 @@ function applySavedLanguage(rul) {
   state.lang = rul.langName ?? state.lang;
 }
 async function viewAssets(pack) {
-  let assets = await queryDB((transaction) => transaction.objectStore("assets").index("pack").getAll(pack));
+  let assets = await readDB((transaction) => transaction.objectStore("assets").index("pack").getAll(pack));
   update({ assets: new Set(assets.map((a) => a.name)), packName: pack });
 }
 async function saveStats(pack, archiveSize, assetsSize, rulSize) {
   let record = { pack, archive: archiveSize, assets: assetsSize, ruls: rulSize, kind: "stats" };
-  console.log("SaveStats", record);
   return await queryDB((transaction) => transaction.objectStore("assets").add(record));
 }
 async function getStats() {
-  return await queryDB((transaction) => transaction.objectStore("assets").index("kind").getAll("stats"));
+  return await readDB((transaction) => transaction.objectStore("assets").index("kind").getAll("stats"));
 }
-async function saveImg(pack, mod, path, data) {
-  return await queryDB((transaction) => transaction.objectStore("assets").add({ pack, mod, name: path, data, kind: "img" }));
+async function saveImgs(pack, images, onProgress) {
+  let batchSize = 200;
+  for (let start = 0; start < images.length; start += batchSize) {
+    let batch = images.slice(start, start + batchSize);
+    await queryDB((transaction) => {
+      let store = transaction.objectStore("assets");
+      for (let img of batch)
+        store.add({ pack, mod: img.mod, name: img.path, data: img.data, kind: "img" });
+      return store.count();
+    });
+    await onProgress?.(Math.min(images.length, start + batchSize));
+  }
 }
 async function getImg(path) {
-  return await queryDB((transaction) => transaction.objectStore("assets").index("name").get(path));
+  return await readDB((transaction) => transaction.objectStore("assets").index("name").get(path));
 }
 function wipeAssets(pack) {
   return new Promise((done) => {
@@ -33528,22 +33588,37 @@ function wipeAssets(pack) {
     };
   });
 }
-async function queryDB(action, dbNames = ["files", "assets"]) {
+async function queryDB(action, mode = "readwrite", dbNames = ["files", "assets"]) {
   return new Promise((success, error) => {
-    let transaction = idb.transaction(dbNames, "readwrite");
+    let transaction = idb.transaction(dbNames, mode);
     let request = action(transaction);
+    let result;
     request.onerror = (e) => {
       console.error(e, request);
-      error && error();
+      error?.(request.error);
     };
-    request.onsuccess = (e) => {
-      success && success(request.result);
+    request.onsuccess = () => {
+      result = request.result;
+    };
+    transaction.oncomplete = () => success && success(result);
+    transaction.onabort = () => {
+      console.error("Transaction aborted", transaction.error);
+      error?.(transaction.error);
     };
   });
 }
+async function readDB(action) {
+  return queryDB(action, "readonly");
+}
 async function listArchiveFiles() {
   let archives = await queryDB((transaction) => transaction.objectStore("files").getAll());
-  let archiveFiles = Object.fromEntries(archives.map((a) => [a.name, a.data]));
+  let archiveFiles = {};
+  for (let record of archives) {
+    if (record.blob)
+      archiveFiles[record.name] = await record.blob.arrayBuffer();
+    else if (record.data)
+      archiveFiles[record.name] = record.data;
+  }
   return archiveFiles;
 }
 async function eraseArchiveFile(name) {
@@ -34206,16 +34281,21 @@ function SlowProcessStatus() {
   let done = state.slowProcessDone;
   let status = state.slowProcessStatus;
   let cancellable = state.slowProcessCancellable;
+  let progress = state.slowProcessProgress;
+  let stage = state.slowProcessStage;
   function dismiss() {
     update({
       slowProcessStatus: "",
       slowProcessDone: false,
       slowProcessError: false,
-      slowProcessCancellable: false
+      slowProcessCancellable: false,
+      slowProcessProgress: void 0,
+      slowProcessStage: ""
     });
   }
   if (!status)
     return;
+  let pct = progress == null ? void 0 : Math.round(progress * 100);
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "full-screen-centered status-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
@@ -34224,7 +34304,20 @@ function SlowProcessStatus() {
       "aria-modal": "true",
       children: [
         !done && /* @__PURE__ */ jsxRuntimeExports.jsx(CogAnimation, { size: state.fontSize * 2 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "slow-process-text", children: status }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "slow-process-body", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "slow-process-text", children: status }),
+          !done && stage && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: "slow-process-bar",
+              role: "progressbar",
+              "aria-valuemin": 0,
+              "aria-valuemax": 100,
+              "aria-valuenow": pct ?? 0,
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "slow-process-fill", style: { width: `${pct ?? 0}%` } })
+            }
+          )
+        ] }),
         !done && /* @__PURE__ */ jsxRuntimeExports.jsx(CogAnimation, { size: state.fontSize * 2 }),
         !done && cancellable && /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
@@ -37159,6 +37252,7 @@ button.current-file {
 
 .slow-process-status {
   max-width: min(60rem, 90vw);
+  min-width: min(28rem, 90vw);
   margin-inline: auto;
   background: var(--background);
   border: solid 1px var(--border);
@@ -37169,6 +37263,27 @@ button.current-file {
   justify-content: center;
   align-items: center;
   gap: 1rem;
+}
+
+.slow-process-body {
+  flex: 1 1 20rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/** Progress bar of the running load, see `SlowProcessStatus` */
+.slow-process-bar {
+  height: 0.5rem;
+  background: var(--table-main);
+  border: solid 1px var(--border);
+}
+
+.slow-process-fill {
+  height: 100%;
+  background: var(--link);
+  transition: width 0.2s linear;
 }
 
 .slow-process-status.done {

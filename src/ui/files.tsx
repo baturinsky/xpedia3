@@ -80,14 +80,18 @@ export function SlowProcessStatus() {
   let done = state.slowProcessDone;
   let status = state.slowProcessStatus;
   let cancellable = state.slowProcessCancellable;
+  let progress = state.slowProcessProgress;
+  let stage = state.slowProcessStage;
 
   function dismiss() {
     update({ slowProcessStatus: "", slowProcessDone: false, slowProcessError: false,
-      slowProcessCancellable: false });
+      slowProcessCancellable: false, slowProcessProgress: undefined, slowProcessStage: "" });
   }
 
   if (!status)
     return;
+
+  let pct = progress == null ? undefined : Math.round(progress * 100);
 
   // The window is modal: it dims and blocks the page until it is dismissed.
   // Escape/clicking the backdrop are deliberately ignored while work is in
@@ -96,7 +100,14 @@ export function SlowProcessStatus() {
     <div className={"slow-process-status" + (done ? " done" : "") + (state.slowProcessError ? " error" : "")}
       role="dialog" aria-modal="true">
       {!done && <CogAnimation size={state.fontSize * 2} />}
-      <span className="slow-process-text">{status}</span>
+      <div className="slow-process-body">
+        <span className="slow-process-text">{status}</span>
+        {!done && stage &&
+          <div className="slow-process-bar" role="progressbar"
+            aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? 0}>
+            <div className="slow-process-fill" style={{ width: `${pct ?? 0}%` }} />
+          </div>}
+      </div>
       {!done && <CogAnimation size={state.fontSize * 2} />}
       {!done && cancellable &&
         <button className="slow-process-cancel" title="Cancel loading"

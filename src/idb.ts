@@ -2,13 +2,35 @@ import { dbVersion, state, update } from "./state";
 import { unpackData } from "./load";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
+import { asMB } from "./util";
 
 
 export let idb: IDBDatabase;
 
+/**
+ * Asks the browser to keep our data when disk space runs low. Without this the
+ * storage is "best effort" and a 250 MB+ modpack can be evicted behind our
+ * back, leaving `localStorage.packName` pointing at an archive that is gone.
+ */
+function requestPersistence() {
+  navigator.storage?.persist?.().catch(() => { })
+}
+
+/**
+ * Turns a failed archive write into something a user can act on. The raw error
+ * is either a DOMException or `undefined` (some aborts carry no error at all),
+ * so the message has to explain the likely cause instead of echoing it.
+ */
+function archiveWriteError(size: number, error?: DOMException | null) {
+  let quota = error?.name == "QuotaExceededError" || error?.name == "DataError";
+  if (!quota && error?.name && error.name != "UnknownError")
+    return `Could not save the archive: ${error.message || error.name}`;
+  return `Could not save the archive: it needs ${asMB(size)} of local storage, ` +
+    `which is more than the browser allows (usually about 60% of free disk space)`;
+}
+
 export async function updateFileStats() {
   let files = await getStats();
-  console.log(files);
   update({ files })
 }
 
@@ -21,6 +43,7 @@ export function initDB() {
   openRequest.onsuccess = function () {
     idb = openRequest.result;
     onDone(idb)
+    requestPersistence();
     updateFileStats();
   };
 
@@ -43,12 +66,27 @@ export function initDB() {
   return promise;
 }
 
+/**
+ * Stores an uploaded archive, then unpacks it straight from the bytes we
+ * already have in memory.
+ *
+ * The bytes are kept as a `Blob` rather than as an `ArrayBuffer` record because
+ * IndexedDB refuses a single serialized value above ~127 MiB (Chrome aborts the
+ * transaction with "The serialized keys and/or value are too large") and real
+ * modpacks commonly exceed that. A `Blob` is persisted by reference instead of
+ * being serialized inline, so it is not subject to that limit.
+ */
 export async function saveFile(name: string, data: ArrayBuffer) {
   update({ article: undefined, section: undefined })
-  await queryDB(transaction => {
-    return transaction.objectStore("files").put({ name, data })
-  })
-  await unpackArchiveFile(name);
+  try {
+    await queryDB(transaction =>
+      transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
+  } catch (e) {
+    // A pack that does not fit is a normal outcome, not a bug: report it in
+    // plain language instead of letting a bare DOMException reach the status
+    throw new Error(archiveWriteError(data.byteLength, e as DOMException));
+  }
+  await unpackData(name, data);
   updateFileStats()
 }
 
@@ -64,7 +102,6 @@ export async function getRul(pack: string) {
   let str = new TextDecoder().decode(unpacked);
   let processed = JSON.parse(str);
 
-  console.log(processed);
   let rul = new Ruleset(processed);
   applySavedLanguage(rul);
   update({ rul, packName: pack })
@@ -97,6 +134,25 @@ export async function getStats() {
 
 export async function saveImg(pack: string, mod: string, path: string, data: Uint8Array) {
   return await queryDB(transaction => transaction.objectStore("assets").add({ pack, mod: mod, name: path, data, kind: "img" }))
+}
+
+/**
+ * Saves many images in batched transactions. One transaction per image is
+ * correct but slow (an extra commit per record), so images are grouped.
+ */
+export async function saveImgs(pack: string, images: { mod: string, path: string, data: Uint8Array }[],
+  onProgress?: (done: number) => void | Promise<void>) {
+  let batchSize = 200;
+  for (let start = 0; start < images.length; start += batchSize) {
+    let batch = images.slice(start, start + batchSize);
+    await queryDB(transaction => {
+      let store = transaction.objectStore("assets");
+      for (let img of batch)
+        store.add({ pack, mod: img.mod, name: img.path, data: img.data, kind: "img" });
+      return store.count();
+    });
+    await onProgress?.(Math.min(images.length, start + batchSize));
+  }
 }
 
 export async function getImg(path: string) {
@@ -156,12 +212,21 @@ export async function queryDB(
   return new Promise<any>((success, error) => {
     let transaction = idb.transaction(dbNames, mode);
     let request = action(transaction);
+    let result: any;
     request.onerror = e => {
       console.error(e, request);
-      error && error();
+      error?.(request.error);
     }
-    request.onsuccess = e => {
-      success && success(request.result)
+    request.onsuccess = () => {
+      result = request.result;
+    }
+    // Resolve on commit, not on the request: a request can succeed and the
+    // transaction still abort afterwards (quota, per-value size limit), which
+    // used to leave the caller waiting forever
+    transaction.oncomplete = () => success && success(result);
+    transaction.onabort = () => {
+      console.error("Transaction aborted", transaction.error);
+      error?.(transaction.error);
     }
   })
 }
@@ -172,13 +237,22 @@ export async function readDB(action: (t: IDBTransaction) => IDBRequest) {
 
 
 export async function listArchiveFiles() {
-  let archives = await queryDB(transaction => transaction.objectStore("files").getAll()) as { data: ArrayBuffer, name: string }[];
-  let archiveFiles = Object.fromEntries(archives.map(a => [a.name, a.data]));
+  let archives = await queryDB(transaction => transaction.objectStore("files").getAll()) as any[];
+  let archiveFiles: { [name: string]: ArrayBuffer } = {};
+
+  for (let record of archives) {
+    // Legacy records store the bytes inline as `data`, new ones as a `blob`
+    if (record.blob)
+      archiveFiles[record.name] = await record.blob.arrayBuffer();
+    else if (record.data)
+      archiveFiles[record.name] = record.data;
+  }
+
   return archiveFiles
 }
 
 export async function eraseArchiveFile(name: string) {
-  await queryDB(transaction => transaction.objectStore("files").delete(name)) as { data: ArrayBuffer, name: string }[];
+  await queryDB(transaction => transaction.objectStore("files").delete(name));
   await updateFileStats();
 }
 

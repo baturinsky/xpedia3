@@ -6,7 +6,7 @@ import { fileTypeFromBuffer } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { Mod } from "./rul/Ruleset";
-import { getStats, packAssets, saveFile, saveImg, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
+import { saveFile, saveImgs, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
 //@ts-ignore
 import builtinModsArchive from './builtinMods.zip?base64'
 
@@ -120,12 +120,9 @@ export function createDirTree(files: { [name: string]: any }) {
 
 export async function unpackZip(name: string, data: ArrayBuffer) {
   let u8 = new Uint8Array(data);
-  let files = fflate.unzipSync(u8);
-  for (let k of Object.keys(files)) {
-    if (!usefulFileName(k)) {
-      delete files[k];
-    }
-  }
+  // Filter before inflating: large packs are mostly sounds and maps that would
+  // otherwise be decompressed only to be dropped immediately afterwards
+  let files = fflate.unzipSync(u8, { filter: f => !!usefulFileName(f.name) });
   return files;
 }
 
@@ -147,9 +144,10 @@ export async function unpackRar(name: string, data: ArrayBuffer) {
     throwIfCancelled();
     files.push(f);
     let name = f.fileHeader.name
-    if (files.length % 1000 == 0) {
+    if (files.length % 100 == 0) {
       await delay(0)
-      update({ slowProcessStatus: `Unpacked ${files.length}/${rulHeaders.length} files... ${name ?? 'archive'}` })
+      reportStage("Unpacking", files.length / (rulHeaders.length || 1),
+        `${files.length}/${rulHeaders.length} files: ${name ?? "archive"}`)
     }
   }
 
@@ -176,11 +174,39 @@ function throwIfCancelled() {
     throw new LoadCancelled();
 }
 
+/**
+ * Reports a named loading stage. `progress` is the share of that stage that is
+ * done, 0..1; the status window turns it into a bar and a percentage so a long
+ * load visibly keeps moving instead of looking frozen.
+ */
+function reportStage(stage: string, progress: number, detail?: string) {
+  let pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  update({
+    slowProcessStage: stage,
+    slowProcessProgress: progress,
+    slowProcessStatus: detail ? `${stage}: ${detail} (${pct}%)` : `${stage}... ${pct}%`
+  });
+}
+
+/**
+ * Gives the browser a chance to paint the status window. Without this the whole
+ * pipeline runs in one task and the user only ever sees the first message.
+ */
+function nextPaint() {
+  return new Promise<void>(resolve => setTimeout(resolve, 0));
+}
+
+/** Reports a stage and lets it become visible before the work continues */
+async function beginStage(stage: string, detail?: string) {
+  reportStage(stage, 0, detail);
+  await nextPaint();
+}
+
 async function unpackArchive(packName: string, data: ArrayBuffer) {
   throwIfCancelled();
 
-  update({ slowProcessDone: false, slowProcessError: false,
-    slowProcessStatus: `Unpacking ${packName ?? ''} (${asMB(data.byteLength)})...` })
+  reportStage("Reading archive", 0, `${packName ?? ""} (${asMB(data.byteLength)})`);
+  await nextPaint();
 
   let fileType = await fileTypeFromBuffer(data).catch(() => undefined);
 
@@ -189,11 +215,13 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   try {
     if (!fileType)
       throw new Error("Unknown file type");
+    await beginStage("Unpacking", `${packName ?? "archive"} (${asMB(data.byteLength)})`);
     if (fileType.ext == "rar") {
       files = await unpackRar(packName, data)
     } else {
       files = await unpackZip(packName, data)
     }
+    reportStage("Unpacking", 1, `${Object.keys(files).length} files from ${packName ?? "archive"}`);
   } catch (e) {
     // Cancellation is not a format error, let it unwind to `unpackData`
     if (e instanceof LoadCancelled)
@@ -201,23 +229,22 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
     console.error(e);
     update({
       slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
-      slowProcessDone: true, slowProcessError: true
+      slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined
     })
     return null
   }
 
   throwIfCancelled();
 
-  update({ slowProcessStatus: `Unpacked ${Object.keys(files).length} files from ${packName ?? 'archive'}` })
-
   return files;
 
 }
 
 /** Builds the processed ruleset data from unpacked archive files */
-function buildRuleset(files: { [name: string]: Uint8Array }, report: (status: string) => void) {
+async function buildRuleset(files: { [name: string]: Uint8Array },
+  report: (stage: string, progress: number, detail?: string) => Promise<void>) {
 
-  report(`Reading ${Object.keys(files).length} files...`);
+  await report("Reading files", 0, `${Object.keys(files).length} files`);
 
   let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
 
@@ -225,11 +252,17 @@ function buildRuleset(files: { [name: string]: Uint8Array }, report: (status: st
   let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
     .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
 
+  await report("Parsing rules", 0, `${decodedYamls.length} files`);
+
   let mods = loadModsAndLng(decodedYamls);
 
-  report(`Building ruleset from ${Object.keys(mods).length} mod(s)...`);
+  await report("Building ruleset", 0, `${Object.keys(mods).length} mod(s)`);
 
-  return { processed: Ruleset.preprocessMods(mods), interpretedFiles };
+  let processed = Ruleset.preprocessMods(mods);
+
+  await report("Building ruleset", 1, `${Object.keys(mods).length} mod(s)`);
+
+  return { processed, interpretedFiles };
 }
 
 /**
@@ -238,15 +271,14 @@ function buildRuleset(files: { [name: string]: Uint8Array }, report: (status: st
  */
 export async function loadBuiltinOnlyPack() {
   let files = await builtinModFiles();
-  let { processed, interpretedFiles } = buildRuleset(files, () => { });
+  let { processed, interpretedFiles } = await buildRuleset(files, async () => { });
 
   // Builtin images are not part of any stored archive, so cache them under the
   // "builtin" pack just like a real load would
   let images = interpretedFiles.filter(f => f.type == "img");
   if (images.length) {
     await wipeAssets(builtinPackName);
-    for (let img of images)
-      await saveImg(builtinPackName, img.mod, img.path, img.data);
+    await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
   }
 
   let rul = new Ruleset(processed);
@@ -268,48 +300,52 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     if (!Object.keys(files).length) {
       update({ slowProcessStatus: `Nothing usable found in ${packName}`,
-        slowProcessDone: true, slowProcessError: true })
+        slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined })
       return;
     }
 
     files = { ...builtinMods, ...files };
 
-    let { processed, interpretedFiles } = buildRuleset(files,
-      status => update({ slowProcessStatus: status }));
+    let { processed, interpretedFiles } = await buildRuleset(files, async (stage, progress, detail) => {
+      reportStage(stage, progress, detail);
+      await nextPaint();
+    });
 
     throwIfCancelled();
+
+    let images = interpretedFiles.filter(f => f.type == "img");
+    let assetsSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
+
+    await beginStage("Saving images", `${images.length} images`);
 
     await wipeAssets(packName);
 
     throwIfCancelled();
 
-    let images = interpretedFiles.filter(f => f.type == "img");
-
-    let assetsSize = 0;
-
-    console.log(`saving ${images.length} assets`);
-
-    if (images.length)
-      update({ slowProcessStatus: `Saving ${images.length} images...` });
-
-    for (let img of images) {
-      // Let the Cancel button take effect between images instead of after all
-      // of them have been written
-      throwIfCancelled();
-      await saveImg(packName, img.mod, img.path, img.data);
-      assetsSize += img.data.byteLength;
-    }
+    // Batched writes are much faster than one transaction per image, and the
+    // progress callback keeps the window alive during the slowest stage
+    await saveImgs(packName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })),
+      async done => {
+        throwIfCancelled();
+        reportStage("Saving images", done / (images.length || 1), `${done}/${images.length}`);
+        await nextPaint();
+      });
 
     throwIfCancelled();
 
+    reportStage("Saving ruleset", 0);
+    await nextPaint();
+
     let stringifiedRul = JSON.stringify(processed);
 
-    let compressedRul = fflate.compressSync(new TextEncoder().encode(stringifiedRul))
+    // Compression is CPU-bound and blocking; the native stream version is
+    // several times faster here and produces a gzip payload fflate can read
+    let compressedRul = await gzipBytes(new TextEncoder().encode(stringifiedRul));
+
+    reportStage("Saving ruleset", 1);
 
     await saveStats(packName, data.byteLength, assetsSize, compressedRul.length)
     await saveRul(packName, compressedRul)
-
-    console.log("saved assets");
 
     let rul = new Ruleset(processed);
     applySavedLanguage(rul);
@@ -320,7 +356,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     update({
       rul, packName,
-      slowProcessDone: true, slowProcessError: false,
+      slowProcessDone: true, slowProcessError: false, slowProcessProgress: undefined,
       slowProcessStatus: `Loaded ${packName}: ${Object.keys(rul.articles).length} articles, ` +
         `${Object.keys(rul.items ?? {}).length} items, ${rul.langNames?.length ?? 0} languages` +
         (names.length ? ` — ${names.join(", ")}` : "")
@@ -338,10 +374,18 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     if (e instanceof LoadCancelled)
       throw e;
     console.error(e);
-    update({ slowProcessDone: true, slowProcessError: true,
+    update({ slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined,
       slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}` })
     throw e;
   }
+}
+
+/** Compresses bytes as gzip, preferring the native stream when available */
+async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  if (typeof CompressionStream == "undefined")
+    return fflate.compressSync(bytes);
+  let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 const extRegexp = /^(.+)\.([0-9a-z\-]+)?$/i;
@@ -417,6 +461,7 @@ export async function uploadUsersFiles(fileList: FileList) {
   resetSlowProcessCancel();
   update({
     slowProcessStatus: `Uploading ${files.length} file(s)...`,
+    slowProcessStage: "Uploading", slowProcessProgress: 0,
     slowProcessDone: false, slowProcessError: false, slowProcessCancellable: true
   })
 
@@ -433,6 +478,7 @@ export async function uploadUsersFiles(fileList: FileList) {
     updateFileStats();
     update({
       slowProcessDone: true, slowProcessError: true, slowProcessCancellable: false,
+      slowProcessProgress: undefined,
       slowProcessStatus: `${reason}. Nothing was installed.`
     });
   }
@@ -440,6 +486,7 @@ export async function uploadUsersFiles(fileList: FileList) {
   for (const file of files) {
     try {
       throwIfCancelled();
+      reportStage("Reading archive", 0, `${file.name} (${asMB(file.size)})`);
       let data = await file.arrayBuffer();
       await saveFile(file.name, data);
     } catch (e) {

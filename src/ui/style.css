@@ -545,6 +545,7 @@ button.current-file {
 
 .slow-process-status {
   max-width: min(60rem, 90vw);
+  min-width: min(28rem, 90vw);
   margin-inline: auto;
   background: var(--background);
   border: solid 1px var(--border);
@@ -555,6 +556,27 @@ button.current-file {
   justify-content: center;
   align-items: center;
   gap: 1rem;
+}
+
+.slow-process-body {
+  flex: 1 1 20rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/** Progress bar of the running load, see `SlowProcessStatus` */
+.slow-process-bar {
+  height: 0.5rem;
+  background: var(--table-main);
+  border: solid 1px var(--border);
+}
+
+.slow-process-fill {
+  height: 100%;
+  background: var(--link);
+  transition: width 0.2s linear;
 }
 
 .slow-process-status.done {

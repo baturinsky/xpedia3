@@ -15,6 +15,10 @@ export let state = {
   slowProcessError: false,
   /** True while the running slow process can be cancelled from the status window */
   slowProcessCancellable: false,
+  /** Completed share of the running slow process, 0..1, or undefined if unknown */
+  slowProcessProgress: undefined as number | undefined,
+  /** Short description of the current stage, e.g. "Unpacking" */
+  slowProcessStage: "",
   files: [] as
     {
       pack: string,

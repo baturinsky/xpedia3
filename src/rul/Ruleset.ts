@@ -400,8 +400,6 @@ export default class Ruleset {
 
     this.raw = this.combineModRuls(mods);
 
-    console.log(this.raw);
-
     this.sounds = []
 
     if (this.raw?.extraSounds?.length)
@@ -593,8 +591,6 @@ export default class Ruleset {
     }
 
     this.loadMarkers()
-
-    console.log("parse done", this);
   }
 
   async loadMarkers() {
