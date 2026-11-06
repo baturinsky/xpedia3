@@ -20,8 +20,8 @@ export function ArchiveFiles() {
       return current ? "current-file" : "";
     }}
     columns={[
-      { key: 'archive', name: 'archive', cellClass: "num-grid", maxWidth: 100 },
       { key: 'name', name: 'name' },
+      { key: 'archive', name: 'archive', cellClass: "num-grid", maxWidth: 100 },
       { key: 'ruls', name: 'ruls', maxWidth: 100 },
       { key: 'assets', name: 'assets', maxWidth: 100 },
       {
@@ -35,7 +35,7 @@ export function ArchiveFiles() {
               update({slowProcessStatus: undefined})
             }}>delete</button>
             <button onClick={e => unpackArchiveFile(pack)}>unpack</button>
-            <button onClick={e => wipeAssets(pack)}>wipe</button>
+            <button onClick={e => wipeAssets(pack)}>wipe assets</button>
             <button onClick={e => viewAssets(pack)}>assets</button>
             <button className={pack == state.packName ? "current-file" : ""} onClick={e => {
               update({ packName: pack })

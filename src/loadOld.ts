@@ -1,3 +1,5 @@
+//Obsolete data loader, strictly for reference
+
 import * as JSZip from "jszip";
 //import lzs from "lz-string";
 import { readYaml, listDir, parseYaml, delay, readTextFile, inform, warn } from "./util";

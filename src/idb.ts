@@ -57,7 +57,7 @@ export async function saveRul(pack: string, data: Uint8Array) {
 }
 
 export async function getRul(pack: string) {
-  let data = await queryDB(transaction => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
+  let data = await readDB(transaction => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
   if (!data?.data)
     return
   let unpacked = fflate.decompressSync(data.data)
@@ -81,18 +81,17 @@ export function applySavedLanguage(rul: Ruleset) {
 }
 
 export async function viewAssets(pack: string) {
-  let assets = await queryDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack));
+  let assets = await readDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack));
   update({ assets: new Set(assets.map((a: any) => a.name)), packName: pack });
 }
 
 export async function saveStats(pack: string, archiveSize: number, assetsSize: number, rulSize: number) {
   let record = { pack, archive: archiveSize, assets: assetsSize, ruls: rulSize, kind: "stats" }
-  console.log("SaveStats", record);
   return await queryDB(transaction => transaction.objectStore("assets").add(record))
 }
 
 export async function getStats() {
-  return await queryDB(transaction => transaction.objectStore("assets").index("kind").getAll("stats"));
+  return await readDB(transaction => transaction.objectStore("assets").index("kind").getAll("stats"));
 }
 
 
@@ -101,12 +100,12 @@ export async function saveImg(pack: string, mod: string, path: string, data: Uin
 }
 
 export async function getImg(path: string) {
-  return await queryDB(transaction => transaction.objectStore("assets").index("name").get(path))
+  return await readDB(transaction => transaction.objectStore("assets").index("name").get(path))
 }
 
 
 export async function packAssets(pack: string) {
-  return await queryDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack))
+  return await readDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack))
 }
 
 
@@ -149,9 +148,13 @@ export async function queryDBCursor(db: string, index: string, match: any, cb: (
 
 }
 
-export async function queryDB(action: (t: IDBTransaction) => IDBRequest, dbNames: string | Iterable<string> = ["files", "assets"]) {
+export async function queryDB(
+  action: (t: IDBTransaction) => IDBRequest,
+  mode = "readwrite" as IDBTransactionMode,
+  dbNames: string | Iterable<string> = ["files", "assets"],
+) {
   return new Promise<any>((success, error) => {
-    let transaction = idb.transaction(dbNames, "readwrite");
+    let transaction = idb.transaction(dbNames, mode);
     let request = action(transaction);
     request.onerror = e => {
       console.error(e, request);
@@ -162,6 +165,11 @@ export async function queryDB(action: (t: IDBTransaction) => IDBRequest, dbNames
     }
   })
 }
+
+export async function readDB(action: (t: IDBTransaction) => IDBRequest) {
+  return queryDB(action, "readonly")
+}
+
 
 export async function listArchiveFiles() {
   let archives = await queryDB(transaction => transaction.objectStore("files").getAll()) as { data: ArrayBuffer, name: string }[];

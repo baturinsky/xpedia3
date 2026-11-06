@@ -6,7 +6,7 @@ import { makeDropzone } from './dropzone';
 import { base64ToArrayBuffer } from './util';
 import { article, section, state, update } from './state';
 import { saveFile, initDB, queryDB, getRul } from './idb';
-import { uploadUsersFiles } from './load';
+import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
@@ -61,7 +61,10 @@ function goToHash() {
 
 async function init() {
   await initDB();
-  if (state.packName) await getRul(state.packName);
+  // With no modpack (or one whose ruleset was lost) fall back to the builtin
+  // mods alone, so the pedia still has a ruleset to browse
+  let loaded = state.packName ? await getRul(state.packName) : undefined;
+  if (!loaded) await loadBuiltinOnlyPack();
 
   initUI();
 

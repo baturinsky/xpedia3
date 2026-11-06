@@ -22,6 +22,39 @@ async function loadBuiltinPack(packname: string, rawPack: string) {
   let files = await unpackData(packname, binary);
 }
 
+/** Prefix of the builtin mod directories that exist for a single modpack only */
+const xhelperPrefix = "xhelper-";
+
+/** Pseudo pack name used to cache assets that come from the builtin mods */
+const builtinPackName = "builtin";
+
+/** Unpacks the embedded builtin mods without touching the status window */
+async function unpackBuiltinMods() {
+  return unpackZip("builtin", base64ToArrayBuffer(builtinModsArchive));
+}
+
+/**
+ * Keeps only the builtin mods that apply to `packName`: `xhelper-<name>` mods
+ * are helpers for one specific modpack, so they are used only when the pack's
+ * file name mentions `<name>` (case-insensitive). Everything else is shared.
+ */
+function filterBuiltinMods(files: { [name: string]: Uint8Array }, packName?: string) {
+  let pack = (packName ?? "").toLowerCase();
+  let result: { [name: string]: Uint8Array } = {};
+  for (let name in files) {
+    let mod = interpretPath(name)?.mod?.toLowerCase();
+    if (mod?.startsWith(xhelperPrefix) && !pack.includes(mod.substring(xhelperPrefix.length)))
+      continue;
+    result[name] = files[name];
+  }
+  return result;
+}
+
+/** The builtin mod files that apply to the given modpack */
+async function builtinModFiles(packName?: string) {
+  return filterBuiltinMods(await unpackBuiltinMods(), packName);
+}
+
 
 /**From the path, figure the type and mod of the file */
 export function interpretPath(s: string): {
@@ -181,10 +214,51 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
 
 }
 
+/** Builds the processed ruleset data from unpacked archive files */
+function buildRuleset(files: { [name: string]: Uint8Array }, report: (status: string) => void) {
+
+  report(`Reading ${Object.keys(files).length} files...`);
+
+  let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
+
+  /**A list of all lng/rul/meta files in the pack, with the full pathes */
+  let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
+    .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
+
+  let mods = loadModsAndLng(decodedYamls);
+
+  report(`Building ruleset from ${Object.keys(mods).length} mod(s)...`);
+
+  return { processed: Ruleset.preprocessMods(mods), interpretedFiles };
+}
+
+/**
+ * Loads only the builtin mods shared by every modpack. This is what the app
+ * uses when no modpack is loaded, so there is always a ruleset to browse.
+ */
+export async function loadBuiltinOnlyPack() {
+  let files = await builtinModFiles();
+  let { processed, interpretedFiles } = buildRuleset(files, () => { });
+
+  // Builtin images are not part of any stored archive, so cache them under the
+  // "builtin" pack just like a real load would
+  let images = interpretedFiles.filter(f => f.type == "img");
+  if (images.length) {
+    await wipeAssets(builtinPackName);
+    for (let img of images)
+      await saveImg(builtinPackName, img.mod, img.path, img.data);
+  }
+
+  let rul = new Ruleset(processed);
+  applySavedLanguage(rul);
+  update({ rul, packName: undefined });
+  return rul;
+}
+
 export async function unpackData(packName: string, data: ArrayBuffer) {
 
   try {
-    let builtinMods = await unpackArchive("builtin", base64ToArrayBuffer(builtinModsArchive));
+    let builtinMods = await builtinModFiles(packName);
 
     let files = await unpackArchive(packName, data);
 
@@ -200,19 +274,8 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     files = { ...builtinMods, ...files };
 
-    update({ slowProcessStatus: `Reading ${Object.keys(files).length} files...` });
-
-    let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
-
-    /**A list of all lng/rul/meta files in the pack, with the full pathes */
-    let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
-      .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
-
-    let mods = loadModsAndLng(decodedYamls);
-
-    update({ slowProcessStatus: `Building ruleset from ${Object.keys(mods).length} mod(s)...` });
-
-    let processed = Ruleset.preprocessMods(mods)
+    let { processed, interpretedFiles } = buildRuleset(files,
+      status => update({ slowProcessStatus: status }));
 
     throwIfCancelled();
 
