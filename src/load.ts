@@ -347,11 +347,16 @@ export async function loadBuiltinOnlyPack() {
   let { processed, interpretedFiles } = await buildRuleset(files, async () => { });
 
   // Builtin images are not part of any stored archive, so cache them under the
-  // "builtin" pack just like a real load would
+  // "builtin" pack just like a real load would. A page without storage (an
+  // exported file opened from disk) still browses fine, just without images.
   let images = interpretedFiles.filter(f => f.type == "img");
-  if (images.length) {
-    await wipeAssets(builtinPackName);
-    await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
+  try {
+    if (images.length) {
+      await wipeAssets(builtinPackName);
+      await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
+    }
+  } catch (e) {
+    console.warn("Can't cache builtin images", e);
   }
 
   let rul = new Ruleset(processed);
@@ -419,7 +424,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     // The archive is only kept in developer mode, so it only takes storage
     // there; in the normal mode the pedia consists of the images and ruleset
-    await saveStats(packName, state.developerMode ? data.byteLength : 0, assetsSize, compressedRul.length)
+    await saveStats(packName, state.devView ? data.byteLength : 0, assetsSize, compressedRul.length)
     await saveRul(packName, compressedRul)
 
     let rul = new Ruleset(processed);

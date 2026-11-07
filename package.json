@@ -15,7 +15,8 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "min": "vite build --mode=min"    
   },
   "description": "A simple tactics engine",
   "main": "main.js",

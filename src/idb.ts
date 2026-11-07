@@ -3,6 +3,7 @@ import { unpackData } from "./load";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
 import { asMB } from "./util";
+import { inlinePackStats } from "./packSource";
 
 
 export let idb: IDBDatabase;
@@ -30,18 +31,69 @@ function archiveWriteError(size: number, error?: DOMException | null) {
 }
 
 export async function updateFileStats() {
-  let files = await getStats();
-  update({ files })
+  // A page without storage has no stats to show, only the inlined pack
+  let files = await getStats() ?? [];
+  let inline = inlinePackStats();
+  update({
+    files,
+    packs: inline ? [...files.filter(p => p.pack != inline.pack), inline] : files
+  })
 }
 
+/**
+ * Opens the local store. The returned promise always resolves, even when the
+ * browser refuses IndexedDB: an exported HTML file carries its own ruleset and
+ * reads images from the game folder, so it must still run somewhere storage is
+ * blocked (some browsers throw on `file://`, private modes, hardened settings).
+ * Uploading a modpack there is not possible, but browsing still is.
+ */
 export function initDB() {
   let onDone: Function;
   let promise = new Promise<IDBDatabase>(done => onDone = done)
+  let settled = false;
 
-  let openRequest = indexedDB.open("xpedia3", dbVersion);
+  /** No database: show only what the page itself provides */
+  function withoutDB(error?: any) {
+    if (settled)
+      return;
+    settled = true;
+    console.warn("IndexedDB is not available, running without stored modpacks", error);
+    let inline = inlinePackStats();
+    update({ files: [], packs: inline ? [inline] : [] });
+    onDone(undefined as any);
+  }
+
+  let openRequest: IDBOpenDBRequest;
+  try {
+    // Note that `file://` is *not* excluded: Chrome does keep an IndexedDB there,
+    // which is what lets a modpack be imported on an exported page. Only skip it
+    // when the browser actually refuses.
+    openRequest = indexedDB.open("xpedia3", dbVersion);
+  } catch (e) {
+    withoutDB(e);
+    return promise;
+  }
+
+  // Belt and braces: some browsers report a request that never settles instead
+  // of throwing, which would leave `init` waiting forever and the page blank
+  let giveUp = setTimeout(() => withoutDB("IndexedDB did not respond"), 3000);
+
+  openRequest.onerror = () => {
+    clearTimeout(giveUp);
+    withoutDB(openRequest.error);
+  };
 
   openRequest.onsuccess = function () {
+    clearTimeout(giveUp);
+    // A database that shows up after the grace period is still good: adopt it,
+    // so storage starts working even though the first page load went without.
     idb = openRequest.result;
+    if (settled) {
+      requestPersistence();
+      updateFileStats();
+      return;
+    }
+    settled = true;
     onDone(idb)
     requestPersistence();
     updateFileStats();
@@ -84,7 +136,12 @@ export function initDB() {
  */
 export async function saveFile(name: string, data: ArrayBuffer) {
   update({ article: undefined, section: undefined })
-  if (state.developerMode) {
+  // Uploading is the one thing that needs storage: say so plainly instead of
+  // letting a later `undefined` transaction surface as a vague error
+  if (!idb)
+    throw new Error("this page cannot store modpacks because the browser has " +
+      "blocked local storage for it");
+  if (state.devView) {
     try {
       await queryDB(transaction =>
         transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
@@ -107,12 +164,23 @@ export async function hasArchive(name: string) {
   return !!(await readDB(transaction => transaction.objectStore("files").get(name)));
 }
 
-export async function getRul(pack: string) {
+/**
+ * The stored processed ruleset of a pack, as JSON text. Reading is separated
+ * from installing it so that the export can reuse the same data without
+ * switching the app to the pack it is exporting.
+ */
+export async function readRulText(pack: string) {
   let data = await readDB(transaction => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
   if (!data?.data)
     return
   let unpacked = fflate.decompressSync(data.data)
-  let str = new TextDecoder().decode(unpacked);
+  return new TextDecoder().decode(unpacked);
+}
+
+export async function getRul(pack: string) {
+  let str = await readRulText(pack);
+  if (!str)
+    return;
   let processed = JSON.parse(str);
 
   let rul = new Ruleset(processed);
@@ -183,6 +251,15 @@ export async function getImg(path: string) {
     ?? records.find(r => r.kind == "img");
 }
 
+/** Image bytes of one pack, by full archive path */
+export async function readImgData(pack: string, path: string) {
+  let records = await readDB(transaction =>
+    transaction.objectStore("assets").index("name").getAll(path)) as any[];
+  return records?.find(r => r.kind == "img" && r.pack == pack)?.data
+    // Builtin images are cached under their own pseudo pack and shared by all
+    ?? records?.find(r => r.kind == "img" && r.pack == "builtin")?.data;
+}
+
 
 export async function packAssets(pack: string) {
   return await readDB(transaction => transaction.objectStore("assets").index("pack").getAll(pack))
@@ -190,6 +267,10 @@ export async function packAssets(pack: string) {
 
 
 export function wipeAssets(pack: string) {
+  // Without a database there is nothing stored to wipe; returning a resolved
+  // promise keeps every caller working (see `initDB`)
+  if (!idb)
+    return Promise.resolve();
   return new Promise<void>(done => {
     let transaction = idb.transaction("assets", "readwrite");
     let os = transaction.objectStore("assets")
@@ -208,6 +289,8 @@ export function wipeAssets(pack: string) {
 }
 
 export async function queryDBCursor(db: string, index: string, match: any, cb: (v: IDBCursorWithValue) => void) {
+  if (!idb)
+    return;
   return new Promise<void>((success, error) => {
     let transaction = idb.transaction(db, "readwrite");
     let os = transaction.objectStore(db)
@@ -235,6 +318,11 @@ export async function queryDB(
   dbNames: string | Iterable<string> = ["files", "assets"],
 ) {
   return new Promise<any>((success, error) => {
+    // An exported page opened from disk may have no storage at all, see `initDB`
+    if (!idb) {
+      error?.(new Error("This browser does not allow storing modpacks for this page"));
+      return;
+    }
     let transaction = idb.transaction(dbNames, mode);
     let request = action(transaction);
     let result: any;
@@ -257,6 +345,9 @@ export async function queryDB(
 }
 
 export async function readDB(action: (t: IDBTransaction) => IDBRequest) {
+  // Reading without a database is simply "nothing stored", not an error
+  if (!idb)
+    return undefined;
   return queryDB(action, "readonly")
 }
 
@@ -277,6 +368,9 @@ export async function listArchiveFiles() {
 }
 
 export async function eraseArchiveFile(name: string) {
+  // Nothing to erase when the page has no storage (see `initDB`)
+  if (!idb)
+    return;
   await queryDB(transaction => transaction.objectStore("files").delete(name));
   await updateFileStats();
 }

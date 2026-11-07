@@ -7,6 +7,7 @@ import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack } from "./files";
+import ExportDialog from "./ExportDialog";
 import { rul } from "../rul/Ruleset";
 import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
@@ -67,6 +68,9 @@ export function LandingPage() {
     {state.packName && <>
       {rul && <ModsList />}
       {rul && <SectionsList />}
+      {/* The inlined pack of an exported page has no separate source to export,
+          so the dialog explains that instead of offering a second copy */}
+      <button onClick={() => update({ showExportDialog: true })}><Tr text="Export"/></button>
     </>}
 
     {/*<p className="modpack-hint">
@@ -77,8 +81,9 @@ export function LandingPage() {
       <Tr text="STR_ABOUT_XPEDIA" />
     </div>
     <ArchiveFiles />
-    {state.developerMode && <CurrentAssets />}
+    {state.devView && <CurrentAssets />}
     {state.imagePreview && <img src={state.imagePreview}></img>}
+    <ExportDialog />
   </>
 }
 
@@ -204,9 +209,9 @@ function NavDropdown() {
           )}
         </div>
         <div className="navbar-custom navbar-list">
-          {rul?.sortedTypeSections()?.map(s =>
+          {rul?.sortedTypeSections()?.filter(s=>s.id != "MAIN").map(s =>
             <a key={s.id} href={"##" + s.id}
-              className={s.id == current && s.id != "MAIN" ? "active-section" : undefined}>
+              className={s.id == current ? "active-section" : undefined}>
               <Tr text={s.id} />
               {tableSections.includes(s.id) && <span className="table-marker">☰</span>}
             </a>
@@ -288,7 +293,7 @@ export function NavTop() {
  */
 function PackDropdown() {
   let visible = state.showPacksDropdown;
-  let packs = state.files ?? [];
+  let packs = state.packs ?? [];
   // The label names the selected archive, so it stays distinct from the pedia
   // title in the top-left menu, which shows the mod's own name instead.
   let label = packTitle();
@@ -320,12 +325,29 @@ function PackDropdown() {
   </div>;
 }
 
+/**
+ * Typing this into the navbar search box reveals the developer tools. It is not
+ * a search term, so it must never reach the search results.
+ */
+const devModeKeyword = "devmode";
+
 /** Navbar full text search, mirrors old `App.svelte` */
 function SearchBox() {
   let [handle, setHandle] = useState<number>();
 
   /** Search is driven by the hash so it can be linked and reached with history */
   function search(value: string) {
+    // A hidden keyword unlocks the developer tools instead of searching for it
+    if (value.trim().toLowerCase() == devModeKeyword) {
+      if (handle) clearTimeout(handle);
+      setHandle(undefined);
+      update({ searchQuery: "", devView: true, devUnlocked: true });
+      if (article)
+        location.hash = "##" + article.id;
+      else
+        location.hash = "##MAIN";
+      return;
+    }
     update({ searchQuery: value });
     if (handle) clearTimeout(handle);
     setHandle(globalThis.setTimeout(() => {

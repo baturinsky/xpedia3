@@ -27,6 +27,18 @@ export let state = {
       archive: number
     }[]
   ,
+  /**
+   * Every pack the app can show: `files` plus the inlined pack of an exported
+   * HTML page, if there is one. Derived, see `updateFileStats`.
+   */
+  packs: [] as
+    {
+      pack: string,
+      assets: number,
+      ruls: number,
+      archive: number
+    }[]
+  ,
   /** The name of the file (modpack) currently watched */
   packName: undefined as string | undefined,
   section: undefined as Section | undefined,
@@ -51,8 +63,17 @@ export let state = {
   lang: undefined as string | undefined,
   /** Theme name, see `Theme` */
   theme: "dark" as Theme,
-  /** Show the unpacking tools and tables instead of the simple modpack list */
-  developerMode: false,
+  /**
+   * Which modpack storage UI to show: the simple tile list, or the raw table
+   * with the unpacking tools. Only reachable once unlocked, see `devUnlocked`.
+   */
+  devView: false,
+  /**
+   * The developer tools are not advertised: typing the keyword into the search
+   * box reveals the view switch. Once revealed they stay available, so the
+   * button survives reloads like any other preference.
+   */
+  devUnlocked: false,
 
   /* ---- Transient UI state, not persisted ---- */
   /** Show the `#STR_` language keys instead of translations */
@@ -68,7 +89,9 @@ export let state = {
   /** Query typed into the navbar search box, empty when not searching */
   searchQuery: "",
   /** Full text search results (article ids), undefined while not searching */
-  found: undefined as string[] | undefined
+  found: undefined as string[] | undefined,
+  /** The export dialog on the landing page is open */
+  showExportDialog: false
 };
 
 /** Settings that used to live in the separate `localStorage.xpediaSettings` entry */
@@ -76,6 +99,12 @@ const legacySettingsKey = "xpediaSettings";
 const legacyFields = ["hugeFont", "seeSide", "lang", "theme"];
 
 Object.assign(state, load());
+
+// The view switch is now hidden unless the keyword reveals it. A user who had
+// already left the developer view on must not be trapped in it with no way back,
+// so treat that as already unlocked.
+if (state.devView)
+  state.devUnlocked = true;
 
 /** Keys of `state` persisted to localStorage */
 export let savedFields = [
@@ -85,7 +114,8 @@ export let savedFields = [
   "alphabeticalSort",
   "lang",
   "theme",
-  "developerMode",
+  "devView",
+  "devUnlocked",
 ];
 
 export type StoreType = typeof state
@@ -139,6 +169,11 @@ function load() {
   if (data.alphabeticalSort === undefined
     && (data.ordered || data.sortArticles || data.linksPageSorted))
     data.alphabeticalSort = true;
+
+  // `developerMode` meant "show the developer view" before the view switch got
+  // hidden behind a keyword; the field is now `devView`
+  if (data.devView === undefined && data.developerMode !== undefined)
+    data.devView = data.developerMode;
 
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.

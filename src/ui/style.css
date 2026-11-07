@@ -679,6 +679,87 @@ button:disabled:hover {
   opacity: 0.8;
 }
 
+/** Export settings modal, see `ExportDialog` */
+.export-dialog {
+  box-sizing: border-box;
+  width: min(34rem, 92vw);
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: var(--background);
+  border: solid 1px var(--border);
+  box-shadow: 0 0 1rem var(--shadow);
+  padding: 0.5rem 1rem 1rem;
+  text-align: left;
+}
+
+.export-dialog h3 {
+  margin: 0.2rem 0 0.6rem;
+}
+
+.export-dialog h4 {
+  margin: 1rem 0 0.3rem;
+}
+
+.export-note {
+  margin: 0.2rem 0 0.4rem;
+  opacity: 0.85;
+}
+
+.export-languages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.1rem 0.6rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.export-languages label {
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-language-buttons {
+  margin-top: 0.4rem;
+}
+
+.export-format {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.3rem 0;
+  cursor: pointer;
+}
+
+.export-format input {
+  margin-top: 0.25rem;
+}
+
+.export-format small {
+  opacity: 0.8;
+}
+
+.export-progress {
+  margin-top: 0.8rem;
+}
+
+.export-progress-text {
+  margin-bottom: 0.3rem;
+}
+
+.export-error {
+  margin-top: 0.8rem;
+  color: #e88;
+}
+
+.export-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 /** Modal layer for the file loading progress, see `SlowProcessStatus` */
 .status-overlay {
   z-index: 100;
@@ -1131,6 +1212,7 @@ ol>li:last-child::after {
 .links-page a {
   white-space: normal;
   overflow-x: hidden;
+  overflow-y: hidden;
   max-width: 13rem;
   display: block;
 }
@@ -1379,8 +1461,10 @@ a.services {
 .pedia-intro {
   margin-top: 1rem;
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .landing-page {
   text-align: center;
 }
+

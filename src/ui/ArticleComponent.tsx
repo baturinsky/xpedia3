@@ -246,9 +246,9 @@ export function ArticleComponent() {
         tables get the full page width instead of a single column */}
     {table}
     {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
-      <LinksPage links={rul.categories[article.id]} cols={3} />}
+      <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
-      <LinksPage links={rul.manufactureCategories[article.id]} cols={3} />}
+      <LinksPage links={rul.manufactureCategories[article.id]} />}
     {!table && section?.id == article?.id && article?.id != "MAIN" &&
       <div className="articles-list">
         <LinksPage key={article.id} links={section.articles(state.alphabeticalSort).map(a => a.id)} />

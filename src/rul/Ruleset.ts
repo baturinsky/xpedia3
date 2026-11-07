@@ -26,6 +26,30 @@ export type Mod = {
   builtin?: boolean
 };
 
+/**
+ * The mod an uploaded pack is about: the deepest master, i.e. the one that
+ * itself chains to a base master, not the base game it sits on. A pack that is
+ * just one mod on its own (no master anywhere) still needs a name: use its own
+ * metadata, skipping the builtin mods and `common`, which belong to XPedia
+ * rather than to the uploaded pack. If several qualify, the one with the most
+ * rules is the one the pack is about.
+ *
+ * Used for the navbar title and for the exported page's `<title>`, so both
+ * agree on the pack's name.
+ */
+export function mainMod(mods: Mod[]): Mod | undefined {
+  let masters = mods.filter(m => m.meta?.isMaster)
+  let chained = masters.filter(m =>
+    m.meta?.master && mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master))
+  let master = (chained.length ? chained : masters).slice(-1)[0]
+  if (master)
+    return master;
+
+  let own = mods.filter(m => !m.common && !/^mods[/\\]/i.test(m.dir) && m.meta?.name)
+    .sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0))
+  return own[0];
+}
+
 function orderedFilteredEntries(item: Object, fields?: string[]) {
   if (item == null)
     return;
@@ -843,22 +867,7 @@ export default class Ruleset {
   }
 
   loadProcessedMods(data: { mods: Mod[], langs: any, resources?: { [rel: string]: string } }) {
-
-    // The navbar shows the mod the pack is about: the deepest master, i.e. the
-    // one that itself chains to a base master, not the base game it sits on
-    let masters = data.mods.filter(m => m.meta?.isMaster)
-    let chained = masters.filter(m => m.meta?.master && data.mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master))
-    let master = (chained.length ? chained : masters).slice(-1)[0]
-    // A pack that is just one mod on its own (no master anywhere) still needs a
-    // name: use its own metadata, skipping the builtin mods and `common`, which
-    // belong to XPedia rather than to the uploaded pack. If several qualify,
-    // the one with the most rules is the one the pack is about.
-    if (!master) {
-      let own = data.mods.filter(m => !m.common && !/^mods[/\\]/i.test(m.dir) && m.meta?.name)
-        .sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0))
-      master = own[0]
-    }
-    this.meta = master?.meta ?? {}
+    this.meta = mainMod(data.mods)?.meta ?? {}
     this.mods = data.mods as any;
     this.resourceMap = data.resources ?? {};
     this.langs = data.langs;

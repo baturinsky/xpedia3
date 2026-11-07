@@ -1,5 +1,6 @@
 import { DataGrid } from 'react-data-grid';
-import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, getRul, updateFileStats } from "../idb";
+import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats } from "../idb";
+import { isPermanentPack, loadPackRul } from "../packSource";
 import { loadBuiltinOnlyPack } from "../load";
 import { CogAnimation, MyTable, viewImage } from "./components";
 import { state, update, requestCancelSlowProcess } from "../state";
@@ -36,7 +37,7 @@ export async function selectPack(pack: string) {
   try {
     // The article and the cached images belong to the previous ruleset
     update({ article: undefined, section: undefined, images: {} });
-    loaded = await getRul(pack);
+    loaded = await loadPackRul(pack);
   } catch (e) {
     loaded = undefined;
   }
@@ -58,11 +59,13 @@ export async function selectPack(pack: string) {
  * another installed pack, or to the builtin pedia when none is left.
  */
 async function deletePack(pack: string) {
-  if (busy())
+  // The inlined pack lives in this HTML file, deleting the database entry for
+  // it would only make the file look broken
+  if (busy() || isPermanentPack(pack))
     return;
   // The developer view is a tool, so it deletes immediately; the simple view
   // asks first, because deleting is irreversible
-  if (!state.developerMode && !confirm(`Delete the pedia generated for ${pack}?`))
+  if (!state.devView && !confirm(`Delete the pedia generated for ${pack}?`))
     return;
   update({
     slowProcessStatus: `Deleting ${pack}...`,
@@ -89,7 +92,7 @@ async function deletePack(pack: string) {
   // contain the deleted pack until the stats refresh comes back, so filter it.
   let next = state.files?.find(f => f.pack != pack)?.pack;
   update({ article: undefined, section: undefined, images: {}, packName: undefined });
-  let loaded = next ? await getRul(next) : undefined;
+  let loaded = next ? await loadPackRul(next) : undefined;
   if (!loaded) {
     await loadBuiltinOnlyPack();
     update({
@@ -143,19 +146,23 @@ async function deselectPack() {
  * keeps the raw table and the unpacking tools used while working on the loader.
  */
 export function ArchiveFiles() {
-  let packs = state.files;
+  let packs = state.packs;
   if(!packs)
     return
   return <>
-    {state.developerMode ? <ModpackTable /> : <ModpackList />}
-    <button className="modpack-mode-switch"
-      title={state.developerMode
-        ? "Hide the unpacking tools and show the simple modpack list"
-        : "Show storage sizes and unpacking tools"}
-      onClick={() => update({ developerMode: !state.developerMode })}>
-      {state.developerMode ? "Simple view" : "Developer view"}
-    </button>
-    {state.developerMode &&
+    {state.devView ? <ModpackTable /> : <ModpackList />}
+    {/* The switch itself stays hidden until the keyword unlocks it, so a
+        player never sees the unpacking tools by accident */}
+    {state.devUnlocked &&
+      <button className="modpack-mode-switch"
+        title={state.devView
+          ? "Hide the unpacking tools and show the simple modpack list"
+          : "Show storage sizes and unpacking tools"}
+        onClick={() => update({ devView: !state.devView })}>
+        {state.devView ? "Simple view" : "Developer view"}
+      </button>
+    }
+    {state.devView &&
       <button className="modpack-deselect" disabled={!state.packName}
         title={state.packName
           ? "Unload the current modpack and show the builtin pedia"
@@ -168,25 +175,28 @@ export function ArchiveFiles() {
 }
 
 function ModpackList() {
-  let packs = state.files ?? [];
+  let packs = state.packs ?? [];
   if (!packs.length)
     return <p className="modpack-empty">No modpacks uploaded yet.</p>;
 
   return <div className="modpack-list">
     {packs.map(pack => {
       let current = pack.pack == state.packName;
+      let permanent = isPermanentPack(pack.pack);
       return <div key={pack.pack}
-        className={"modpack-panel" + (current ? " current" : "")}
+        className={"modpack-panel" + (current ? " current" : "") + (permanent ? " permanent" : "")}
         title={current ? "Currently shown" : "Click to show this modpack"}
         onClick={() => selectPack(pack.pack)}>
-        <button className="modpack-delete" title="Delete this modpack"
+        {/* The inlined pack comes from the HTML file itself, so it has no
+            delete button: there is nothing separate to remove */}
+        {!permanent && <button className="modpack-delete" title="Delete this modpack"
           onClick={e => {
             // The tile itself selects the pack, deleting must not also open it
             e.stopPropagation();
             deletePack(pack.pack);
-          }}>×</button>
+          }}>×</button>}
         <div className="modpack-name">{pack.pack}</div>
-        <div className="modpack-size">{asMB(storedSize(pack))}</div>
+        <div className="modpack-size">{permanent ? "inlined" : asMB(storedSize(pack))}</div>
         {current && <div className="modpack-current">currently shown</div>}
       </div>;
     })}
@@ -194,7 +204,7 @@ function ModpackList() {
 }
 
 function ModpackTable() {
-  let files = state.files ?? [];
+  let files = state.packs ?? [];
 
   return <MyTable
     className="file-select"
@@ -210,6 +220,13 @@ function ModpackTable() {
       {
         key: "", name: "tools", minWidth: 150, renderCell: (a) => {
           let pack = a.row.name;
+          // The inlined pack only exists as this HTML file, so the database
+          // tools have nothing to act on
+          if (isPermanentPack(pack))
+            return <div>
+              <button className={pack == state.packName ? "current-file" : ""}
+                onClick={e => selectPack(pack)}>rul</button>
+            </div>;
           return <div>
             <button onClick={e => deletePack(pack)}>delete</button>
             <button onClick={e => unpackArchiveFile(pack)}>unpack</button>
@@ -227,10 +244,10 @@ function ModpackTable() {
     rows={files.map(s => {
       return {
         key: s.pack,
-        archive: asMB(s.archive),
+        archive: s.archive ? asMB(s.archive) : "inlined",
         name: s.pack,
         ruls: asMB(s?.ruls),
-        assets: asMB(s?.assets)
+        assets: s.assets ? asMB(s?.assets) : "inlined"
       }
     })} />;
 }

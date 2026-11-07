@@ -7,6 +7,7 @@ import { base64ToArrayBuffer } from './util';
 import { article, section, state, update } from './state';
 import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
+import { inlinePack, packSource, loadPackRul } from './packSource';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
@@ -65,14 +66,34 @@ function goToHash() {
 
 async function init() {
   await initDB();
+  // An exported HTML file carries its pack, so there is nothing to choose and
+  // nothing stored in the database to restore: open it straight away
+  let inlined = inlinePack();
+  if (inlined) {
+    try {
+      await loadPackRul(inlined.pack);
+    } catch (e) {
+      console.error("Can't open the inlined pedia", e);
+    }
+  }
   // With no modpack (or one whose data was lost) fall back to the builtin mods
   // alone, so the pedia still has a ruleset to browse.
   //
   // A stored `packName` can outlive its data: the browser may evict the origin's
   // storage, and the archive is not kept at all outside developer mode. Say so
   // instead of silently pretending no modpack was ever selected.
-  let loaded = state.packName ? await getRul(state.packName) : undefined;
-  if (!loaded) {
+  //
+  // Reading can also fail outright when the page has no storage at all, e.g. an
+  // exported file opened from disk in a browser that blocks IndexedDB there.
+  let loaded: string | undefined;
+  if (!inlined && state.packName) {
+    try {
+      loaded = await getRul(state.packName);
+    } catch (e) {
+      console.warn("Can't read the stored modpack", e);
+    }
+  }
+  if (!loaded && !inlined) {
     let missingPack = state.packName;
     if (missingPack) {
       update({

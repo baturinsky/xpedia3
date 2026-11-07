@@ -2,7 +2,7 @@ import { CSSProperties, Fragment, JSX, MouseEventHandler, useEffect, useMemo, us
 import { state, update } from "../state";
 import { type Column } from 'react-data-grid';
 
-import { getImg } from "../idb";
+import { resolveImage } from "../packSource";
 import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Val } from "./Val";
 import React from "react";
@@ -12,10 +12,10 @@ import { imageDataToUrl, allFieldValuesOf } from "../util";
 import { emptyImg } from "../imgPlaceholders";
 
 export async function viewImage(path: string) {
-  let img = await getImg(path);
-  if (!img?.data)
+  let img = await resolveImage(path);
+  if (!img)
     return;
-  update({ imagePreview: imageDataToUrl(img.data) })
+  update({ imagePreview: img.url ?? imageDataToUrl(img.data) })
 }
 
 /** A sprite may be passed by its ruleset id, an asset path or a ready data url */
@@ -27,6 +27,10 @@ function spritePath(src?: string) {
   return rul.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : undefined);
 }
 
+/**
+ * An image for `src`, either from the database, from the inlined pack's game
+ * folder, or a transparent placeholder when it does not exist.
+ */
 export function Img(props: {
   src?: string, scale?: number, alt?: string, style?: CSSProperties,
   maxWidth?: number, maxHeight?: number, zoom?: number, className?: string
@@ -39,16 +43,19 @@ export function Img(props: {
   // articles retries instead of keeping the failure forever.
   let [brokenPath, setBrokenPath] = useState<string>();
 
-  // Load the sprite from the database once. `null` is stored for missing
-  // images so that a missing sprite doesn't trigger a fetch on every render.
+  // Load the sprite once. `null` is stored for missing images so that a missing
+  // sprite doesn't trigger a lookup on every render. The entry is either a data
+  // url (from the database) or a url relative to the page (inlined pack).
   // Data urls (e.g. map markers) are used as they are.
   useEffect(() => {
     if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
       return;
     let cancelled = false;
-    getImg(path).then(img => {
-      if (!cancelled)
-        update({ images: { ...state.images, [path!]: img ?? null } })
+    resolveImage(path).then(img => {
+      if (cancelled)
+        return;
+      let value = img ? (img.url ?? (img.data ? imageDataToUrl(img.data) : null)) : null;
+      update({ images: { ...state.images, [path!]: value } })
     }).catch(e => {
       console.warn("Can't load image", path, e);
       if (!cancelled)
@@ -62,8 +69,8 @@ export function Img(props: {
 
   let img = images[path];
   let broken = brokenPath === path;
-  let hasRealData = !broken && (path.startsWith("data:") || !!img?.data);
-  let dataImage = hasRealData ? (path.startsWith("data:") ? path : imageDataToUrl(img!.data)) : emptyImg;
+  let hasRealData = !broken && (path.startsWith("data:") || !!img);
+  let dataImage = hasRealData ? (path.startsWith("data:") ? path : img) : emptyImg;
   // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
   let factor = props.zoom ?? props.scale ?? 1;
   let size = natural?.path === path ? natural : undefined;
