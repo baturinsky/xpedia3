@@ -264,7 +264,11 @@ export function ArticleComponent() {
           </div>
         }
         <div>
-          {article.text}
+          {/* Article bodies are authored as HTML: the built-in articles and many
+              mods use `<p>`, `<b>` and links, so they must not be escaped. This
+              matches old `Article.svelte`, which used `{@html article.text}`.
+              A block container is needed because such bodies contain blocks. */}
+          <div dangerouslySetInnerHTML={{ __html: article.text }} />
           {article.requires && article.requires.join('') != article.id && <>
             <br />
             <Val of="Research required: " />

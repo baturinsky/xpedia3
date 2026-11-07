@@ -135,7 +135,15 @@ export function interpretPath(s: string): {
 
 
 function usefulFileName(name: string) {
-  return name.match(/\.(rul|yml|png|gif|nam)$/)
+  // Keep this in step with `interpretPath`, which decides the type of a file
+  // afterwards: an extension accepted there but filtered out here would simply
+  // never arrive.
+  if (/\.(rul|yml|png|gif|nam)$/i.test(name))
+    return true;
+  // Article bodies may be `Language/STR_ID.<lang>.html` (or `.txt`) instead of
+  // yaml. Restricted to the Language folder so a pack's other HTML is still
+  // not decompressed.
+  return /[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name);
 }
 
 export function createDirTree(files: { [name: string]: any }) {

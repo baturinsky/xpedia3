@@ -278,11 +278,9 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
           </tr>
         })}
         <Subheader text="recovery" />
-        <tr>
-          <td colSpan={2}>
-            <RecoveryTable recovery={entry.recovery} />
-          </td>
-        </tr>
+        {/* `RecoveryTable` emits whole `<tr>` rows (like old `RecoveryTable.svelte`
+            did), so it must sit directly in the `<tbody>`, not inside a `<td>`. */}
+        <RecoveryTable recovery={entry.recovery} />
       </tbody>
     </table>
   );

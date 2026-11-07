@@ -33509,7 +33509,9 @@ function interpretPath(s) {
   }
 }
 function usefulFileName(name) {
-  return name.match(/\.(rul|yml|png|gif|nam)$/);
+  if (/\.(rul|yml|png|gif|nam)$/i.test(name))
+    return true;
+  return /[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name);
 }
 async function unpackZip(name, data) {
   let u8 = new Uint8Array(data);
@@ -35557,7 +35559,7 @@ const ArmorComponent = ({ entry }) => {
         ] }, index);
       }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Subheader, { text: "recovery" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 2, children: /* @__PURE__ */ jsxRuntimeExports.jsx(RecoveryTable, { recovery: entry.recovery }) }) })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(RecoveryTable, { recovery: entry.recovery })
     ] })
   ] });
 };
@@ -36549,7 +36551,7 @@ function ArticleComponent() {
         }
       ) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        article.text,
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { dangerouslySetInnerHTML: { __html: article.text } }),
         article.requires && article.requires.join("") != article.id && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "Research required: " }),
