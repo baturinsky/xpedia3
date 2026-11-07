@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { rul, sortFirstLast, damageTypes } from "../rul/Ruleset";
-import { SpecialBonus, RecoveryTable, Subheader } from "./components";
+import { SpecialBonus, RecoveryTable, Subheader, Img } from "./components";
 import { Val } from './Val';
-import { emptyImg } from '../imgPlaceholders';
 import { state, update } from '../state';
 
 interface Entry {
@@ -23,13 +22,6 @@ interface ArmorEntryProps {
 
 const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
   const dollColumns = 6;
-
-  const imageNotFound = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    img.onerror = null;
-    console.warn(img.src + " not found");
-    img.src = emptyImg;
-  };
 
   const seeAlso: string[] = [];
   if (
@@ -52,116 +44,123 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
     }
   }
 
-  const renderArmorContent = async () => {
-    try {
-      const sprites = await entry.dollSprites();
-      if (!sprites) return null;
-
-      const bodies = Object.keys(sprites).sort((a, b) =>
-        rul.bodiesCompare([a, b])
-      );
-
-      const shouldShowAll = state.seeAllArmorVariants;
-
-      return (
-        <>
-          {Object.keys(sprites).length > 1 && (
-            <p>
-              <button
-                className="btn-hover-effect btn-hover-effect--effect-1"
-                onClick={() => update({ seeAllArmorVariants: !state.seeAllArmorVariants })}
-              >
-                {state.seeAllArmorVariants ? "Hide" : "See"} all variants
-              </button>
-            </p>
-          )}
-
-          {bodies.map((body, i) => {
-            if (!shouldShowAll && i !== 0) return null;
-            return (
-              <div
-                key={body}
-                className="armor"
-                style={{
-                  left: `${(i % dollColumns) * 80}px`,
-                  top: `${Math.floor(i / dollColumns) * 120}px`,
-                }}
-              >
-                {shouldShowAll && (
-                  <div className="armor-variant">{body}</div>
-                )}
-                {sprites[body].map((url, j) => (
-                  <img
-                    key={`${body}-${j}`}
-                    src={url}
-                    alt={body}
-                    onError={imageNotFound}
-                    className="armor-layer"
-                  />
-                ))}
-              </div>
-            );
-          })}
-          <div
-            style={{
-              minHeight: shouldShowAll
-                ? `${(Math.floor(Object.keys(sprites).length / dollColumns) + 1) * 120}px`
-                : "120px",
-              marginLeft: "175px",
-            }}
-          >
-            {!shouldShowAll && (
-              <div className="flex-horisontal" style={{ maxWidth: "95vw" }}>
-                {["stats", "armor"].map((prop) => {
-                  if (!entry[prop]) return null;
-                  return (
-                    <div key={prop} className="armor-column">
-                      <header>
-                        <Val of={prop} />
-                      </header>
-                      {sortFirstLast(entry[prop]).all.map(([key, val]: [string, any], i) => (
-                        <React.Fragment key={i}>
-                          <div>
-                            <Val of={key} icon="monospace" />
-                          </div>
-                          <div>
-                            {prop === "recovery" ? (
-                              Object.keys(val).map((subfield, j) => (
-                                <React.Fragment key={j}>
-                                  {j !== 0 && <br />}
-                                  <Val of={subfield} />:
-                                  <em>
-                                    <Val of={val[subfield]} />
-                                  </em>
-                                </React.Fragment>
-                              ))
-                            ) : (
-                              <em>
-                                <Val of={val} />
-                              </em>
-                            )}
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      );
-    } catch (error) {
-      console.error("Error loading sprites:", error);
-      return null;
-    }
-  };
-
-  const [spritesContent, setSpritesContent] = useState<React.ReactNode | null>(null);
+  // Only the sprite *data* belongs in state. The markup has to be rebuilt on
+  // every render: `Img` starts with the transparent placeholder and swaps in the
+  // real bitmap once it arrives from the database, so freezing the elements
+  // would leave the dolls permanently empty.
+  const [sprites, setSprites] = useState<Record<string, string[]> | null>(null);
 
   useEffect(() => {
-    renderArmorContent().then(setSpritesContent);
-  }, [entry, state.seeAllArmorVariants]);
+    let cancelled = false;
+    setSprites(null);
+    entry.dollSprites()
+      .then(s => { if (!cancelled) setSprites(s ?? null); })
+      .catch(error => {
+        console.error("Error loading sprites:", error);
+        if (!cancelled) setSprites(null);
+      });
+    return () => { cancelled = true; };
+  }, [entry]);
+
+  const renderArmorContent = () => {
+    if (!sprites) return null;
+
+    const bodies = Object.keys(sprites).sort((a, b) =>
+      rul.bodiesCompare([a, b])
+    );
+
+    const shouldShowAll = state.seeAllArmorVariants;
+
+    return (
+      <>
+        {Object.keys(sprites).length > 1 && (
+          <p>
+            <button
+              className="btn-hover-effect btn-hover-effect--effect-1"
+              onClick={() => update({ seeAllArmorVariants: !state.seeAllArmorVariants })}
+            >
+              {shouldShowAll
+                ? "Hide all variants"
+                : `Show all ${Object.keys(sprites).length} variants`}
+            </button>
+          </p>
+        )}
+
+        {bodies.map((body, i) => {
+          if (!shouldShowAll && i !== 0) return null;
+          return (
+            <div
+              key={body}
+              className="armor"
+              style={{
+                left: `${(i % dollColumns) * 80}px`,
+                top: `${Math.floor(i / dollColumns) * 120}px`,
+              }}
+            >
+              {shouldShowAll && (
+                <div className="armor-variant">{body}</div>
+              )}
+              {sprites[body].map((url, j) => (
+                <Img
+                  key={`${body}-${j}`}
+                  src={url}
+                  alt={body}
+                  className="armor-layer"
+                />
+              ))}
+            </div>
+          );
+        })}
+        <div
+          style={{
+            minHeight: shouldShowAll
+              ? `${(Math.floor(Object.keys(sprites).length / dollColumns) + 1) * 120}px`
+              : "120px",
+            marginLeft: "175px",
+          }}
+        >
+          {!shouldShowAll && (
+            <div className="flex-horisontal" style={{ maxWidth: "95vw" }}>
+              {["stats", "armor"].map((prop) => {
+                if (!entry[prop]) return null;
+                return (
+                  <div key={prop} className="armor-column">
+                    <header>
+                      <Val of={prop} />
+                    </header>
+                    {sortFirstLast(entry[prop]).all.map(([key, val]: [string, any], i) => (
+                      <React.Fragment key={i}>
+                        <div>
+                          <Val of={key} icon="monospace" />
+                        </div>
+                        <div>
+                          {prop === "recovery" ? (
+                            Object.keys(val).map((subfield, j) => (
+                              <React.Fragment key={j}>
+                                {j !== 0 && <br />}
+                                <Val of={subfield} />:
+                                <em>
+                                  <Val of={val[subfield]} />
+                                </em>
+                              </React.Fragment>
+                            ))
+                          ) : (
+                            <em>
+                              <Val of={val} />
+                            </em>
+                          )}
+                        </div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
 
   const sortedEntries = useMemo(() => {
     return sortFirstLast(entry, {
@@ -208,7 +207,7 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
         <tr>
           <td colSpan={2}>
             <div className="armors">
-              {spritesContent}
+              {renderArmorContent()}
             </div>
           </td>
         </tr>
@@ -244,7 +243,6 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
         </tr>
 
         {sortedEntries.map(([key, prop]: [string, any], index) => {
-          console.log(key,prop);
           return <tr key={index}>
             <td>
               <Val of={key} />

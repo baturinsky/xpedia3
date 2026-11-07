@@ -17,9 +17,13 @@ export const obsTables = { "BIGOBS.PCK": "big", "FLOOROB.PCK": "floor", "HANDOB.
 
 export type Mod = {
   lng: { [langName: string]: { [id: string]: string } }
-  meta: { id: string, master: string, isMaster: boolean }
+  meta: { id?: string, master?: string, isMaster?: boolean, active?: boolean, name?: string, version?: string, [key: string]: any }
   dir: string,
   rul: any[]
+  /** The shared `common` folder: languages and resources used by every mod */
+  common?: boolean
+  /** Files that came from the builtin mods rather than from the uploaded pack */
+  builtin?: boolean
 };
 
 function orderedFilteredEntries(item: Object, fields?: string[]) {
@@ -133,6 +137,8 @@ export default class Ruleset {
   ufos: { [key: string]: Entry } = {};
   terrains: { [key: string]: Entry } = {};
   obs = { big: [], floor: [], hand: [], base: [], icon: [] };
+  /** Relative resource path (lowercased) -> full archive path, see `getFilePath` */
+  resourceMap: { [rel: string]: string } = {};
   sounds: string[] = [];
   config: any;
   baseServices: { [key: string]: Service } = {};
@@ -411,10 +417,48 @@ export default class Ruleset {
 
 
     for (let mod of mods) {
-      for (let rul of mod.rul)
-        for (let spriteDataName in (rul?.extraSprites ?? {})) {
-          new Sprite({ type: spriteDataName, dir: mod.dir, ...rul.extraSprites[spriteDataName] });
+      for (let rul of mod.rul) {
+        let extra = rul?.extraSprites;
+        if (!extra)
+          continue;
+        // Modern rulesets list packs in an array and use `delete` to drop a
+        // whole pack; the old object form keyed by type is kept for
+        // compatibility with hand-written data
+        let entries = Array.isArray(extra)
+          ? extra
+          : Object.entries(extra).map(([type, def]: [string, any]) => ({ type, ...def }));
+
+        for (let def of entries) {
+          if (def == null || typeof def != "object")
+            continue;
+
+          if (def.delete) {
+            delete this.sprites[def.delete];
+            let table = this.obs[obsTables[def.delete]];
+            if (table)
+              table.length = 0;
+            continue;
+          }
+
+          if (def.typeSingle) {
+            new Sprite({ typeSingle: def.typeSingle, dir: mod.dir, fileSingle: def.fileSingle, files: def.files });
+            continue;
+          }
+
+          if (!def.type)
+            continue;
+
+          let obs = obsTables[def.type];
+          if (obs && def.files) {
+            // A known obs table (BIGOBS.PCK, BASEBITS.PCK...) is replaced frame
+            // by frame; `files` is a sparse index -> image map
+            for (let [ind, file] of Object.entries(def.files))
+              new Sprite({ type: obs, ind, dir: mod.dir, fileSingle: file as string });
+          }
+
+          new Sprite({ ...def, dir: mod.dir });
         }
+      }
     }
 
     this.deleteModDirs();
@@ -690,12 +734,7 @@ export default class Ruleset {
 
   /**Orders mods and merges languages*/
   static preprocessMods(mods: { [modName: string]: Mod }) {
-
-    /** Sort orders by master/id in their metadata */
-    let modOrder = Object.keys(mods).sort((a, b) => {
-      let [ma, mb] = [mods[a].meta, mods[b].meta]
-      return ma.master == mb.id ? 1 : mb.master == ma.id ? -1 : 0;
-    }).map(key => mods[key]);
+    let modOrder = Ruleset.activeMods(Object.values(mods));
 
     let langs = {}
 
@@ -713,11 +752,99 @@ export default class Ruleset {
     return { mods: modOrder, langs }
   }
 
-  loadProcessedMods(data: { mods: Mod[], langs: any }) {
+  /**
+   * Picks the mods OpenXcom would actually load, in the order it loads them.
+   *
+   * OpenXcom activates exactly one master mod and then the mods that depend on
+   * that master, plus standalone mods and mods explicitly marked active. A
+   * master may chain to a "super" master (`master: xcom1`), which is loaded
+   * underneath it. Other masters — most importantly `xcom2` next to `xcom1` —
+   * stay off, which keeps the TFTD half of a modpack out of the ruleset.
+   *
+   * Order is the merge order: later mods override earlier ones.
+   */
+  static activeMods(all: Mod[]): Mod[] {
+    /** Metadata id, falling back to the folder name like `ModInfo` does */
+    let idOf = (mod: Mod) => mod.meta?.id ?? mod.dir.split(/[/\\]/).pop();
 
-    let master = data.mods.find(m => m.meta?.isMaster)
+    let byId: { [id: string]: Mod } = {};
+    for (let mod of all) {
+      let id = idOf(mod);
+      if (id && !(id in byId))
+        byId[id] = mod;
+    }
+
+    /** Resolvable masters, deepest first: mods chaining to xcom1 beat xcom1 */
+    let masters = all.filter(mod => mod.meta?.isMaster);
+
+    let depth = (mod: Mod, seen = new Set<string>()): number => {
+      let id = idOf(mod);
+      if (!id || seen.has(id)) return 0;
+      seen.add(id);
+      let parent = mod.meta?.master ? byId[mod.meta.master] : undefined;
+      return parent ? depth(parent, seen) + 1 : 0;
+    };
+
+    // A total conversion lives in `user/mods`, while `standard` holds the base
+    // game masters and optional tweaks; prefer the former as the active master
+    let userMasters = masters.filter(mod => !/[/\\]standard[/\\]/i.test(mod.dir));
+    let activeMaster = (userMasters.length ? userMasters : masters)
+      .sort((a, b) => depth(b) - depth(a))[0];
+
+    let chain: Mod[] = [];
+    let seen = new Set<string>();
+    for (let mod = activeMaster; mod && !seen.has(idOf(mod)!);) {
+      seen.add(idOf(mod)!);
+      chain.unshift(mod);
+      mod = mod.meta?.master ? byId[mod.meta.master] : undefined;
+    }
+
+    let masterId = activeMaster ? idOf(activeMaster) : undefined;
+
+    /** Sorting key: `[group, position within the group]` */
+    let order = (mod: Mod): [number, number] => {
+      if (mod.common)
+        return [0, 0];
+      let i = chain.indexOf(mod);
+      if (i >= 0)
+        return [2, i];
+      // Mods for a master that is not part of the pack, e.g. XPedia's own base
+      // strings declared against the pseudo master `xpedia`, go first so every
+      // real translation can override them
+      if (mod.meta?.master && !byId[mod.meta.master])
+        return [1, 0];
+      if (mod.meta?.active === true)
+        return [4, 0];
+      return [3, 0];
+    };
+
+    let active = all.filter(mod => {
+      if (mod.common || chain.includes(mod))
+        return true;
+      if (!mod.meta || Object.keys(mod.meta).length == 0)
+        return true;
+      if (mod.meta.active === true)
+        return true;
+      // Dependants of the active master only; this drops xcom2's TFTD mods
+      return !!masterId && mod.meta.master == masterId;
+    });
+
+    return active.sort((a, b) => {
+      let [ga, pa] = order(a), [gb, pb] = order(b);
+      return ga - gb || pa - pb;
+    });
+  }
+
+  loadProcessedMods(data: { mods: Mod[], langs: any, resources?: { [rel: string]: string } }) {
+
+    // The navbar shows the mod the pack is about: the deepest master, i.e. the
+    // one that itself chains to a base master, not the base game it sits on
+    let masters = data.mods.filter(m => m.meta?.isMaster)
+    let chained = masters.filter(m => m.meta?.master && data.mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master))
+    let master = (chained.length ? chained : masters).slice(-1)[0]
     this.meta = master?.meta ?? {}
     this.mods = data.mods as any;
+    this.resourceMap = data.resources ?? {};
     this.langs = data.langs;
     this.langNames = Object.keys(data.langs)
       .filter(name => name != "icon")

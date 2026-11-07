@@ -62,12 +62,17 @@ export function Img(props: {
 
   let img = images[path];
   let broken = brokenPath === path;
-  let dataImage = broken ? emptyImg : path.startsWith("data:") ? path : img?.data ? imageDataToUrl(img.data) : emptyImg;
+  let hasRealData = !broken && (path.startsWith("data:") || !!img?.data);
+  let dataImage = hasRealData ? (path.startsWith("data:") ? path : imageDataToUrl(img!.data)) : emptyImg;
   // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
   let factor = props.zoom ?? props.scale ?? 1;
   let size = natural?.path === path ? natural : undefined;
   let element = <img className={"x-image" + (props.className ? " " + props.className : "")} src={dataImage} alt={props.alt ?? props.src}
     onLoad={e => {
+      // The transparent placeholder is a 1x1 png; measuring it would pin every
+      // image to 1x1 until it is remounted.
+      if (!hasRealData)
+        return;
       let t = e.currentTarget;
       if (t.naturalWidth && t.naturalHeight && (t.naturalWidth != size?.w || t.naturalHeight != size?.h))
         setNatural({ path: path!, w: t.naturalWidth, h: t.naturalHeight });

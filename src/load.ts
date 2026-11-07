@@ -42,7 +42,9 @@ function filterBuiltinMods(files: { [name: string]: Uint8Array }, packName?: str
   let pack = (packName ?? "").toLowerCase();
   let result: { [name: string]: Uint8Array } = {};
   for (let name in files) {
-    let mod = interpretPath(name)?.mod?.toLowerCase();
+    // Builtin mods live under `mods/<mod>/…`; the helper's name is the part
+    // after the prefix
+    let mod = interpretPath(name)?.mod?.toLowerCase().replace(/^mods[/\\]/, "");
     if (mod?.startsWith(xhelperPrefix) && !pack.includes(mod.substring(xhelperPrefix.length)))
       continue;
     result[name] = files[name];
@@ -56,7 +58,22 @@ async function builtinModFiles(packName?: string) {
 }
 
 
-/**From the path, figure the type and mod of the file */
+/**
+ * From the path, figure the type and mod of the file.
+ *
+ * The archive is normally an OpenXcom install folder, so the mod a file belongs
+ * to is decided the same way OpenXcom's `FileMap` decides it: resources are
+ * looked up relative to the mod's own folder. Supported layouts:
+ *
+ * - `mods/<mod>/...`             builtin mods (`builtinMods.zip`)
+ * - `<pack>/user/mods/<mod>/...` user mods
+ * - `<pack>/standard/<mod>/...`  standard mods, including `xcom1`/`xcom2`
+ * - `<pack>/common/...`          resources shared by every mod
+ * - `<mod>/...`                  a mod packed on its own
+ *
+ * `mod` is the full archive prefix of the mod folder, so a sprite path built as
+ * `${mod}/${relativePath}` matches the stored asset name.
+ */
 export function interpretPath(s: string): {
   type: AssetType;
   mod: string;
@@ -65,31 +82,53 @@ export function interpretPath(s: string): {
   ext?: string;
 } {
   let parts = s.split(/[/\\]/).filter(p => p != "");
-
-  // Mods may be packed either under "mods/<mod>/..." or directly as
-  // "<mod>/..." at the archive root
-  if (parts[0] == "mods")
-    parts.shift();
-
-  if (parts.length < 2)
+  if (parts.length < 1)
     return;
 
-  let mod = parts[0];
-  let file = parts[parts.length - 1];
-  let dirs = parts.slice(1, -1);
+  let lower = parts.map(p => p.toLowerCase());
+  /** How many leading segments make up the mod folder */
+  let modLength = 1;
+
+  if (lower[0] == "mods" && parts.length > 1) {
+    // Builtin mods are packed without a pack folder in front
+    modLength = 2;
+  } else {
+    let userMods = lower.findIndex((p, i) => p == "user" && lower[i + 1] == "mods");
+    let standard = lower.indexOf("standard");
+    let common = lower.indexOf("common");
+    if (userMods >= 0 && parts.length > userMods + 2)
+      modLength = userMods + 3;
+    else if (standard >= 0 && parts.length > standard + 1)
+      modLength = standard + 2;
+    else if (common >= 0 && parts.length > common)
+      modLength = common + 1;
+  }
+
+  let rel = parts.slice(modLength);
+  if (!rel.length)
+    return;
+
+  let modParts = parts.slice(0, modLength);
+  let mod = modParts.join("/");
+  let file = rel[rel.length - 1];
+  let dirs = rel.slice(0, -1);
   let [name, rawExt] = splitName(file);
   let ext = (rawExt ?? "").toLowerCase();
+  let path = parts.join("/");
 
   if (file.toLowerCase() == "metadata.yml")
-    return { type: "meta", mod, path: `${mod}/metadata.yml` };
+    return { type: "meta", mod, path };
 
-  if (dirs.some(dir => /^Language$/i.test(dir)) && lngExts.includes(ext))
-    return { type: "lng", mod, name, path: parts.join("/"), ext };
+  // OpenXcom loads `<mod>/Language/<lang>.yml` and `<mod>/Ruleset/*.rul`; nested
+  // variants such as `Language/OXCE/` are for the engine's own folder layout and
+  // are not part of a mod's language set
+  if (dirs.length && /^language$/i.test(dirs[dirs.length - 1]) && lngExts.includes(ext))
+    return { type: "lng", mod, name, path, ext };
 
   if (assetExts.includes(ext)) {
     return {
       type: { nam: "nam", rul: "rul", gif: "img", png: "img" }[ext] as AssetType,
-      mod, name, path: parts.join("/"), ext
+      mod, name, path, ext
     }
   }
 }
@@ -260,9 +299,43 @@ async function buildRuleset(files: { [name: string]: Uint8Array },
 
   let processed = Ruleset.preprocessMods(mods);
 
+  // OpenXcom finds a resource by its path relative to the mod folder, so the
+  // same relative path often exists in several mods. Build the index it ends
+  // up with: later active mods override earlier ones and `common` fills gaps.
+  let resources = buildResourceMap(interpretedFiles, processed.mods);
+
   await report("Building ruleset", 1, `${Object.keys(mods).length} mod(s)`);
 
-  return { processed, interpretedFiles };
+  return { processed: { ...processed, resources }, interpretedFiles };
+}
+
+/**
+ * Maps every resource's path relative to its mod folder to the full archive
+ * path, following OpenXcom's `FileMap`: mods are indexed from highest to lowest
+ * priority, and the first definition of a relative path wins. `common` is
+ * indexed last, so it only provides files no mod defines.
+ */
+function buildResourceMap(interpreted: { mod: string, path: string, type?: string }[], active: Mod[]) {
+  let map: { [rel: string]: string } = {};
+
+  // Highest priority first: the later a mod is activated, the more it wins.
+  // `common` is mapped last by OpenXcom, so it only fills in missing files.
+  let priority = [...active.filter(m => !m.common).reverse(), ...active.filter(m => m.common)];
+
+  for (let mod of priority) {
+    let prefix = mod.dir + "/";
+    for (let file of interpreted) {
+      if (file.type != "img" && file.type != "nam")
+        continue;
+      if (!file.path.startsWith(prefix))
+        continue;
+      let rel = file.path.substring(prefix.length).toLowerCase();
+      if (!(rel in map))
+        map[rel] = file.path;
+    }
+  }
+
+  return map;
 }
 
 /**
@@ -424,7 +497,12 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
 
     //if(modName != "Dioxine_XPiratez") debugger;
 
-    mods[modName] ??= { dir: modName, lng: {}, rul: [], meta: {} as any }
+    mods[modName] ??= {
+      dir: modName, lng: {}, rul: [], meta: {} as any,
+      // `common` is not a mod: it holds resources and language strings shared
+      // by all of them, and OpenXcom always loads it next to the active mods
+      common: /(^|\/)common$/i.test(modName)
+    }
 
     try {
       if (f.type == "lng") {

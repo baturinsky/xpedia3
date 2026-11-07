@@ -3,23 +3,44 @@ import { rul } from "../rul/Ruleset";
 import MainTable from "./MainTable";
 import { Img } from "./components";
 import { Val } from "./Val";
+import { emptyImg } from "../imgPlaceholders";
+
+/**
+ * One base tile is 32x32 on screen, but a `BASEBITS.PCK` frame is often a bit
+ * taller (32x40 in vanilla and in many mods) and may carry transparent margins.
+ * Chunks are therefore drawn at their own resolution on a fixed 32px grid, so a
+ * frame that is larger than its cell spills into the neighbouring ones instead
+ * of being squashed into a square.
+ */
+const gridSize = 32;
+const gridScale = 2;
 
 /** A size x size block of base sprites, follows old `FacilitySprite.svelte` */
 function FacilitySprite(props: { size: number, prop: number, bottom?: boolean }) {
   let size = props.size;
+  let cell = gridSize * gridScale;
   let cells: JSX.Element[] = [];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let num = props.prop * 1 + x * size + y;
-      cells.push(<Img key={`${x}-${y}`} className="facility sprite" alt="X"
-        src={rul.obsSprite("base", num)} style={{ width: 64, height: 64 }} />);
+      // OpenXcom numbers a facility's frames row by row, x first:
+      // frame = spriteShape + y * size + x, drawn at (x, y)
+      let num = props.prop * 1 + y * size + x;
+      let src = rul.obsSprite("base", num);
+      let style = { position: "absolute" as const, left: x * cell, top: y * cell };
+      // A missing frame would otherwise render as the 1x1 placeholder and
+      // collapse to a couple of pixels, leaving a ragged edge
+      cells.push(src == emptyImg
+        ? <div key={`${x}-${y}`} style={{ ...style, width: cell, height: cell }} />
+        : <Img key={`${x}-${y}`} className="facility sprite" alt="X"
+          scale={gridScale} src={src} style={style} />);
     }
   }
 
   return <div className="tight" style={{
-    columns: size,
-    width: 64 * size,
-    marginBottom: props.bottom ? -64 * size : 0
+    position: "relative",
+    width: cell * size,
+    height: cell * size,
+    marginBottom: props.bottom ? -cell * size : 0
   }}>
     {cells}
   </div>;

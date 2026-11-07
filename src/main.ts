@@ -95,9 +95,23 @@ async function init() {
 
 init()
 
+/** Elements that consume their own keystrokes: typing in these must not navigate */
+function isEditable(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement))
+    return false;
+  return target.isContentEditable
+    || target.tagName == "INPUT"
+    || target.tagName == "TEXTAREA"
+    || target.tagName == "SELECT";
+}
+
 addEventListener("keydown", e => {
   // The load status window is modal, so navigation must wait for it
   if (state.slowProcessStatus)
+    return;
+  // The search field (and any other form control) edits text with the same keys
+  // that page through the pedia, so it keeps its own keystrokes
+  if (isEditable(e.target))
     return;
   let pageSwitch = {
     "KeyA": -1, "ArrowLeft": -1,

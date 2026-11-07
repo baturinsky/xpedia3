@@ -67,9 +67,9 @@ export function LandingPage() {
     {rul && <SectionsList />}
     {rul && <ModsList />}
     <h4>Modpacks</h4>
-    <p className="modpack-hint">
+    {/*<p className="modpack-hint">
       Drag and drop modpack files in zip or rar format anywhere on this page to add them.
-    </p>
+    </p>*/}
     <ArchiveFiles />
     {state.developerMode && <CurrentAssets />}
     {state.imagePreview && <img src={state.imagePreview}></img>}

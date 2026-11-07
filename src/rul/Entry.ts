@@ -817,7 +817,6 @@ export class Armor extends Entry {
         }
       }
     }
-    console.log({ ds });
     return ds;
   }
 
