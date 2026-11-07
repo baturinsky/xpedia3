@@ -75,7 +75,7 @@ async function deletePack(pack: string) {
   try {
     await wipeAssets(pack);
     await eraseArchiveFile(pack);
-  } catch (e) {
+  } catch (e:any) {
     update({
       slowProcessDone: true, slowProcessError: true,
       slowProcessStatus: `Could not delete ${pack}: ${e?.message ?? e}`
@@ -126,7 +126,7 @@ async function deselectPack() {
   update({ article: undefined, section: undefined, images: {}, packName: undefined });
   try {
     await loadBuiltinOnlyPack();
-  } catch (e) {
+  } catch (e:any) {
     update({
       slowProcessDone: true, slowProcessError: true,
       slowProcessStatus: `Could not unload ${previous}: ${e?.message ?? e}`

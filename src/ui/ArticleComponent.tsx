@@ -303,7 +303,7 @@ export function ArticleComponent() {
   </>;
 
 
-  return <div className={"article" + (onLandingPage()?" landing-page":"")}>
+  return <div className={"article"}>
     {main}
     {(onLandingPage() || !rul) && <LandingPage />}
 

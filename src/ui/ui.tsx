@@ -52,7 +52,7 @@ function UI() {
             {state.seeSide ? "⇤" : "⇥"}
           </button>
         }
-        <div className="content">
+        <div className={"content"  + (onLandingPage()?" landing-page":"")}>
           <ArticleComponent />
         </div>
       </div>
@@ -476,5 +476,5 @@ export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
 
 
 export function onLandingPage() {
-  return section?.id == "MAIN"
+  return section == undefined || section?.id == "MAIN"
 }

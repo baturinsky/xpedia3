@@ -160,7 +160,7 @@ export default class Ruleset {
   alienMissions: { [key: string]: Entry } = {};
   ufos: { [key: string]: Entry } = {};
   terrains: { [key: string]: Entry } = {};
-  obs = { big: [], floor: [], hand: [], base: [], icon: [] };
+  obs = { big: [], floor: [], hand: [], base: [], icon: [] } as {[id:string]:any[]};
   /** Relative resource path (lowercased) -> full archive path, see `getFilePath` */
   resourceMap: { [rel: string]: string } = {};
   sounds: string[] = [];
@@ -191,7 +191,7 @@ export default class Ruleset {
       this.loadProcessedMods(processed);
   }
 
-  tr(str?: string | null, props?: { capital?: boolean, icon?}) {
+  tr(str?: string | null | undefined, props?: { capital?: boolean, icon?:string}) {
     const bigSnakeCase = /^[A-Z0-9_]+$/;
     if (str == null)
       return null;

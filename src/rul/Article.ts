@@ -66,7 +66,7 @@ export class Article {
   }
 
   get text() {
-    let t = rul.lang[this._text ?? ''] || rul.lang[this.id + "_UFOPEDIA"] || rul.lang[rul.research[this.id]?.lookup];
+    let t = rul.lang[this._text ?? ''] || rul.lang[this.id + "_UFOPEDIA"] || rul.lang[rul.research[this.id]?.lookup as string];
     t = stripPediaMarkup(t);
     return t;
   }

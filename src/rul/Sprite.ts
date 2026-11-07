@@ -13,7 +13,7 @@ import { rul } from './Ruleset';
  */
 export class Sprite {
   id: string;
-  _path: string;
+  _path: string|undefined;
   /** Mod whose ruleset declared this sprite */
   modDir?: string;
 
@@ -22,7 +22,7 @@ export class Sprite {
     files?: { [key: string]: string } | string[];
     ind?: string | number; fileSingle?: string;
   }) {
-    this.id = raw.typeSingle ?? raw.type;
+    this.id = (raw.typeSingle ?? raw.type) as string;
     this.modDir = raw.dir;
 
     if (raw.path != null) {
@@ -41,7 +41,7 @@ export class Sprite {
       return;
 
     if (raw.ind != null) {
-      let table = rul.obs[this.id];
+      let table = rul.obs[this.id] as any;
       if (table)
         table[raw.ind] = this;
     } else {
@@ -63,7 +63,7 @@ export class Sprite {
   }
 
   async data() {
-    let data = loadData(this.path);
+    let data = loadData(this.path as string);
     if (data != null)
       return data;
 
