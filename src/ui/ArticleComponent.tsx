@@ -13,7 +13,7 @@ import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import ResearchInfo from "./ResearchInfo";
 import StartingConditionsComponent from "./StartingConditionsComponent";
-import { LandingPage } from "./ui";
+import { LandingPage, packTitle, titleSection } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 
@@ -21,13 +21,18 @@ export function ArticleTitle() {
   let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
   // Old `Article.svelte` filtered out the article's own section from the list
   let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
-  return <div className="article-title">
-    <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
-    {/* `Tr` so that the reveal mode shows the raw key, like old `Article.svelte` */}
-    <div className="central"><Tr text={article?.id} nobr={1000} /></div>
-    <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
-    <div className="right">{right && <Val of={right} postfix={">"} />}</div>
-  </div>
+  if (titleSection()) {
+    return <div className="article-title">
+      <div className="central"><Tr text={packTitle()} nobr={100} /></div>
+    </div>
+  } else {
+    return <div className="article-title">
+      <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
+      <div className="central"><Tr text={article?.id} nobr={100} /></div>
+      <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
+      <div className="right">{right && <Val of={right} postfix={">"} />}</div>
+    </div>
+  }
 }
 
 /*Which renderer to use for each article type */
@@ -294,9 +299,9 @@ export function ArticleComponent() {
   </>;
 
 
-  return <div className="article">
+  return <div className={"article"}>
     {main}
-    {(section?.id == "MAIN" || !rul) && <LandingPage />}
+    {(titleSection() || !rul) && <LandingPage />}
 
   </div>
 }

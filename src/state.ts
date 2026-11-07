@@ -63,6 +63,8 @@ export let state = {
   showDropdown: false,
   /** Language dropdown in the top navigation */
   showLanguagesDropdown: false,
+  /** Modpack dropdown in the top navigation */
+  showPacksDropdown: false,
   /** Query typed into the navbar search box, empty when not searching */
   searchQuery: "",
   /** Full text search results (article ids), undefined while not searching */

@@ -24,7 +24,7 @@ function storedSize(pack: { assets?: number, ruls?: number, archive?: number }) 
 }
 
 /** Installs the stored ruleset of an already-unpacked pack */
-async function selectPack(pack: string) {
+export async function selectPack(pack: string) {
   if (busy() || pack == state.packName)
     return;
   update({
@@ -144,6 +144,7 @@ async function deselectPack() {
  */
 export function ArchiveFiles() {
   return <>
+    {state.developerMode ? <ArchiveFilesTable /> : <ModpackList />}
     <button className="modpack-mode-switch"
       title={state.developerMode
         ? "Hide the unpacking tools and show the simple modpack list"
@@ -159,7 +160,7 @@ export function ArchiveFiles() {
         onClick={deselectPack}>
         deselect
       </button>}
-    {state.developerMode ? <ArchiveFilesTable /> : <ModpackList />}
+
   </>;
 }
 

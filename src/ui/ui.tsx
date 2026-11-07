@@ -6,7 +6,7 @@ import 'react-data-grid/lib/styles.css';
 import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
-import { SlowProcessStatus, ArchiveFiles, CurrentAssets } from "./files";
+import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack } from "./files";
 import { rul } from "../rul/Ruleset";
 import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
@@ -30,7 +30,7 @@ function useDocumentSettings() {
 /** The sidebar lists the articles of the current section. The front page has
  * no such list, so there is nothing to show (or to toggle) there. */
 function hasSidebar() {
-  return !!article && section?.id !== "MAIN";
+  return !!article && !titleSection();
 }
 
 function UI() {
@@ -46,7 +46,7 @@ function UI() {
         <NavTop />
         {side && <NavSide />}
         {canShowSide &&
-          <button className="side-hide-button" style={{ left: state.seeSide ? undefined : "1em" }}
+          <button className={"side-hide-button" + (state.seeSide ? "" : " collapsed")}
             onClick={() => update({ seeSide: !state.seeSide })}>
             {state.seeSide ? "⇤" : "⇥"}
           </button>
@@ -64,12 +64,16 @@ function UI() {
 
 export function LandingPage() {
   return <>
-    {rul && <SectionsList />}
     {rul && <ModsList />}
-    <h4>Modpacks</h4>
+    {rul && <SectionsList />}
+    
     {/*<p className="modpack-hint">
       Drag and drop modpack files in zip or rar format anywhere on this page to add them.
     </p>*/}
+
+    <div style={{height:"5rem"}} />
+
+    <Tr text="STR_ABOUT_XPEDIA" />
     <ArchiveFiles />
     {state.developerMode && <CurrentAssets />}
     {state.imagePreview && <img src={state.imagePreview}></img>}
@@ -81,15 +85,9 @@ function ModsList() {
   let mods = (rul?.mods ?? []).map((m: any) => m?.meta).filter(m => m?.id);
   if (mods.length == 0)
     return null;
-  return <>
-    <h4><Tr text="Mods" /></h4>
-    <ul>
-      {mods.map((mod: any) =>
-        <li key={mod.id}>{mod.name} {mod.version}</li>
-      )}
-    </ul>
-    <h4><Tr text="About XPedia" /></h4>
-    <Tr text="STR_ABOUT_XPEDIA" />
+  return <><Val of={mods.map((mod: any) =>
+      `${mod.name} ${mod.version}`
+    )}/>
   </>;
 }
 
@@ -110,31 +108,104 @@ export const tableSections = [
   "UNITS"
 ];
 
+/**
+ * True when the last pointer interaction came from a touch screen or a pen.
+ *
+ * Mouse and touch want different things from a dropdown button: with a mouse the
+ * list is already open on hover, so a click on the button is free to mean "go to
+ * this page". A touch screen has no hover, so a tap has to be the thing that
+ * opens and closes the list.
+ */
+let touchInteraction = false;
+
+function isTouchInput() {
+  return touchInteraction;
+}
+
+/** Hover only exists for a mouse; a tap must not behave like hovering */
+function hoverOpens(updateFn: () => void) {
+  return (e: { pointerType?: string }) => {
+    if (e.pointerType == "mouse")
+      updateFn();
+  };
+}
+
+/**
+ * A navbar dropdown button does one of two things, depending on the device:
+ * with a mouse it navigates (the list is already open on hover), while a tap
+ * opens or closes the list, closing the other navbar lists as it does.
+ */
+function dropdownButtonClick(
+  open: "showDropdown" | "showPacksDropdown" | "showLanguagesDropdown",
+  goTo?: string
+) {
+  if (isTouchInput()) {
+    let next = !state[open];
+    update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false, [open]: next });
+    return;
+  }
+  if (!goTo) {
+    // A list with no page of its own (the language picker) keeps the plain
+    // toggle for a mouse; hover has usually opened it already, this closes it
+    update({ [open]: !state[open] });
+    return;
+  }
+  update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
+  if (location.hash != goTo)
+    location.hash = goTo;
+}
+
+window.addEventListener("pointerdown", e => {
+  touchInteraction = e.pointerType != "mouse";
+  if (!touchInteraction)
+    return;
+  // A tap anywhere outside an open list dismisses it. The buttons themselves
+  // are inside a container, so their own tap reaches the toggle below instead.
+  let target = e.target as HTMLElement;
+  if ((state.showDropdown || state.showPacksDropdown || state.showLanguagesDropdown)
+    && !target?.closest?.(".navbar-dropdown-container"))
+    update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
+}, true);
+
+export function packTitle() {
+  let title = rul?.meta?.name
+    ? [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ")
+    : state.packName ?? rul?.tr?.("XPedia") ?? "XPedia";
+  return title
+}
+
 /** Top-left navigation dropdown: pedia sections and type sections */
 function NavDropdown() {
   let visible = state.showDropdown;
+  // The front page counts as its own section, so `##MAIN` highlights too
+  let current = section?.id ?? "MAIN";
+
   return <div className="navbar-dropdown-container dropdown-button"
-    onMouseEnter={() => update({ showDropdown: true })}
-    onMouseLeave={() => update({ showDropdown: false })}>
-    <button className="navbar-button dropdown-button" onClick={() => update({ showDropdown: !state.showDropdown })}>
-      <img src={favicon} alt="XPedia" className="xpedia-icon" />
-      <nobr><span className="on-wide"><Val of="XPedia" notip />&nbsp;</span></nobr>
-      <span style={{ transform: "scale(1.5,0.75)", display: "inline-block" }}>?</span>
+    onPointerEnter={hoverOpens(() => update({ showDropdown: true }))}
+    onPointerLeave={hoverOpens(() => update({ showDropdown: false }))}>
+    <button className="navbar-button dropdown-button"
+      title="Sections"
+      onClick={() => dropdownButtonClick("showDropdown", "##" + current)}>
+      {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
+      <Tr text={(titleSection() ? undefined : section?.id) ?? "XPedia"} notip />
     </button>
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
         <div className="navbar-auto navbar-list">
-          <a href="##MAIN" className="menu-home" style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
+          <a href="##MAIN" className={"menu-home" + (titleSection() ? " active-section" : "")}
+            style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
           <div className="menu-spacer" />
-          {rul?.sectionsOrder?.map(section =>
-            <a key={section.id} href={"##" + section.id}><Tr text={section.id} /></a>
+          {rul?.sectionsOrder?.map(s =>
+            <a key={s.id} href={"##" + s.id}
+              className={s.id == current && s.id != "MAIN" ? "active-section" : undefined}><Tr text={s.id} /></a>
           )}
         </div>
         <div className="navbar-custom navbar-list">
-          {rul?.sortedTypeSections()?.map(section =>
-            <a key={section.id} href={"##" + section.id}>
-              <Tr text={section.id} />
-              {tableSections.includes(section.id) && <span className="table-marker">☰</span>}
+          {rul?.sortedTypeSections()?.map(s =>
+            <a key={s.id} href={"##" + s.id}
+              className={s.id == current && s.id != "MAIN" ? "active-section" : undefined}>
+              <Tr text={s.id} />
+              {tableSections.includes(s.id) && <span className="table-marker">☰</span>}
             </a>
           )}
         </div>
@@ -144,7 +215,6 @@ function NavDropdown() {
 }
 
 export function NavTop() {
-  let title = [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ");
 
   function selectLanguage(lang: string) {
     if (!rul.selectLang(lang))
@@ -154,8 +224,8 @@ export function NavTop() {
   return <nav className="top">
     <div className="left">
       <NavDropdown />
-      <Val of="MAIN">{title || "XPedia"}</Val>
-      {section && section.id != "MAIN" && <Val of={section.id} />}
+      {/*<Val of="MAIN">{title || "XPedia"}</Val>
+      {section && section.id != "MAIN" && <Val of={section.id} />}*/}
     </div>
     <div className="right">
       <SearchBox />
@@ -170,20 +240,20 @@ export function NavTop() {
           ? rul.langNames.map(lang =>
             <button key={lang} className={"navbar-button" + (lang == state.lang ? " current" : "")}
               onClick={() => selectLanguage(lang)}>
-              <nobr><Val of={lang} /></nobr>
+              <Val of={lang} nobr />
             </button>
           )
           : <div className="navbar-dropdown-container select-language"
-            onMouseEnter={() => update({ showLanguagesDropdown: true })}
-            onMouseLeave={() => update({ showLanguagesDropdown: false })}>
-            <button className="navbar-button" onClick={() => update({ showLanguagesDropdown: !state.showLanguagesDropdown })}>
+            onPointerEnter={hoverOpens(() => update({ showLanguagesDropdown: true }))}
+            onPointerLeave={hoverOpens(() => update({ showLanguagesDropdown: false }))}>
+            <button className="navbar-button" onClick={() => dropdownButtonClick("showLanguagesDropdown")}>
               <big><Val of={state.lang ?? rul.langName ?? ""} /></big>
             </button>
             <div className="navbar-dropdown" style={{ visibility: state.showLanguagesDropdown ? "visible" : "hidden" }}>
               {rul.langNames.map(lang =>
                 <div key={lang} className={"clickable" + (lang == state.lang ? " current" : "")}
                   onClick={() => selectLanguage(lang)}>
-                  <nobr><Val of={lang} /></nobr>
+                  <Val of={lang} nobr />
                 </div>
               )}
             </div>
@@ -204,8 +274,47 @@ export function NavTop() {
         STR
       </button>
 
+      <PackDropdown />
     </div>
   </nav>
+}
+
+/**
+ * Top-right modpack picker: the same idea as the section menu, but it lists the
+ * modpacks installed in the browser instead of pedia sections.
+ */
+function PackDropdown() {
+  let visible = state.showPacksDropdown;
+  let packs = state.files ?? [];
+  // The label names the selected archive, so it stays distinct from the pedia
+  // title in the top-left menu, which shows the mod's own name instead.
+  let label = packTitle();
+
+  return <div className="navbar-dropdown-container select-packs"
+    onPointerEnter={hoverOpens(() => update({ showPacksDropdown: true }))}
+    onPointerLeave={hoverOpens(() => update({ showPacksDropdown: false }))}>
+    <button className="navbar-button"
+      title="Modpacks"
+      onClick={() => dropdownButtonClick("showPacksDropdown", "##MAIN")}>
+      <span className="on-wide">{label}&nbsp;</span>
+      <span>▾</span>
+    </button>
+    <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
+      {packs.length == 0
+        ? <div className="packs-empty">No modpacks uploaded yet</div>
+        : packs.map(pack =>
+          <div key={pack.pack}
+            className={"clickable" + (pack.pack == state.packName ? " current" : "")}
+            title={pack.pack == state.packName ? "Currently shown" : "Show this modpack"}
+            onClick={() => {
+              update({ showPacksDropdown: false });
+              selectPack(pack.pack);
+            }}>
+            {pack.pack}
+          </div>
+        )}
+    </div>
+  </div>;
 }
 
 /** Navbar full text search, mirrors old `App.svelte` */
@@ -276,16 +385,17 @@ export function initUI() {
   createRoot(document.body).render(<UI />);;
 }
 
-let isTouch = "ontouchstart" in window;
-
 window.addEventListener("pointermove", async (e) => {
   let target = e.target as HTMLElement;
-  // Hovering the very left edge (and the top third) opens the main menu, mouse only
-  if (!isTouch && e.screenX < 10 && e.screenY < innerHeight / 3) {
-    if (!state.showDropdown)
-      update({ showDropdown: true });
-  } else if (state.showDropdown && !target?.closest?.(".navbar-dropdown-container")) {
-    update({ showDropdown: false });
+  // Only a mouse hovers; a touch pointer must not open or close menus this way
+  if (e.pointerType == "mouse") {
+    // Hovering the very left edge (and the top third) opens the main menu
+    if (e.screenX < 10 && e.screenY < innerHeight / 3) {
+      if (!state.showDropdown)
+        update({ showDropdown: true });
+    } else if (state.showDropdown && !target?.closest?.(".navbar-dropdown-container")) {
+      update({ showDropdown: false });
+    }
   }
 
   let tooltip = document.getElementById("xpediaTooltip")
@@ -337,4 +447,9 @@ export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
     }
   }
   return false;
+}
+
+
+export function titleSection(){
+  return section?.id == "MAIN"
 }

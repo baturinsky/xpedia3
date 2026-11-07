@@ -16,7 +16,7 @@ export const Val = ({
   depth = 3,
   notip = false,
   capital = false,
-  nobr = 30,
+  nobr = 30 as number | boolean,
   icon = undefined as IconType | undefined,
   className = undefined as string | undefined,
   table = undefined as boolean | undefined,
@@ -112,7 +112,7 @@ function sameText(a: string, b: string) {
 export function Tr({
   text = undefined as string | undefined,
   icon = undefined as IconType | undefined,
-  nobr = 30,
+  nobr = 30 as number | boolean,
   notip = false,
   capital = false,
   prefix = undefined as string | undefined,
@@ -154,7 +154,7 @@ export function Tr({
   }
 
   // The icon and the label are one unit: `Tr` never splits across lines
-  element = <span className="nobr">{element}</span>;
+  element = <span className={nobr === true || text?.length <= (nobr as number) ? "nobr" : ""}>{element}</span>;
 
   if (!notip && text && ('tip_' + text) in rul.lang) {
     element = <span data-tooltip={'tip_' + text}>{element}<sup className="tipmark">?</sup></span>;

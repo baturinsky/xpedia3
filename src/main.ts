@@ -21,6 +21,10 @@ export function goToArticle(href?: AnyRef) {
   let article = rul.article(ref);
   if (article) {
     if (article.sections && !article.sections.includes(section as Section)) {
+      // Same rule as old `App.svelte`: keep the section the user is browsing
+      // when the article belongs to it, otherwise fall back to the article's
+      // first section. A deep link starts with no section at all, so this is
+      // what gives it a sidebar and a highlighted menu entry.
       update({ article, section: article.sections[0] });
     } else {
       update({ article })
@@ -34,7 +38,7 @@ function goToHash() {
   let hash = decodeURI(document.location.hash) || "##MAIN";
   if (hash.substring(0, 2) != "##") return;
   // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
-  update({ showDropdown: false, showLanguagesDropdown: false });
+  update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
   let id = hash.substring(2);
 
   // `##SEARCH::query` shows full text search results instead of an article
@@ -130,7 +134,7 @@ addEventListener("keydown", e => {
     } else if (pageSwitch == "down") {
       history.go(-1);
     } else {
-      if(article && section)
+      if (article && section)
         goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort))
     }
   }

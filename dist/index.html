@@ -17399,6 +17399,8 @@ let state = {
   showDropdown: false,
   /** Language dropdown in the top navigation */
   showLanguagesDropdown: false,
+  /** Modpack dropdown in the top navigation */
+  showPacksDropdown: false,
   /** Query typed into the navbar search box, empty when not searching */
   searchQuery: "",
   /** Full text search results (article ids), undefined while not searching */
@@ -24152,7 +24154,6 @@ var jsYaml = {
 };
 
 const emptyImg = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjEuNv1OCegAAAANSURBVBhXY/j//z8DAAj8Av6IXwbgAAAAAElFTkSuQmCC";
-const favicon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAMAUExURQAAAAMDAwMJCAgICAoKCg0NDQoTEQoTEgsUEg0XFQ0aGR4eHg0tKxMlIhUoJhgoKQ4zLw42LxUyLxcyLw45Mw45NRY0MBowMB81NxI9ORM/OBg+Ox8+OiEzMiE0NCA9PC89OjU2Nj09PRZDPRRFPR9BPBxEPSxCPxdEQRlFQhNLQhVKQxRMRBdPRR1MRh5ORx5VTiRKRCRKRihNSShOSDhHRDJIRTVLSDdOSjtKSD5KSiJVTClXTShVTzdTTSlXUCpWUSpXUCNbVCddVS9aUitfVyxcVz1SUDBYUiNhWStmXipuYThmYzdoYDdqYzl1az13bzV7ckVJSEBWUUNXU0hVVUBZV0JcWE9dXU5jW0pgXkZkYE1kYU1kYEZsZFBjYVBjYklwak51bUJ9dF91c1d4clt5dFp6dVt7dl55dF98eGBoaGZoaGhvbW1tbWdwb2J1b2Vyc2J6eWZ5eGN/e2h5eD2CeUGBd2aBfUiMgkOQg02Sh0qViU+ViUabi02Yjl6UjVabjVKfkWKFgGGLhX+AgH+KiWOakmick0ypm1WgklGhlFKpnFKrnlGwn1OvoFauoVWzpFaypVmwpFe8rlu5qW6xpmG8q2u5q265rX+2q1rBs17Jt1vLvF/NvVzPvGTDtmDHtmDIt2LIt2fJt2bLtmLGuGHHumXFuWbFumjHuW7FumHJuGHJuGPIuGDKuWPLuWPJu2DKumDKu2PKumLLumPLumPLu2XJuWXLuWXLu2TKumHNuWHNumDNu2PMu2TMu2XNu2HJvGPLvWLLvGPLvmXJvWXKvWbKvWfIvmHNvWHMvGHMvWLNvWLMvWPMvWPNvmfPvWnIumrJu2/Iu2jJvW7Lv2vMvWjOvGjNv2vNvm/MvW/Mv3LOv27QvmbPwG/RwnDSwnXSwX/Sx3rWyoePjYiMi4mSkJSXl5qfn6KlpIbDu4LEuYrIvYHSxIPTx4LUx47UyYrVzYPZyonYy5re08zMzMvQz9Hb2drf39rg39rh4N7k5ODj4uvs7AAAAOGYdbwAAAEAdFJOU////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wBT9wclAAAACXBIWXMAAA7DAAAOwwHHb6hkAAACCElEQVQ4T2P4TwCQpCA3pSIrPaMkPhvKBwOEAqvUt1/u3rp86fqjaXFQIRBAKGh4d2PnruPnzp08fnijClQMCOAKmj9snbf3zJnz5/fsurppiQRUFElBx61t+85DwZ6F0lBRJAVvNqzZD5U/f2qzF1QUpiAvL8jOxMPe3t7R0dHGwdbFRCYvLw8sA1XAyvD3lSIDEHAZqoIohp/c36BmwyilP79ZgBJG5ycBScZfzP9gdsPpl63fgVJHzh/hZWDIefEDJg5X8IwjmJOd/dKx8+d3sLNxhjBBhREK/ieuX75r8/lz589fmLd9QZ04VBRJwf8Z83dfOA9UcfzsugmuUDEgQCiIvrQRHAi7N0ytDoWKAQFCwX/r5ScO7jx6+viUGiGoCAggKfivu2zextNrJtaKQflggKzgv3zlhN56N4QDQQBZQYH5f36+/P+lMVA+GMAVRCS0fG4EMeK/fvANMwOLgQBMgdXrDw9X6IOZPmsu3qt6CmYCAUxBW7KzzsH9nhb/i9tvNIn6QZSCALIb1FZfmO70aWm5HJQPBsgK/qt3rrx/vAzKgQJkBc+T7vRPXn9FA8qFALiCkszCWXe6BP9rzt3nH5UZDhVFKEj4eO/JTW8FIMuk+9TDnT0QUSCAmyBlEDg7AMRwn9mnq8wDFgMBJDfISQqCaS0RUzANAciOxAoIKPj/HwDL5k4xG94BrQAAAABJRU5ErkJggg==";
 
 function delay(n) {
   return new Promise((r) => setTimeout(r, n));
@@ -33895,7 +33896,7 @@ function Tr({
         element
       ] });
   }
-  element = /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "nobr", children: element });
+  element = /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: nobr === true || text?.length <= nobr ? "nobr" : "", children: element });
   if (!notip && text && "tip_" + text in rul.lang) {
     element = /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { "data-tooltip": "tip_" + text, children: [
       element,
@@ -35888,8 +35889,7 @@ function UI() {
       canShowSide && /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
-          className: "side-hide-button",
-          style: { left: state.seeSide ? void 0 : "1em" },
+          className: "side-hide-button" + (state.seeSide ? "" : " collapsed"),
           onClick: () => update({ seeSide: !state.seeSide }),
           children: state.seeSide ? "⇤" : "⇥"
         }
@@ -35941,36 +35941,98 @@ const tableSections = [
   "COUNTRIES",
   "UNITS"
 ];
+let touchInteraction = false;
+function isTouchInput() {
+  return touchInteraction;
+}
+function hoverOpens(updateFn) {
+  return (e) => {
+    if (e.pointerType == "mouse")
+      updateFn();
+  };
+}
+function dropdownButtonClick(open, goTo) {
+  if (isTouchInput()) {
+    let next = !state[open];
+    update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false, [open]: next });
+    return;
+  }
+  if (!goTo) {
+    update({ [open]: !state[open] });
+    return;
+  }
+  update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
+  if (location.hash != goTo)
+    location.hash = goTo;
+}
+window.addEventListener("pointerdown", (e) => {
+  touchInteraction = e.pointerType != "mouse";
+  if (!touchInteraction)
+    return;
+  let target = e.target;
+  if ((state.showDropdown || state.showPacksDropdown || state.showLanguagesDropdown) && !target?.closest?.(".navbar-dropdown-container"))
+    update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
+}, true);
+function packTitle() {
+  let title = rul?.meta?.name ? [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ") : state.packName ?? rul?.tr?.("XPedia") ?? "XPedia";
+  return title;
+}
 function NavDropdown() {
   let visible = state.showDropdown;
+  let current = section?.id ?? "MAIN";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
       className: "navbar-dropdown-container dropdown-button",
-      onMouseEnter: () => update({ showDropdown: true }),
-      onMouseLeave: () => update({ showDropdown: false }),
+      onPointerEnter: hoverOpens(() => update({ showDropdown: true })),
+      onPointerLeave: hoverOpens(() => update({ showDropdown: false })),
       children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "navbar-button dropdown-button", onClick: () => update({ showDropdown: !state.showDropdown }), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: favicon, alt: "XPedia", className: "xpedia-icon" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("nobr", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "on-wide", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "XPedia", notip: true }),
-            " "
-          ] }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { transform: "scale(1.5,0.75)", display: "inline-block" }, children: "?" })
-        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: "navbar-button dropdown-button",
+            title: "Sections",
+            onClick: () => dropdownButtonClick("showDropdown", "##" + current),
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: (section?.id == "MAIN" ? void 0 : section?.id) ?? "XPedia", notip: true })
+          }
+        ),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "navbar-dropdown", style: { visibility: visible ? "visible" : "hidden" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-horisontal", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "navbar-auto navbar-list", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "##MAIN", className: "menu-home", style: { textDecoration: "underline" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "HOME" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "a",
+              {
+                href: "##MAIN",
+                className: "menu-home" + (current == "MAIN" ? " active-section" : ""),
+                style: { textDecoration: "underline" },
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "HOME" })
+              }
+            ),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "menu-spacer" }),
             rul?.sectionsOrder?.map(
-              (section2) => /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "##" + section2.id, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: section2.id }) }, section2.id)
+              (s) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "a",
+                {
+                  href: "##" + s.id,
+                  className: s.id == current && s.id != "MAIN" ? "active-section" : void 0,
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: s.id })
+                },
+                s.id
+              )
             )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "navbar-custom navbar-list", children: rul?.sortedTypeSections()?.map(
-            (section2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "##" + section2.id, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: section2.id }),
-              tableSections.includes(section2.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "table-marker", children: "☰" })
-            ] }, section2.id)
+            (s) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "a",
+              {
+                href: "##" + s.id,
+                className: s.id == current && s.id != "MAIN" ? "active-section" : void 0,
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: s.id }),
+                  tableSections.includes(s.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "table-marker", children: "☰" })
+                ]
+              },
+              s.id
+            )
           ) })
         ] }) })
       ]
@@ -35978,18 +36040,13 @@ function NavDropdown() {
   );
 }
 function NavTop() {
-  let title = [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ");
   function selectLanguage(lang) {
     if (!rul.selectLang(lang))
       return;
     update({ lang, showLanguagesDropdown: false });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "top", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(NavDropdown, {}),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: "MAIN", children: title || "XPedia" }),
-      section && section.id != "MAIN" && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: section.id })
-    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "left", children: /* @__PURE__ */ jsxRuntimeExports.jsx(NavDropdown, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "right", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(SearchBox, {}),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "navbar-button", onClick: () => update({ theme: state.theme == "light" ? "dark" : "light" }), children: state.theme == "light" ? "◐" : "◑" }),
@@ -36003,7 +36060,7 @@ function NavTop() {
           {
             className: "navbar-button" + (lang == state.lang ? " current" : ""),
             onClick: () => selectLanguage(lang),
-            children: /* @__PURE__ */ jsxRuntimeExports.jsx("nobr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: lang }) })
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: lang, nobr: true })
           },
           lang
         )
@@ -36011,17 +36068,17 @@ function NavTop() {
         "div",
         {
           className: "navbar-dropdown-container select-language",
-          onMouseEnter: () => update({ showLanguagesDropdown: true }),
-          onMouseLeave: () => update({ showLanguagesDropdown: false }),
+          onPointerEnter: hoverOpens(() => update({ showLanguagesDropdown: true })),
+          onPointerLeave: hoverOpens(() => update({ showLanguagesDropdown: false })),
           children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "navbar-button", onClick: () => update({ showLanguagesDropdown: !state.showLanguagesDropdown }), children: /* @__PURE__ */ jsxRuntimeExports.jsx("big", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: state.lang ?? rul.langName ?? "" }) }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "navbar-button", onClick: () => dropdownButtonClick("showLanguagesDropdown"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("big", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: state.lang ?? rul.langName ?? "" }) }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "navbar-dropdown", style: { visibility: state.showLanguagesDropdown ? "visible" : "hidden" }, children: rul.langNames.map(
               (lang) => /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
                   className: "clickable" + (lang == state.lang ? " current" : ""),
                   onClick: () => selectLanguage(lang),
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("nobr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: lang }) })
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: lang, nobr: true })
                 },
                 lang
               )
@@ -36048,9 +36105,55 @@ function NavTop() {
           onClick: () => revealLock(),
           children: "STR"
         }
-      )
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(PackDropdown, {})
     ] })
   ] });
+}
+function PackDropdown() {
+  let visible = state.showPacksDropdown;
+  let packs = state.files ?? [];
+  let label = packTitle();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      className: "navbar-dropdown-container select-packs",
+      onPointerEnter: hoverOpens(() => update({ showPacksDropdown: true })),
+      onPointerLeave: hoverOpens(() => update({ showPacksDropdown: false })),
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            className: "navbar-button",
+            title: "Modpacks",
+            onClick: () => dropdownButtonClick("showPacksDropdown", "##MAIN"),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "on-wide", children: [
+                label,
+                " "
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "▾" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "navbar-dropdown", style: { visibility: visible ? "visible" : "hidden" }, children: packs.length == 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "packs-empty", children: "No modpacks uploaded yet" }) : packs.map(
+          (pack) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: "clickable" + (pack.pack == state.packName ? " current" : ""),
+              title: pack.pack == state.packName ? "Currently shown" : "Show this modpack",
+              onClick: () => {
+                update({ showPacksDropdown: false });
+                selectPack(pack.pack);
+              },
+              children: pack.pack
+            },
+            pack.pack
+          )
+        ) })
+      ]
+    }
+  );
 }
 function SearchBox() {
   let [handle, setHandle] = reactExports.useState();
@@ -36118,14 +36221,15 @@ function NavSide() {
 function initUI() {
   clientExports.createRoot(document.body).render(/* @__PURE__ */ jsxRuntimeExports.jsx(UI, {}));
 }
-let isTouch = "ontouchstart" in window;
 window.addEventListener("pointermove", async (e) => {
   let target = e.target;
-  if (!isTouch && e.screenX < 10 && e.screenY < innerHeight / 3) {
-    if (!state.showDropdown)
-      update({ showDropdown: true });
-  } else if (state.showDropdown && !target?.closest?.(".navbar-dropdown-container")) {
-    update({ showDropdown: false });
+  if (e.pointerType == "mouse") {
+    if (e.screenX < 10 && e.screenY < innerHeight / 3) {
+      if (!state.showDropdown)
+        update({ showDropdown: true });
+    } else if (state.showDropdown && !target?.closest?.(".navbar-dropdown-container")) {
+      update({ showDropdown: false });
+    }
   }
   let tooltip = document.getElementById("xpediaTooltip");
   if (tooltip) {
@@ -36206,7 +36310,7 @@ function goToArticle(href) {
 function goToHash() {
   let hash = decodeURI(document.location.hash) || "##MAIN";
   if (hash.substring(0, 2) != "##") return;
-  update({ showDropdown: false, showLanguagesDropdown: false });
+  update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
   let id = hash.substring(2);
   let separator = id.indexOf("::");
   if (separator != -1) {
@@ -37354,10 +37458,14 @@ nav.side {
 
 .side-hide-button {
   position: fixed;
-  top: 2rem;
-  left: calc(15rem - 1.9rem);
+  top: 2.5rem;
+  left: 12rem;
   z-index: 5;
   padding: 0 .3rem;
+}
+
+.side-hide-button.collapsed {
+  left: 0rem;
 }
 
 .navbar-button {
@@ -37493,6 +37601,18 @@ nav.side {
   padding-right: 0.5rem;
 }
 
+/* The section whose articles are currently listed, mirrors
+   `.side-link.active-article-option` in the sidebar */
+.navbar-dropdown a.active-section {
+  background: var(--lighter);
+  /* Keep the link colour, only the background shows the selection */
+  color: var(--link);
+}
+
+.navbar-dropdown a.active-section:hover {
+  background: var(--hover);
+}
+
 /* Spacer after HOME spans the whole list width instead of taking a cell */
 .menu-spacer {
   width: 100%;
@@ -37564,6 +37684,43 @@ input::placeholder {
 
 .select-language .navbar-dropdown div {
   padding: .2rem .4rem;
+}
+
+/* Modpack picker: one modpack per row, long archive names wrap instead of
+   stretching the navbar or the panel. */
+.select-packs .navbar-dropdown {
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  max-width: min(30rem, calc(100vw - 1rem));
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+
+.select-packs .navbar-dropdown>div {
+  padding: .2rem .4rem;
+  /* A pack name can be a long file name: allow a break anywhere */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.select-packs .navbar-dropdown>.current {
+  background: var(--lighter);
+}
+
+.select-packs .navbar-dropdown>.packs-empty {
+  font-style: italic;
+  opacity: .7;
+  cursor: default;
+}
+
+/* The button shows the full title, so let it shrink rather than push the
+   search box off the bar */
+.select-packs .navbar-button>span {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -37765,8 +37922,8 @@ button:disabled:hover {
   display: grid;
   font-size: 120%;
   line-height: 140%;
-  margin: .5rem 0;
-  max-width: 100vw;
+  margin: .5rem 2rem;
+  max-width: 100vw;  
 }
 
 .article-title div {
@@ -38033,7 +38190,7 @@ ol>li:last-child::after {
   border-spacing: 0;
 }
 
-.td-attacks-table > div {
+.td-attacks-table>div {
   display: flex;
   align-items: flex-start;
   margin: 0;
