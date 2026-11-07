@@ -825,8 +825,15 @@ export default class Ruleset {
         return true;
       if (mod.meta.active === true)
         return true;
+      // A pack can be a single mod packed on its own rather than a whole
+      // OpenXcom install: `Final Mod Pack/metadata.yml` declares `master: xcom1`
+      // and is not a master itself, because xcom1 ships with the game. With no
+      // master inside the pack there is nothing to filter against, and the mod
+      // the user uploaded is the one they want to read, so load everything.
+      if (!masterId)
+        return true;
       // Dependants of the active master only; this drops xcom2's TFTD mods
-      return !!masterId && mod.meta.master == masterId;
+      return mod.meta.master == masterId;
     });
 
     return active.sort((a, b) => {
@@ -842,6 +849,15 @@ export default class Ruleset {
     let masters = data.mods.filter(m => m.meta?.isMaster)
     let chained = masters.filter(m => m.meta?.master && data.mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master))
     let master = (chained.length ? chained : masters).slice(-1)[0]
+    // A pack that is just one mod on its own (no master anywhere) still needs a
+    // name: use its own metadata, skipping the builtin mods and `common`, which
+    // belong to XPedia rather than to the uploaded pack. If several qualify,
+    // the one with the most rules is the one the pack is about.
+    if (!master) {
+      let own = data.mods.filter(m => !m.common && !/^mods[/\\]/i.test(m.dir) && m.meta?.name)
+        .sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0))
+      master = own[0]
+    }
     this.meta = master?.meta ?? {}
     this.mods = data.mods as any;
     this.resourceMap = data.resources ?? {};

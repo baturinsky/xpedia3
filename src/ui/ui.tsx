@@ -30,7 +30,7 @@ function useDocumentSettings() {
 /** The sidebar lists the articles of the current section. The front page has
  * no such list, so there is nothing to show (or to toggle) there. */
 function hasSidebar() {
-  return !!article && !titleSection();
+  return !!article && !onLandingPage();
 }
 
 function UI() {
@@ -64,16 +64,18 @@ function UI() {
 
 export function LandingPage() {
   return <>
-    {rul && <ModsList />}
-    {rul && <SectionsList />}
-    
+    {state.packName && <>
+      {rul && <ModsList />}
+      {rul && <SectionsList />}
+    </>}
+
     {/*<p className="modpack-hint">
       Drag and drop modpack files in zip or rar format anywhere on this page to add them.
     </p>*/}
 
-    <div style={{height:"5rem"}} />
-
-    <Tr text="STR_ABOUT_XPEDIA" />
+    <div className="pedia-intro">
+      <Tr text="STR_ABOUT_XPEDIA" />
+    </div>
     <ArchiveFiles />
     {state.developerMode && <CurrentAssets />}
     {state.imagePreview && <img src={state.imagePreview}></img>}
@@ -85,10 +87,11 @@ function ModsList() {
   let mods = (rul?.mods ?? []).map((m: any) => m?.meta).filter(m => m?.id);
   if (mods.length == 0)
     return null;
-  return <><Val of={mods.map((mod: any) =>
+  return <div className="mods-list">
+    <Val of={mods.map((mod: any) =>
       `${mod.name} ${mod.version}`
-    )}/>
-  </>;
+    )} />
+  </div>;
 }
 
 
@@ -187,12 +190,12 @@ function NavDropdown() {
       title="Sections"
       onClick={() => dropdownButtonClick("showDropdown", "##" + current)}>
       {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
-      <Tr text={(titleSection() ? undefined : section?.id) ?? "XPedia"} notip />
+      <Tr text={(onLandingPage() ? undefined : section?.id) ?? "XPedia"} notip />
     </button>
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
         <div className="navbar-auto navbar-list">
-          <a href="##MAIN" className={"menu-home" + (titleSection() ? " active-section" : "")}
+          <a href="##MAIN" className={"menu-home" + (onLandingPage() ? " active-section" : "")}
             style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
           <div className="menu-spacer" />
           {rul?.sectionsOrder?.map(s =>
@@ -355,7 +358,7 @@ function SectionsList() {
       <h4><Tr text="Pedia sections" /></h4>
       <Val of={rul.sectionsOrder} /></div>
     <div>
-      <h4><Tr text="Extra sections" /></h4>
+      <h4><Tr text="Categories" /></h4>
       <Val of={rul.typeSectionsOrder} /></div>
   </div>
 }
@@ -450,6 +453,6 @@ export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
 }
 
 
-export function titleSection(){
+export function onLandingPage() {
   return section?.id == "MAIN"
 }

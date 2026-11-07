@@ -13,7 +13,7 @@ import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import ResearchInfo from "./ResearchInfo";
 import StartingConditionsComponent from "./StartingConditionsComponent";
-import { LandingPage, packTitle, titleSection } from "./ui";
+import { LandingPage, packTitle, onLandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 
@@ -21,7 +21,7 @@ export function ArticleTitle() {
   let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
   // Old `Article.svelte` filtered out the article's own section from the list
   let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
-  if (titleSection()) {
+  if (onLandingPage()) {
     return <div className="article-title">
       <div className="central"><Tr text={packTitle()} nobr={100} /></div>
     </div>
@@ -273,7 +273,7 @@ export function ArticleComponent() {
         </div>
       </div>
     }
-    <div className="article-body">
+    <div className={"article-body"}>
       {!table && specialArticleBody()}
       {!table && Object.entries(renderers).filter(([key]) => {
         return (rul as any)[key] ? (rul as any)[key][id] : ""
@@ -299,9 +299,9 @@ export function ArticleComponent() {
   </>;
 
 
-  return <div className={"article"}>
+  return <div className={"article" + (onLandingPage()?" landing-page":"")}>
     {main}
-    {(titleSection() || !rul) && <LandingPage />}
+    {(onLandingPage() || !rul) && <LandingPage />}
 
   </div>
 }

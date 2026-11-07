@@ -32945,7 +32945,9 @@ class Ruleset {
         return true;
       if (mod.meta.active === true)
         return true;
-      return !!masterId && mod.meta.master == masterId;
+      if (!masterId)
+        return true;
+      return mod.meta.master == masterId;
     });
     return active.sort((a, b) => {
       let [ga, pa] = order(a), [gb, pb] = order(b);
@@ -32956,6 +32958,10 @@ class Ruleset {
     let masters = data.mods.filter((m) => m.meta?.isMaster);
     let chained = masters.filter((m) => m.meta?.master && data.mods.some((o) => (o.meta?.id ?? o.dir) == m.meta.master));
     let master = (chained.length ? chained : masters).slice(-1)[0];
+    if (!master) {
+      let own = data.mods.filter((m) => !m.common && !/^mods[/\\]/i.test(m.dir) && m.meta?.name).sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0));
+      master = own[0];
+    }
     this.meta = master?.meta ?? {};
     this.mods = data.mods;
     this.resourceMap = data.resources ?? {};
@@ -34491,6 +34497,7 @@ async function deselectPack() {
 }
 function ArchiveFiles() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    state.developerMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(ArchiveFilesTable, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(ModpackList, {}),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       "button",
       {
@@ -34509,8 +34516,7 @@ function ArchiveFiles() {
         onClick: deselectPack,
         children: "deselect"
       }
-    ),
-    state.developerMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(ArchiveFilesTable, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(ModpackList, {})
+    )
   ] });
 }
 function ModpackList() {
@@ -35534,12 +35540,16 @@ function UnitComponent({ entry }) {
 function ArticleTitle() {
   let [left, right] = [-1, 1].map((delta) => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : void 0);
   let sectionIds = article?.sections?.map((s) => s.id).filter((id) => id != article?.id) ?? [];
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article-title", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "left", children: left && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: left, prefix: "<" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "central", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: article?.id, nobr: 1e3 }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sections", children: sectionIds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: sectionIds }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "right", children: right && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: right, postfix: ">" }) })
-  ] });
+  if (titleSection()) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "article-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "central", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: packTitle(), nobr: 100 }) }) });
+  } else {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article-title", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "left", children: left && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: left, prefix: "<" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "central", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: article?.id, nobr: 100 }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sections", children: sectionIds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: sectionIds }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "right", children: right && /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: right, postfix: ">" }) })
+    ] });
+  }
 }
 const renderers = {
   units: UnitComponent,
@@ -35860,7 +35870,7 @@ function ArticleComponent() {
   ] });
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "article", children: [
     main,
-    (section?.id == "MAIN" || !rul) && /* @__PURE__ */ jsxRuntimeExports.jsx(LandingPage, {})
+    (titleSection() || !rul) && /* @__PURE__ */ jsxRuntimeExports.jsx(LandingPage, {})
   ] });
 }
 
@@ -35875,7 +35885,7 @@ function useDocumentSettings() {
   }, [state.theme]);
 }
 function hasSidebar() {
-  return !!article && section?.id !== "MAIN";
+  return !!article && !titleSection();
 }
 function UI() {
   const store = reactExports.useSyncExternalStore(externalStore.subscribe, externalStore.getSnapshot);
@@ -35902,9 +35912,10 @@ function UI() {
 }
 function LandingPage() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    rul && /* @__PURE__ */ jsxRuntimeExports.jsx(SectionsList, {}),
     rul && /* @__PURE__ */ jsxRuntimeExports.jsx(ModsList, {}),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { children: "Modpacks" }),
+    rul && /* @__PURE__ */ jsxRuntimeExports.jsx(SectionsList, {}),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { height: "5rem" } }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "STR_ABOUT_XPEDIA" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(ArchiveFiles, {}),
     state.developerMode && /* @__PURE__ */ jsxRuntimeExports.jsx(CurrentAssets, {}),
     state.imagePreview && /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: state.imagePreview })
@@ -35914,18 +35925,9 @@ function ModsList() {
   let mods = (rul?.mods ?? []).map((m) => m?.meta).filter((m) => m?.id);
   if (mods.length == 0)
     return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "Mods" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { children: mods.map(
-      (mod) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-        mod.name,
-        " ",
-        mod.version
-      ] }, mod.id)
-    ) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "About XPedia" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "STR_ABOUT_XPEDIA" })
-  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Val, { of: mods.map(
+    (mod) => `${mod.name} ${mod.version}`
+  ) }) });
 }
 const tableSections = [
   "FACILITIES",
@@ -35993,7 +35995,7 @@ function NavDropdown() {
             className: "navbar-button dropdown-button",
             title: "Sections",
             onClick: () => dropdownButtonClick("showDropdown", "##" + current),
-            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: (section?.id == "MAIN" ? void 0 : section?.id) ?? "XPedia", notip: true })
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: (titleSection() ? void 0 : section?.id) ?? "XPedia", notip: true })
           }
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "navbar-dropdown", style: { visibility: visible ? "visible" : "hidden" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-horisontal", children: [
@@ -36002,7 +36004,7 @@ function NavDropdown() {
               "a",
               {
                 href: "##MAIN",
-                className: "menu-home" + (current == "MAIN" ? " active-section" : ""),
+                className: "menu-home" + (titleSection() ? " active-section" : ""),
                 style: { textDecoration: "underline" },
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tr, { text: "HOME" })
               }
@@ -36262,6 +36264,9 @@ function toggleTooltip(text) {
   } else {
     classes.remove("visible");
   }
+}
+function titleSection() {
+  return section?.id == "MAIN";
 }
 
 function makeDropzone(dropZone, onDrop) {

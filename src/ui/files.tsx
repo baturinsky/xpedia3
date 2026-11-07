@@ -143,8 +143,11 @@ async function deselectPack() {
  * keeps the raw table and the unpacking tools used while working on the loader.
  */
 export function ArchiveFiles() {
+  let packs = state.files;
+  if(!packs)
+    return
   return <>
-    {state.developerMode ? <ArchiveFilesTable /> : <ModpackList />}
+    {state.developerMode ? <ModpackTable /> : <ModpackList />}
     <button className="modpack-mode-switch"
       title={state.developerMode
         ? "Hide the unpacking tools and show the simple modpack list"
@@ -190,7 +193,7 @@ function ModpackList() {
   </div>;
 }
 
-function ArchiveFilesTable() {
+function ModpackTable() {
   let files = state.files ?? [];
 
   return <MyTable

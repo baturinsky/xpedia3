@@ -589,7 +589,9 @@ button.current-file {
 
 /** Toggle between the simple modpack list and the unpacking tools */
 .modpack-mode-switch {
-  margin: 0.2rem 0;
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
 }
 
 button:disabled {
@@ -669,6 +671,7 @@ button:disabled:hover {
 
 .modpack-empty {
   opacity: 0.7;
+  text-align: center;
 }
 
 .modpack-hint {
@@ -753,7 +756,7 @@ button:disabled:hover {
   font-size: 120%;
   line-height: 140%;
   margin: .5rem 2rem;
-  max-width: 100vw;  
+  max-width: 100vw;
 }
 
 .article-title div {
@@ -1371,4 +1374,13 @@ a.services {
 
 .highlight td {
   background: #685c74;
+}
+
+.pedia-intro {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.landing-page {
+  text-align: center;
 }
