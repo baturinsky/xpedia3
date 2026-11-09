@@ -34,8 +34,8 @@ export interface PackSource {
   readonly permanent: boolean;
   /** Row for the modpack list */
   stats(): Promise<PackStat>;
-  /** The processed ruleset as JSON text, exactly what `Ruleset` is built from */
-  rulJson(): Promise<string | undefined>;
+  /** The processed ruleset, exactly what `Ruleset` is built from */
+  rulData(): Promise<any>;
   /** Image bytes, for packs whose images live in the database */
   imgData(path: string): Promise<Uint8Array | undefined>;
   /** Image location relative to the page, for packs whose images live outside */
@@ -61,7 +61,7 @@ function databaseSource(pack: string): PackSource {
         ruls: record?.ruls ?? 0
       };
     },
-    rulJson: () => idb.readRulText(pack),
+    rulData: () => idb.readRulData(pack),
     imgData: path => idb.readImgData(pack, path),
     imgUrl: () => undefined
   };
@@ -133,9 +133,10 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
   let gzipSize = Math.floor(payload.rul.length * 3 / 4);
   inlineStat = { pack, archive: 0, assets: 0, ruls: gzipSize };
 
-  // Decode once and share it: the ruleset is the same every time it is opened
+  // Decompress once and share the text: the ruleset is the same every time it
+  // is opened. It is parsed per call because `Ruleset` mutates what it is given.
   let gzipData: Uint8Array | undefined;
-  let rulJsonPromise: Promise<string | undefined> | undefined;
+  let rulTextPromise: Promise<string | undefined> | undefined;
 
   let gzipBytes = () => {
     gzipData ??= new Uint8Array(base64ToArrayBuffer(payload.rul));
@@ -149,17 +150,17 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     async stats() {
       return inlineStat!;
     },
-    rulJson() {
-      rulJsonPromise ??= (async () => {
+    async rulData() {
+      rulTextPromise ??= (async () => {
         try {
-          let unpacked = fflate.decompressSync(gzipBytes());
-          return new TextDecoder().decode(unpacked);
+          return new TextDecoder().decode(fflate.decompressSync(gzipBytes()));
         } catch (e) {
           console.error("Can't read the inlined ruleset", e);
           return undefined;
         }
       })();
-      return rulJsonPromise;
+      let text = await rulTextPromise;
+      return text ? JSON.parse(text) : undefined;
     },
     // Images are not in the payload, they live in the game folder
     imgData: async () => undefined,
@@ -226,15 +227,14 @@ export async function loadPackRul(pack: string) {
   if (!source)
     return;
 
-  let text = await source.rulJson();
-  if (!text)
+  let processed = await source.rulData();
+  if (!processed)
     return;
 
-  let processed = JSON.parse(text);
   let rul = new Ruleset(processed);
   idb.applySavedLanguage(rul);
   update({ rul, packName: pack });
-  return text;
+  return processed;
 }
 
 /** Image bytes or URL for the currently shown pack */

@@ -1,5 +1,5 @@
 import { dbVersion, state, update } from "./state";
-import { unpackData } from "./load";
+import { unpackData, mergeBuiltinMods } from "./load";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
 import { asMB } from "./util";
@@ -165,29 +165,31 @@ export async function hasArchive(name: string) {
 }
 
 /**
- * The stored processed ruleset of a pack, as JSON text. Reading is separated
- * from installing it so that the export can reuse the same data without
- * switching the app to the pack it is exporting.
+ * The stored processed ruleset of a pack.
+ *
+ * A saved pack only holds its own mods; the builtin strings XPedia provides are
+ * merged back in here, so an updated `builtinMods.zip` applies to every pack
+ * already installed.
  */
-export async function readRulText(pack: string) {
+export async function readRulData(pack: string) {
   let data = await readDB(transaction => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
   if (!data?.data)
     return
   let unpacked = fflate.decompressSync(data.data)
-  return new TextDecoder().decode(unpacked);
+  let stored = JSON.parse(new TextDecoder().decode(unpacked));
+  return await mergeBuiltinMods(stored, pack);
 }
 
 export async function getRul(pack: string) {
-  let str = await readRulText(pack);
-  if (!str)
+  let processed = await readRulData(pack);
+  if (!processed)
     return;
-  let processed = JSON.parse(str);
 
   let rul = new Ruleset(processed);
   applySavedLanguage(rul);
   update({ rul, packName: pack })
 
-  return str;
+  return processed;
 }
 
 /** Restores the language chosen by the user, if the loaded ruleset has it */

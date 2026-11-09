@@ -1,6 +1,6 @@
 import * as fflate from "fflate";
 import { state } from "./state";
-import { readImgData, readRulText } from "./idb";
+import { readImgData, readRulData } from "./idb";
 import { bytesToBase64 } from "./util";
 import { gameRelativePath } from "./packSource";
 import { mainMod } from "./rul/Ruleset";
@@ -220,10 +220,9 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   let report = options.onProgress ?? (() => { });
   report(`Preparing ${pack}...`, 0);
 
-  let text = await readRulText(pack);
-  if (!text)
+  let processed = await readRulData(pack);
+  if (!processed)
     throw new Error(`The stored ruleset of ${pack} is missing, so there is nothing to export`);
-  let processed = JSON.parse(text);
 
   report("Building the page...", 0.1);
   let html = await buildHtml(pack, processed, options.languages);

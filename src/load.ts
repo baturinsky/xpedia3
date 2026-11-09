@@ -57,6 +57,64 @@ async function builtinModFiles(packName?: string) {
   return filterBuiltinMods(await unpackBuiltinMods(), packName);
 }
 
+/**
+ * Re-applies the builtin mods to a stored pack-only ruleset.
+ *
+ * New saves keep only the uploaded pack's own mods and language files; the
+ * strings XPedia itself provides are added here on every read, so a new
+ * `builtinMods.zip` takes effect for every installed pack without re-uploading
+ * anything. A payload written by an older build has no per-mod `lng` but a
+ * fully merged `langs` map, and is returned unchanged.
+ *
+ * Builtin mods go in first: `activeMods` keeps insertion order within a group,
+ * and the builtin strings have to stay underneath the pack's own translations.
+ */
+export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, resources?: any }, packName?: string) {
+  // Old payloads already carry the merged language maps and cannot be split
+  // back into "builtin" and "pack" without the archive, so they load as-is
+  if (stored.langs)
+    return stored;
+
+  let mods: { [dir: string]: Mod } = {};
+
+  let builtinFiles = await builtinModFiles(packName);
+  let builtinParsed = loadModsAndLng(decodedYamlFiles(builtinFiles));
+  for (let dir in builtinParsed)
+    mods[dir] = builtinParsed[dir];
+
+  // A pack that ships its own `mods/<name>` folder was saved with that folder
+  // as the pack's own data, because at upload time its files replaced the
+  // builtin ones of the same path. Its saved copy is therefore complete, and
+  // replacing the builtin mod here matches what the upload produced.
+  for (let mod of stored.mods ?? [])
+    mods[mod.dir] = mod;
+
+  // Same order the save used, so asset overrides land on the same files
+  let builtinActive = Ruleset.activeMods(Object.values(builtinParsed));
+  let builtinInterpreted = Object.entries(builtinFiles)
+    .map(([name, data]) => ({ ...interpretPath(name), data }));
+
+  let processed = Ruleset.preprocessMods(mods);
+
+  // Assets shipped with the builtin mods are indexed again here, underneath
+  // the pack's own entries, for the same reason the language strings are
+  return {
+    ...processed,
+    resources: {
+      ...buildResourceMap(builtinInterpreted, builtinActive),
+      ...(stored.resources ?? {})
+    }
+  };
+}
+
+/** Every lng/rul/meta file in an unpacked archive, decoded to text */
+function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
+  return Object.entries(files)
+    .map(([name, data]) => ({ ...interpretPath(name), data }))
+    .filter(f => ["lng", "rul", "meta"].includes(f.type))
+    .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }));
+}
+
 
 /**
  * From the path, figure the type and mod of the file.
@@ -289,19 +347,30 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
 
 /** Builds the processed ruleset data from unpacked archive files */
 async function buildRuleset(files: { [name: string]: Uint8Array },
-  report: (stage: string, progress: number, detail?: string) => Promise<void>) {
+  report: (stage: string, progress: number, detail?: string) => Promise<void>,
+  builtinDirs?: Set<string>) {
 
   await report("Reading files", 0, `${Object.keys(files).length} files`);
 
   let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
 
   /**A list of all lng/rul/meta files in the pack, with the full pathes */
-  let decodedYamls = interpretedFiles.filter(f => ["lng", "rul", "meta"].includes(f.type))
-    .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }))
+  let decodedYamls = decodedYamlFiles(files);
 
   await report("Parsing rules", 0, `${decodedYamls.length} files`);
 
   let mods = loadModsAndLng(decodedYamls);
+
+  for (let mod of Object.values(mods))
+    if (builtinDirs?.has(mod.dir))
+      mod.builtin = true;
+
+  // Only the uploaded pack's own mods are stored, with their language files
+  // still inside each mod. `preprocessMods` deletes `lng` from every mod after
+  // merging the strings, so the JSON has to be taken first.
+  let ownModsJson = builtinDirs
+    ? JSON.stringify(Object.values(mods).filter(mod => !mod.builtin))
+    : undefined;
 
   await report("Building ruleset", 0, `${Object.keys(mods).length} mod(s)`);
 
@@ -312,9 +381,29 @@ async function buildRuleset(files: { [name: string]: Uint8Array },
   // up with: later active mods override earlier ones and `common` fills gaps.
   let resources = buildResourceMap(interpretedFiles, processed.mods);
 
+  // The saved index covers the pack's own files only; the builtin part is
+  // added back on read, see `mergeBuiltinMods`. Filtering the final merge
+  // order keeps exactly the relative order the full index was built with.
+  let ownResources = builtinDirs
+    ? buildResourceMap(
+      interpretedFiles.filter(f => !builtinDirs.has(f.mod)),
+      processed.mods.filter(m => !m.builtin))
+    : undefined;
+
   await report("Building ruleset", 1, `${Object.keys(mods).length} mod(s)`);
 
-  return { processed: { ...processed, resources }, interpretedFiles };
+  return { processed: { ...processed, resources }, interpretedFiles, ownModsJson, ownResources };
+}
+
+/** The mod folders a set of archive files belongs to, see `interpretPath` */
+function modDirs(files: { [name: string]: Uint8Array }) {
+  let dirs = new Set<string>();
+  for (let name of Object.keys(files)) {
+    let mod = interpretPath(name)?.mod;
+    if (mod)
+      dirs.add(mod);
+  }
+  return dirs;
 }
 
 /**
@@ -390,12 +479,17 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
       return;
     }
 
+    // A pack that ships its own copy of a builtin mod path keeps it as its own
+    // data, so those files are not mistaken for the builtin contribution
+    let packDirs = modDirs(files);
+    let builtinDirs = new Set([...modDirs(builtinMods)].filter(dir => !packDirs.has(dir)));
+
     files = { ...builtinMods, ...files };
 
-    let { processed, interpretedFiles } = await buildRuleset(files, async (stage, progress, detail) => {
+    let { processed, interpretedFiles, ownModsJson, ownResources } = await buildRuleset(files, async (stage, progress, detail) => {
       reportStage(stage, progress, detail);
       await nextPaint();
-    });
+    }, builtinDirs);
 
     throwIfCancelled();
 
@@ -422,7 +516,11 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     reportStage("Saving ruleset", 0);
     await nextPaint();
 
-    let stringifiedRul = JSON.stringify(processed);
+    // A saved pack holds only its own mods and resources, so a later
+    // `builtinMods.zip` is picked up without re-uploading the archive.
+    // `langs` is deliberately absent: that is how `mergeBuiltinMods`
+    // recognizes this format.
+    let stringifiedRul = `{"mods":${ownModsJson},"resources":${JSON.stringify(ownResources)}}`;
 
     // Compression is CPU-bound and blocking; the native stream version is
     // several times faster here and produces a gzip payload fflate can read
