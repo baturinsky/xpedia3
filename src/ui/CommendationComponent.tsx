@@ -2,13 +2,14 @@ import { rul } from "../rul/Ruleset";
 import { withoutKeys } from "../util";
 import MainTable from "./MainTable";
 import { RecoveryTable } from "./components";
-import { Val } from "./Val";
+import { Tr, Val } from "./Val";
 
 /** One line of a kill criteria deed, follows old `deedDescription` in Ruleset.ts */
 function deedLink(id?: string) {
   if (id == null)
     return "";
-  return <a href={"##" + id} className={rul.article(id) ? "" : "dead"}>{rul.tr(id)}</a>;
+  // Through `Tr`, so a damage type also draws its emoji icon here
+  return <a href={"##" + id} className={rul.article(id) ? "" : "dead"}><Tr text={id} /></a>;
 }
 
 function deedDescription(deed: any) {

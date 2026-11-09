@@ -1,5 +1,5 @@
 import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { createRoot } from 'react-dom/client';
+import { createRoot, Root } from 'react-dom/client';
 import { article, externalStore, PageName, reveal, revealLock, section, state, update, type StoreType } from "../state";
 
 import 'react-data-grid/lib/styles.css';
@@ -428,8 +428,22 @@ export function Clickable(props: { onClick: MouseEventHandler<HTMLDivElement>, c
   return <div onClick={props.onClick} className={"link " + (props.className ?? "")}>{props.children}</div>
 }
 
+/**
+ * The React root mounted on `document.body`.
+ *
+ * It is stored on the container rather than in this module: `createRoot` warns
+ * when a container is mounted twice, and the UI module can end up evaluated
+ * more than once (a reassembled bundle, a second copy of the script, a dev
+ * reload). The module-local variable is not shared in that case, but the DOM
+ * node is.
+ */
+const rootKey = "__xpediaRoot";
+
 export function initUI() {
-  createRoot(document.body).render(<UI />);;
+  let container = document.body as HTMLElement & { [rootKey]?: Root };
+  if (!container[rootKey])
+    container[rootKey] = createRoot(container);
+  container[rootKey]!.render(<UI />);
 }
 
 window.addEventListener("pointermove", async (e) => {

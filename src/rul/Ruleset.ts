@@ -770,6 +770,11 @@ export default class Ruleset {
       delete mod.lng;
     }
     for (let lname in langs) {
+      // `icon` is not a spoken language: it maps field names to emoji. Folding
+      // the English strings into it would make every icon look like an English
+      // label, so `Tr` would draw that label next to the translated one.
+      if (lname == "icon")
+        continue;
       langs[lname] = { ...langs[defaultLanguage], ...langs[lname] }
     }
 

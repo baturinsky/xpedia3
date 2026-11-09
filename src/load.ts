@@ -5,7 +5,7 @@ import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer, asMB }
 import { fileTypeFromBuffer } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
-import Ruleset, { Mod } from "./rul/Ruleset";
+import Ruleset, { defaultLanguage, Mod } from "./rul/Ruleset";
 import { saveFile, saveImgs, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
 //@ts-ignore
 import builtinModsArchive from './builtinMods.zip?base64'
@@ -58,27 +58,65 @@ async function builtinModFiles(packName?: string) {
 }
 
 /**
+ * The emoji icon map, merged from the mods that ship one.
+ *
+ * `icon` is a pseudo-language: it maps field and entry names to emoji rather
+ * than translating anything. It must never be folded into the English strings,
+ * see `Ruleset.preprocessMods`.
+ */
+function builtinIcons(mods: { [dir: string]: Mod }) {
+  let result: { [name: string]: string } | undefined;
+  for (let mod of Ruleset.activeMods(Object.values(mods))) {
+    let icon = mod.lng?.icon;
+    if (icon)
+      result = { ...result, ...icon };
+  }
+  return result;
+}
+
+/**
  * Re-applies the builtin mods to a stored pack-only ruleset.
  *
  * New saves keep only the uploaded pack's own mods and language files; the
  * strings XPedia itself provides are added here on every read, so a new
  * `builtinMods.zip` takes effect for every installed pack without re-uploading
  * anything. A payload written by an older build has no per-mod `lng` but a
- * fully merged `langs` map, and is returned unchanged.
+ * fully merged `langs` map, so it cannot be rebuilt; it is returned as stored,
+ * except for its `icon` map, which is repaired (see below).
  *
  * Builtin mods go in first: `activeMods` keeps insertion order within a group,
  * and the builtin strings have to stay underneath the pack's own translations.
  */
 export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, resources?: any }, packName?: string) {
+  let builtinFiles = await builtinModFiles(packName);
+  let builtinParsed = loadModsAndLng(decodedYamlFiles(builtinFiles));
+
   // Old payloads already carry the merged language maps and cannot be split
-  // back into "builtin" and "pack" without the archive, so they load as-is
-  if (stored.langs)
+  // back into "builtin" and "pack" without the archive, so they load as-is.
+  // Their `icon` map, however, was merged with the English strings by an older
+  // build, which replaced every emoji with an English label. Those copies are
+  // dropped and the real map is restored from the builtin mods.
+  if (stored.langs) {
+    let english = stored.langs[defaultLanguage] ?? {};
+    let storedIcons = stored.langs.icon ?? {};
+    let icons: { [name: string]: string } = {};
+    for (let name in storedIcons)
+      if (!(name in english) || storedIcons[name] !== english[name])
+        icons[name] = storedIcons[name];
+    let builtin = builtinIcons(builtinParsed);
+    // The pack's own entries win over the builtin ones, as they do in the
+    // normal load order
+    if (builtin)
+      icons = { ...builtin, ...icons };
+    if (Object.keys(icons).length)
+      stored.langs = { ...stored.langs, icon: icons };
+    else
+      delete stored.langs.icon;
     return stored;
+  }
 
   let mods: { [dir: string]: Mod } = {};
 
-  let builtinFiles = await builtinModFiles(packName);
-  let builtinParsed = loadModsAndLng(decodedYamlFiles(builtinFiles));
   for (let dir in builtinParsed)
     mods[dir] = builtinParsed[dir];
 

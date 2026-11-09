@@ -254,7 +254,7 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
                     {prop.map((res: number, i: number) => (
                       <tr key={i}>
                         <td width="50%" className="number-table1">
-                          {rul.damageTypeName(i)}
+                          <Val of={damageTypes[i] ?? rul.damageTypeName(i)} />
                         </td>
                         <td width="50%" className="number-table2">
                           {Math.round(res * 100)}%

@@ -113,7 +113,9 @@ async function readAppAssets() {
  * else (articles, entries, sprites) is already in its final form.
  */
 function prepareRul(processed: any, languages: string[]) {
-  let keep = new Set(["en-US", ...languages]);
+  // `icon` is the emoji label map, not a language the user can pick, and the
+  // page is unreadable without it
+  let keep = new Set(["en-US", "icon", ...languages]);
   let langs: { [name: string]: any } = {};
   for (let name of Object.keys(processed.langs ?? {}))
     if (keep.has(name))

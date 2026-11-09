@@ -190,7 +190,16 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
             <SpecialBonus bonus={prop} />
           )}
           {["damageType", "meleeType"].includes(key) && (
-            rul.damageTypeName(Number(prop))
+            // Through `Val` so the icon map is applied, like every other
+            // damage type on the page. `damageTypeName` returns bare text.
+            <Val of={damageTypes[Number(prop)] ?? rul.damageTypeName(Number(prop))} />
+          )}
+          {key == "damageTypes" && (
+            // The stored field is a list of numeric indices; show the types
+            // they name, each with its icon, instead of the bare numbers
+            <Val of={(Array.isArray(prop) ? prop : [prop])
+              .map((i: any) => damageTypes[Number(i)])
+              .filter(Boolean)} />
           )}
           {key == "battleType" && (
             `${prop}: ${rul.tr(internalBattleTypes[prop])}`
@@ -228,7 +237,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
               <Val of={prop} /> <Val of={entry.requiresBuy || ""} />
             </>
           )}
-          {!["damageBonus", "meleeBonus", "accuracyMultiplier", "meleeMultiplier", "closeQuartersMultiplier", "damageType", "meleeType", "battleType", "floorSprite", "handSprite", "prisonType", "experienceTrainingMode", "costBuy"].some(k =>
+          {!["damageBonus", "meleeBonus", "accuracyMultiplier", "meleeMultiplier", "closeQuartersMultiplier", "damageType", "damageTypes", "meleeType", "battleType", "floorSprite", "handSprite", "prisonType", "experienceTrainingMode", "costBuy"].some(k =>
             key === k || (key.includes("Sound") && k.includes("Sound"))
           ) && (
               <Val of={prop} />
