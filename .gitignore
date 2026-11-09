@@ -2,3 +2,6 @@
 /misc
 # Svelte sources of the previous version, kept only as a porting reference
 /old
+# Build output; `dist` is the old location, kept ignored in case it lingers
+/build
+/dist

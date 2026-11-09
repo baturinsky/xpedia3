@@ -88,7 +88,7 @@ function isWholeApp(tags: ReturnType<typeof collectTags>) {
  * Normally the app already *is* the built single-file page, so its own inline
  * `<script>` and `<style>` are copied as they are. Under `vite dev` they are
  * linked rather than inline, so the last `npm run build` output is read instead
- * (`vite.config.ts` serves `dist/index.html` under `/xpedia-built.html`).
+ * (`vite.config.ts` serves `build/index.html` under `/xpedia-built.html`).
  */
 async function readAppAssets() {
   let own = collectTags(document);

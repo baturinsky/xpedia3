@@ -27,7 +27,7 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
       assetsInlineLimit: 1000000,
       sourcemap: true,
       minify: false,
-      outDir: `../dist`,
+      outDir: `../build`,
       emptyOutDir: true,
       rollupOptions: {
         output: { entryFileNames: "bundle.js" }
@@ -44,7 +44,7 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
  *
  * The export needs the whole app as one inline bundle, which only the build
  * produces (`vite-plugin-singlefile`). Without this, export could only be tested
- * from `dist`, and the dev page would export a shell that cannot run.
+ * from the build output, and the dev page would export a shell that cannot run.
  */
 function builtPage() {
   return {
@@ -52,7 +52,7 @@ function builtPage() {
     apply: "serve" as const,
     configureServer(server: any) {
       server.middlewares.use("/xpedia-built.html", (_req: any, res: any) => {
-        let file = `${__dirname}/dist/index.html`;
+        let file = `${__dirname}/build/index.html`;
         if (!fs.existsSync(file)) {
           res.statusCode = 404;
           res.end("Run `npm run build` first");
