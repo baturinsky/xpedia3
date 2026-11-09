@@ -1,2 +1,4 @@
 /node_modules
 /misc
+# Svelte sources of the previous version, kept only as a porting reference
+/old

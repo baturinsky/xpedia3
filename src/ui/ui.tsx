@@ -34,16 +34,38 @@ function hasSidebar() {
   return !!article && !onLandingPage();
 }
 
+/**
+ * True on a narrow screen, where the 15rem sidebar would leave almost nothing
+ * for the article and there is no room for a second column at all.
+ */
+function useNarrow() {
+  let query = "(max-width: 720px)";
+  let [narrow, setNarrow] = useState(() => window.matchMedia?.(query).matches ?? false);
+  useEffect(() => {
+    let mq = window.matchMedia?.(query);
+    if (!mq)
+      return;
+    let onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
 function UI() {
   const store = useSyncExternalStore(externalStore.subscribe, externalStore.getSnapshot);
   useDocumentSettings();
+  let narrow = useNarrow();
 
-  let canShowSide = hasSidebar();
+  // A phone has no second column to spare, so the sidebar is not shown at all
+  // there. Section pages, search and the article title's left/right links are
+  // the navigation instead.
+  let canShowSide = hasSidebar() && !narrow;
   let side = state.seeSide && canShowSide;
 
   return (
     <StoreContext value={store}>
-      <div className={"all" + (side ? "" : " no-side")}>
+      <div className={"all" + (side ? "" : " no-side") + (narrow ? " narrow" : "")}>
         <NavTop />
         {side && <NavSide />}
         {canShowSide &&

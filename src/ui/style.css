@@ -282,6 +282,17 @@ nav.side {
   padding: .05rem .25rem;
 }
 
+/* `Tr` marks a label `nobr` when its *translation key* is short, but the
+   rendered translation can be much wider than this narrow column ("SNAKEMAN
+   COMMANDER CORPSE" is a short key, a 230px label). `nowrap` would then push a
+   horizontal scrollbar, which the sidebar must never have. Wrapping wins here;
+   the one-line rule still applies everywhere else. */
+.sidebar .side-link .nobr,
+.sidebar .side-link .nobr * {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .side-link.active-article-option {
   background: var(--lighter);
 }
@@ -497,15 +508,6 @@ input::placeholder {
   opacity: 20%;
 }
 
-@media screen and (max-width: 720px) {
-  .on-wide {
-    display: none;
-  }
-
-  .navbar-search .input {
-    max-width: 5rem;
-  }
-}
 
 .select-language .navbar-dropdown {
   display: grid;
@@ -1468,3 +1470,173 @@ a.services {
   text-align: center;
 }
 
+/* ---- Narrow screens (phones) ---- */
+
+@media screen and (max-width: 720px) {
+  .on-wide {
+    display: none;
+  }
+
+  .navbar-search .input {
+    max-width: 5rem;
+  }
+
+  /* The sections menu is two blocks side by side and the type sections are a
+     further 2-column grid inside. That needs more width than a phone has, so
+     the panel would scroll sideways inside itself. Stack it into one column
+     and let a long section name wrap instead. */
+  .navbar-dropdown-container.dropdown-button>.navbar-dropdown {
+    max-width: calc(100vw - 1rem);
+    overflow-x: hidden;
+  }
+
+  .navbar-dropdown>.flex-horisontal {
+    flex-direction: column;
+    gap: .25rem;
+    max-width: 100%;
+  }
+
+  .navbar-custom {
+    grid-template-columns: auto auto;
+    max-width: 100%;
+    font-size: 85%;
+  }
+
+  .navbar-dropdown a .nobr,
+  .navbar-dropdown a span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* A phone has no second column: the sidebar is not rendered at all, so the
+     content takes the whole width. */
+  .all.narrow {
+    grid-template-columns: 1fr;
+  }
+
+  /* The section name in the top-left menu has to give way to the search box
+     and the other controls, otherwise it runs underneath them. Every wrapper
+     on the way down needs `min-width: 0` for an ellipsis to appear. */
+  nav.top .left,
+  nav.top .left .navbar-dropdown-container,
+  nav.top .left .navbar-button {
+    min-width: 0;
+  }
+
+  nav.top .left .navbar-button>span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .all.narrow nav.top {
+    grid-column: 1;
+  }
+
+  .all.narrow .content {
+    grid-column: 1;
+  }
+
+  /* The article title stacks its three parts, so the section links don't sit
+     in a 128px column next to the title. */
+  .article-title {
+    margin: .5rem 0;
+  }
+
+  .article-title .central {
+    font-size: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* With the sidebar gone, the left/right article links are the way to walk
+     through a section. Their names are often nearly identical, differing only
+     in a suffix, so clipping them hides the useful part: let each one wrap and
+     stay readable instead. */
+  .article-title .left,
+  .article-title .right {
+    min-width: 0;
+    padding: .3rem 0;
+    font-size: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  /* `Val` wraps the name in `.nobr` and the global link rule is `nowrap` too;
+     on a phone both have to yield or the neighbour's name spills over the
+     title instead of wrapping inside its half. */
+  .article-title .left a,
+  .article-title .right a,
+  .article-title .left .nobr,
+  .article-title .right .nobr {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Wide reference tables scroll sideways inside the content instead of
+     stretching the whole page. `.links-list` is the inline-block wrapper that
+     `PaginatedList` puts around section tables; an inline-block sizes to its
+     max-content width, so a table wrapper has to become a block to let the
+     table scroll. Plain link lists keep the inline flow. */
+  .article-body {
+    columns: 1;
+  }
+
+  .links-list.table-list {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .main-table,
+  .section-table,
+  .properties-table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .main-table td,
+  .section-table td {
+    max-width: none;
+  }
+
+  .main-text {
+    flex-wrap: wrap;
+  }
+
+  .sections-list {
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  .modpack-panel {
+    width: 100%;
+  }
+
+  /* The paper-doll and the resistance grid are laid out for a wide table.
+     Both shrink to what a phone can show, as old `main-old` did for the
+     resistance columns. */
+  .armors {
+    min-width: 0;
+  }
+
+  .armor-column-resists {
+    grid-template-columns: auto auto;
+  }
+
+  .armor-column {
+    margin-right: .5rem;
+  }
+
+  .armor-column>div:nth-child(even) {
+    margin-right: .5rem;
+  }
+
+  /* A sprite sheet is wider than the screen by design; let it scroll inside
+     its own cell instead of stretching the page. */
+  .x-image {
+    max-width: none;
+  }
+}

@@ -153,8 +153,12 @@ export function Tr({
       element = <><div className='comem'>{iconText}</div>{element}</>
   }
 
-  // The icon and the label are one unit: `Tr` never splits across lines
-  element = <span className={nobr === true || text?.length <= (nobr as number) ? "nobr" : ""}>{element}</span>;
+  // The icon and the label are one unit: `Tr` never splits across lines.
+  // Old `Ruleset.tr` measured the *translated* string, not the language key: a
+  // short key such as `STR_SNAKEMAN_COMMANDER_CORPSE` can translate into a much
+  // wider label, and measuring the key would keep that label on one line.
+  let plainLabel = String(valtr).replace(/<[^>]*>/g, "");
+  element = <span className={nobr === true || plainLabel.length <= (nobr as number) ? "nobr" : ""}>{element}</span>;
 
   if (!notip && text && ('tip_' + text) in rul.lang) {
     element = <span data-tooltip={'tip_' + text}>{element}<sup className="tipmark">?</sup></span>;

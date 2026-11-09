@@ -352,6 +352,8 @@ export function PaginatedList(props: {
   items: any[],
   pageSize?: number,
   onePageMax?: number,
+  /** Extra class on the wrapper; a table needs a block wrapper to scroll */
+  className?: string,
   children: (items: any[]) => any
 }) {
   let items = props.items instanceof Set ? [...props.items] : props.items ?? [];
@@ -381,7 +383,7 @@ export function PaginatedList(props: {
           )}
       </div>
     }
-    <span className="links-list">
+    <span className={"links-list " + (props.className ?? "")}>
       {props.children(shown)}
     </span>
   </>;
@@ -528,7 +530,7 @@ export function SectionTable(props: SectionTableProps) {
       <input value={filterId} onChange={e => setFilterId(e.target.value)}
         type="text" placeholder={rul.tr("Filter...")} />
     </div>
-    <PaginatedList items={sorted} pageSize={40} onePageMax={200}>
+    <PaginatedList items={sorted} pageSize={40} onePageMax={200} className="table-list">
       {paginatedItems =>
         <table className="section-table">
           <thead>
