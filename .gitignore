@@ -4,4 +4,3 @@
 /old
 # Build output; `dist` is the old location, kept ignored in case it lingers
 /build
-/dist
