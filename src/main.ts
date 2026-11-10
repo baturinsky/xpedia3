@@ -111,9 +111,13 @@ async function init() {
   wasmBinary = base64ToArrayBuffer(wasmRaw);
 
   onhashchange = goToHash;
-  // `saveFile` clears the current article while loading, so re-resolve the
-  // hash after a fresh ruleset is installed to keep the user where they were
-  addEventListener("xpedia:loaded", () => goToHash());
+  // A fresh ruleset always lands on MAIN: whatever the URL named belongs to the
+  // previous pack, and the same id means something else (or nothing) in this
+  // one. This fires on upload, on switching packs and after deleting one.
+  addEventListener("xpedia:loaded", () => {
+    location.hash = "##MAIN";
+    goToHash();
+  });
   goToHash()
 
 }
@@ -133,6 +137,9 @@ function isEditable(target: EventTarget | null) {
 addEventListener("keydown", e => {
   // The load status window is modal, so navigation must wait for it
   if (state.slowProcessStatus)
+    return;
+  // The confirmation window is modal too
+  if (state.confirmRequest)
     return;
   // The search field (and any other form control) edits text with the same keys
   // that page through the pedia, so it keeps its own keystrokes

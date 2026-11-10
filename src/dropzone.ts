@@ -28,7 +28,7 @@ export function makeDropzone(dropZone: HTMLElement, onDrop: (files: FileList) =>
 
       // The status window is modal, so a second drop must not start a
       // concurrent load on top of the running one
-      if (state.slowProcessStatus)
+      if (state.slowProcessStatus || state.confirmRequest)
         return;
 
       onDrop(e.dataTransfer.files);

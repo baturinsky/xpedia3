@@ -6,11 +6,12 @@ import 'react-data-grid/lib/styles.css';
 import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
-import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack } from "./files";
+import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDialog } from "./files";
 import ExportDialog from "./ExportDialog";
 import { rul } from "../rul/Ruleset";
 import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
+import { Divider } from "./components";
 import { ArticleComponent } from "./ArticleComponent";
 
 
@@ -80,6 +81,7 @@ function UI() {
       </div>
       <div className="tooltip fadein" id="xpediaTooltip">Tooltip</div>
       {/* The status overlay lives at the root so a drop is visible from any page */}
+      <ConfirmDialog />
       <SlowProcessStatus />
     </StoreContext>
   );
@@ -111,13 +113,23 @@ export function LandingPage() {
 
 /** Loaded mods and their versions, see old `App.svelte` */
 function ModsList() {
-  let mods = (rul?.mods ?? []).map((m: any) => m?.meta).filter(m => m?.id);
+  // A mod is named by its metadata; `common` and other metadata-less folders are
+  // not mods the user installed, so they are not listed
+  let mods = (rul?.mods ?? []).filter((mod: any) => mod?.meta?.id || mod?.meta?.name);
   if (mods.length == 0)
     return null;
+  // A builtin mod is XPedia's own: it loads with every pack, so it is dimmed to
+  // show that it is not part of the uploaded modpack
   return <div className="mods-list">
-    <Val of={mods.map((mod: any) =>
-      `${mod.name} ${mod.version}`
-    )} />
+    {mods.map((mod: any, i: number) =>
+      <Fragment key={mod.dir ?? mod.meta.id}>
+        {i !== 0 && <Divider />}
+        <span className={mod.builtin ? "builtin-mod" : undefined}
+          title={mod.builtin ? "Included with XPedia, not part of this modpack" : undefined}>
+          <Val of={[mod.meta.name, mod.meta.version].filter(Boolean).join(" ")} />
+        </span>
+      </Fragment>
+    )}
   </div>;
 }
 

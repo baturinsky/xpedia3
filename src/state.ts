@@ -91,7 +91,12 @@ export let state = {
   /** Full text search results (article ids), undefined while not searching */
   found: undefined as string[] | undefined,
   /** The export dialog on the landing page is open */
-  showExportDialog: false
+  showExportDialog: false,
+  /**
+   * Question asked before an irreversible action, e.g. deleting a modpack,
+   * see `askConfirm` and `ConfirmDialog`
+   */
+  confirmRequest: undefined as { message: string, action: () => void } | undefined
 };
 
 /** Settings that used to live in the separate `localStorage.xpediaSettings` entry */
@@ -231,4 +236,46 @@ export function reveal(on?: boolean) {
 export function revealLock(on?: boolean) {
   let locked = on ?? !state.revealLock;
   update({ revealLock: locked, revealed: locked });
+}
+
+/** Dismisses the load status window without reporting anything */
+export function closeStatus() {
+  update({
+    slowProcessStatus: "", slowProcessStage: "", slowProcessProgress: undefined,
+    slowProcessDone: false, slowProcessError: false, slowProcessCancellable: false
+  });
+}
+
+/**
+ * Asks for confirmation before an irreversible action. The question is modal;
+ * `action` runs only when the user picks OK, see `ConfirmDialog`.
+ */
+export function askConfirm(message: string, action: () => void) {
+  update({ confirmRequest: { message, action } });
+}
+
+/** Closes the confirmation window without running its action */
+export function cancelConfirm() {
+  if (state.confirmRequest)
+    update({ confirmRequest: undefined });
+}
+
+/** Runs the confirmed action and closes the window */
+export function acceptConfirm() {
+  let request = state.confirmRequest;
+  update({ confirmRequest: undefined });
+  request?.action();
+}
+
+/**
+ * Closes the status window a moment after a finished operation, so a load that
+ * succeeded does not need a click to get out of the way. A failure keeps its
+ * window: the message is the report of what went wrong.
+ */
+export function autoCloseStatus(delay = 1000) {
+  let expected = state.slowProcessStatus;
+  setTimeout(() => {
+    if (state.slowProcessStatus === expected && state.slowProcessDone && !state.slowProcessError)
+      closeStatus();
+  }, delay);
 }

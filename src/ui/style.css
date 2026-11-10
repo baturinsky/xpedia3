@@ -819,6 +819,36 @@ button:disabled:hover {
   text-align: center;
 }
 
+/** Modal question before an irreversible action, see `ConfirmDialog` */
+.confirm-dialog {
+  max-width: min(30rem, 90vw);
+  background: var(--background);
+  border: solid 1px var(--border);
+  box-shadow: 0 0 1rem var(--shadow);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.confirm-message {
+  text-align: center;
+}
+
+.confirm-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.confirm-buttons button {
+  min-width: 6rem;
+}
+
+.confirm-cancel:hover {
+  background: var(--lighter);
+}
+
 .slow-process-close,
 .slow-process-cancel {
   margin-left: 0.5rem;
@@ -932,6 +962,12 @@ button:disabled:hover {
 /* Multi-column lists on the landing page */
 .sections-list>div {
   min-width: 15rem;
+}
+
+/* Front-page mod list, see `ModsList`: XPedia's own builtin mods load with
+   every pack, so they are not part of the upload and are shown dimmed */
+.mods-list .builtin-mod {
+  opacity: 0.55;
 }
 
 

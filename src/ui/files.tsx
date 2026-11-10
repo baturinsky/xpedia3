@@ -1,9 +1,10 @@
 import { DataGrid } from 'react-data-grid';
+import { useEffect } from 'react';
 import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats } from "../idb";
 import { isPermanentPack, loadPackRul } from "../packSource";
 import { loadBuiltinOnlyPack } from "../load";
 import { CogAnimation, MyTable, viewImage } from "./components";
-import { state, update, requestCancelSlowProcess } from "../state";
+import { state, update, requestCancelSlowProcess, closeStatus, askConfirm, acceptConfirm, cancelConfirm } from "../state";
 import { asMB } from "../util";
 
 /** True while a load, delete or other modal operation is running */
@@ -11,13 +12,6 @@ function busy() {
   return !!state.slowProcessStatus && !state.slowProcessDone;
 }
 
-/** Closes the status window without reporting anything */
-function clearStatus() {
-  update({
-    slowProcessStatus: "", slowProcessStage: "", slowProcessProgress: undefined,
-    slowProcessDone: false, slowProcessError: false, slowProcessCancellable: false
-  });
-}
 
 /** Total bytes a pack occupies in the database: ruleset, images and any kept archive */
 function storedSize(pack: { assets?: number, ruls?: number, archive?: number }) {
@@ -49,8 +43,9 @@ export async function selectPack(pack: string) {
     });
     return;
   }
-  clearStatus();
-  // Let the navigation layer resolve the current URL against the new ruleset
+  closeStatus();
+  // The old article and section belong to the old pack; the navigation layer
+  // takes the page back to MAIN, see `main.ts`
   window.dispatchEvent(new CustomEvent("xpedia:loaded"));
 }
 
@@ -63,10 +58,13 @@ async function deletePack(pack: string) {
   // it would only make the file look broken
   if (busy() || isPermanentPack(pack))
     return;
-  // The developer view is a tool, so it deletes immediately; the simple view
-  // asks first, because deleting is irreversible
-  if (!state.devView && !confirm(`Delete the pedia generated for ${pack}?`))
-    return;
+  // Deleting is irreversible, so both views ask first, in a window of the
+  // pedia's own instead of the browser's unstyleable `confirm()`
+  askConfirm(`Delete the pedia generated for ${pack}?`, () => erasePack(pack));
+}
+
+/** Deletes a pack's data, after the confirmation window was accepted */
+async function erasePack(pack: string) {
   update({
     slowProcessStatus: `Deleting ${pack}...`,
     slowProcessStage: "", slowProcessProgress: undefined,
@@ -84,7 +82,7 @@ async function deletePack(pack: string) {
   }
 
   if (state.packName != pack) {
-    clearStatus();
+    closeStatus();
     return;
   }
 
@@ -104,8 +102,8 @@ async function deletePack(pack: string) {
       slowProcessDone: true, slowProcessError: false,
       slowProcessStatus: `Deleted ${pack}. Now showing ${next}.`
     });
-    window.dispatchEvent(new CustomEvent("xpedia:loaded"));
   }
+  window.dispatchEvent(new CustomEvent("xpedia:loaded"));
 }
 
 /**
@@ -270,17 +268,53 @@ export function CurrentAssets() {
 }
 
 
+/**
+ * Modal question before an irreversible action, see `askConfirm`.
+ *
+ * It is deliberately its own window instead of the browser's `confirm()`: the
+ * page is a pedia with its own look, and `confirm()` blocks the whole tab,
+ * ignores the theme and cannot be translated or styled.
+ */
+export function ConfirmDialog() {
+  let request = state.confirmRequest;
+
+  // Escape is the normal way out of a modal, and it means Cancel here
+  useEffect(() => {
+    if (!request)
+      return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key == "Escape") {
+        e.preventDefault();
+        cancelConfirm();
+      }
+    }
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [!!request]);
+
+  if (!request)
+    return null;
+
+  return <div className="full-screen-centered status-overlay">
+    <div className="confirm-dialog" role="alertdialog" aria-modal="true">
+      <div className="confirm-message">{request.message}</div>
+      <div className="confirm-buttons">
+        {/* The safe choice holds the focus: a destructive action must not be
+            one stray Enter away */}
+        <button className="confirm-ok" onClick={acceptConfirm}>OK</button>
+        <button className="confirm-cancel" autoFocus onClick={cancelConfirm}>Cancel</button>
+      </div>
+    </div>
+  </div>;
+}
+
+
 export function SlowProcessStatus() {
   let done = state.slowProcessDone;
   let status = state.slowProcessStatus;
   let cancellable = state.slowProcessCancellable;
   let progress = state.slowProcessProgress;
   let stage = state.slowProcessStage;
-
-  function dismiss() {
-    update({ slowProcessStatus: "", slowProcessDone: false, slowProcessError: false,
-      slowProcessCancellable: false, slowProcessProgress: undefined, slowProcessStage: "" });
-  }
 
   if (!status)
     return;
@@ -306,7 +340,7 @@ export function SlowProcessStatus() {
       {!done && cancellable &&
         <button className="slow-process-cancel" title="Cancel loading"
           onClick={requestCancelSlowProcess}>Cancel</button>}
-      {done && <button className="slow-process-close" title="Dismiss" onClick={dismiss}>OK</button>}
+      {done && <button className="slow-process-close" title="Dismiss" onClick={closeStatus}>OK</button>}
     </div>
   </div>
 }

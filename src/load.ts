@@ -1,5 +1,5 @@
 import { wasmBinary } from "./main";
-import { state, update, slowProcessCancelRequested, resetSlowProcessCancel } from "./state";
+import { state, update, slowProcessCancelRequested, resetSlowProcessCancel, autoCloseStatus } from "./state";
 import * as unrar from 'node-unrar-js'
 import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer, asMB } from "./util";
 import { fileTypeFromBuffer } from "file-type";
@@ -112,13 +112,22 @@ export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, reso
       stored.langs = { ...stored.langs, icon: icons };
     else
       delete stored.langs.icon;
+    // A payload from an older build has no per-mod flag either; its builtin
+    // mods are recognised by the folder they came from
+    let builtinDirs = new Set(Object.keys(builtinParsed));
+    for (let mod of stored.mods ?? [])
+      if (builtinDirs.has(mod.dir))
+        mod.builtin = true;
     return stored;
   }
 
   let mods: { [dir: string]: Mod } = {};
 
+  // These mods belong to XPedia rather than to the uploaded pack, and the front
+  // page says so by dimming them. The flag cannot be stored with the pack: only
+  // its own mods are saved, so it is set again here on every read.
   for (let dir in builtinParsed)
-    mods[dir] = builtinParsed[dir];
+    mods[dir] = { ...builtinParsed[dir], builtin: true };
 
   // A pack that ships its own `mods/<name>` folder was saved with that folder
   // as the pack's own data, because at upload time its files replaced the
@@ -752,6 +761,11 @@ export async function uploadUsersFiles(fileList: FileList) {
   } else if (!state.slowProcessDone) {
     update({ slowProcessDone: true, slowProcessCancellable: false });
   }
+
+  // The upload is over, so its window closes on its own instead of waiting for
+  // a click. Failures keep theirs: the message says what went wrong.
+  if (state.slowProcessDone && !state.slowProcessError)
+    autoCloseStatus();
 
   resetSlowProcessCancel();
 }
