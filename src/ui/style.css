@@ -1288,6 +1288,13 @@ ol>li:last-child::after {
   min-width: 400px;
 }
 
+/* A sprite sheet is wider than any table column; let it scroll in its own row */
+.sprite-sheet-image {
+  width: 0;
+  min-width: 100%;
+  overflow-x: auto;
+}
+
 .armor {
   pointer-events: none;
   position: relative;

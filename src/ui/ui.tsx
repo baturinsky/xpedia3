@@ -487,9 +487,13 @@ window.addEventListener("pointermove", async (e) => {
         id in rul.lang && !e.shiftKey ? rul.lang[id] : id.substring(4)
       );
 
-      let tipRect = el.getBoundingClientRect();
       tooltip.style.left = Math.max(200, rect.left + rect.width / 2) + "px";
-      tooltip.style.top = Math.max(100, rect.top > 100 ? rect.top + 40 : rect.top + 120) + "px";
+      // Normally the tip opens below the element it explains; near the bottom
+      // of the screen it is put above the element instead, so it stays visible.
+      let top = rect.top > 100 ? rect.top + 40 : rect.top + 120;
+      if (top + tooltip.offsetHeight > innerHeight)
+        top = rect.top - tooltip.offsetHeight;
+      tooltip.style.top = Math.max(100, top) + "px";
 
     } else {
       toggleTooltip(undefined);

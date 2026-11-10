@@ -243,6 +243,18 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
         </tr>
 
         {sortedEntries.map(([key, prop]: [string, any], index) => {
+          // A sprite sheet is far wider than any value column, so it spans the
+          // whole table instead of stretching that column.
+          if (key === "spriteSheet") {
+            return <tr key={index}>
+              <td colSpan={2}>
+                <Val of={key} />
+                <div className="sprite-sheet-image">
+                  <Val of={prop} />
+                </div>
+              </td>
+            </tr>;
+          }
           return <tr key={index}>
             <td>
               <Val of={key} />
@@ -265,8 +277,6 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
                 </table>
               ) : ["corpseBattle"].includes(key) ? (
                 <Val of={prop[0]} />
-              ) : key === "spriteSheet" ? (
-                <Val of={prop} />
               ) : ["psiDefence", "meleeDodge"].includes(key) ? (
                 <SpecialBonus bonus={prop} />
               ) : ["builtInWeapons", "users", "units"].includes(key) ? (
