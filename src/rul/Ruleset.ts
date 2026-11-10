@@ -877,11 +877,16 @@ export default class Ruleset {
     this.resourceMap = data.resources ?? {};
     this.langs = data.langs;
     this.langNames = Object.keys(data.langs)
-      .filter(name => name != "icon")
+      // `icon` is an emoji map, and a language whose file produced no strings
+      // at all would be a dead, blank entry in the dropdown
+      .filter(name => name != "icon" && data.langs[name] != null && typeof data.langs[name] == "object")
       .sort((a, b) => langWeight(b) - langWeight(a));
 
     function langWeight(name: string) {
-      return name == defaultLanguage ? 1e6 : Object.keys(data.langs[name] ?? {}).length;
+      // The default language always leads the list, whatever its size
+      if (name == defaultLanguage)
+        return Infinity;
+      return Object.keys(data.langs[name] ?? {}).length;
     }
 
     // Language buttons are labelled with a country flag, see old `loadOld`
@@ -1075,6 +1080,35 @@ export const internalDamageTypes = [
   "DT_10", "DT_11", "DT_12", "DT_13", "DT_14", "DT_15", "DT_16", "DT_17", "DT_18", "DT_19"
 ];
 
+/**
+ * Resolves a damage type to its index in `damageTypes`.
+ *
+ * Mods write it either as an index (`3`) or as a name (`STR_DAMAGE_ARMOR_PIERCING`,
+ * `DT_AP`). Returns null for anything that does not name a known damage type, so
+ * callers do not create a bogus entry with an `undefined` id.
+ */
+export function damageTypeIndex(value: any): number | null {
+  if (value == null)
+    return null;
+
+  if (typeof value === "string") {
+    let idx = damageTypes.indexOf(value);
+    if (idx != -1)
+      return idx;
+    idx = internalDamageTypes.indexOf(value);
+    if (idx != -1 && idx < damageTypes.length)
+      return idx;
+    // A numeric string is still an index
+    if (!/^\d+$/.test(value.trim()))
+      return null;
+  }
+
+  let n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n >= damageTypes.length)
+    return null;
+  return n;
+}
+
 export const killStatuses = ["STATUS_DEAD", "STATUS_UNCONSCIOUS", "STATUS_PANICKED", "STATUS_TURNING"];
 export const killFactions = ["FACTION_HOSTILE", "FACTION_NEUTRAL", "FACTION_PLAYER"]
 
@@ -1140,6 +1174,10 @@ export function backLink(id: string, list: string[] | { [key: string]: any } | n
       list = [list]
 
     for (let key of list as any[]) {
+      // A missing key used to create an entry with an `undefined` id, which
+      // then showed up as a blank article in a section
+      if (key == null || key === "")
+        continue;
       let back = to[key];
       if (back == null && collection != null)
         back = to[key] = new Entry(collection).from({ id: key })

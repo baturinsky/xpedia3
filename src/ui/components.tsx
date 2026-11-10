@@ -1,4 +1,4 @@
-import { CSSProperties, Fragment, JSX, MouseEventHandler, useEffect, useMemo, useState } from "react";
+import { CSSProperties, Fragment, JSX, MouseEventHandler, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { state, update } from "../state";
 import { type Column } from 'react-data-grid';
 
@@ -28,6 +28,72 @@ function spritePath(src?: string) {
 }
 
 /**
+ * CSS length factor for a sprite.
+ *
+ * Pixel art must cover a whole number of device pixels per source pixel. With a
+ * fractional factor — a 2x sprite on a 125% Windows display covers 2.5 device
+ * pixels — nearest-neighbour scaling gives some pixels 3 device pixels and
+ * their neighbours 2, which shows up as uneven, wobbly edges. Rounding the
+ * magnification to whole device pixels keeps every pixel square.
+ *
+ * A factor of 1 is left alone: it is the sprite's natural size, and rounding it
+ * would resize (and resample) plain 1:1 artwork such as paperdolls.
+ */
+export function spriteScale(factor: number, ratio = window.devicePixelRatio || 1) {
+  if (!(factor > 1) || !(ratio > 0))
+    return factor;
+  return Math.max(1, Math.round(factor * ratio)) / ratio;
+}
+
+/**
+ * The current device pixel ratio, kept up to date when the browser zoom or the
+ * monitor scale changes. `spriteScale` needs it, and so does any layout that is
+ * built from sprite sizes, so both read the same value.
+ *
+ * A single `resolution` media query is shared by every image: `Img` renders for
+ * every icon in a table, and one listener per instance would be wasteful.
+ */
+export function usePixelRatio() {
+  // `window.devicePixelRatio` is read live: it changes without a `resolution`
+  // media query event in some environments (device emulation, for example)
+  return useSyncExternalStore(subscribePixelRatio, () => window.devicePixelRatio || 1);
+}
+
+let ratioQuery: MediaQueryList | undefined;
+const ratioSubscribers = new Set<() => void>();
+
+/** Starts listening for the next ratio change; the old query can never match again */
+function listenForRatioChange() {
+  if (ratioQuery) {
+    ratioQuery.removeEventListener("change", ratioChanged);
+    ratioQuery = undefined;
+  }
+  if (window.matchMedia) {
+    ratioQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    ratioQuery.addEventListener("change", ratioChanged);
+  }
+}
+
+function ratioChanged() {
+  listenForRatioChange();
+  for (let notify of ratioSubscribers)
+    notify();
+}
+
+function subscribePixelRatio(notify: () => void) {
+  ratioSubscribers.add(notify);
+  if (!ratioQuery)
+    listenForRatioChange();
+  return () => {
+    ratioSubscribers.delete(notify);
+    if (!ratioSubscribers.size && ratioQuery) {
+      ratioQuery.removeEventListener("change", ratioChanged);
+      ratioQuery = undefined;
+    }
+  };
+}
+
+/**
  * An image for `src`, either from the database, from the inlined pack's game
  * folder, or a transparent placeholder when it does not exist.
  */
@@ -42,6 +108,7 @@ export function Img(props: {
   // old `Img.svelte`/`SmartImage` did. It is tracked per path so that switching
   // articles retries instead of keeping the failure forever.
   let [brokenPath, setBrokenPath] = useState<string>();
+  let pixelRatio = usePixelRatio();
 
   // Load the sprite once. `null` is stored for missing images so that a missing
   // sprite doesn't trigger a lookup on every render. The entry is either a data
@@ -72,7 +139,8 @@ export function Img(props: {
   let hasRealData = !broken && (path.startsWith("data:") || !!img);
   let dataImage = hasRealData ? (path.startsWith("data:") ? path : img) : emptyImg;
   // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
-  let factor = props.zoom ?? props.scale ?? 1;
+  let baseFactor = props.zoom ?? props.scale ?? 1;
+  let factor = spriteScale(baseFactor, pixelRatio);
   let size = natural?.path === path ? natural : undefined;
   let element = <img className={"x-image" + (props.className ? " " + props.className : "")} src={dataImage} alt={props.alt ?? props.src}
     onLoad={e => {
@@ -100,7 +168,13 @@ export function Img(props: {
   if (props.maxWidth == null && props.maxHeight == null)
     return element;
 
-  return <div className="img-clip" style={{ maxWidth: props.maxWidth, maxHeight: props.maxHeight }}>
+  // The clip box is sized in unscaled sprite pixels, while the sprite itself is
+  // drawn `factor` times larger. Snapping the factor can make the sprite a bit
+  // bigger than before, so the box is scaled by the same amount to keep exactly
+  // the same part of the picture visible.
+  let clipScale = baseFactor ? factor / baseFactor : 1;
+  let box = (v?: number) => v == null ? undefined : Math.round(v * clipScale * pixelRatio) / pixelRatio;
+  return <div className="img-clip" style={{ maxWidth: box(props.maxWidth), maxHeight: box(props.maxHeight) }}>
     {element}
   </div>;
 }

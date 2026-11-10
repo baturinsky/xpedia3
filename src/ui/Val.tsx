@@ -1,7 +1,7 @@
 import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
-import { Divider, fromAnyRef, Img } from "./components";
+import { Divider, fromAnyRef, Img, spriteScale, usePixelRatio } from "./components";
 
 /** Polymorphic value view */
 
@@ -29,6 +29,8 @@ export const Val = ({
   /** Postfix to be inlcuded in text/link */
   postfix = undefined as string | undefined
 }) => {
+
+  let pixelRatio = usePixelRatio();
 
 
   if (!rul) {
@@ -62,7 +64,9 @@ export const Val = ({
   // Checked before numbers, markers themselves are numeric indices.
   if (field && ["marker", "markerCrash", "markerLand"].includes(field)) {
     if (rul.globeMarkers)
-      return <Img src={rul.globeMarkers[val]} style={{ transform: "scale(2)" }} />;
+      // A `transform` keeps the marker's layout size, as the old view did, but
+      // the magnification must still land on whole device pixels
+      return <Img src={rul.globeMarkers[val]} style={{ transform: `scale(${spriteScale(2, pixelRatio)})` }} />;
     return <>{val}</>;
   }
 

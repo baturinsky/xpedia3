@@ -634,10 +634,20 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
 
   let modName: string, mods = {} as { [name: string]: Mod };
 
-  function addToLng(lngName: string, words: { [name: string]: string }) {
+  function addToLng(lngName: string, words: { [name: string]: any }) {
     let lng = mods[modName].lng;
     lng[lngName] ??= {}
-    Object.assign(lng[lngName], words);
+    // A language file can leave a key with no value at all. Storing that as
+    // `null` makes the string resolve to nothing, and for a bare language code
+    // it shows up as a blank entry in the language dropdown, so those keys are
+    // skipped. Any other value is kept as-is: translations may be numbers, and
+    // OXCE plural forms (`STR_DAY: { one: ..., other: ... }`) are objects.
+    for (let key in words) {
+      let value = words[key];
+      if (value == null)
+        continue;
+      lng[lngName][key] = value;
+    }
   }
 
   for (let f of files) {
@@ -658,8 +668,10 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
         let data = f.ext == "yml" ? loadYaml(f.text) : f.text;
 
         if (typeof data == "object" && data != null) {
-          let lngName = Object.keys(data)[0]
-          addToLng(lngName, data[lngName])
+          // A language file normally declares one language at the top level, but
+          // some packs repeat the key; every block is read so none is dropped.
+          for (let lngName in data)
+            addToLng(lngName, data[lngName])
         } else if (typeof data == "string") {
           // Non-yaml translations are named "STR_ID.<lang>.html"
           let [strName, lngName] = splitName(f.name);

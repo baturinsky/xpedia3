@@ -237,9 +237,42 @@ export function ArticleComponent() {
   let table = sectionTable();
   let item = rul?.items?.[id];
 
+  // A section page is the article whose id matches its own section; it lists
+  // that section's articles below its own pedia text
+  let isSectionPage = !table && section?.id == article?.id && article?.id != "MAIN";
+
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
   let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
+
+  let articleText = article?.text && <div className="main-table main-text">
+    {itemImage &&
+      <div className="article-text-image">
+        <Img src={itemImage.sprite} scale={2}
+          maxWidth={32 * (itemImage.invWidth ?? 1)}
+          maxHeight={32 * (itemImage.invHeight ?? 1)} />
+      </div>
+    }
+    <div>
+      {/* Article bodies are authored as HTML: the built-in articles and many
+          mods use `<p>`, `<b>` and links, so they must not be escaped. This
+          matches old `Article.svelte`, which used `{@html article.text}`.
+          A block container is needed because such bodies contain blocks. */}
+      <div dangerouslySetInnerHTML={{ __html: article.text }} />
+      {article.requires && article.requires.join('') != article.id && <>
+        <br />
+        <Val of="Research required: " />
+        <Val of={article.requires} />
+      </>}
+    </div>
+  </div>;
+
+  // The section page's own illustration belongs with its text, above the list
+  let sectionImage = isSectionPage && article?.image_id
+    && !(article.id in (rul.units ?? {}))
+    && <div className="main-table main-text article-section-image">
+      <Img src={article.image_id} scale={2} />
+    </div>;
 
   let main = article && <><ArticleTitle />
     {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
@@ -249,34 +282,16 @@ export function ArticleComponent() {
       <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
       <LinksPage links={rul.manufactureCategories[article.id]} />}
-    {!table && section?.id == article?.id && article?.id != "MAIN" &&
+    {/* Section pages put their own pedia text and illustration first, then the
+        list of the articles in the section */}
+    {isSectionPage && articleText}
+    {isSectionPage && sectionImage}
+    {isSectionPage &&
       <div className="articles-list">
         <LinksPage key={article.id} links={section.articles(state.alphabeticalSort).map(a => a.id)} />
       </div>
     }
-    {article.text &&
-      <div className="main-table main-text">
-        {itemImage &&
-          <div className="article-text-image">
-            <Img src={itemImage.sprite} scale={2}
-              maxWidth={32 * (itemImage.invWidth ?? 1)}
-              maxHeight={32 * (itemImage.invHeight ?? 1)} />
-          </div>
-        }
-        <div>
-          {/* Article bodies are authored as HTML: the built-in articles and many
-              mods use `<p>`, `<b>` and links, so they must not be escaped. This
-              matches old `Article.svelte`, which used `{@html article.text}`.
-              A block container is needed because such bodies contain blocks. */}
-          <div dangerouslySetInnerHTML={{ __html: article.text }} />
-          {article.requires && article.requires.join('') != article.id && <>
-            <br />
-            <Val of="Research required: " />
-            <Val of={article.requires} />
-          </>}
-        </div>
-      </div>
-    }
+    {!isSectionPage && articleText}
     <div className={"article-body"}>
       {!table && specialArticleBody()}
       {!table && Object.entries(renderers).filter(([key]) => {
@@ -297,7 +312,7 @@ export function ArticleComponent() {
         }
       })}
       {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
-      {!(article.id in (rul.units ?? {})) && article.image_id &&
+      {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id &&
         <Img src={article.image_id} scale={2} />}
     </div>
   </>;

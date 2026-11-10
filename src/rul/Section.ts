@@ -18,6 +18,9 @@ export class Section {
       rul.sectionsOrder.push(this);
     }
 
+    // A section page shows the pack's own article for that id (pedia text and
+    // illustration) above the article list. Only fall back to an empty stub
+    // when no such article exists.
     Article.create(id, id);
   }
 

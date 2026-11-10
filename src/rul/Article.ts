@@ -22,9 +22,10 @@ export class Article {
 
     if (id in rul.articles) {
       let article = rul.articles[id];
-      if (section && !article.sections.find(s => s.id == section)) {
+      // A section page shows its own article as a header (pedia text and
+      // illustration), not as a link inside its own list, so never add it there
+      if (section && id != section && !article.sections.find(s => s.id == section)) {
         article.addToSection(section);
-        //article.sections.push(rul.sections[section])
         rul.sections[section].add(article);
       }
       return article;

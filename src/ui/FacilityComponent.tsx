@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { rul } from "../rul/Ruleset";
 import MainTable from "./MainTable";
-import { Img } from "./components";
+import { Img, spriteScale, usePixelRatio } from "./components";
 import { Val } from "./Val";
 import { emptyImg } from "../imgPlaceholders";
 
@@ -18,7 +18,9 @@ const gridScale = 2;
 /** A size x size block of base sprites, follows old `FacilitySprite.svelte` */
 function FacilitySprite(props: { size: number, prop: number, bottom?: boolean }) {
   let size = props.size;
-  let cell = gridSize * gridScale;
+  // Cells are laid out from the same snapped scale the sprites are drawn with,
+  // otherwise fractional display scaling would make the tiles drift apart
+  let cell = gridSize * spriteScale(gridScale, usePixelRatio());
   let cells: JSX.Element[] = [];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {

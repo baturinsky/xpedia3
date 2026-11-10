@@ -1,7 +1,7 @@
 import { addIfNew, camelToUnderscore, unique } from '../util';
 import { Article } from './Article';
 import {
-  backLink, backLink2, battleTypes, damageTypes, internalBattleTypes, internalDamageTypes,
+  backLink, backLink2, battleTypes, damageTypeIndex, damageTypes, internalBattleTypes, internalDamageTypes,
   killFactions, killStatuses, rul, Service, statsList
 } from './Ruleset';
 
@@ -621,9 +621,12 @@ export class Attack {
     if (item.battleType == 3 || mode != "melee") this.alter = item.damageAlter;
 
     if (this.alter && this.alter.ResistType) {
-      let dType = Number(this.alter.ResistType);
-      if (Number.isNaN(this.damageType)) {
-        console.error(this.item.id + "attack has string damage type")
+      // `ResistType` may be given as an index or as `STR_DAMAGE_*`; resolve the
+      // name first, otherwise `Number()` gives NaN and a bogus damage type
+      // entry with an undefined id ends up in the ruleset
+      let dType = damageTypeIndex(this.alter.ResistType);
+      if (dType == null) {
+        console.error(this.item.id + " attack has unknown damage type " + this.alter.ResistType)
       } else {
         this.damageType = dType;
         item.addDamageType(this.damageType);
@@ -666,7 +669,7 @@ export class Attack {
       this.accuracyMultiplier = accuracyMultiplier;
 
       if (this.damageType != null) {
-        item.addDamageType(Number(this.damageType));
+        item.addDamageType(this.damageType);
       }
 
       for (let k in this.accuracyMultiplier || [])
@@ -900,9 +903,15 @@ export class Item extends Entry {
   }
 
   addDamageType(type: number) {
+    // Called from `Attack` with whatever the ruleset wrote as the damage type,
+    // so resolve it and ignore unknown values instead of adding an `undefined`
+    // id to the damage type section
+    let idx = damageTypeIndex(type);
+    if (idx == null)
+      return;
     this.damageTypes = this.damageTypes || [];
-    addIfNew(this.damageTypes, type);
-    backLink(this.id, [damageTypes[type]], "damageTypes", "items");
+    addIfNew(this.damageTypes, idx);
+    backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
   }
 
   constructor(raw: any) {
@@ -958,12 +967,15 @@ export class Item extends Entry {
       backLink(this.id, [k], "stats", "meleeAccuracy");
 
     if (this.damageType != null) {
-      backLink(this.id, [damageTypes[this.damageType]], "damageTypes", "items");
+      let idx = damageTypeIndex(this.damageType);
+      if (idx != null)
+        backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
     }
 
-    if (this.damageAlter?.ResistType) {
-      let rt = this.damageAlter?.ResistType;
-      backLink(this.id, [damageTypes[rt] || rt], "damageTypes", "items");
+    if (this.damageAlter?.ResistType != null) {
+      let idx = damageTypeIndex(this.damageAlter.ResistType);
+      if (idx != null)
+        backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
     }
 
     this.attacks();
