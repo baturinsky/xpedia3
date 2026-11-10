@@ -49,8 +49,8 @@ function PackMeta() {
   if (!author && !description)
     return null;
   return <div className="pack-meta">
+    {author && <div className="pack-author">by {author}</div>}
     {description && <div className="pack-description">{description}</div>}
-    {author && <div className="pack-author">{author}</div>}
   </div>;
 }
 

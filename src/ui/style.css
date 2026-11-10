@@ -957,6 +957,7 @@ button:disabled:hover {
   display: flex;
   flex-direction: row;
   gap: 2rem;
+  margin-bottom: 3rem;
 }
 
 /* Multi-column lists on the landing page */
@@ -1518,11 +1519,16 @@ a.services {
 .pack-author {
   font-size: 85%;
   opacity: .7;
-  margin-top: .25rem;
+  margin-top: -.5rem;
+  margin-bottom: 1rem;
 }
 
 .landing-page {
   text-align: center;
+}
+
+.export-button{
+  margin: 1rem auto 0 auto;
 }
 
 /* ---- Narrow screens (phones) ---- */

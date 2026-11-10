@@ -75,7 +75,7 @@ function UI() {
             {state.seeSide ? "⇤" : "⇥"}
           </button>
         }
-        <div className={"content"  + (onLandingPage()?" landing-page":"")}>
+        <div className={"content" + (onLandingPage() ? " landing-page" : "")}>
           <ArticleComponent />
         </div>
       </div>
@@ -88,13 +88,16 @@ function UI() {
 }
 
 export function LandingPage() {
+  
   return <>
     {state.packName && <>
-      {rul && <ModsList />}
-      {rul && <SectionsList />}
-      {/* The inlined pack of an exported page has no separate source to export,
-          so the dialog explains that instead of offering a second copy */}
-      <button onClick={() => update({ showExportDialog: true })}><Tr text="Export"/></button>
+      
+      {rul && <>
+        <ModsList />
+        <button className="export-button" onClick={() => update({ showExportDialog: true })}><Tr text="Export" /></button>
+        <SectionsList />
+      </>
+      }
     </>}
 
     {/*<p className="modpack-hint">
@@ -243,7 +246,7 @@ function NavDropdown() {
           )}
         </div>
         <div className="navbar-custom navbar-list">
-          {rul?.sortedTypeSections()?.filter(s=>s.id != "MAIN").map(s =>
+          {rul?.sortedTypeSections()?.filter(s => s.id != "MAIN").map(s =>
             <a key={s.id} href={"##" + s.id}
               className={s.id == current ? "active-section" : undefined}>
               <Tr text={s.id} />
