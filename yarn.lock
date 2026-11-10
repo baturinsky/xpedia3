@@ -1309,6 +1309,13 @@ readable-stream@~2.3.6:
     string_decoder "~1.1.1"
     util-deprecate "~1.0.1"
 
+roadroller@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/roadroller/-/roadroller-2.1.0.tgz#bd1023a0f82f47aec2eefeb481e4b000524e57e9"
+  integrity sha512-4YfrQgMWC9w5SGvA6xfu9JGktOqEu2pwf4UrTu8ggf9wEv+hI7aTPMBRKWsTIvjhP4txX6eq954j3MONfOKAKQ==
+  dependencies:
+    esm "^3.2.25"
+
 rollup@^4.43.0:
   version "4.54.0"
   resolved "https://registry.npmjs.org/rollup/-/rollup-4.54.0.tgz"

@@ -11,12 +11,13 @@
     "vite": "^7.2.2",
     "vite-plugin-singlefile": "^2.3.0",
     "vite-plugin-top-level-await": "^1.6.0",
-    "vite-plugin-wasm": "^3.5.0"
+    "vite-plugin-wasm": "^3.5.0",
+    "roadroller": "^2.1.0"
   },
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "min": "vite build --mode=min"    
+    "min": "vite build --mode=min"
   },
   "description": "A simple tactics engine",
   "main": "main.js",

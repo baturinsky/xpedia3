@@ -134,6 +134,8 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
     }
 
     if (key == "manufacture") {
+      if(!Array.isArray(prop))
+        return <Val of={prop}/>
       return (
         <SecondaryTable key={key} text={key}>
           <table className="item-manufacture">
