@@ -1503,6 +1503,24 @@ a.services {
   text-align: center;
 }
 
+/* Author and description of the pack's main mod, under the landing page title */
+.pack-meta {
+  margin: .25rem 2rem 1rem 2rem;
+  text-align: center;
+  line-height: 140%;
+}
+
+.pack-description {
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.pack-author {
+  font-size: 85%;
+  opacity: .7;
+  margin-top: .25rem;
+}
+
 .landing-page {
   text-align: center;
 }
@@ -1580,6 +1598,12 @@ a.services {
      in a 128px column next to the title. */
   .article-title {
     margin: .5rem 0;
+  }
+
+  /* The landing page metadata keeps the title's side margins, which a phone
+     cannot spare */
+  .pack-meta {
+    margin: .25rem 0 1rem 0;
   }
 
   .article-title .central {

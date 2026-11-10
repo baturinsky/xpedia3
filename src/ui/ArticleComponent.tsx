@@ -22,9 +22,12 @@ export function ArticleTitle() {
   // Old `Article.svelte` filtered out the article's own section from the list
   let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
   if (onLandingPage()) {
-    return <div className="article-title">
-      <div className="central"><Tr text={packTitle()} nobr={100} /></div>
-    </div>
+    return <>
+      <div className="article-title">
+        <div className="central"><Tr text={packTitle()} nobr={100} /></div>
+      </div>
+      <PackMeta />
+    </>
   } else {
     return <div className="article-title">
       <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
@@ -33,6 +36,22 @@ export function ArticleTitle() {
       <div className="right">{right && <Val of={right} postfix={">"} />}</div>
     </div>
   }
+}
+
+/**
+ * Author and description of the modpack's main mod, shown under the landing
+ * page title. Both come from the same `metadata.yml` the title does, and both
+ * are free text written by the mod's author, so they are not translated.
+ */
+function PackMeta() {
+  let author = rul?.meta?.author;
+  let description = rul?.meta?.description;
+  if (!author && !description)
+    return null;
+  return <div className="pack-meta">
+    {description && <div className="pack-description">{description}</div>}
+    {author && <div className="pack-author">{author}</div>}
+  </div>;
 }
 
 /*Which renderer to use for each article type */
