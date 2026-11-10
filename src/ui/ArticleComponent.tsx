@@ -1,4 +1,4 @@
-import { createElement, useEffect } from "react";
+import { createElement, RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
@@ -169,6 +169,137 @@ function specialArticleBody() {
   return null;
 }
 
+/**
+ * True when something in the article body does not fit into a multi-column
+ * `column`.
+ *
+ * Tables, sprite sheets and article illustrations are single unbreakable blocks:
+ * when one of them is wider than a column the browser does not shrink it, it
+ * spills over the gap into the neighbour column. A table's own `scrollWidth`
+ * already reflects anything too wide inside it, so only the body's immediate
+ * children need measuring. `.img-clip` is the one place where wider content is
+ * deliberate (it crops a paperdoll), so it is ignored.
+ */
+function overflowsColumn(body: HTMLElement, column: number) {
+  let limit = column + 1; // allow for sub-pixel rounding
+  return Array.from(body.children).some(el => {
+    if (el.classList.contains("img-clip"))
+      return false;
+    let rects = Array.from(el.getClientRects());
+    // A box the browser split between two columns has one rect per column and
+    // flows correctly, so it must not be mistaken for an overflowing one
+    if (rects.length > 1)
+      return false;
+    let box = rects[0] ?? el.getBoundingClientRect();
+    if (box.width > limit)
+      return true;
+    // Text or a sprite too wide for its cell only shows up here
+    return (el as HTMLElement).scrollWidth > limit;
+  });
+}
+
+/**
+ * Keeps the two-column article body from spilling into itself.
+ *
+ * `.article-body` is a real CSS multi-column container, and CSS gives no way to
+ * ask "did you fit?". `getComputedStyle().columnCount` reports the specified
+ * maximum (`2`), not the number of columns the browser actually made, and the
+ * container's own `scrollWidth` does not grow when a child overflows. So the
+ * used column count is recomputed from the spec rule (`column-width` is a
+ * minimum, `column-count` a maximum) and every child is measured against it.
+ *
+ * When a child does not fit, the body is switched to a single column. That
+ * override is dropped again once the article changes or the body gets
+ * noticeably wider or narrower, because only the natural two-column layout can
+ * tell us whether content fits. The width comparison deliberately ignores
+ * small changes: switching to one column makes the page taller, which can add a
+ * scrollbar and narrow the body by ~15px, and reacting to that would flip the
+ * layout back and forth forever.
+ */
+function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, fontSalt: unknown) {
+  let [oneColumn, setOneColumn] = useState(false);
+  // The layout the current decision was made for
+  let measured = useRef<{ articleId: string, width: number, recheck: number, fontSalt: unknown }>();
+  // Bumped when the body's box or an image changes: a sprite decoded, a font
+  // arrived, the window was resized
+  let [recheck, setRecheck] = useState(0);
+  let observer = useRef<ResizeObserver>();
+
+  // One instance of the article exists at a time, so a single set of document
+  // listeners is enough. Images become their real size only after they decode,
+  // which need not change the body's own box; `load` does not bubble, but a
+  // capturing listener still sees it.
+  useEffect(() => {
+    let bump = () => setRecheck(n => n + 1);
+    document.addEventListener("load", bump, true);
+    document.addEventListener("error", bump, true);
+    return () => {
+      document.removeEventListener("load", bump, true);
+      document.removeEventListener("error", bump, true);
+      observer.current?.disconnect();
+      observer.current = undefined;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    let body = ref.current;
+    if (!body) {
+      measured.current = undefined;
+      return;
+    }
+    if (window.ResizeObserver) {
+      // Re-observing the same element is a no-op, so this also handles the body
+      // being replaced while the article stays the same
+      observer.current ??= new ResizeObserver(() => setRecheck(n => n + 1));
+      observer.current.observe(body);
+    }
+
+    let width = body.clientWidth;
+    let last = measured.current;
+    let sameArticle = !!last && last.articleId == articleId;
+    // Only a real resize counts. A one-column body is taller, which can add a
+    // scrollbar and narrow it by ~15px; reacting to that would flip the layout
+    // back and forth forever
+    let resized = !!last && Math.abs(last.width - width) > 24;
+    let fontChanged = !!last && last.fontSalt !== fontSalt;
+
+    if (oneColumn) {
+      // Our own override is in charge, and only the natural layout can be
+      // judged. Recheck ticks are caused by the override itself, so only an
+      // outside change (another article, a resize, a font change) may drop it.
+      if (sameArticle && !resized && !fontChanged)
+        return;
+      measured.current = undefined;
+      setOneColumn(false);
+      return;
+    }
+
+    if (last && sameArticle && !resized && !fontChanged && last.recheck == recheck)
+      return;
+    measured.current = { articleId, width, recheck, fontSalt };
+
+    let style = getComputedStyle(body);
+    let gap = parseFloat(style.columnGap) || 0;
+    let max = parseInt(style.columnCount, 10) || 0;
+    let min = parseFloat(style.columnWidth) || 0;
+    if (width <= 0)
+      return;
+    // `column-width` is a minimum and `column-count` a maximum
+    let used = min > 0
+      ? Math.max(1, Math.floor((width + gap) / (min + gap)))
+      : max > 0 ? max : 1;
+    if (max > 0)
+      used = Math.min(used, max);
+    if (used < 2)
+      return;
+    let column = (width - gap * (used - 1)) / used;
+    if (overflowsColumn(body, column))
+      setOneColumn(true);
+  });
+
+  return oneColumn;
+}
+
 /** All base services and the facilities that provide them, follows old `BaseServices.svelte` */
 function ServicesTable({ query = null as string | null }) {
   let names = rul.sortStrings(Object.keys(rul.baseServices));
@@ -220,11 +351,13 @@ function SearchResults() {
 }
 
 export function ArticleComponent() {
+  let bodyRef = useRef<HTMLDivElement>(null);
   // Old `Article.svelte` set the document title from `<svelte:head>`. This must
   // run before any early return so the hook order stays stable.
   useEffect(() => {
     document.title = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
   }, [article?.id]);
+  let oneColumn = useColumnFit(bodyRef, article?.id ?? "", state.hugeFont);
 
   // Full text search results replace the article view
   if (state.searchQuery)
@@ -292,7 +425,9 @@ export function ArticleComponent() {
       </div>
     }
     {!isSectionPage && articleText}
-    <div className={"article-body"}>
+    <div className={"article-body"} ref={bodyRef}
+      // Set only when the two-column layout did not fit, see `useColumnFit`
+      style={oneColumn ? { columns: 1 } : undefined}>
       {!table && specialArticleBody()}
       {!table && Object.entries(renderers).filter(([key]) => {
         return (rul as any)[key] ? (rul as any)[key][id] : ""

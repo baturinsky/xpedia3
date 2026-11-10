@@ -888,9 +888,10 @@ button:disabled:hover {
 
 .article-body {
   /* column-width + a hard max of 2: the browser makes a second column only
-     when both columns are at least 36rem (576px) wide, which is wider than
-     our widest table (568px). Below that it stays single-column instead of
-     letting a table spill into its neighbour; it never makes 3. */
+     when both columns are at least 36rem (576px) wide. That suits most
+     content, but a wide table, sprite sheet or illustration can still be wider
+     than a column and spill into its neighbour; `useColumnFit` checks for that
+     after every render and sets `columns: 1` inline when it happens. */
   columns: 36rem 2;
   column-gap: 1pt;
 }
