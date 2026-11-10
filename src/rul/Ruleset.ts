@@ -505,7 +505,6 @@ export default class Ruleset {
       return [...x, ...y];
     }
 
-    new Section("ATTACKS", true);
 
     crosslink(this.eventScripts, "_xcomBaseInCountryTrue", "countries", "events");
     crosslink(this.units, "race", "alienRaces", "hasThisRace");
@@ -537,6 +536,9 @@ export default class Ruleset {
     crosslink(this.missionScripts, "_missions", this.alienMissions, "scripts");
     crosslink(this.alienDeployments, "terrains", this.terrains, "alienDeployments");
     crosslink(this.terrains, "enviroEffects", this.enviroEffects, "terrains");
+
+    if(rul.attacks?.length > 0)
+      new Section("ATTACKS", true);
 
     let all = {
       Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),
