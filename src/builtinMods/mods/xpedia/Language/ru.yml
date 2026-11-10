@@ -1,4 +1,5 @@
 ru:
+  ITEMS: ПРЕДМЕТЫ
   ATTACKS: АТАКИ
   DAMAGE_TYPES: ТИПЫ ПОВРЕЖДЕНИЙ
   ARMORS: КОСТЮМЫ
@@ -29,7 +30,18 @@ ru:
   UNITS: ПРОТИВНИКИ
   STARTING_CONDITIONS: ОГРАНИЧЕНИЯ МИССИИ
   MANUFACTURE_CATEGORIES: КАТЕГОРИЯ ПРОИЗВОДСТВА
+  SERVICES: ФУНКЦИИ ПОСТРОЕК
+  MANUFACTURE: ПРОИЗВОДСТВО
+  RESEARCH: ИССЛЕДОВАНИЕ
+  STATS: ПАРАМЕТРЫ ЮНИТА
 
+  STR_ABOUT_XPEDIA: "Перетащите zip или rar файл с модпаком на эту страницу, чтобы добавить его."
+
+  "Pedia sections": Разделы
+  Categories: Категории
+  Export: Экспорт
+  HOME: ГЛАВНАЯ
+  STR_NOT_AVAILABLE: ПРОЧЕЕ
 
   tip_accel: "accel<br><br>Определяет скорость, с которой судно попытается выйти
     из боя (если возможно): <ul><li> 0-2 = 50% обычной скорости;</li> <li> 3-5 =
