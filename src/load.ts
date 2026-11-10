@@ -7,8 +7,7 @@ import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { defaultLanguage, Mod } from "./rul/Ruleset";
 import { saveFile, saveImgs, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
-//@ts-ignore
-import builtinModsArchive from './builtinMods.zip?base64'
+import builtinModsPayload from './builtinMods?builtinMods'
 
 
 const assetExts = ["rul", "nam", "png", "gif"]
@@ -28,9 +27,29 @@ const xhelperPrefix = "xhelper-";
 /** Pseudo pack name used to cache assets that come from the builtin mods */
 const builtinPackName = "builtin";
 
-/** Unpacks the embedded builtin mods without touching the status window */
-async function unpackBuiltinMods() {
-  return unpackZip("builtin", base64ToArrayBuffer(builtinModsArchive));
+/**
+ * The builtin mods, compiled in from the plain `src/builtinMods` folder.
+ *
+ * They used to be a zip, which had to be unpacked and repacked to change a
+ * single string. The folder is read at build time by the `builtin-mods` plugin
+ * in `vite.config.ts`, which ships it as one gzipped binary container; the
+ * format is described there.
+ */
+function unpackBuiltinMods() {
+  let compressed = new Uint8Array(base64ToArrayBuffer(builtinModsPayload));
+  let data = fflate.gunzipSync(compressed);
+  let view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let files: { [name: string]: Uint8Array } = {};
+  for (let at = 0; at < data.length;) {
+    let nameLength = view.getUint32(at, true);
+    let dataLength = view.getUint32(at + 4, true);
+    at += 8;
+    let name = new TextDecoder().decode(data.subarray(at, at + nameLength));
+    at += nameLength;
+    files[name] = data.slice(at, at + dataLength);
+    at += dataLength;
+  }
+  return files;
 }
 
 /**
@@ -54,7 +73,7 @@ function filterBuiltinMods(files: { [name: string]: Uint8Array }, packName?: str
 
 /** The builtin mod files that apply to the given modpack */
 async function builtinModFiles(packName?: string) {
-  return filterBuiltinMods(await unpackBuiltinMods(), packName);
+  return filterBuiltinMods(unpackBuiltinMods(), packName);
 }
 
 /**
