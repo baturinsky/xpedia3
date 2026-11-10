@@ -14,6 +14,7 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
       react({}),
       base64Loader(),
       builtinModsFolder(),
+      outputName(),
       builtPage()
     ],
     base: '',
@@ -40,6 +41,37 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
 
 
 /**
+ * Writes the built pedia as `xpedia.html` rather than `index.html`.
+ *
+ * Vite names the output after the source page (`src/index.html`), and that name
+ * has to stay: it is what the dev server serves at `/`. The published pedia,
+ * though, is one file people keep and open by name, so the build renames it.
+ * It is a rename rather than `rollupOptions.input` because the dev entry and
+ * the built entry would otherwise need separate source files.
+ *
+ * The rename happens on the emitted asset, not on disk afterwards, so the
+ * build's own report names the file the build actually produced.
+ */
+function outputName() {
+  return {
+    name: "output-name",
+    apply: "build" as const,
+    // After `vite-plugin-singlefile`, which builds the page in its own
+    // `generateBundle`; renaming earlier would have it re-emit `index.html`
+    enforce: "post" as const,
+    generateBundle(_: any, bundle: any) {
+      for (let [key, asset] of Object.entries<any>(bundle)) {
+        if (asset.fileName != "index.html")
+          continue;
+        asset.fileName = "xpedia.html";
+        delete bundle[key];
+        bundle["xpedia.html"] = asset;
+      }
+    }
+  };
+}
+
+/**
  * Serves the last production build during development.
  *
  * The export needs the whole app as one inline bundle, which only the build
@@ -52,7 +84,7 @@ function builtPage() {
     apply: "serve" as const,
     configureServer(server: any) {
       server.middlewares.use("/xpedia-built.html", (_req: any, res: any) => {
-        let file = `${__dirname}/build/index.html`;
+        let file = `${__dirname}/build/xpedia.html`;
         if (!fs.existsSync(file)) {
           res.statusCode = 404;
           res.end("Run `npm run build` first");
