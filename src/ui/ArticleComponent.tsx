@@ -383,15 +383,18 @@ export function ArticleComponent() {
     return <SearchResults />;
 
   if (!article)
-    return <LandingPage />;
+    return <div className="article">
+      <ArticleTitle />
+      <LandingPage />
+    </div>;
 
-  let id = article?.id ?? "MAIN";
+  let id = article.id;
   let table = sectionTable();
   let item = rul?.items?.[id];
 
   // A section page is the article whose id matches its own section; it lists
   // that section's articles below its own pedia text
-  let isSectionPage = !table && section?.id == article?.id && article?.id != "MAIN";
+  let isSectionPage = !table && section?.id == article.id;
 
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
@@ -474,7 +477,5 @@ export function ArticleComponent() {
 
   return <div className={"article"}>
     {main}
-    {(onLandingPage() || !rul) && <LandingPage />}
-
   </div>
 }

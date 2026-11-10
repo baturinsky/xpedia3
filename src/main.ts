@@ -19,6 +19,14 @@ export function goToArticle(href?: AnyRef) {
   if (!rul)
     return;
   let ref = fromAnyRef(href);
+  // The landing page is `##HOME`. `MAIN` is an older name for the same page and
+  // is still accepted, but navigation always rewrites it to the canonical hash.
+  if (ref == "MAIN" || ref == "HOME") {
+    update({ article: undefined, section: undefined });
+    if (location.hash != "##HOME")
+      location.hash = "##HOME";
+    return;
+  }
   let article = rul.article(ref);
   if (article) {
     if (article.sections && !article.sections.includes(section as Section)) {
@@ -36,7 +44,7 @@ export function goToArticle(href?: AnyRef) {
 }
 
 function goToHash() {
-  let hash = decodeURI(document.location.hash) || "##MAIN";
+  let hash = decodeURI(document.location.hash) || "##HOME";
   if (hash.substring(0, 2) != "##") return;
   // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
   update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
@@ -53,13 +61,6 @@ function goToHash() {
   }
 
   update({ searchQuery: "" });
-
-  // `##HOME` shows the landing page and clears the current article,
-  // as in old `App.svelte` where `HOME` has no article behind it
-  if (id == "HOME") {
-    update({ article: undefined });
-    return;
-  }
 
   goToArticle(id);
 }
@@ -111,11 +112,11 @@ async function init() {
   wasmBinary = base64ToArrayBuffer(wasmRaw);
 
   onhashchange = goToHash;
-  // A fresh ruleset always lands on MAIN: whatever the URL named belongs to the
+  // A fresh ruleset always lands on HOME: whatever the URL named belongs to the
   // previous pack, and the same id means something else (or nothing) in this
   // one. This fires on upload, on switching packs and after deleting one.
   addEventListener("xpedia:loaded", () => {
-    location.hash = "##MAIN";
+    location.hash = "##HOME";
     goToHash();
   });
   goToHash()
@@ -155,7 +156,7 @@ addEventListener("keydown", e => {
     if (pageSwitch == "up") {
       if (section) {
         if (section.id == article?.id)
-          goToArticle("MAIN")
+          goToArticle("HOME")
         else
           goToArticle(section)
       }

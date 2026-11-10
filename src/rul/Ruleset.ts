@@ -426,8 +426,6 @@ export default class Ruleset {
     this.combineRuls(data, reversed);
     this.mergeRuls(reversed);*/
 
-    new Section("MAIN", true);
-
     this.raw = this.combineModRuls(mods);
 
     this.sounds = []
@@ -685,12 +683,6 @@ export default class Ruleset {
   /** Sections that hold generated entries (items, units...) sorted by name */
   sortedTypeSections() {
     return this.sortStrings(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
-  }
-
-  orderedTypeSections() {
-    let sections = this.sortedTypeSections();
-    sections.splice(sections.findIndex(s => s.id == "MAIN"), 1)
-    return [this.sections.MAIN, ...sections]
   }
 
   parseArticles(data: Object) {

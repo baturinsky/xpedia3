@@ -45,7 +45,7 @@ export async function selectPack(pack: string) {
   }
   closeStatus();
   // The old article and section belong to the old pack; the navigation layer
-  // takes the page back to MAIN, see `main.ts`
+  // takes the page back to HOME, see `main.ts`
   window.dispatchEvent(new CustomEvent("xpedia:loaded"));
 }
 

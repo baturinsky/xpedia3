@@ -34,7 +34,7 @@ export class Section {
   }
 
   static all() {
-    return [...rul.sectionsOrder, ...rul.orderedTypeSections()]
+    return [...rul.sectionsOrder, ...rul.sortedTypeSections()]
   }
 
   nearbySection(delta: number) {

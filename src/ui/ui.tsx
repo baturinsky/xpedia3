@@ -222,31 +222,30 @@ export function packTitle() {
 /** Top-left navigation dropdown: pedia sections and type sections */
 function NavDropdown() {
   let visible = state.showDropdown;
-  // The front page counts as its own section, so `##MAIN` highlights too
-  let current = section?.id ?? "MAIN";
+  let current = section?.id;
 
   return <div className="navbar-dropdown-container dropdown-button"
     onPointerEnter={hoverOpens(() => update({ showDropdown: true }))}
     onPointerLeave={hoverOpens(() => update({ showDropdown: false }))}>
     <button className="navbar-button dropdown-button"
       title="Sections"
-      onClick={() => dropdownButtonClick("showDropdown", "##" + current)}>
+      onClick={() => dropdownButtonClick("showDropdown", current ? "##" + current : "##HOME")}>
       {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
       <Tr text={(onLandingPage() ? undefined : section?.id) ?? "XPedia"} notip />
     </button>
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
         <div className="navbar-auto navbar-list">
-          <a href="##MAIN" className={"menu-home" + (onLandingPage() ? " active-section" : "")}
+          <a href="##HOME" className={"menu-home" + (onLandingPage() ? " active-section" : "")}
             style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
           <div className="menu-spacer" />
           {rul?.sectionsOrder?.map(s =>
             <a key={s.id} href={"##" + s.id}
-              className={s.id == current && s.id != "MAIN" ? "active-section" : undefined}><Tr text={s.id} /></a>
+              className={s.id == current ? "active-section" : undefined}><Tr text={s.id} /></a>
           )}
         </div>
         <div className="navbar-custom navbar-list">
-          {rul?.sortedTypeSections()?.filter(s => s.id != "MAIN").map(s =>
+          {rul?.sortedTypeSections()?.map(s =>
             <a key={s.id} href={"##" + s.id}
               className={s.id == current ? "active-section" : undefined}>
               <Tr text={s.id} />
@@ -269,8 +268,6 @@ export function NavTop() {
   return <nav className="top">
     <div className="left">
       <NavDropdown />
-      {/*<Val of="MAIN">{title || "XPedia"}</Val>
-      {section && section.id != "MAIN" && <Val of={section.id} />}*/}
     </div>
     <div className="right">
       <SearchBox />
@@ -340,7 +337,7 @@ function PackDropdown() {
     onPointerLeave={hoverOpens(() => update({ showPacksDropdown: false }))}>
     <button className="navbar-button"
       title="Modpacks"
-      onClick={() => dropdownButtonClick("showPacksDropdown", "##MAIN")}>
+      onClick={() => dropdownButtonClick("showPacksDropdown", "##HOME")}>
       <span className="on-wide">{label}&nbsp;</span>
       <span>▾</span>
     </button>
@@ -382,7 +379,7 @@ function SearchBox() {
       if (article)
         location.hash = "##" + article.id;
       else
-        location.hash = "##MAIN";
+        location.hash = "##HOME";
       return;
     }
     update({ searchQuery: value });
@@ -394,7 +391,7 @@ function SearchBox() {
       else if (article)
         location.hash = "##" + article.id;
       else
-        location.hash = "##MAIN";
+        location.hash = "##HOME";
     }, 400));
   }
 
@@ -531,5 +528,5 @@ export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
 
 
 export function onLandingPage() {
-  return section == undefined || section?.id == "MAIN"
+  return article == undefined;
 }
