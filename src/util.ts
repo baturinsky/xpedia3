@@ -287,5 +287,19 @@ export function asMB(n: number) {
 
 export const pngDataPrefix = "data:image/png;base64,"
 
+/**
+ * Replaces the URL with one that has no hash, without adding a history entry.
+ *
+ * The landing page has no hash of its own: it is the bare page. Assigning `""`
+ * to `location.hash` looks like it should do this, but it appends a bare `"#"`
+ * and fires a second `hashchange`, which would navigate again. `replaceState`
+ * changes the address without firing anything, so the caller decides what
+ * happens next.
+ */
+export function clearHash() {
+  if (location.hash)
+    history.replaceState(history.state, "", location.pathname + location.search);
+}
+
 export const last = (list: any[]) => list[list.length - 1];
 

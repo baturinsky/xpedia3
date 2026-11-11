@@ -3,7 +3,7 @@ import wasmRaw from './unrar.wasm?base64'
 
 import { initUI } from './ui/ui';
 import { makeDropzone } from './dropzone';
-import { base64ToArrayBuffer } from './util';
+import { base64ToArrayBuffer, clearHash } from './util';
 import { article, section, state, update } from './state';
 import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
@@ -11,6 +11,7 @@ import { inlinePack, packSource, loadPackRul } from './packSource';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
+import { goToLanding } from './navigation';
 
 export let wasmBinary: ArrayBuffer;
 
@@ -19,12 +20,12 @@ export function goToArticle(href?: AnyRef) {
   if (!rul)
     return;
   let ref = fromAnyRef(href);
-  // The landing page is `##HOME`. `MAIN` is an older name for the same page and
-  // is still accepted, but navigation always rewrites it to the canonical hash.
-  if (ref == "MAIN" || ref == "HOME") {
-    update({ article: undefined, section: undefined });
-    if (location.hash != "##HOME")
-      location.hash = "##HOME";
+  // The landing page is the bare page, with no hash. `HOME` is its name in
+  // links, and `MAIN` is an older name for the same page; both are accepted,
+  // but the URL is rewritten to the hash-less form. `null` (or a missing href)
+  // means the same thing, so a link to nowhere cannot land on a stale article.
+  if (ref == null || ref == "MAIN" || ref == "HOME") {
+    goToLanding();
     return;
   }
   let article = rul.article(ref);
@@ -43,9 +44,18 @@ export function goToArticle(href?: AnyRef) {
   }
 }
 
+/**
+ * Shows the landing page and drops the hash from the address.
+ *
+ * The behaviour lives in `navigation.ts`, because the navbar needs the same
+ * thing and `main.ts` already imports the UI.
+ */
+export { goToLanding } from './navigation';
+
 function goToHash() {
-  let hash = decodeURI(document.location.hash) || "##HOME";
-  if (hash.substring(0, 2) != "##") return;
+  let hash = decodeURI(document.location.hash);
+  // No hash at all is the landing page, so it is not an error to have none
+  if (hash && hash.substring(0, 2) != "##") return;
   // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
   update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
   let id = hash.substring(2);
@@ -112,11 +122,12 @@ async function init() {
   wasmBinary = base64ToArrayBuffer(wasmRaw);
 
   onhashchange = goToHash;
-  // A fresh ruleset always lands on HOME: whatever the URL named belongs to the
-  // previous pack, and the same id means something else (or nothing) in this
-  // one. This fires on upload, on switching packs and after deleting one.
+  // A fresh ruleset always lands on the landing page: whatever the URL named
+  // belongs to the previous pack, and the same id means something else (or
+  // nothing) in this one. This fires on upload, on switching packs and after
+  // deleting one.
   addEventListener("xpedia:loaded", () => {
-    location.hash = "##HOME";
+    clearHash();
     goToHash();
   });
   goToHash()
@@ -156,7 +167,7 @@ addEventListener("keydown", e => {
     if (pageSwitch == "up") {
       if (section) {
         if (section.id == article?.id)
-          goToArticle("HOME")
+          goToLanding()
         else
           goToArticle(section)
       }

@@ -1,6 +1,8 @@
 import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot, Root } from 'react-dom/client';
 import { article, externalStore, PageName, reveal, revealLock, section, state, update, type StoreType } from "../state";
+import { clearHash } from "../util";
+import { goToLanding } from "../navigation";
 
 import 'react-data-grid/lib/styles.css';
 import 'normalize.css';
@@ -196,6 +198,11 @@ function dropdownButtonClick(
     return;
   }
   update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
+  // The landing page has no hash, so it cannot be reached by assigning one
+  if (goTo == "##HOME") {
+    goToLanding();
+    return;
+  }
   if (location.hash != goTo)
     location.hash = goTo;
 }
@@ -236,8 +243,13 @@ function NavDropdown() {
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
         <div className="navbar-auto navbar-list">
-          <a href="##HOME" className={"menu-home" + (onLandingPage() ? " active-section" : "")}
-            style={{ textDecoration: "underline" }}><Tr text="HOME" /></a>
+          {/* The landing page's own address has no hash, so this is not a link:
+              a bare-path `href` would reload the whole page when it is already
+              the current URL */}
+          <a href="#"
+            className={"menu-home" + (onLandingPage() ? " active-section" : "")}
+            style={{ textDecoration: "underline" }}
+            onClick={e => { e.preventDefault(); goToLanding(); }}><Tr text="HOME" /></a>
           <div className="menu-spacer" />
           {rul?.sectionsOrder?.map(s =>
             <a key={s.id} href={"##" + s.id}
@@ -379,7 +391,7 @@ function SearchBox() {
       if (article)
         location.hash = "##" + article.id;
       else
-        location.hash = "##HOME";
+        clearHash();
       return;
     }
     update({ searchQuery: value });
@@ -391,7 +403,9 @@ function SearchBox() {
       else if (article)
         location.hash = "##" + article.id;
       else
-        location.hash = "##HOME";
+        // No hash is how the landing page is addressed; assigning "" would
+        // append a bare "#" and fire a second navigation
+        clearHash();
     }, 400));
   }
 

@@ -1,0 +1,24 @@
+import { update } from "./state";
+import { clearHash } from "./util";
+
+/**
+ * Shows the landing page and makes the address bar match it.
+ *
+ * The landing page has no hash of its own: it is the bare page. Coming from an
+ * article or a search pushes a history entry, so Back returns where the user
+ * came from. `##HOME` (or the older `##MAIN`) is not a place of its own but a
+ * link onto the landing page, so it is replaced instead: that keeps a page
+ * opened on `##HOME` from gaining a history entry for a page it was already on.
+ *
+ * This lives outside `main.ts` because the navbar needs it too, and `main.ts`
+ * already imports the UI: sharing it here avoids a cycle.
+ */
+export function goToLanding() {
+  update({ article: undefined, section: undefined });
+  if (!location.hash)
+    return;
+  if (location.hash == "##HOME" || location.hash == "##MAIN")
+    clearHash();
+  else
+    history.pushState(history.state, "", location.pathname + location.search);
+}
