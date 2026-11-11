@@ -4,6 +4,7 @@ import { readImgData, readImgSizes, readRulData } from "./idb";
 import { bytesToBase64 } from "./util";
 import { gameRelativePath, isPermanentPack } from "./packSource";
 import { mainMod } from "./rul/Ruleset";
+import { WORLD_DAT } from "./worldmap";
 
 /**
  * Exports the currently shown modpack as a standalone reference.
@@ -177,7 +178,8 @@ function prepareRul(processed: any, languages: string[]) {
  * Image paths the pedia can show, so only those files are needed in an archive.
  *
  * Sprites cover items, facilities, armor layers and article illustrations;
- * obs tables are the indexed sprite sheets (`BIGOBS.PCK` and friends).
+ * obs tables are the indexed sprite sheets (`BIGOBS.PCK` and friends); the
+ * globe's DAT file is needed to draw the world map.
  */
 function referencedPaths() {
   let paths = new Set<string>();
@@ -208,6 +210,12 @@ function referencedPaths() {
     else if (/[\\/]/.test(id))
       add(id);
   }
+
+  // The world map reads the pack's globe data through the resource index. Only
+  // the file that index resolves to is needed, not every DAT the pack ships.
+  let dat = rul.resourceMap?.[WORLD_DAT]
+  if (dat)
+    add(dat);
 
   return paths;
 }

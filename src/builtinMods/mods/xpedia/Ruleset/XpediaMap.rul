@@ -1,0 +1,86 @@
+# XPedia's own ruleset.
+#
+# Nothing here changes the game. It only tells XPedia about things it shows that
+# a modpack cannot describe on its own: the world map page, and the colours it
+# draws that page's biomes with. Keeping this in the builtin mod means every
+# installed pack gets the map without being re-uploaded.
+
+ufopaedia:
+  # The map is drawn from the merged `globe:` node, so this entry only supplies
+  # the title and the pedia text above the picture. Its body is rendered by
+  # `WorldMapArticle`, keyed on the id.
+  - id: WORLD_MAP
+    section: WORLD_MAP
+    text: XPEDIA_WORLD_MAP
+
+xpedia:
+  # Land colours. X-Com never stores a colour for land: the real globe textures
+  # each polygon with a tile from TEXTURE.DAT, so the ruleset only carries the
+  # ocean's palette index. These are an illustration, chosen to read like the
+  # terrain they stand for.
+  #
+  # Keys are the terrain names from the `globe: textures:` list, in any letter
+  # case. Terrains not listed here fall back to a keyword match on the name (see
+  # `src/ui/mapColors.ts`), which is what makes mods with their own biomes work
+  # without editing this file.
+  mapColors:
+    # XCOM1
+    FOREST: "#2f6b33"
+    JUNGLE: "#1f5c2a"
+    CULTA: "#7a8a4a"
+    MOUNT: "#8a7a63"
+    DESERT: "#c8a86a"
+    POLAR: "#e8eef2"
+    # TFTD
+    SEABED: "#2a5a72"
+    CORAL: "#2e6f74"
+    PIPES: "#6b7a72"
+    PLANE: "#8a8f7a"
+    ATLAN: "#2a5a72"
+    MU: "#2f6b6b"
+    GAL: "#3a5f78"
+    MSUNK: "#2a4a5a"
+    VOLC: "#5a3030"
+    # X-Piratez families: the bulk of its 67 terrains fall into these
+    FORESTSWAMP: "#3f6040"
+    FORESTSNOW: "#8fa89a"
+    FOREST2BLACK: "#1d3a22"
+    FORESTWASTE: "#6f7050"
+    FORESTRED: "#6b3a2a"
+    PLAINS_TUNDRA: "#cfd8d4"
+    PLAINS_ARBOREAL: "#3a6b38"
+    PLAINS_TROPICAL: "#6f8a45"
+    PLAINS_MUD: "#6b6046"
+    PLAINS_SANDY: "#c8a86a"
+    TUNDRAPLANE: "#cfd8d4"
+    MOUNTBD_SNOW: "#e8eef2"
+    MOUNTBD_ARBOREAL: "#3a6b38"
+    MOUNTBD_TROPICAL: "#2f6b33"
+    MOUNTBD_MUD: "#6b6046"
+    MOUNTBD_SANDY: "#c8a86a"
+    MOUNTBD_ERODED: "#8a7a63"
+    MOUNTBD_DEAD: "#7a7466"
+    DESERTX: "#c39a5f"
+    DESERT2RED: "#a8563a"
+    DESERTCOLORADO: "#b8763f"
+    DESERTTEMPLE: "#c8a86a"
+    DESERTPLANE: "#c8a86a"
+    DESERTREFINERY: "#b0a06a"
+    DESERT_DUST_STORM: "#bda878"
+    RURAL: "#7e8a58"
+    RICE_FARM: "#6f8a45"
+    URBAN: "#8a8378"
+    URBAN_WASTE: "#847d70"
+    URBANJUNKWOODUFO: "#7d7a72"
+    URBANJUNKUFO: "#7d7a72"
+    INDUSTRIALSLUM: "#7d7a72"
+    COMRCURBAN: "#8a8378"
+    WESTOWN_SNOW: "#9aa39c"
+    WESTOWN_WASTE: "#8f8467"
+    WESTOWN_GRASS: "#7e8a58"
+    WESTOWN_MUD: "#6b6046"
+    WESTOWN_ROCKY: "#8a7a63"
+    WESTOWN_TROPICAL: "#6f8a45"
+    WESTOWN_DESERT: "#c8a86a"
+    IDT_SNOWVILLAGE: "#9aa39c"
+    NUKE_ZONE: "#6b6357"

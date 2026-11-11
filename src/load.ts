@@ -13,8 +13,17 @@ import builtinModsPayload from './builtinMods?builtinMods'
 const assetExts = ["rul", "nam", "png", "gif"]
 const lngExts = ["yml", "html", "txt"]
 
+/**
+ * Extensions that are read as raw bytes and never shown directly.
+ *
+ * `dat` is the X-Com image format: 8-bit pixel dumps and the globe's land
+ * polygons. Only the globe is used so far, to draw the world map, but the file
+ * has to be unpacked and indexed before it can be found at all.
+ */
+const dataExts = ["dat"]
 
-type AssetType = "lng" | "rul" | "meta" | "img" | "nam"
+
+type AssetType = "lng" | "rul" | "meta" | "img" | "nam" | "dat"
 
 async function loadBuiltinPack(packname: string, rawPack: string) {
   let binary = base64ToArrayBuffer(rawPack);
@@ -50,6 +59,28 @@ function unpackBuiltinMods() {
     at += dataLength;
   }
   return files;
+}
+
+/**
+ * A file that came with the builtin mods, by archive path.
+ *
+ * The globe data has to be available for every pack, and reading it from the
+ * compiled-in folder makes that work whether or not the builtin assets were
+ * cached in the database: an exported page opened from disk has no database to
+ * read them from.
+ */
+export function builtinFile(path: string) {
+  let wanted = path.replace(/\\/g, "/").toLowerCase();
+  for (let [name, data] of Object.entries(builtinFiles()))
+    if (name.toLowerCase() == wanted)
+      return data;
+}
+
+/** The unpacked builtin folder, kept because gunzipping it is not free */
+let cachedBuiltinFiles: { [name: string]: Uint8Array } | undefined;
+
+function builtinFiles() {
+  return cachedBuiltinFiles ??= unpackBuiltinMods();
 }
 
 /**
@@ -255,6 +286,13 @@ export function interpretPath(s: string): {
       mod, name, path, ext
     }
   }
+
+  // Only the globe's own folder: a pack's fonts and other DAT files are binary
+  // and would cost unpacking and storage for nothing
+  if (dataExts.includes(ext) && dirs.some(d => /^geodata$/i.test(d)))
+    return { type: "dat", mod, name, path, ext };
+
+  return;
 }
 
 
@@ -263,6 +301,11 @@ function usefulFileName(name: string) {
   // afterwards: an extension accepted there but filtered out here would simply
   // never arrive.
   if (/\.(rul|yml|png|gif|nam)$/i.test(name))
+    return true;
+  // The globe's polygons, see `dat` in `interpretPath`. Matched by folder here
+  // because the filter only sees the name, and the folder keeps fonts and other
+  // binary DAT files out.
+  if (/[\\/]geodata[\\/][^\\/]+\.dat$/i.test(name))
     return true;
   // Article bodies may be `Language/STR_ID.<lang>.html` (or `.txt`) instead of
   // yaml. Restricted to the Language folder so a pack's other HTML is still
@@ -478,8 +521,7 @@ function modDirs(files: { [name: string]: Uint8Array }) {
  * priority, and the first definition of a relative path wins. `common` is
  * indexed last, so it only provides files no mod defines.
  */
-function buildResourceMap(interpreted: { mod: string, path: string, type?: string }[], active: Mod[]) {
-  let map: { [rel: string]: string } = {};
+function buildResourceMap(interpreted: { mod: string, path: string, type?: string }[], active: Mod[]) {  let map: { [rel: string]: string } = {};
 
   // Highest priority first: the later a mod is activated, the more it wins.
   // `common` is mapped last by OpenXcom, so it only fills in missing files.
@@ -488,7 +530,7 @@ function buildResourceMap(interpreted: { mod: string, path: string, type?: strin
   for (let mod of priority) {
     let prefix = mod.dir + "/";
     for (let file of interpreted) {
-      if (file.type != "img" && file.type != "nam")
+      if (file.type != "img" && file.type != "nam" && file.type != "dat")
         continue;
       if (!file.path.startsWith(prefix))
         continue;
@@ -509,14 +551,19 @@ export async function loadBuiltinOnlyPack() {
   let files = await builtinModFiles();
   let { processed, interpretedFiles } = await buildRuleset(files, async () => { });
 
-  // Builtin images are not part of any stored archive, so cache them under the
-  // "builtin" pack just like a real load would. A page without storage (an
-  // exported file opened from disk) still browses fine, just without images.
+  // Builtin images and globe data are not part of any stored archive, so they
+  // are cached under the "builtin" pack just like a real load would. A page
+  // without storage (an exported file opened from disk) still browses fine, just
+  // without them.
   let images = interpretedFiles.filter(f => f.type == "img");
+  let dataFiles = interpretedFiles.filter(f => f.type == "dat");
   try {
-    if (images.length) {
+    if (images.length || dataFiles.length) {
       await wipeAssets(builtinPackName);
-      await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
+      if (images.length)
+        await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
+      if (dataFiles.length)
+        await saveImgs(builtinPackName, dataFiles.map(f => ({ mod: f.mod, path: f.path, data: f.data })));
     }
   } catch (e) {
     console.warn("Can't cache builtin images", e);
@@ -576,6 +623,12 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
         reportStage("Saving images", done / (images.length || 1), `${done}/${images.length}`);
         await nextPaint();
       });
+
+    // The globe's DAT files are stored like images, so the map can be drawn
+    // without the archive having to be unpacked again
+    let dataFiles = interpretedFiles.filter(f => f.type == "dat");
+    if (dataFiles.length)
+      await saveImgs(packName, dataFiles.map(f => ({ mod: f.mod, path: f.path, data: f.data })));
 
     throwIfCancelled();
 

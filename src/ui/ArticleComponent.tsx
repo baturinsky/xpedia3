@@ -16,6 +16,7 @@ import StartingConditionsComponent from "./StartingConditionsComponent";
 import { LandingPage, packTitle, onLandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
+import { WorldMapArticle } from "./WorldMapArticle";
 
 export function ArticleTitle() {
   let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
@@ -101,12 +102,12 @@ const renderers = {
   terrains: {
     sort: { last: ["mapBlocks"] },
     special: {
-      mapBlocks: asJson
+      mapBlocks: asSubTable
     }
   },
   mapScripts: {
     special: {
-      commands: asJson
+      commands: asSubTable
     }
   },
   events: {},
@@ -461,6 +462,9 @@ export function ArticleComponent() {
     {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
         tables get the full page width instead of a single column */}
     {table}
+    {/* The map is a wide picture like a table, so it goes above the columns
+        rather than into one of them, and before the pedia text that explains it */}
+    {article.id == "WORLD_MAP" && <WorldMapArticle />}
     {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
       <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
@@ -487,12 +491,11 @@ export function ArticleComponent() {
           // Render as an element so hooks inside the renderer work
           return createElement(ren as any, { key, entry: (rul as any)[key][id], text: article?.text });
         } else {
-          let { sort, title, special } = ren as any;
+          let { title } = ren as any;
           return <MainTable
+            {...ren}
             key={key}
             entry={(rul as any)[key][id]}
-            sort={sort}
-            special={special}
             title={title != null ? title : key}
           />
         }

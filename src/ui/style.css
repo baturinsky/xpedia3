@@ -1028,8 +1028,8 @@ button:disabled:hover {
   break-inside: auto;
 }
 
-.main-table>tr>td:first-child {
-  width: 8rem;
+.main-table>tbody>tr>td:first-child {
+  width: 10rem;
 }
 
 .main-table>thead,
@@ -1382,15 +1382,18 @@ td.attacks-alter {
   border-top: dashed 1px var(--lighter);
 }
 
-.sub-table{
+.sub-table {
   padding: 0px;
+  margin-left: 0;
+  border: solid .3px var(--border);
 }
 
-.sub-table td:first-child{  
+.sub-table td:first-child {
   text-align: right;
   border-left: none;
   padding-left: 0px;
   width: 10rem;
+  border: solid .3px var(--border);
 }
 
 .number-table {
@@ -1553,9 +1556,111 @@ a.services {
   text-align: center;
 }
 
-.export-button{
+.export-button {
   margin: 1rem auto 0 auto;
 }
+
+/* ---- World map ----
+   The map is drawn as polygons in one SVG with a fixed viewBox, so it keeps the
+   equirectangular proportions at any width. `width: 0; min-width: 100%` lets it
+   take the full page width above the article columns without forcing that width
+   on the column layout itself. */
+.world-map-block {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+.world-map {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  max-height: 60vh;
+  background: #0d2f52;
+  border: solid 1px var(--border);
+}
+
+.world-map polyline {
+  stroke: var(--border);
+  stroke-width: 4;
+}
+
+/* Sizes are in viewBox units, so they scale with the picture: 36 of 2048 keeps
+   a label around 12px on a narrow column and 20px on a wide page. */
+.world-map text {
+  fill: var(--text);
+  font-size: 36px;
+  paint-order: stroke;
+  stroke: var(--shadow);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+/* Region and label links: the shapes are clickable, so hovering has to say so */
+.world-map a polygon {
+  cursor: pointer;
+}
+
+.world-map a:hover polygon {
+  stroke: var(--link);
+  stroke-width: 4;
+}
+
+.world-map a:hover text {
+  fill: var(--link);
+}
+
+.world-map-legend {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+}
+
+.world-map-legend-title {
+  font-weight: bold;
+}
+
+.world-map-legend ul {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.world-map-legend li {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .3rem;
+}
+
+.world-map-swatch {
+  display: inline-block;
+  width: .9rem;
+  height: .9rem;
+  border: solid 1px var(--border);
+}
+
+.world-map-count {
+  opacity: .6;
+}
+
+.world-map-note {
+  font-size: 85%;
+  opacity: .7;
+  max-width: 60rem;
+}
+
+.world-map-status {
+  margin-bottom: 1rem;
+}
+
 
 /* ---- Narrow screens (phones) ---- */
 
@@ -1690,6 +1795,7 @@ a.services {
     overflow-x: auto;
   }
 
+
   .main-table td,
   .section-table td {
     max-width: none;
@@ -1731,5 +1837,16 @@ a.services {
      its own cell instead of stretching the page. */
   .x-image {
     max-width: none;
+  }
+
+  /* The map keeps its whole world on screen: shrinking the picture beats
+     scrolling sideways to find the other half of it. The legend needs the
+     wrapper to shrink too, or it would hold the page at its desktop width. */
+  .world-map {
+    max-height: none;
+  }
+
+  .world-map-legend ul {
+    gap: .25rem .5rem;
   }
 }

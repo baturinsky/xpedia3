@@ -538,6 +538,13 @@ export default class Ruleset {
     if(rul.attacks?.length > 0)
       new Section("ATTACKS", true);
 
+    // The world map is a generated page rather than a pack's own article, so it
+    // is registered as a Category like the entry tables above. It exists
+    // whenever the merged ruleset has a `globe:` node, which is where the map's
+    // polygons and terrain names come from.
+    if (this.raw.globe)
+      new Section("WORLD_MAP", true);
+
     let all = {
       Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),
       SoldierTypes: Object.keys(rul.soldiers),

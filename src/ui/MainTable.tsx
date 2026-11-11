@@ -70,7 +70,7 @@ const MainTable = ({
               return null;
             }
             return <tr key={key}>
-              <td><Val of={key} capital={true} /></td>
+              <td className="row-name"><Val of={key} capital={true} /></td>
               <td>{render({ key, val, row })}</td>
             </tr>
           }
@@ -79,7 +79,7 @@ const MainTable = ({
           if (val != null && !(val.length === 0)) {
             return (
               <tr key={key}>
-                <td><Val of={key} capital={true} /></td>
+                <td className="row-name"><Val of={key} capital={true} /></td>
                 <td><Val of={val} field={key} /></td>
               </tr>
             );

@@ -2379,3 +2379,11 @@ en-US:
   BT_NONE: Misc
   STR_RULESET_REFERENCE: Ruleset Reference Nightly (OpenXcom)
   STR_PALETTE_CONVERTER: Palette Converter
+  WORLD_MAP: World Map
+  XPEDIA_WORLD_MAP: "The pack's geoscape, flattened. Land is drawn from the globe's polygons, borders from its polylines, and the nations are labelled where the pack anchors them."
+  xpediaMapLegend: Terrain
+  xpediaMapLoading: Loading the map...
+  xpediaMapMissing: This pack has no geoscape data, so there is no world map to draw.
+  xpediaMapNote: "Land colour is an illustration, not game data: the game paints each region with a texture tile, and those textures are not part of a ruleset. Regions whose name the pack does not describe are shown in a neutral colour."
+  xpediaMapUnknownLand: Unknown terrain
+

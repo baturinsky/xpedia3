@@ -654,20 +654,29 @@ function moveField(shownFields: string[], after: string, field: string, setShown
   setShownFields(next);
 }
 
-export function SubTable(props: { of: Object, nested?: boolean, switchColumns?: boolean }) {
-  return <table className="sub-table" style={{ width: "100%", margin: 0 }}>
+export function SubTable(props: { of: Object, switchColumns?: boolean }) {
+  const subVal = (v: any) => (v instanceof Object || Array.isArray(v)) ? <SubTable of={v} /> : <Val of={v} />
+  return <table className="sub-table">
     <tbody>
-      {Object.entries(props.of).map((entry: [any, any], i: number) => {
-        if (props.switchColumns)
-          entry = entry.reverse() as [any,any];
-        return <tr key={i}>
-          <td><Val of={entry[0]} /></td>
-          <td>
-            {(props.nested && (entry[1] instanceof Object)) ? <SubTable of={entry[1]} /> : <Val of={entry[1]} />}
-          </td>
-        </tr>
-      }
-      )}
+      {
+        Array.isArray(props.of) ? (
+          props.of.map((entry, i) => <tr key={i}>
+            <td>
+              {subVal(entry)}
+            </td>
+          </tr>)
+        ) :
+          Object.entries(props.of).map((entry: [any, any], i: number) => {
+            if (props.switchColumns)
+              entry = entry.reverse() as [any, any];
+            return <tr key={i}>
+              <td><Val of={entry[0]} /></td>
+              <td>
+                {subVal(entry[1])}
+              </td>
+            </tr>
+          }
+          )}
     </tbody>
   </table>
 }
