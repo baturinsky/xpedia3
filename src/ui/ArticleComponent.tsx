@@ -2,7 +2,7 @@ import { createElement, RefObject, useEffect, useLayoutEffect, useRef, useState 
 import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { BaseService, Img, LinksPage, SectionTable } from "./components";
+import { BaseService, Img, LinksPage, SectionTable, SubTable } from "./components";
 import CommendationComponent, { SoldierBonuses } from "./CommendationComponent";
 import Conditions from "./Conditions";
 import CraftComponent from "./CraftComponent";
@@ -82,14 +82,32 @@ const renderers = {
   },
   missionScripts: {
     sort: { exclude: ["researchNeeded", "researchForbidden"] },
+    special: {
+      missionWeights: (props:any) => <SubTable of={props.val} />,
+      regionWeights: (props:any) => <SubTable of={props.val} />
+    }
   },
   alienMissions: {},
   startingConditions: StartingConditionsComponent,
   enviroEffects: {},
-  terrains: { sort: { last: ["mapBlocks"] } },
-  mapScripts: {},
+  terrains: { 
+    sort: { last: ["mapBlocks"] },
+    special: {
+      mapBlocks: (props:any)=><pre>{JSON.stringify(props.val, undefined, 2)}</pre>      
+    }
+  },
+  mapScripts: {
+    special: {
+      commands: (props:any)=><pre>{JSON.stringify(props.val, undefined, 2)}</pre>      
+    }
+  },
   events: {},
-  eventScripts: { title: "Event Script" },
+  eventScripts: { 
+    title: "Event Script",
+    special: {
+      eventWeights: (props:any) => <SubTable of={props.val} />,
+    }
+  },
   inventorySections: {},
 };
 
@@ -459,11 +477,12 @@ export function ArticleComponent() {
           // Render as an element so hooks inside the renderer work
           return createElement(ren as any, { key, entry: (rul as any)[key][id], text: article?.text });
         } else {
-          let { sort, title } = ren as any;
+          let { sort, title, special } = ren as any;
           return <MainTable
             key={key}
             entry={(rul as any)[key][id]}
             sort={sort}
+            special={special}
             title={title != null ? title : key}
           />
         }

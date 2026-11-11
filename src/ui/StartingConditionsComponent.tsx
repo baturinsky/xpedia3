@@ -1,4 +1,6 @@
+import { SubTable } from "./components";
 import MainTable from "./MainTable";
+import { Val } from "./Val";
 
 /** Starting conditions table, follows old `StartingConditions.svelte` */
 export default function StartingConditionsComponent({
@@ -20,5 +22,11 @@ export default function StartingConditionsComponent({
       exclude,
       last: ["allowedArmors", "forbiddenArmors", "defaultArmor"],
     }}
+    wide={["defaultArmor"]}
+    special={
+      {
+        "defaultArmor": (props) => <SubTable of={props.val} />
+      }
+    }
   />;
 }

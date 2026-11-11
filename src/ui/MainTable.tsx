@@ -1,4 +1,4 @@
-import { Fragment, ReactNode } from "react";
+import { Fragment, JSX, ReactNode } from "react";
 import { Val } from "./Val";
 import { sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
 
@@ -50,11 +50,16 @@ const MainTable = ({
           // because a wide field looks its renderer up in the same map.
           if (wide.includes(key)) {
             let render = special[key];
+            let content: JSX.Element;
             if (typeof render !== "function") {
-              console.error(`Wide table function for '${key}' is not a function`)
-              return null;
+              content = <Val of={val} />
+            } else {
+              content = <Fragment key={key}>{render({ key, val, row })}</Fragment>;
             }
-            return <Fragment key={key}>{render({ key, val, row })}</Fragment>;
+            return <Fragment key={key}>
+              <tr><td colSpan={2} className="table-subheader"><Val of={key} /></td></tr>
+              <tr><td colSpan={2}>{content}</td></tr>
+            </Fragment>
           }
 
           // Special field - custom renderer for the value only

@@ -1374,6 +1374,17 @@ td.attacks-alter {
   border-top: dashed 1px var(--lighter);
 }
 
+.sub-table{
+  padding: 0px;
+}
+
+.sub-table td:first-child{  
+  text-align: right;
+  border-left: none;
+  padding-left: 0px;
+  width: 10rem;
+}
+
 .number-table {
   padding: 0px;
 }

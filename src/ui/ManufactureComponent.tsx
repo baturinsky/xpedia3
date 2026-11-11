@@ -5,29 +5,20 @@ import { Val } from "./Val";
 export default function ManufactureComponent({ entry }: { entry: any }) {
   // The wide row from old `MainTable.svelte`: a subheader plus the chance table
   let randomProducedItems = ({ val }: { val: any }) => val ? <>
-    <tr>
-      <td colSpan={2} className="table-subheader">
-        <Val of="randomProducedItems" />
-      </td>
-    </tr>
-    <tr>
-      <td colSpan={2}>
-        <table className="number-table" style={{ width: "100%", margin: 0 }}>
-          <tbody>
-            {entry.randomProducedItems.map((chance: [number, any], i: number) =>
-              <tr key={i}>
-                <td>{((chance[0] / entry.chanceSum) * 100).toFixed(2)}%</td>
-                <td>
-                  {Object.keys(chance[1]).length == 0
-                    ? <Val of="NOTHING" />
-                    : <Val of={chance[1]} />}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </td>
-    </tr>
+    <table className="number-table" style={{ width: "100%", margin: 0 }}>
+      <tbody>
+        {entry.randomProducedItems.map((chance: [number, any], i: number) =>
+          <tr key={i}>
+            <td>{((chance[0] / entry.chanceSum) * 100).toFixed(2)}%</td>
+            <td>
+              {Object.keys(chance[1]).length == 0
+                ? <Val of="NOTHING" />
+                : <Val of={chance[1]} />}
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
   </> : null;
 
   return <MainTable
