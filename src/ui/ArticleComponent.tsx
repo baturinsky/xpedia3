@@ -93,7 +93,7 @@ const renderers = {
   alienMissions: {
     special: {
       raceWeights: asSubTable,
-      waves: (props: any) => <Val of={props.val} depth={10}/>
+      waves: (props: any) => <Val of={props.val} depth={10} />
     }
   },
   startingConditions: StartingConditionsComponent,
@@ -376,22 +376,24 @@ function SearchResults() {
   let found = state.found;
   let matches = (a: string) => (rul.tr(a) ?? "").toLowerCase().includes(query);
 
+  let searchingFor = <><Tr text="Searching for" /> "<em>{state.searchQuery}</em>"</>
+
   if (!found)
-    return <div>Searching "<em>{state.searchQuery}</em>":<br />
+    return <div> {searchingFor}<br />
       {query.length < 2 ? <i>Query too short</i> : <><Val of="Initializing search engine..." /><br /></>}
     </div>;
 
   if (found.length == 0)
-    return <div>Searching "<em>{state.searchQuery}</em>":<br /><i><Val of="Nothing found" /></i></div>;
+    return <div>{searchingFor}<br /><i><Val of="Nothing found" /></i></div>;
 
   let primary = found.filter(matches).slice(0, 200);
   let secondary = found.filter(a => !matches(a)).slice(0, 200);
 
   return <div>
     Searching "<em>{state.searchQuery}</em>":<br />
-    <LinksPage key={"primary" + query} links={primary} />
+    <LinksPage key={"primary" + query} links={primary} title="In Title" />
     <br />
-    <LinksPage key={"secondary" + query} links={secondary} title=" " />
+    <LinksPage key={"secondary" + query} links={secondary} title="In Body" />
   </div>;
 }
 
