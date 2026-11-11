@@ -11,7 +11,7 @@ import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
-import ResearchInfo from "./ResearchInfo";
+import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
 import { LandingPage, packTitle, onLandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
@@ -54,13 +54,16 @@ function PackMeta() {
   </div>;
 }
 
+const asSubTable = (props: any) => <SubTable of={props.val} />,
+  asJson = (props: any) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>
+
 /*Which renderer to use for each article type */
 const renderers = {
   units: UnitComponent,
   armors: ArmorComponent,
   battleTypes: {},
   items: ItemComponent,
-  research: ResearchInfo,
+  research: ResearchComponent,
   stats: {},
   damageTypes: {},
   countries: {},
@@ -83,29 +86,34 @@ const renderers = {
   missionScripts: {
     sort: { exclude: ["researchNeeded", "researchForbidden"] },
     special: {
-      missionWeights: (props:any) => <SubTable of={props.val} />,
-      regionWeights: (props:any) => <SubTable of={props.val} />
+      missionWeights: asSubTable,
+      regionWeights: asSubTable
     }
   },
-  alienMissions: {},
+  alienMissions: {
+    special: {
+      raceWeights: asSubTable,
+      waves: (props: any) => <Val of={props.val} depth={10}/>
+    }
+  },
   startingConditions: StartingConditionsComponent,
   enviroEffects: {},
-  terrains: { 
+  terrains: {
     sort: { last: ["mapBlocks"] },
     special: {
-      mapBlocks: (props:any)=><pre>{JSON.stringify(props.val, undefined, 2)}</pre>      
+      mapBlocks: asJson
     }
   },
   mapScripts: {
     special: {
-      commands: (props:any)=><pre>{JSON.stringify(props.val, undefined, 2)}</pre>      
+      commands: asJson
     }
   },
   events: {},
-  eventScripts: { 
+  eventScripts: {
     title: "Event Script",
     special: {
-      eventWeights: (props:any) => <SubTable of={props.val} />,
+      eventWeights: asSubTable,
     }
   },
   inventorySections: {},

@@ -187,6 +187,7 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
         "stats",
       ],
       first: ["builtInWeapons", "size"],
+      last:["spriteSheet"]
     }).all;
   }, [entry]);
 

@@ -1,12 +1,13 @@
 import { Children, Component, createContext, Fragment, MouseEventHandler, useContext, useSyncExternalStore } from "react";
 import {
-  BaseServiceList
+  BaseServiceList,
+  SubTable
 } from "./components";
 import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Entry } from "../rul/Entry";
 import { Val } from "./Val";
 
-export const ResearchInfo = ({ entry }: { entry: Entry }) => {
+export const ResearchComponent = ({ entry }: { entry: Entry }) => {
   const longLists = [
     "unlocks",
     "seeAlso",
@@ -18,7 +19,7 @@ export const ResearchInfo = ({ entry }: { entry: Entry }) => {
     "getOneFree",
     "getOneFreeProtected",
     "requiresBaseFunc",
-    "manufacture",
+    "manufacture"
   ];
 
   const sortedEntries = sortFirstLast(entry, { last: longLists, exclude: ["name"] }).all;
@@ -87,7 +88,7 @@ export const ResearchInfo = ({ entry }: { entry: Entry }) => {
           return (
             <tr key={key}>
               <td><Val of={key} /></td>
-              <td><Val of={prop} /></td>
+              <td><Val of={prop}/></td>
             </tr>
           );
         })}
@@ -96,4 +97,4 @@ export const ResearchInfo = ({ entry }: { entry: Entry }) => {
   );
 };
 
-export default ResearchInfo;
+export default ResearchComponent;

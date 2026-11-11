@@ -13,7 +13,7 @@ export const Val = ({
   /**obs sprite */
   obs = null as string | null,
   /** Maximum depth */
-  depth = 3,
+  depth = 4,
   notip = false,
   capital = false,
   nobr = 30 as number | boolean,

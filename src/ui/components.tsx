@@ -654,16 +654,19 @@ function moveField(shownFields: string[], after: string, field: string, setShown
   setShownFields(next);
 }
 
-export function SubTable(props: { of: Object, nested?:boolean }) {
+export function SubTable(props: { of: Object, nested?: boolean, switchColumns?: boolean }) {
   return <table className="sub-table" style={{ width: "100%", margin: 0 }}>
     <tbody>
-      {Object.entries(props.of).map((entry: [any, any], i: number) =>
-        <tr key={i}>
+      {Object.entries(props.of).map((entry: [any, any], i: number) => {
+        if (props.switchColumns)
+          entry = entry.reverse() as [any,any];
+        return <tr key={i}>
           <td><Val of={entry[0]} /></td>
           <td>
-            {(props.nested && (entry[1] instanceof Object))?<SubTable of={entry[1]} />:<Val of={entry[1]} />}
+            {(props.nested && (entry[1] instanceof Object)) ? <SubTable of={entry[1]} /> : <Val of={entry[1]} />}
           </td>
         </tr>
+      }
       )}
     </tbody>
   </table>
