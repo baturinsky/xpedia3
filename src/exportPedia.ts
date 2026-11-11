@@ -108,6 +108,26 @@ async function readAppAssets() {
 }
 
 /**
+ * The strings of `lang` that English does not already provide identically.
+ *
+ * A language map in a processed ruleset is a full copy of the English map with
+ * the translations written over it (`preprocessMods` does
+ * `{ ...langs["en-US"], ...langs[name] }`), so everything untranslated is
+ * repeated once per language. `Ruleset.selectLang` merges the two back together
+ * when the language is picked, which makes the copies unnecessary in a file.
+ *
+ * Values are compared with `!==`, so a string is only dropped when it is
+ * literally the same one; anything else (numbers, OXCE plural objects) stays.
+ */
+function onlyTranslated(english: any, lang: any) {
+  let translated: { [key: string]: any } = {};
+  for (let key of Object.keys(lang))
+    if (english[key] !== lang[key])
+      translated[key] = lang[key];
+  return translated;
+}
+
+/**
  * Trims the processed ruleset to the languages the user picked. The ruleset is
  * stored exactly as the app runs it, so this only touches `langs`; everything
  * else (articles, entries, sprites) is already in its final form.
@@ -116,10 +136,17 @@ function prepareRul(processed: any, languages: string[]) {
   // `icon` is the emoji label map, not a language the user can pick, and the
   // page is unreadable without it
   let keep = new Set(["en-US", "icon", ...languages]);
+  let english = processed.langs?.["en-US"] ?? {};
   let langs: { [name: string]: any } = {};
-  for (let name of Object.keys(processed.langs ?? {}))
-    if (keep.has(name))
-      langs[name] = processed.langs[name];
+  for (let name of Object.keys(processed.langs ?? {})) {
+    if (!keep.has(name))
+      continue;
+    // English and the emoji map are the reference the others are merged onto,
+    // so they have to stay complete
+    langs[name] = name == "en-US" || name == "icon"
+      ? processed.langs[name]
+      : onlyTranslated(english, processed.langs[name]);
+  }
   return { ...processed, langs };
 }
 
