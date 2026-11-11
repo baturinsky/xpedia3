@@ -10,6 +10,7 @@ import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDialog } from "./files";
 import ExportDialog from "./ExportDialog";
+import { warmEstimate } from "../exportPedia";
 import { rul } from "../rul/Ruleset";
 import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
@@ -89,6 +90,24 @@ function UI() {
   );
 }
 
+/**
+ * The export button, and the only place the size estimate is warmed up.
+ *
+ * It is rendered only in the developer view, so that is exactly when measuring
+ * the pack ahead of time costs nothing for the people who never export.
+ */
+function ExportButton() {
+  useEffect(() => {
+    warmEstimate();
+    // Re-uploading a pack replaces its ruleset without changing its name, so the
+    // measurement dropped by `xpedia:loaded` has to be retaken here
+    addEventListener("xpedia:loaded", warmEstimate);
+    return () => removeEventListener("xpedia:loaded", warmEstimate);
+  }, [state.packName]);
+  return <button className="export-button"
+    onClick={() => update({ showExportDialog: true })}><Tr text="Export" /></button>;
+}
+
 export function LandingPage() {
   
   return <>
@@ -96,7 +115,7 @@ export function LandingPage() {
       
       {rul && <>
         <ModsList />
-        <button className="export-button" onClick={() => update({ showExportDialog: true })}><Tr text="Export" /></button>
+        <ExportButton />
         <SectionsList />
       </>
       }

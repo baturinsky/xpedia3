@@ -1,8 +1,8 @@
 import * as fflate from "fflate";
 import { state } from "./state";
-import { readImgData, readRulData } from "./idb";
+import { readImgData, readImgSizes, readRulData } from "./idb";
 import { bytesToBase64 } from "./util";
-import { gameRelativePath } from "./packSource";
+import { gameRelativePath, isPermanentPack } from "./packSource";
 import { mainMod } from "./rul/Ruleset";
 
 /**
@@ -47,6 +47,29 @@ async function gzipText(text: string) {
   if (typeof CompressionStream == "undefined")
     return fflate.gzipSync(bytes);
   let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/**
+ * Compresses text for the size preview, in pieces.
+ *
+ * The browser hands a whole blob to the compressor in one go, which blocks the
+ * page for a few hundred milliseconds on a big translation. Feeding the same
+ * bytes piece by piece produces an identical stream but yields to the page
+ * between pieces, so the dialog keeps painting.
+ */
+async function gzipTextInPieces(text: string) {
+  let bytes = new TextEncoder().encode(text);
+  if (typeof CompressionStream == "undefined")
+    return fflate.gzipSync(bytes);
+  let source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (let i = 0; i < bytes.length; i += 65536)
+        controller.enqueue(bytes.subarray(i, i + 65536));
+      controller.close();
+    }
+  });
+  let stream = source.pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -202,15 +225,25 @@ function scriptJson(value: any) {
 async function buildHtml(pack: string, processed: any, languages: string[]) {
   let trimmed = prepareRul(processed, languages);
   let gzipped = await gzipText(JSON.stringify(trimmed));
+  return renderPage(pack, trimmed, bytesToBase64(gzipped));
+}
+
+/**
+ * The page text around a ruleset payload.
+ *
+ * Split out so the size estimate can measure the shell once and then add the
+ * payload length, see `prepareEstimate`.
+ */
+async function renderPage(pack: string, processed: any, rulesetBase64: string) {
   let payload = {
     pack: exportedPackName(pack),
-    rul: bytesToBase64(gzipped)
+    rul: rulesetBase64
   };
 
   let { scripts, styles } = await readAppAssets();
   // The page title names the mod the pack is about, the same one the navbar
   // shows, not whichever mod happens to come last in the archive
-  let meta = mainMod(trimmed.mods ?? [])?.meta;
+  let meta = mainMod(processed.mods ?? [])?.meta;
   let title = [meta?.name, meta?.version].filter(Boolean).join(" ") || "XPedia";
 
   // The payload must exist before the app starts. Module scripts run after
@@ -234,6 +267,225 @@ async function buildHtml(pack: string, processed: any, languages: string[]) {
 </body>
 
 </html>`;
+}
+
+/**
+ * What the export size preview needs to answer quickly, see `estimateSize`.
+ *
+ * Measuring from scratch means gzipping the whole ruleset, which takes about a
+ * second on a big pack: far too slow for every checkbox click. So the parts that
+ * do not depend on the selection are measured once when the dialog opens, and a
+ * later estimate is a sum rather than a compression.
+ */
+export type ExportEstimate = {
+  /** HTML around the ruleset payload, measured with an empty payload */
+  shellBytes: number,
+  /**
+   * What that shell compresses to, which is what the archive stores.
+   *
+   * Only measured when the archive format is chosen, because a single-file
+   * export never needs it.
+   */
+  shellGzipBytes?: number,
+  /** Compressed ruleset with only the English strings */
+  englishBytes: number,
+  /**
+   * Compressed size each language's own strings add on top of English.
+   *
+   * Filled in on demand: most exports carry no extra language at all, so
+   * compressing all of them up front would be wasted work.
+   */
+  languageBytes: { [name: string]: number },
+  /** Live language maps the on-demand sizes are cut from */
+  langs: { [name: string]: any },
+  /**
+   * Bytes of the images the archive format would bundle, also measured on demand.
+   *
+   * Only the images the pedia can actually show travel, not every image the
+   * pack stored, which can be several times more.
+   */
+  imageBytes?: number,
+  /** The measured page, kept so the archive size can be taken from it later */
+  html: string
+};
+
+/**
+ * The processed ruleset of the pack currently in memory.
+ *
+ * This is the same shape `readRulData` returns, assembled from the live
+ * `Ruleset` instead of the database. The export itself re-reads the stored copy,
+ * because it must not hand out anything the app is still using, but a size
+ * preview only needs the sizes, and re-reading a big pack costs more than all
+ * the compression put together.
+ */
+function liveRulData() {
+  let rul = state.rul;
+  if (!rul)
+    return;
+  let langs = rul.langs ?? {};
+  return {
+    mods: rul.mods ?? [],
+    // The language maps are already exactly what `prepareRul` expects: `en-US`
+    // and `icon` whole, the rest a full copy of English with translations
+    // written over it, which `onlyTranslated` trims back down
+    langs,
+    resources: rul.resourceMap ?? {}
+  };
+}
+
+/**
+ * Measurements already taken, so reopening the export dialog is instant.
+ *
+ * A module-level cache rather than component state: the dialog unmounts when it
+ * closes, and measuring a big pack again would block the page for a second each
+ * time. `xpedia:loaded` drops it, because that fires when the shown pack changes
+ * or is re-uploaded.
+ */
+let estimateCache: { pack: string, value: Promise<ExportEstimate | undefined> } | undefined;
+
+addEventListener("xpedia:loaded", () => {
+  estimateCache = undefined;
+});
+
+/**
+ * Measures the shown pack ahead of time, so the export dialog opens with its
+ * size already known. Called when the export button appears, which only happens
+ * in the developer view: for everyone else this would be CPU spent on a window
+ * they cannot even open.
+ */
+export function warmEstimate() {
+  if (state.packName && !isPermanentPack(state.packName))
+    void prepareEstimate();
+}
+
+/** Everything an estimate needs, measured once per shown pack */
+export function prepareEstimate(): Promise<ExportEstimate | undefined> {
+  let pack = state.packName;
+  if (!pack)
+    return Promise.resolve(undefined);
+  if (estimateCache?.pack == pack)
+    return estimateCache.value;
+  let value = measureEstimate(pack);
+  estimateCache = { pack, value };
+  // A failed measurement must not be remembered: the next open tries again
+  value.catch(() => { if (estimateCache?.pack == pack) estimateCache = undefined; });
+  return value;
+}
+
+/** Lets the page paint between two heavy steps, as the loader does */
+function nextPaint() {
+  return new Promise<void>(resolve => setTimeout(resolve, 0));
+}
+
+/**
+ * What the shell and the English ruleset cost. This is the slow half of a
+ * measurement, and the only part every export needs, so it happens first.
+ */
+async function measureEstimate(pack: string): Promise<ExportEstimate | undefined> {
+  let processed = liveRulData();
+  if (!processed)
+    return;
+
+  let english = englishOnly(processed);
+  // `renderPage` puts the base64 in `"rul":"..."`. Measuring with an empty
+  // payload keeps the two quotes, so the shell is everything except the base64
+  // characters themselves, which `estimateSize` adds back.
+  let html = await renderPage(pack, english, "");
+  let shellBytes = html.length;
+  await nextPaint();
+
+  let englishBytes = (await gzipTextInPieces(JSON.stringify(english))).length;
+
+  // The archive details are only needed by that format, so they wait until it
+  // is actually chosen
+  return { shellBytes, englishBytes, languageBytes: {}, langs: processed.langs, html };
+}
+
+/**
+ * Measures the parts only the archive format needs: how much the page itself
+ * compresses to, and the size of the images it would bundle.
+ *
+ * The archive stores the page deflated. Its payload is base64 of a gzip stream,
+ * and deflating base64 gets those same bytes back, so the archive comes out as
+ * the page's own compression plus the compressed ruleset plus the images.
+ */
+export async function measureArchive(estimate: ExportEstimate, pack: string) {
+  if (estimate.shellGzipBytes == null) {
+    estimate.shellGzipBytes = (await gzipTextInPieces(estimate.html)).length;
+    await nextPaint();
+  }
+  if (estimate.imageBytes == null) {
+    // The archive carries only the images the pedia can show, so the referenced
+    // paths are collected and looked up rather than taking the pack's whole
+    // image total, which is usually much larger
+    let sizes = await readImgSizes(pack);
+    let imageBytes = 0;
+    for (let path of referencedPaths())
+      imageBytes += sizes?.get(path) ?? 0;
+    estimate.imageBytes = imageBytes;
+  }
+}
+
+/**
+ * Measures the sizes of the given languages, skipping the ones already known.
+ *
+ * Each language is its own gzip of its own strings, which takes a few tens of
+ * milliseconds, so this is cheap enough to run when a checkbox is ticked.
+ */
+export async function measureLanguages(estimate: ExportEstimate, names: string[]) {
+  let english = estimate.langs["en-US"] ?? {};
+  for (let name of names) {
+    if (name in estimate.languageBytes)
+      continue;
+    let own = onlyTranslated(english, estimate.langs[name] ?? {});
+    estimate.languageBytes[name] = (await gzipTextInPieces(JSON.stringify(own))).length;
+    // A big translation is a few hundred milliseconds of compression, so the
+    // page gets a chance to paint the progress line between two of them
+    await nextPaint();
+  }
+}
+
+/** The ruleset as it looks with no language selected */
+function englishOnly(processed: any) {
+  return prepareRul(processed, []);
+}
+
+/** Base64 is 4 characters per 3 bytes, rounded up to a whole group */
+function base64Length(bytes: number) {
+  return Math.ceil(bytes / 3) * 4;
+}
+
+/**
+ * Approximate size of the file the current selection would produce.
+ *
+ * The single HTML file is the shell plus the base64 payload; images are read
+ * from the game folder next to it, so they cost the file nothing.
+ *
+ * The archive instead contains that page deflated. Its payload is base64 of a
+ * gzip stream, and deflating base64 gets those same bytes back, so the archive
+ * is the measured shell compression plus the compressed ruleset plus whatever
+ * images the pedia can show.
+ *
+ * Languages are priced as if each were compressed alone, which ignores the
+ * compression they could share, so the estimate errs slightly high — the safe
+ * direction for a file size.
+ */
+export function estimateSize(estimate: ExportEstimate, languages: string[], archive: boolean) {
+  let ruleset = estimate.englishBytes;
+  for (let name of languages)
+    ruleset += estimate.languageBytes[name] ?? 0;
+  if (archive)
+    return (estimate.shellGzipBytes ?? 0) + ruleset + (estimate.imageBytes ?? 0);
+  return estimate.shellBytes + base64Length(ruleset);
+}
+
+/** True while something the chosen format needs has not been measured yet */
+export function estimatePending(estimate: ExportEstimate | undefined, languages: string[], archive: boolean) {
+  if (!estimate)
+    return true;
+  if (languages.some(name => !(name in estimate.languageBytes)))
+    return true;
+  return archive && (estimate.shellGzipBytes == null || estimate.imageBytes == null);
 }
 
 /**

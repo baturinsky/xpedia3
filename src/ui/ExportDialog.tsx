@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { state, update } from "../state";
-import { downloadExport, exportableLanguages, exportedPackName, exportPedia } from "../exportPedia";
+import {
+  downloadExport, exportableLanguages, estimatePending, estimateSize, exportedPackName,
+  exportPedia, measureArchive, measureLanguages, prepareEstimate, type ExportEstimate
+} from "../exportPedia";
 import { isPermanentPack } from "../packSource";
+import { asMB } from "../util";
 import { Tr } from "./Val";
 
 /**
@@ -28,6 +32,9 @@ function ExportDialogBody() {
   let [status, setStatus] = useState<string>();
   let [progress, setProgress] = useState<number>();
   let [error, setError] = useState<string>();
+  // Measured once when the dialog opens: the shell and one gzip are the slow
+  // parts, and every later selection only adds their stored sizes up
+  let [estimate, setEstimate] = useState<ExportEstimate>();
 
   let pack = state.packName;
 
@@ -41,6 +48,47 @@ function ExportDialogBody() {
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, [busy]);
+
+  useEffect(() => {
+    // An exported file has nothing to export, so measuring it would be waste
+    if (!pack || isPermanentPack(pack))
+      return;
+    let live = true;
+    prepareEstimate()
+      .then(measured => { if (live) setEstimate(measured); })
+      .catch(() => { });
+    return () => { live = false; };
+  }, [pack]);
+
+  // Languages and the archive details are measured when they are needed, not all
+  // at once up front: most exports are a single file with no extra language
+  let [ticking, setTicking] = useState(false);
+  // The sizes are filled into the measured object, so a redraw is forced with a
+  // counter rather than a new copy: the copy would not be kept in the cache, and
+  // reopening the dialog would measure the same languages again
+  let [, redraw] = useState(0);
+  let pending = estimatePending(estimate, selected, archive);
+  useEffect(() => {
+    if (!estimate || !pending) {
+      setTicking(false);
+      return;
+    }
+    let live = true;
+    setTicking(true);
+    (async () => {
+      await measureLanguages(estimate, selected);
+      if (archive)
+        await measureArchive(estimate, pack!);
+    })()
+      .then(() => {
+        if (!live)
+          return;
+        setTicking(false);
+        redraw(n => n + 1);
+      })
+      .catch(() => { if (live) setTicking(false); });
+    return () => { live = false; };
+  }, [estimate, pending, archive]);
 
   if (!pack)
     return null;
@@ -120,6 +168,11 @@ function ExportDialogBody() {
             <div className="export-language-buttons">
               <button onClick={() => setSelected([...languages])}><Tr text="Select all" /></button>
               <button onClick={() => setSelected([])}><Tr text="Unselect all" /></button>
+              {/* The language the user reads is the one they usually export; when
+                  that is English there is nothing extra to pick */}
+              <button onClick={() => setSelected(state.lang && languages.includes(state.lang) ? [state.lang] : [])}>
+                <Tr text="Select current" />
+              </button>
             </div>
           }
 
@@ -144,6 +197,15 @@ function ExportDialogBody() {
               </small>
             </span>
           </label>
+
+          {/* Cheap enough to recompute on every render: the measuring is what
+              costs, and it happened when the dialog opened or when the
+              checkboxes changed */}
+          <p className={"export-size" + (estimate && !ticking ? "" : " export-size-pending")}>
+            {estimate && !ticking
+              ? <>Estimated file size: <b>{asMB(estimateSize(estimate, selected, archive))}</b></>
+              : "Estimating file size..."}
+          </p>
 
           {status &&
             <div className="export-progress">

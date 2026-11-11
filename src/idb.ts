@@ -210,6 +210,26 @@ export async function saveStats(pack: string, archiveSize: number, assetsSize: n
   return await queryDB(transaction => transaction.objectStore("assets").add(record))
 }
 
+/**
+ * Stored byte size of each image of a pack, by path.
+ *
+ * Used to price the images an export archive would carry. Reading the records
+ * rather than counting `saveStats` totals is what makes that possible: the
+ * archive only takes the images the pedia can show, which is often a fraction of
+ * everything the pack stored.
+ */
+export async function readImgSizes(pack: string) {
+  let records = await readDB(transaction =>
+    transaction.objectStore("assets").index("pack").getAll(pack)) as any[];
+  if (!records)
+    return;
+  let sizes = new Map<string, number>();
+  for (let record of records)
+    if (record.kind == "img" && record.name)
+      sizes.set(record.name, record.data?.byteLength ?? record.data?.length ?? 0);
+  return sizes;
+}
+
 export async function getStats() {
   return await readDB(transaction => transaction.objectStore("assets").index("kind").getAll("stats"));
 }
