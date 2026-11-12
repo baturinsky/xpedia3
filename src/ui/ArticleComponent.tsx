@@ -136,7 +136,10 @@ function sectionTable() {
       ], ["buildCost", "buildTime", "manaRecoveryPerDay", "sickBayAbsoluteBonus",
         "sickBayRelativeBonus", "defense", "hitRatio"]);
     case "COMMENDATIONS":
-      return table(Object.values(rul.commendations), [...statsList, "visibilityAtDark"],
+      // `mana` is the game's "Freshness" stat and is granted by the same stage
+      // bonuses as the rest, so it belongs with them even though it is not in
+      // `statsList`
+      return table(Object.values(rul.commendations), [...statsList, "mana", "visibilityAtDark"],
         [...battleStats.map(s => "recovery." + s), "description", "visibilityAtDay",
           "camouflageAtDark", "camouflageAtDay", "frontArmor", "sideArmor",
           "rearArmor", "underArmor"]);

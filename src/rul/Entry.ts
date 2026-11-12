@@ -254,6 +254,31 @@ export class DamageType extends Entry {
 
 }
 
+/** A value that differs between stages, shown in a table as `first..last` */
+export class ValueRange {
+  constructor(public first: any, public last: any) { }
+}
+
+/**
+ * Keys a stage bonus carries that are not column values: its own id and name
+ * (`Entry.name` is just `id` again), the collection it was parsed into, and the
+ * two containers whose contents are the actual columns. A column named after
+ * one of these must read the commendation, not a stage.
+ */
+const stageInternals = ["id", "name", "collection", "stats", "recovery"];
+
+/** The value one stage bonus gives for a column, or undefined when it gives none */
+function stageValue(bonus: Entry, n: string) {
+  if (n.substring(0, 9) == "recovery.")
+    return bonus.recovery?.[n.substring(9)]?.flatOne;
+  if (stageInternals.includes(n))
+    return undefined;
+  // A stat the stage omits is not the same as a stat it sets to zero
+  if (bonus.stats && n in bonus.stats)
+    return bonus.stats[n];
+  return bonus[n];
+}
+
 export class Commendation extends Entry {
   soldierBonusTypes: any[];
   criteria;
@@ -269,6 +294,68 @@ export class Commendation extends Entry {
     super("commendations")
     this.from(raw)
     this.finalBonus = this.soldierBonusTypes && rul.soldierBonuses[this.soldierBonusTypes[this.soldierBonusTypes.length - 1]];
+  }
+
+  /**
+   * The last stage that actually grants something, following `soldierBonusTypes`.
+   *
+   * A commendation lists one bonus per stage, but the later stages are often
+   * empty placeholders while the real reward sits in stage 1 or 10. The section
+   * table shows one row per commendation, so it needs a single stage to read the
+   * stats from: the last one that has any. Falls back to the last stage listed,
+   * so a commendation whose stages are all empty still resolves.
+   */
+  get lastMeaningfulBonus(): Entry | undefined {
+    let stages = (this.soldierBonusTypes || []).map(id => rul.soldierBonuses[id]).filter(b => b != null);
+    if (stages.length == 0)
+      return this.finalBonus;
+    let meaningful = (b: Entry) =>
+      Object.keys(b.stats ?? {}).length > 0 || Object.keys(b.recovery ?? {}).length > 0;
+    return [...stages].reverse().find(meaningful) ?? stages[stages.length - 1];
+  }
+
+  /** The stage bonuses of this commendation, in the order they are earned */
+  get stages(): Entry[] {
+    return (this.soldierBonusTypes || []).map(id => rul.soldierBonuses[id]).filter(b => b != null);
+  }
+
+  /** Every value the stages grant for column `n`, in stage order */
+  private granted(n: string) {
+    if (n == "id")
+      return [];
+    return this.stages.map(s => stageValue(s, n)).filter(v => v != null);
+  }
+
+  /**
+   * The value of column `n` across all stages, when the stages disagree.
+   *
+   * A reward usually grows with the stage, so a single cell showing only one
+   * stage's number hides the fact that it is a ramp: stage 1 grants `health 2`,
+   * stage 10 grants `health 20`. The cell then reads `2..20` — from the first
+   * stage that grants anything to the last one that does, which also covers
+   * ramps that start late or stop early (a bonus whose stages 9 and 10 only
+   * grant something else still ramps within the stages that do grant it).
+   *
+   * Sorting uses `sortField`, i.e. the last value, so the ordering agrees with
+   * the right-hand end of the range.
+   *
+   * Returns null when there is no range to show: one stage only, all stages
+   * agreeing, or just one stage granting the column at all. Text is left alone:
+   * a range only says something about a number.
+   */
+  range(n: string): ValueRange | null {
+    let values = this.granted(n);
+    if (values.length < 2)
+      return null;
+    let first = values[0], last = values[values.length - 1];
+    if (first === last || typeof first != "number" || typeof last != "number")
+      return null;
+    return new ValueRange(first, last);
+  }
+
+  /** What a section table cell shows for column `n`, see `range` */
+  cellValue(n: string) {
+    return this.range(n) ?? this.sortField(n);
   }
 
   parseKillCriteria() {
@@ -354,15 +441,25 @@ export class Commendation extends Entry {
   sortField(n: string) {
     if (n == null)
       return;
-    let fb = this.finalBonus;
-    if (fb && n != "id") {
-      if (fb[n])
-        return fb[n];
-      if (statsList.includes(n))
+    // A cell can span every stage, but it still sorts by the value a soldier
+    // ends up with: the column's value at the last stage that grants it. The
+    // last stage *listed* is often an empty placeholder, and reading that would
+    // rank a phantom 0 above a real bonus granted earlier.
+    let granted = this.granted(n);
+    if (granted.length > 0)
+      return granted[granted.length - 1];
+
+    // No stage grants the column at all. Stats still read as 0 rather than
+    // empty, as they did before ranges existed.
+    let fb = this.lastMeaningfulBonus;
+    if (fb && n != "id" && !stageInternals.includes(n)) {
+      if (statsList.includes(n) || n == "mana")
         return fb["stats"] ? fb["stats"][n] || 0 : 0;
-      if (this.finalBonus.recovery && n.substring(0, 9) == "recovery.") {
-        return this.finalBonus.recovery[n.substring(9)]?.flatOne;
+      if (fb.recovery && n.substring(0, 9) == "recovery.") {
+        return fb.recovery[n.substring(9)]?.flatOne;
       }
+      if (fb[n] != null)
+        return fb[n];
     }
 
     return this[n];

@@ -2386,4 +2386,7 @@ en-US:
   xpediaMapMissing: This pack has no geoscape data, so there is no world map to draw.
   xpediaMapNote: "Land colour is an illustration, not game data: the game paints each region with a texture tile, and those textures are not part of a ruleset. Regions whose name the pack does not describe are shown in a neutral colour."
   xpediaMapUnknownLand: Unknown terrain
+  xpediaColumnsAll: All
+  xpediaColumnsNone: None
+  xpediaColumnsDefault: Default
 

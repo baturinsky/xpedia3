@@ -87,7 +87,18 @@ export function sortFirstLast(item: Object, options: SortFirstLastOptions = {}):
 }
 
 export class Search {
-  articles = new SearchApi();
+  /**
+   * The index defaults to tokenizing on whitespace only, which turns every
+   * article id into a single very long token. The engine indexes every
+   * substring of a token, so a 30 character id costs 465 entries on its own,
+   * and ids were a third of the whole index. Splitting on `_` as well keeps
+   * the index a third the size for the same matches.
+   *
+   * Only `_` is added on purpose: splitting on all punctuation would make a
+   * query like `x-com` become `x` AND `com`, which turns 8 precise hits into
+   * 662 fuzzy ones.
+   */
+  articles = new SearchApi({ tokenizePattern: /[\s_]+/ });
 
   constructor() {
     for (let a of Object.values(rul.articles)) {
@@ -654,6 +665,12 @@ export default class Ruleset {
       }
       if (research.spawnedItem) {
         let item = rul.items[research.spawnedItem];
+        // A pack can be a submod of a master it does not ship, so a reference
+        // can point at an item only the missing master defines. The recipe is
+        // then simply out of scope for this pedia, the same way `crosslink`
+        // skips links it cannot resolve.
+        if (!item)
+          continue;
         item.spawnedBy = item.spawnedBy || [];
         item.spawnedBy.push(research.name);
       }
@@ -1038,15 +1055,18 @@ export const entryConstructors = {
   research: Research,
   manufacture: Manufacture,
   damageTypes: DamageType,
-  commendations: Commendation,
   soldiers: Soldiers,
+  // Before `commendations`: a `Commendation` looks up its last stage in
+  // `rul.soldierBonuses` while it is being constructed, so the bonuses have to
+  // exist by then. This is also the order the old ruleset parsed them in.
+  soldierBonuses: SimpleEntry,
+  commendations: Commendation,
 
   ufos: SimpleEntry,
   battleTypes: SimpleEntry,
   alienRaces: SimpleEntry,
   countries: SimpleEntry,
   weaponTypes: SimpleEntry,
-  soldierBonuses: SimpleEntry,
   enviroEffects: SimpleEntry,
   terrains: SimpleEntry,
   mapScripts: SimpleEntry,

@@ -24,7 +24,12 @@ export type PackStat = {
   pack: string,
   assets: number,
   ruls: number,
-  archive: number
+  archive: number,
+  /**
+   * Pack installed before storage buckets were used, so it sits in the origin's
+   * default storage and the browser will never expire it
+   */
+  legacy?: boolean
 };
 
 export interface PackSource {
@@ -58,7 +63,8 @@ function databaseSource(pack: string): PackSource {
         pack,
         archive: record?.archive ?? 0,
         assets: record?.assets ?? 0,
-        ruls: record?.ruls ?? 0
+        ruls: record?.ruls ?? 0,
+        legacy: record?.legacy ?? false
       };
     },
     rulData: () => idb.readRulData(pack),

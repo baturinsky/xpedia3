@@ -579,15 +579,40 @@ export function SectionTable(props: SectionTableProps) {
 
   let extraAll = [...fields, ...extraFields];
 
+  // "id" is not one of the listed columns, but it is always shown: it names the
+  // row, and the buttons below only act on the columns the user can see
+  function showAll() { setShownFields(["id", ...extraAll]); }
+  function showNone() { setShownFields(["id"]); }
+  // The layout a table has before anything is saved
+  function showDefault() { setShownFields(["id", ...fields]); }
+
   return <>
     <div className="extra-fields">
-      {extraAll.map((field, i) =>
-        <React.Fragment key={field}>
-          {i !== 0 && <Divider />}
-          <span className={"clickable " + (shownFields.includes(field) ? "on" : "off")}
-            onClick={() => toggleField(field)}><Val of={field} /></span>
-        </React.Fragment>
-      )}
+      <span className="column-buttons">
+        <button onClick={showAll}><Val of="xpediaColumnsAll" /></button>
+        <button onClick={showNone}><Val of="xpediaColumnsNone" /></button>
+        <button onClick={showDefault}><Val of="xpediaColumnsDefault" /></button>
+      </span>
+      {extraAll.map(field => {
+        let shown = shownFields.includes(field);
+        // A field whose name has its own article is rendered by `Val` as a link,
+        // and clicking it must keep navigating there. The checkbox is then the
+        // only way to toggle without leaving the table, which is also why it is
+        // drawn at all: it says what the list does. Fields without an article
+        // have no link to follow, so their names still toggle on click.
+        let isLink = !!rul.article(field);
+        return <React.Fragment key={field}>
+          <Divider />
+          <span className={"extra-field " + (shown ? "on" : "off")}>
+            <input type="checkbox" checked={shown} aria-label={rul.tr(field)}
+              onChange={() => toggleField(field)} />
+            <span className={isLink ? "extra-field-name" : "extra-field-name clickable"}
+              onClick={isLink ? undefined : () => toggleField(field)}>
+              <Val of={field} />
+            </span>
+          </span>
+        </React.Fragment>;
+      })}
     </div>
     <div className="table-filters">
       {Object.entries(filters).map(([filter, options]) =>
@@ -630,7 +655,8 @@ export function SectionTable(props: SectionTableProps) {
               <tr key={entry.id ?? i}>
                 {shownFields.map(field =>
                   <td key={field} className={"st-" + field}>
-                    <Val of={entry.sortField(field, true)} nobr={20} field={field} />
+                    <Val of={entry.sortField ? (entry.cellValue?.(field) ?? entry.sortField(field, true)) : entry[field]}
+                      nobr={20} field={field} />
                   </td>
                 )}
               </tr>

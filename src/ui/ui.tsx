@@ -565,5 +565,8 @@ export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
 
 
 export function onLandingPage() {
-  return article == undefined;
+  // The search results set `article` to undefined too, but they are a page of
+  // their own: they must not take the landing page's layout class, nor mark
+  // HOME as the current page.
+  return article == undefined && !state.searchQuery;
 }

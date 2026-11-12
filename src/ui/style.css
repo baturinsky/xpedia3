@@ -624,6 +624,20 @@ button:disabled:hover {
   margin-top: 0.5rem;
 }
 
+/** Total size line above the tiles, see `StorageSummary` */
+.modpack-storage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: small;
+  opacity: 0.85;
+}
+
+.modpack-storage-warning {
+  color: var(--em);
+  cursor: help;
+}
+
 .modpack-panel {
   position: relative;
   box-sizing: border-box;
@@ -1229,12 +1243,49 @@ ol>li:last-child::after {
   visibility: hidden;
 }
 
+/* Column picker above a section table. The whole row is a flex line, so the
+   `·` dividers between entries line up with the checkboxes and names instead of
+   sitting on the text baseline, and each entry wraps as a whole unit.
+
+   Each entry is a checkbox plus the column's name, which stays a link when the
+   field has its own article: the checkbox toggles the column, the name
+   navigates. */
 .extra-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 0.5rem;
 }
 
-.extra-fields .off {
+.extra-fields .extra-field {
+  display: inline-flex;
+  align-items: center;
+}
+
+.extra-fields .extra-field input {
+  margin: 0 0.3rem 0 0;
+  cursor: pointer;
+  accent-color: var(--link);
+}
+
+/* A hidden column is dimmed by fading its *name* only: the checkbox has to stay
+   at full contrast so an unticked one is not mistaken for a disabled control. */
+.extra-fields .off .extra-field-name {
   opacity: 0.6;
+}
+
+.extra-fields .column-buttons button {
+  font-size: 0.8rem;
+  padding: 0 0.35rem;
+}
+
+/* A value that changes over a commendation's stages, e.g. `2..20` */
+.value-range {
+  white-space: nowrap;
+}
+
+.value-range-separator {
+  opacity: 0.7;
 }
 
 .table-filters {

@@ -1042,3 +1042,6 @@ ru:
     предметов и стоимость производства."
   tip_sizeChange: "sizeChange<br><br>Изменение общего объёма склада за каждую
     выпущенную единицу: вычисляется как произведённые предметы минус требуемые."
+  xpediaColumnsAll: Все
+  xpediaColumnsNone: Ничего
+  xpediaColumnsDefault: По умолчанию

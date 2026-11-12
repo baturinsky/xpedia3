@@ -1,11 +1,17 @@
 import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
+import { ValueRange } from "../rul/Entry";
 import { Divider, fromAnyRef, Img, Nobr, spriteScale, usePixelRatio } from "./components";
 
 /** Polymorphic value view */
 
 export type IconType = "monospace" | "simple" | "none" | null;
+
+/** Number as the tables print it: the mod's own locale, dot decimal separator */
+export function formatNumber(val: any) {
+  return Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".");
+}
 
 export const Val = ({
   of: val = null as any,
@@ -72,11 +78,15 @@ export const Val = ({
 
   // Primitive: number. Empty strings are checked so they don't render as 0
   if (val !== "" && !Array.isArray(val) && !isNaN(Number(val))) {
-    return (
-      <em className="num">
-        {Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".")}
-      </em>
-    );
+    return <em className="num">{formatNumber(val)}</em>;
+  }
+  // A value that changes over a commendation's stages: `first..last`
+  if (val instanceof ValueRange) {
+    return <span className="value-range">
+      <em className="num">{formatNumber(val.first)}</em>
+      <span className="value-range-separator">..</span>
+      <em className="num">{formatNumber(val.last)}</em>
+    </span>;
   }
 
   // It should be an entry, passed by direct link or id. Converting it to id

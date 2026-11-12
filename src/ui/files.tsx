@@ -1,6 +1,6 @@
 import { DataGrid } from 'react-data-grid';
-import { useEffect } from 'react';
-import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats } from "../idb";
+import { useEffect, useState } from 'react';
+import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats, storageInfo } from "../idb";
 import { isPermanentPack, loadPackRul } from "../packSource";
 import { loadBuiltinOnlyPack } from "../load";
 import { CogAnimation, MyTable, viewImage } from "./components";
@@ -16,6 +16,16 @@ function busy() {
 /** Total bytes a pack occupies in the database: ruleset, images and any kept archive */
 function storedSize(pack: { assets?: number, ruls?: number, archive?: number }) {
   return (pack.assets ?? 0) + (pack.ruls ?? 0) + (pack.archive ?? 0);
+}
+
+/**
+ * A byte count in the unit that keeps it short. `asMB` is fine for a pack but
+ * the quota is measured in gigabytes, where a plain MB figure is unreadable.
+ */
+function asSize(bytes: number) {
+  if (bytes < 1e9)
+    return asMB(bytes);
+  return `${(bytes / 1e9).toFixed(1)} GB`;
 }
 
 /** Installs the stored ruleset of an already-unpacked pack */
@@ -177,27 +187,81 @@ function ModpackList() {
   if (!packs.length)
     return <p className="modpack-empty">No modpacks uploaded yet.</p>;
 
-  return <div className="modpack-list">
-    {packs.map(pack => {
-      let current = pack.pack == state.packName;
-      let permanent = isPermanentPack(pack.pack);
-      return <div key={pack.pack}
-        className={"modpack-panel" + (current ? " current" : "") + (permanent ? " permanent" : "")}
-        title={current ? "Currently shown" : "Click to show this modpack"}
-        onClick={() => selectPack(pack.pack)}>
-        {/* The inlined pack comes from the HTML file itself, so it has no
-            delete button: there is nothing separate to remove */}
-        {!permanent && <button className="modpack-delete" title="Delete this modpack"
-          onClick={e => {
-            // The tile itself selects the pack, deleting must not also open it
-            e.stopPropagation();
-            deletePack(pack.pack);
-          }}>×</button>}
-        <div className="modpack-name">{pack.pack}</div>
-        <div className="modpack-size">{permanent ? "inlined" : asMB(storedSize(pack))}</div>
-        {current && <div className="modpack-current">currently shown</div>}
-      </div>;
-    })}
+  return <>
+    <StorageSummary packs={packs} />
+    <div className="modpack-list">
+      {packs.map(pack => {
+        let current = pack.pack == state.packName;
+        let permanent = isPermanentPack(pack.pack);
+        return <div key={pack.pack}
+          className={"modpack-panel" + (current ? " current" : "") + (permanent ? " permanent" : "")}
+          title={current ? "Currently shown" : "Click to show this modpack"}
+          onClick={() => selectPack(pack.pack)}>
+          {/* The inlined pack comes from the HTML file itself, so it has no
+              delete button: there is nothing separate to remove */}
+          {!permanent && <button className="modpack-delete" title="Delete this modpack"
+            onClick={e => {
+              // The tile itself selects the pack, deleting must not also open it
+              e.stopPropagation();
+              deletePack(pack.pack);
+            }}>×</button>}
+          <div className="modpack-name">{pack.pack}</div>
+          <div className="modpack-size">{permanent ? "inlined" : asMB(storedSize(pack))}</div>
+          {current && <div className="modpack-current">currently shown</div>}
+        </div>;
+      })}
+    </div>;
+  </>;
+}
+
+/**
+ * One line above the tiles answering "how much is this costing me", which the
+ * per-tile sizes cannot: a user with several heavy packs otherwise has to add
+ * them up. The estimate is the whole origin, so it includes the tiles plus any
+ * archive kept in developer mode.
+ */
+function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
+  let [info, setInfo] = useState<{ usage?: number, quota?: number, persisted?: boolean, retentionDays?: number }>();
+  let total = packs.reduce((sum, pack) => sum + storedSize(pack), 0);
+  let stored = packs.length;
+
+  // The estimate changes as packs are deleted, which re-renders this component
+  // with a new list, so it is re-read then rather than on a timer
+  useEffect(() => {
+    storageInfo().then(setInfo);
+  }, [stored, total]);
+
+  let quota = info?.quota;
+  let usage = info?.usage ?? total;
+  // Packs from before the bucket have no expiry at all, so a single statement
+  // about "unused packs" would be false for them
+  let legacy = packs.filter(pack => pack.legacy).length;
+
+  // Only say packs expire on their own where the browser enforces the expiry:
+  // on Firefox and Safari nothing would ever remove them, and promising a
+  // deadline that does not exist is worse than saying nothing
+  let reasons: string[] = [];
+  if (info?.persisted === false)
+    reasons.push("it may be cleared if the disk fills up");
+  if (info?.retentionDays && legacy < stored)
+    reasons.push(`unused packs are removed after ${info.retentionDays} days`);
+  if (legacy)
+    reasons.push(legacy == 1
+      ? "1 pack was installed before this version and is kept until you delete it"
+      : `${legacy} packs were installed before this version and are kept until you delete them`);
+
+  return <div className="modpack-storage">
+    <span>
+      {stored == 1 ? "1 modpack" : `${stored} modpacks`} using <b>{asSize(usage)}</b>
+      {quota ? ` of ${asSize(quota)} the browser allows` : ""}
+    </span>
+    {/* Saying this is the difference between "my packs are safe" and "they may
+        vanish", and only the browser knows which. */}
+    {reasons.length > 0 &&
+      <span className="modpack-storage-warning"
+        title={reasons.map(r => r[0].toUpperCase() + r.slice(1) + ".").join(" ")}>
+        storage is not guaranteed
+      </span>}
   </div>;
 }
 
