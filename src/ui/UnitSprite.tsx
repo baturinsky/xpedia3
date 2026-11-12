@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { rul } from "../rul/Ruleset";
 import type { Sprite } from "../rul/Sprite";
 import { usePixelRatio, useSpriteImages, spriteScale } from "./components";
@@ -129,16 +129,18 @@ const UNIT_DIRECTIONAL: UnitPose[] = ["standing", "walking", "kneeling", "floati
 /**
  * Facings, numbered the way the game numbers them: `directionToVector` starts
  * at north and goes clockwise, so 0 is the far side and 4 the near side.
+ *
+ * `short` is what the compass shows, `title` spells the meaning out.
  */
-export const UNIT_DIRECTIONS: { dir: number, label: string }[] = [
-  { dir: 0, label: "N · back" },
-  { dir: 1, label: "NE" },
-  { dir: 2, label: "E" },
-  { dir: 3, label: "SE" },
-  { dir: 4, label: "S · front" },
-  { dir: 5, label: "SW" },
-  { dir: 6, label: "W" },
-  { dir: 7, label: "NW" }
+export const UNIT_DIRECTIONS: { dir: number, short: string, title: string }[] = [
+  { dir: 0, short: "N", title: "North — seen from behind" },
+  { dir: 1, short: "NE", title: "North-east" },
+  { dir: 2, short: "E", title: "East" },
+  { dir: 3, short: "SE", title: "South-east" },
+  { dir: 4, short: "S", title: "South — facing the viewer" },
+  { dir: 5, short: "SW", title: "South-west" },
+  { dir: 6, short: "W", title: "West" },
+  { dir: 7, short: "NW", title: "North-west" }
 ];
 
 /**
@@ -262,6 +264,12 @@ export function UnitSprite(props: {
   pose?: UnitPose;
   /** Facing 0..7, as the game numbers them */
   direction?: number;
+  /**
+   * Hold one step of the pose instead of playing it, 1-based. Left undefined (or
+   * 0) the pose animates the way the game plays it; a pose that does not animate
+   * looks the same either way.
+   */
+  frame?: number;
   /** Magnification, snapped to whole device pixels like every other sprite */
   scale?: number;
   alt?: string;
@@ -298,7 +306,9 @@ export function UnitSprite(props: {
     let timer: number | undefined;
     let images = new Map<string, HTMLImageElement>();
     let phases = posePhases(pose, props.view);
-    let frame = 0;
+    // A step chosen by the caller is held; without one the pose plays
+    let held = props.frame ? Math.min(Math.max(1, props.frame), phases) - 1 : undefined;
+    let frame = held ?? 0;
 
     // Paint one frame of the pose, or the still pose when it does not animate
     let paint = () => {
@@ -340,7 +350,7 @@ export function UnitSprite(props: {
         // Start once the whole set is in; before that a part would be missing
         if (++loaded == sources.length) {
           paint();
-          if (phases > 1)
+          if (phases > 1 && held == null)
             timer = window.setInterval(() => {
               frame++;
               // A walk cycle repeats; a fall plays once and holds its last frame
@@ -364,7 +374,7 @@ export function UnitSprite(props: {
         window.clearInterval(timer);
     };
   }, [hasRealData, props.view.sheet, props.view.female, props.view.routine, props.view.deathFrames,
-  pose, direction, urls.size]);
+  pose, direction, props.frame, urls.size]);
 
   if (!sprite?.grid || !hasRealData)
     return null;
@@ -391,7 +401,12 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
     [props.view.sheet, props.view.routine, props.view.female, props.view.deathFrames]);
   let [pose, setPose] = useState<UnitPose>("standing");
   let [direction, setDirection] = useState(2);
+  // 0 means "play it"; anything else holds that step of the pose
+  let [frame, setFrame] = useState(0);
   let pixelRatio = usePixelRatio();
+  // One picker can appear on many articles, so the radio group needs a name that
+  // is unique to this instance
+  let group = useId();
 
   if (!poses.length)
     return null;
@@ -403,9 +418,16 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   let { w, h } = unitSpriteSize(props.view);
   let scale = spriteScale(props.scale ?? 3, pixelRatio);
 
+  let phases = posePhases(shown, props.view);
+  let holdsFrames = phases > 1;
+  let directional = UNIT_DIRECTIONAL.includes(shown);
+  // A pose change can leave the selection past the end of the new pose
+  let heldFrame = holdsFrames ? Math.min(frame, phases) : 0;
+
   return <div className="unit-picker">
     <div className="unit-picker-preview">
-      <UnitSprite view={props.view} pose={shown} direction={direction} scale={props.scale ?? 3} />
+      <UnitSprite view={props.view} pose={shown} direction={direction}
+        frame={heldFrame} scale={props.scale ?? 3} />
     </div>
     <div className="unit-picker-controls">
       <label>
@@ -416,18 +438,37 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           )}
         </select>
       </label>
-      <label>
-        <span>Direction</span>
+
+      <div className={"unit-directions" + (directional ? "" : " disabled")}
+        title={directional ? undefined : "This pose is drawn from one side only"}>
+        <span className="unit-label">Direction</span>
         {/* A collapsing unit is a single frame that already contains the pose,
             so the game draws it facing one way only */}
-        <select value={direction} disabled={!UNIT_DIRECTIONAL.includes(shown)}
-          title={UNIT_DIRECTIONAL.includes(shown) ? undefined : "This pose is drawn from one side only"}
-          onChange={e => setDirection(+e.target.value)}>
+        <div className="unit-compass">
           {UNIT_DIRECTIONS.map(d =>
-            <option key={d.dir} value={d.dir}>{d.label}</option>
+            <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+              <input type="radio" name={group} value={d.dir}
+                checked={direction == d.dir} disabled={!directional}
+                onChange={() => setDirection(d.dir)} />
+              <span>{d.short}</span>
+            </label>
           )}
-        </select>
+        </div>
+      </div>
+
+      <label className={"unit-frame" + (holdsFrames ? "" : " disabled")}>
+        <span>Frame</span>
+        <input type="range" min={0} max={phases} step={1}
+          value={heldFrame} disabled={!holdsFrames}
+          title={holdsFrames
+            ? (heldFrame ? `Holding step ${heldFrame} of ${phases}` : "Playing the animation")
+            : "This pose has a single frame"}
+          onChange={e => setFrame(+e.target.value)} />
+        <span className="unit-frame-value">
+          {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
+        </span>
       </label>
+
       <span className="unit-picker-size">{[w, h].join(" × ")} px</span>
     </div>
   </div>;

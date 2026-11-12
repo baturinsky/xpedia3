@@ -1402,14 +1402,133 @@ ol>li:last-child::after {
   align-items: center;
 }
 
-/* Same width for both lists, so the labels line up */
-.unit-picker-controls label>span {
+/* The control labels line up with each other */
+.unit-picker-controls label>span:first-child,
+.unit-picker-controls .unit-label {
   min-width: 5.5rem;
   opacity: 0.8;
 }
 
 .unit-picker-controls select {
   min-width: 8rem;
+}
+
+/**
+ * The facings as a compass: eight radio buttons around a circle, so the chosen
+ * side reads as a direction rather than as an item in a list.
+ *
+ * Each label is placed by rotating it out from the centre and then turning its
+ * contents back upright, which keeps the letters horizontal at any position.
+ */
+.unit-directions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.unit-compass {
+  position: relative;
+  width: 8.5rem;
+  height: 8.5rem;
+  flex: none;
+}
+
+.unit-dir {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: -0.925rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Hide the native dot; the label itself shows the selection */
+.unit-dir input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.unit-dir>span {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: solid 1px var(--border);
+  border-radius: 50%;
+  font-size: 0.75em;
+  opacity: 0.75;
+  transition: background 0.1s, opacity 0.1s;
+}
+
+.unit-dir:hover>span {
+  background: var(--hover);
+  opacity: 1;
+}
+
+.unit-dir input:checked+span {
+  border-color: var(--link);
+  color: var(--link);
+  font-weight: bold;
+  opacity: 1;
+}
+
+/* Keyboard focus has to be visible, since the radio itself is hidden */
+.unit-dir input:focus-visible+span {
+  outline: solid 2px var(--link);
+  outline-offset: 1px;
+}
+
+/**
+ * Where each facing sits on the compass.
+ *
+ * The battle map is drawn isometrically, so a tile direction does not point the
+ * same way as the pixels it is drawn with: north (0) runs up and to the right,
+ * east (2) down and to the right, south (4) down and to the left, west (6) up
+ * and to the left. Every facing is therefore one step further clockwise than
+ * its number suggests, which puts north at the top-right rather than at the top.
+ *
+ * The radius leaves a gap between neighbouring dots.
+ */
+.unit-dir-0 { transform: translate(2.05rem, -2.05rem); }
+.unit-dir-1 { transform: translate(2.9rem, 0); }
+.unit-dir-2 { transform: translate(2.05rem, 2.05rem); }
+.unit-dir-3 { transform: translate(0, 2.9rem); }
+.unit-dir-4 { transform: translate(-2.05rem, 2.05rem); }
+.unit-dir-5 { transform: translate(-2.9rem, 0); }
+.unit-dir-6 { transform: translate(-2.05rem, -2.05rem); }
+.unit-dir-7 { transform: translate(0, -2.9rem); }
+
+/* A pose with no facing leaves the compass readable but not clickable */
+.unit-directions.disabled {
+  opacity: 0.5;
+}
+
+.unit-directions.disabled .unit-dir {
+  cursor: default;
+}
+
+/* The frame slider: its left end is "play", the rest hold one step */
+.unit-frame input[type="range"] {
+  width: 8rem;
+}
+
+.unit-frame-value {
+  min-width: 4rem;
+  opacity: 0.7;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit-frame.disabled,
+.unit-picker-controls label.disabled {
+  opacity: 0.5;
 }
 
 .unit-picker-size {
