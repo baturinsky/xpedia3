@@ -23,7 +23,7 @@ export default function ManufactureComponent({ entry }: { entry: any }) {
   </> : null;
 
   return <MainTable
-    entry={entry}
+    of={entry}
     title="Manufacture"
     sort={{ exclude: ["chanceSum", "totalProducedItems"] }}
     wide={entry.randomProducedItems ? ["randomProducedItems"] : []}

@@ -2,8 +2,8 @@ import { createElement, RefObject, useEffect, useLayoutEffect, useRef, useState 
 import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { BaseService, Img, LinksPage, SectionTable, SubTable } from "./components";
-import CommendationComponent, { SoldierBonuses } from "./CommendationComponent";
+import { BaseService, Img, LinksPage, RecoveryTable, SectionTable } from "./components";
+import CommendationComponent, { SoldierBonusesComponent } from "./CommendationComponent";
 import Conditions from "./Conditions";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
@@ -55,7 +55,7 @@ function PackMeta() {
   </div>;
 }
 
-export const asSubTable = (props: any) => <SubTable of={props.val} />,
+export const asSubTable = (props: any) => <MainTable of={props.val} />,
   asJson = (props: any) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>
 
 /*Which renderer to use for each article type */
@@ -75,7 +75,7 @@ const renderers = {
   crafts: CraftComponent,
   craftWeapons: CraftWeaponComponent,
   weaponTypes: {},
-  soldierBonuses: SoldierBonuses,
+  soldierBonuses: SoldierBonusesComponent,
   soldierTransformation: {},
   soldiers: { sort: { first: ["statCaps"], last: ["armors"] } },
   ufos: { sort: { first: ["modSprite"], last: ["battlescapeTerrainData"] } },
@@ -495,7 +495,7 @@ export function ArticleComponent() {
           return <MainTable
             {...ren}
             key={key}
-            entry={(rul as any)[key][id]}
+            of={(rul as any)[key][id]}
             title={title != null ? title : key}
           />
         }

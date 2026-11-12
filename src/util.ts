@@ -199,6 +199,21 @@ export function exclude<T>(a: T[], b: T[]) {
   return a.filter(v => !s.has(v))
 }
 
+/**
+ * True when the value is an array or object holding no nested arrays or objects.
+ *
+ * Used where a ruleset node has to be shown as a table or a short list: a nested
+ * value there would have to be rendered as a link tree instead. `null` counts as
+ * a plain value, since it has nothing to nest, but the value itself has to be an
+ * array or object to qualify.
+ */
+export function isFlat(value: any) {
+  if (value == null || typeof value != "object")
+    return false;
+  let children = Array.isArray(value) ? value : Object.values(value);
+  return children.every(child => child == null || typeof child != "object");
+}
+
 export function loadImage(path: string) {
   return new Promise<HTMLImageElement>((done, fail) => {
     const image = new Image();

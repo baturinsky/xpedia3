@@ -8,7 +8,7 @@ export default function UnitComponent({ entry }: { entry: Unit }) {
   return <>
     <MainTable
       key={entry.id}
-      entry={entry}
+      of={entry}
       title="Unit"
       sort={{
         first: ["stats", "armor", "canSurrender"],

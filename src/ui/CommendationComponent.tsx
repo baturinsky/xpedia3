@@ -29,10 +29,10 @@ function deedDescription(deed: any) {
 }
 
 /** Bonus table for one commendation stage, follows old `SoldierBonuses.svelte` */
-export function SoldierBonuses({ entry, title, subtitle }: { entry: any, title?: string, subtitle?: string }) {
+export function SoldierBonusesComponent({ of, title, subtitle }: { of: any, title?: string, subtitle?: string }) {  
   return <MainTable
-    entry={entry}
-    title={title}
+    of={of}
+    title={title ?? "soldierBonuses"}
     subtitle={subtitle}
     special={{
       recovery: ({ val: prop }) => <table><tbody><RecoveryTable recovery={prop} /></tbody></table>,
@@ -56,7 +56,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
 
   return <>
     <MainTable
-      entry={entry}
+      of={entry}
       title="Commendation"
       sort={{
         last: ["items"],
@@ -67,7 +67,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
           ? <Val of="See stage descriptions" />
           : <>{prop.map((deeds: any[], i: number) =>
             <span key={i}>
-              {i != 0 && <><>{rul.tr("or")}</><br /></>}
+              {i != 0 && <> {rul.tr("or")}<br /></>}
               {deeds.map((deed, j) =>
                 <span key={j}>
                   {j != 0 && <> {rul.tr("and")} </>}
@@ -90,7 +90,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
     />
     <div className="no-break-column">
       {bonuses.map((bonus, i) =>
-        <SoldierBonuses key={i} entry={bonus} title="Stage" subtitle={`${i + 1}`} />
+        <SoldierBonusesComponent key={i} of={bonus} title="Stage" subtitle={`${i + 1}`} />
       )}
     </div>
   </>;

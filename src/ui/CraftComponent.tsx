@@ -5,7 +5,7 @@ import { Val } from "./Val";
 /** Craft table, follows old `Craft.svelte` */
 export default function CraftComponent({ entry }: { entry: any }) {
   return <MainTable
-    entry={entry}
+    of={entry}
     title="Craft"
     sort={{
       first: ["speedMax", "soldiers"],

@@ -1,13 +1,14 @@
 import { Fragment, JSX, ReactNode } from "react";
 import { Val } from "./Val";
 import { sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
+import { isFlat } from "../util";
 
 export type MainTableRenderer = (props: { key: string, val: any, row: number }) => ReactNode;
 
 interface MainTableProps {
-  entry: any;
+  of: any;
   sort?: SortFirstLastOptions;
-  title: string;
+  title?: string;
   subtitle?: string;
   /** Fields that use custom renderer for the value only */
   special?: { [field: string]: MainTableRenderer };
@@ -16,28 +17,34 @@ interface MainTableProps {
 }
 
 const MainTable = ({
-  entry,
+  of,
   sort = {},
   title,
   subtitle = "",
   special = {},
-  wide = [],
+  wide = []
 }: MainTableProps) => {
-  if (entry == null) {
-    return <div>No entry in main table</div>;
+  if (of == null) {
+    return undefined
+    //return <div>No entry in main table</div>;
   }
 
-  const sorted = sortFirstLast(entry, sort);
+  const sorted = sortFirstLast(of, sort);
+  let mainTable = title != undefined;
+
+  const subVal = (v: any) => (v!= null && typeof v == "object" && !isFlat(v)) ? <MainTable of={v} /> : <Val of={v} />
 
   return (
-    <table className="main-table">
-      <thead>
-        <tr>
-          <td colSpan={2}>
-            <Val of={title} /> <Val of={subtitle} />
-          </td>
-        </tr>
-      </thead>
+    <table className={"main-table"}>
+      {title != undefined &&
+        <thead>
+          <tr>
+            <td colSpan={2}>
+              <Val of={title} /> <Val of={subtitle} />
+            </td>
+          </tr>
+        </thead>
+      }
       <tbody>
         {sorted.all.map(([key, val]: [string, any], row) => {
           // Skip keys starting with underscore
@@ -52,7 +59,7 @@ const MainTable = ({
             let render = special[key];
             let content: JSX.Element;
             if (typeof render !== "function") {
-              content = <Val of={val} />
+              content = subVal(val)
             } else {
               content = <Fragment key={key}>{render({ key, val, row })}</Fragment>;
             }
@@ -80,7 +87,7 @@ const MainTable = ({
             return (
               <tr key={key}>
                 <td className="row-name"><Val of={key} capital={true} /></td>
-                <td><Val of={val} field={key} /></td>
+                <td>{subVal(val)}</td>
               </tr>
             );
           }

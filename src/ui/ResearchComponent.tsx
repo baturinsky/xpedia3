@@ -1,7 +1,6 @@
 import { Children, Component, createContext, Fragment, MouseEventHandler, useContext, useSyncExternalStore } from "react";
 import {
   BaseServiceList,
-  SubTable
 } from "./components";
 import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Entry } from "../rul/Entry";

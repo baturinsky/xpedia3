@@ -1,4 +1,3 @@
-import { SubTable } from "./components";
 import MainTable from "./MainTable";
 import { Val } from "./Val";
 
@@ -14,7 +13,7 @@ export default function StartingConditionsComponent({
   }
 
   return <MainTable
-    entry={entry}
+    of={entry}
     title={title}
     subtitle={subtitle}
     sort={{
@@ -25,7 +24,7 @@ export default function StartingConditionsComponent({
     wide={["defaultArmor"]}
     special={
       {
-        "defaultArmor": (props) => <SubTable of={props.val} />
+        "defaultArmor": (props) => <MainTable of={props.val} />
       }
     }
   />;

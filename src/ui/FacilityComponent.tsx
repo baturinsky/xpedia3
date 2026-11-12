@@ -86,7 +86,7 @@ export default function FacilityComponent({ entry }: { entry: any }) {
         : <FacilitySprite size={size} prop={prop} />;
 
   return <MainTable
-    entry={entry}
+    of={entry}
     title="Facility"
     sort={{
       first: ["spriteShape"],
