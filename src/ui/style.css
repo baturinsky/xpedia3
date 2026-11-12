@@ -1586,10 +1586,60 @@ a.services {
   stroke-width: 4;
 }
 
+/* Nation areas. They are links like the regions, and their colour is set inline
+   per nation: `--country-color` is read from the element.
+
+   The area carries a faint wash of its own colour, so the nations read apart at
+   a glance, and a one device pixel outline, so the boxes stay hairlines over the
+   land. Hovering a nation's title makes its outline blink between that hairline
+   and a drawn-width stroke, which is what ties a label to the area it names.
+
+   `pointer-events: stroke` matters: with a fill, the whole rectangle would
+   otherwise become a link and swallow the clicks meant for the biome regions
+   underneath. Only the outline belongs to the nation. */
+.world-map .country-contour {
+  fill: var(--country-color, var(--border));
+  fill-opacity: .25;
+  stroke: var(--country-color, var(--border));
+  stroke-opacity: .8;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+}
+
+.world-map .country-hot .country-contour {
+  fill-opacity: .35;
+  stroke-opacity: 1;
+  animation: country-contour-blink .6s steps(1, end) infinite;
+}
+
+@keyframes country-contour-blink {
+  0%, 50% {
+    stroke-width: 1;
+  }
+
+  50.01%, 100% {
+    stroke-width: 3;
+  }
+}
+
+/* The map can be zoomed and panned, so the cursor says so; a middle-button drag
+   keeps the grabbing cursor for as long as it lasts. Dragging also must not
+   select the labels it passes over. */
+.world-map {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.world-map.panning {
+  cursor: grabbing;
+}
+
 /* Sizes are in viewBox units, so they scale with the picture: 36 of 2048 keeps
    a label around 12px on a narrow column and 20px on a wide page. */
 .world-map text {
-  fill: var(--text);
+  fill: var(--country-color, var(--text));
   font-size: 36px;
   paint-order: stroke;
   stroke: var(--shadow);
@@ -1597,18 +1647,16 @@ a.services {
   stroke-linejoin: round;
 }
 
-/* Region and label links: the shapes are clickable, so hovering has to say so */
+/* Region and label links: the shapes are clickable, so hovering has to say so.
+   Nation contours are excluded: their own blink is the feedback, and a hover
+   rule here would override their hairline width. */
 .world-map a polygon {
   cursor: pointer;
 }
 
-.world-map a:hover polygon {
+.world-map a:hover polygon:not(.country-contour) {
   stroke: var(--link);
   stroke-width: 4;
-}
-
-.world-map a:hover text {
-  fill: var(--link);
 }
 
 .world-map-legend {

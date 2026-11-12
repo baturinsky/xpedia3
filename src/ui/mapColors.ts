@@ -88,6 +88,48 @@ const keywordColors: [string, string][] = [
 /** Land whose terrain the pack names nothing for, or names unrecognisably */
 export const unknownLandColor = "#5a6b4f";
 
+/**
+ * Contour colours for nations, in list order.
+ *
+ * The game draws a nation's area as nothing at all and only labels it, so there
+ * is no colour to copy from the ruleset (`globe: countryColor:` is a single
+ * palette index shared by every label). Distinct hues are used instead, so
+ * neighbouring nations read apart; a mod can still override any of them.
+ */
+const countryPalette = [
+  "#e8b04a", "#6fb3e0", "#d4736f", "#8fc46a", "#c58fd8", "#54c4b0",
+  "#e08f4a", "#7a90e0", "#c4c45e", "#5fbf8f", "#d87fb0", "#9a8f7a",
+];
+
+/** `xpedia: countryColors:` declarations, keyed by upper-cased nation id */
+const declaredCountryColors: { [id: string]: string } = {};
+
+/** Reads the `xpedia: countryColors:` any active ruleset declares */
+export function readDeclaredCountryColors() {
+  for (let key in declaredCountryColors)
+    delete declaredCountryColors[key];
+
+  for (let mod of rul?.mods ?? []) {
+    for (let file of mod.rul ?? []) {
+      let block = file?.xpedia;
+      let entries = Array.isArray(block) ? block : block ? [block] : [];
+      for (let entry of entries) {
+        let table = entry?.countryColors;
+        if (!table || typeof table != "object")
+          continue;
+        for (let [id, color] of Object.entries(table))
+          if (id && typeof color == "string")
+            declaredCountryColors[id.toUpperCase()] = color;
+      }
+    }
+  }
+}
+
+/** The contour colour of one nation, also used for its label */
+export function colorForCountry(id: string, index: number) {
+  return declaredCountryColors[id.toUpperCase()] ?? countryPalette[index % countryPalette.length];
+}
+
 /** Reads the `xpedia: mapColors:` any active ruleset declares */
 export function readDeclaredColors() {
   for (let key in declared)

@@ -55,7 +55,7 @@ function PackMeta() {
   </div>;
 }
 
-const asSubTable = (props: any) => <SubTable of={props.val} />,
+export const asSubTable = (props: any) => <SubTable of={props.val} />,
   asJson = (props: any) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>
 
 /*Which renderer to use for each article type */

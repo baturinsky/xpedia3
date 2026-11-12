@@ -1,3 +1,4 @@
+import { asSubTable } from "./ArticleComponent";
 import MainTable from "./MainTable";
 import { Val } from "./Val";
 
@@ -26,6 +27,9 @@ export default function ManufactureComponent({ entry }: { entry: any }) {
     title="Manufacture"
     sort={{ exclude: ["chanceSum", "totalProducedItems"] }}
     wide={entry.randomProducedItems ? ["randomProducedItems"] : []}
-    special={{ randomProducedItems }}
+    special={{ 
+      randomProducedItems,
+      spawnedSoldier: asSubTable
+    }}
   />;
 }

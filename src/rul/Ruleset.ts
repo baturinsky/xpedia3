@@ -428,6 +428,21 @@ export default class Ruleset {
 
     this.raw = this.combineModRuls(mods);
 
+    // The world map is a generated page rather than a pack's own article, so it
+    // is registered as a Category like the entry tables below. This has to
+    // happen before the articles are parsed: the builtin ruleset gives the map
+    // article `section: WORLD_MAP`, and a Section created on the fly by
+    // `Article.addToSection` would land in the pedia sections list instead.
+    //
+    // A pack with no `globe:` node has no map to draw, so neither the page nor
+    // its article exists, and the entry is dropped rather than left dangling.
+    if (this.raw.globe)
+      new Section("WORLD_MAP", true);
+    else {
+      delete this.raw.ufopaedia?.WORLD_MAP;
+      delete this.raw.ufopaedia?.XPEDIA_WORLD_MAP;
+    }
+
     this.sounds = []
 
     if (this.raw?.extraSounds?.length)
@@ -537,13 +552,6 @@ export default class Ruleset {
 
     if(rul.attacks?.length > 0)
       new Section("ATTACKS", true);
-
-    // The world map is a generated page rather than a pack's own article, so it
-    // is registered as a Category like the entry tables above. It exists
-    // whenever the merged ruleset has a `globe:` node, which is where the map's
-    // polygons and terrain names come from.
-    if (this.raw.globe)
-      new Section("WORLD_MAP", true);
 
     let all = {
       Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),

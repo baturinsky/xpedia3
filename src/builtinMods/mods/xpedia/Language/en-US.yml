@@ -2379,7 +2379,7 @@ en-US:
   BT_NONE: Misc
   STR_RULESET_REFERENCE: Ruleset Reference Nightly (OpenXcom)
   STR_PALETTE_CONVERTER: Palette Converter
-  WORLD_MAP: World Map
+  WORLD_MAP: WORLD MAP
   XPEDIA_WORLD_MAP: "The pack's geoscape, flattened. Land is drawn from the globe's polygons, borders from its polylines, and the nations are labelled where the pack anchors them."
   xpediaMapLegend: Terrain
   xpediaMapLoading: Loading the map...
