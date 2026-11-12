@@ -1,7 +1,7 @@
 import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
-import { Divider, fromAnyRef, Img, spriteScale, usePixelRatio } from "./components";
+import { Divider, fromAnyRef, Img, Nobr, spriteScale, usePixelRatio } from "./components";
 
 /** Polymorphic value view */
 
@@ -150,11 +150,11 @@ export function Tr({
 
   if (iconText) {
     if (icon == "monospace")
-      element = <><div className='inem'>{iconText}</div>{element}</>
+      element = <><div className='monospace-emoji-icon'>{iconText}</div>{element}</>
     else if (icon == "simple")
       element = <>{iconText}{element}</>
     else if (icon != "none")
-      element = <><div className='comem'>{iconText}</div>{element}</>
+      element = <><div className='emoji-icon'>{iconText}</div>{element}</>
   }
 
   // The icon and the label are one unit: `Tr` never splits across lines.
@@ -272,8 +272,7 @@ const LinksList: FC<LinksListProps> = ({
       {keys.map((field: any, i: number) =>
         <Fragment key={field}>
           {i !== 0 && <Divider vertical={vertical} />}
-          <Val of={items[field]} depth={depth - 1} />&nbsp;
-          <Val of={field} depth={depth - 1} />
+          <Nobr><Val of={items[field]} depth={depth - 1} /> <Val of={field} depth={depth - 1} /></Nobr>
         </Fragment>
       )}
     </span>;

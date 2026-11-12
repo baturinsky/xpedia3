@@ -75,23 +75,29 @@ em.bad {
 }
 
 /* `Tr` puts an icon next to its label in one of these wrappers. They must be
-   inline, otherwise the icon takes its own line and the label wraps below it. */
-.inem,
-.comem {
+   inline, otherwise the icon takes its own line and the label wraps below it.
+
+   `vertical-align: baseline`, not `middle`: `middle` centres the icon's *box*,
+   which is a full em tall and so taller than the capitals beside it, leaving
+   every emoji hanging about a pixel below the text. On the baseline the icon's
+   own baseline meets the label's, which is how emoji fonts place the glyph, and
+   the two line up with the capitals. The emoji font's ascent also matches the
+   text font's, so the taller box does not stretch the line. */
+.monospace-emoji-icon,
+.emoji-icon {
   display: inline-block;
   margin: 0;
   padding: 0;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 
-.inem {
+.monospace-emoji-icon {
   min-width: 25px;
   text-align: center;
 }
 
-.comem {
+.emoji-icon {
   margin-right: -0.15rem;
-  padding-bottom: 0.1rem;
 }
 
 a {
@@ -1610,7 +1616,7 @@ a.services {
 .world-map .country-hot .country-contour {
   fill-opacity: .35;
   stroke-opacity: 1;
-  animation: country-contour-blink .6s steps(1, end) infinite;
+  animation: country-contour-blink .2s steps(1, end) infinite;
 }
 
 @keyframes country-contour-blink {

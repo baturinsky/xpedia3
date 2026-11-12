@@ -100,7 +100,7 @@ function subscribePixelRatio(notify: () => void) {
 export function Img(props: {
   src?: string, scale?: number, alt?: string, style?: CSSProperties,
   maxWidth?: number, maxHeight?: number, zoom?: number, className?: string
-}) {
+}) {  
   let path = spritePath(props.src);
   let images = state.images;
   let [natural, setNatural] = useState<{ path: string, w: number, h: number }>();

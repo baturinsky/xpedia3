@@ -502,7 +502,7 @@ export function ArticleComponent() {
       })}
       {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
       {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id &&
-        <Img src={article.image_id} scale={2} />}
+        <Img src={article.image_id} scale={1.5} />}
     </div>
   </>;
 
