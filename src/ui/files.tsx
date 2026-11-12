@@ -210,8 +210,8 @@ function ModpackList() {
           {current && <div className="modpack-current">currently shown</div>}
         </div>;
       })}
-    </div>;
-  </>;
+    </div>
+  </>
 }
 
 /**

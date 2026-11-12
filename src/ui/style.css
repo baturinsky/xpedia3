@@ -984,6 +984,7 @@ button:disabled:hover {
 .sections-list {
   display: flex;
   flex-direction: row;
+
   gap: 2rem;
   margin-bottom: 3rem;
 }
@@ -991,6 +992,7 @@ button:disabled:hover {
 /* Multi-column lists on the landing page */
 .sections-list>div {
   min-width: 15rem;
+  flex: 1;
 }
 
 /* Front-page mod list, see `ModsList`: XPedia's own builtin mods load with

@@ -1,9 +1,6 @@
-//@ts-ignore
-import wasmRaw from './unrar.wasm?base64'
-
 import { initUI } from './ui/ui';
 import { makeDropzone } from './dropzone';
-import { base64ToArrayBuffer, clearHash } from './util';
+import { clearHash } from './util';
 import { article, section, state, update } from './state';
 import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
@@ -12,8 +9,6 @@ import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
 import { goToLanding } from './navigation';
-
-export let wasmBinary: ArrayBuffer;
 
 
 export function goToArticle(href?: AnyRef) {
@@ -119,7 +114,6 @@ async function init() {
   initUI();
 
   makeDropzone(document.body, uploadUsersFiles)
-  wasmBinary = base64ToArrayBuffer(wasmRaw);
 
   onhashchange = goToHash;
   // A fresh ruleset always lands on the landing page: whatever the URL named

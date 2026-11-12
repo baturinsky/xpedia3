@@ -552,12 +552,12 @@ export class Craft extends Entry {
 }
 
 export class Facility extends Entry {
-  aliens: number;
-  prisonType: number;
-  provideBaseFunc: string[];
-  requiresBaseFunc: string[];
-  forbiddenBaseFunc: string[];
-  buildCostItems: { [key: string]: { [key: string]: number } };
+  aliens?: number;
+  prisonType?: number;
+  provideBaseFunc?: string[];
+  requiresBaseFunc?: string[];
+  forbiddenBaseFunc?: string[];
+  buildCostItems?: { [key: string]: { [key: string]: number } };
 
   constructor(raw: any) {
     super("facilities")
@@ -584,14 +584,14 @@ export class Facility extends Entry {
 }
 
 export class StartingConditions extends Entry {
-  allowedCraft: string[];
-  allowedItemCategories: string[];
-  allowedArmors: string[];
-  forbiddenArmors: string[];
-  allowedSoldierTypes: string[];
-  forbiddenSoldierTypes: string[];
-  allowedVehicles: string[];
-  deployments: string[];
+  allowedCraft?: string[];
+  allowedItemCategories?: string[];
+  allowedArmors?: string[];
+  forbiddenArmors?: string[];
+  allowedSoldierTypes?: string[];
+  forbiddenSoldierTypes?: string[];
+  allowedVehicles?: string[];
+  deployments?: string[];
 
   constructor(raw: any) {
     super("startingConditions")
@@ -839,23 +839,23 @@ export class Attack {
 }
 
 export class Armor extends Entry {
-  sprite: string;
-  damageModifier: number[];
+  sprite?: string;
+  damageModifier?: number[];
   armor: { [key: string]: number } = {};
-  users: string[];
+  users?: string[];
   startingConditions: string[] = [];
   size: number;
-  layersDefinition;
-  layersDefaultPrefix: string;
-  spriteInv: string;
-  storeItem: string;
-  frontArmor: number;
-  sideArmor: number;
-  rearArmor: number;
-  underArmor: number;
-  units: string[];
-  stats: string[];
-  tags: string[];
+  layersDefinition?: { [x: string]: any; };
+  layersDefaultPrefix?: string;
+  spriteInv?: string;
+  storeItem?: string;
+  frontArmor?: number;
+  sideArmor?: number;
+  rearArmor?: number;
+  underArmor?: number;
+  units?: string[];
+  stats?: string[];
+  tags?: string[];
 
   constructor(raw: any) {
     super("armors")
@@ -920,10 +920,10 @@ export class Armor extends Entry {
     return ds;
   }
 
-  sortField(n: string, v) {
+  sortField(n: string, v:any) {
     if (statsList.includes(n))
       return this.stats ? this.stats[n] || 0 : 0;
-    if (damageTypes.includes(n))
+    if (damageTypes.includes(n) && this.damageModifier)
       return (this.damageModifier[damageTypes.indexOf(n)] || 0) * 100;
     if (this.tags && n in this.tags)
       return this.tags[n];
@@ -949,43 +949,43 @@ export class Armor extends Entry {
 
 export class Item extends Entry {
   //sprite: string;
-  battleType: number;
+  battleType?: number;
   invWidth: number;
   invHeight: number;
-  _attacks: Attack[];
-  spawnedBy: string[];
-  requiresBuyBaseFunc: string[];
-  manufacture: { [key: string]: number };
-  componentOf: { [key: string]: number };
-  bigSprite: string;
-  meleePower: number;
+  _attacks?: Attack[];
+  spawnedBy?: string[];
+  requiresBuyBaseFunc?: string[];
+  manufacture?: { [key: string]: number };
+  componentOf?: { [key: string]: number };
+  bigSprite?: string;
+  meleePower?: number;
   meleeBonus: any;
-  meleeType: number;
-  power: number;
+  meleeType?: number;
+  power?: number;
   damageBonus: any;
-  damageType: number;
-  shotgunPellets: number;
+  damageType?: number;
+  shotgunPellets?: number;
   meleeAlter: any;
   damageAlter: any;
-  compatibleAmmo: string[];
-  ammo: { compatibleAmmo: string[] }[];
-  autoShots: number;
-  flatRate: boolean;
+  compatibleAmmo?: string[];
+  ammo?: { compatibleAmmo: string[] }[];
+  autoShots?: number;
+  flatRate?: boolean;
   meleeMultiplier: any;
   throwMultiplier: any;
   accuracyMultiplier: any;
   compatibleWeapons: any;
-  liveAlien: boolean;
-  recover: boolean;
-  prisonType: number;
-  maxRange: number;
-  categories: string[];
-  requiresBuy: string[];
-  commendations: string[];
-  heldBy: Set<string>;
+  liveAlien?: boolean;
+  recover?: boolean;
+  prisonType?: number;
+  maxRange?: number;
+  categories?: string[];
+  requiresBuy?: string[];
+  commendations?: string[];
+  heldBy?: Set<string>;
   dropoff: number;
-  damageTypes: number[]
-  psiVision: number;
+  damageTypes?: number[]
+  psiVision?: number;
   invSize: string;
 
   get sprite() {

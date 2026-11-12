@@ -1,4 +1,5 @@
-import { wasmBinary } from "./main";
+//@ts-ignore
+import wasmRaw from './unrar.wasm?base64'
 import { state, update, slowProcessCancelRequested, resetSlowProcessCancel, autoCloseStatus } from "./state";
 import * as unrar from 'node-unrar-js'
 import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer, asMB } from "./util";
@@ -340,8 +341,23 @@ export async function unpackZip(name: string, data: ArrayBuffer) {
   return files;
 }
 
+/**
+ * The unrar wasm, decoded on first use.
+ *
+ * It lives here rather than in `main.ts` because that made `load` import `main`
+ * while `main` imports `load`: a cycle that let `init()` run before `idb.ts`
+ * had evaluated its own module body, crashing on a `const` that was still in
+ * the temporal dead zone. RAR unpacking is the only consumer, so decoding it
+ * here also keeps 200 KB of base64 unparsed until a RAR is actually opened.
+ */
+let wasmCache: ArrayBuffer | undefined;
+
+function unrarWasm() {
+  return wasmCache ??= base64ToArrayBuffer(wasmRaw);
+}
+
 export async function unpackRar(name: string, data: ArrayBuffer) {
-  const extractor = await unrar.createExtractorFromData({ wasmBinary, data });
+  const extractor = await unrar.createExtractorFromData({ wasmBinary: unrarWasm(), data });
 
   const list = extractor.getFileList();
   const fileHeaders = [...list.fileHeaders]; // load the file headers
