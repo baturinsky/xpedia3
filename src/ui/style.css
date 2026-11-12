@@ -1362,6 +1362,66 @@ ol>li:last-child::after {
   overflow-x: auto;
 }
 
+/**
+ * A unit sheet shown as a composed figure, with a picker for the pose and the
+ * facing. The sprite and the controls sit side by side; they wrap on a narrow
+ * screen rather than squeezing the sprite.
+ */
+.unit-sheet {
+  width: 0;
+  min-width: 100%;
+  overflow-x: auto;
+}
+
+.unit-picker {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 0.4rem 0;
+}
+
+/* A fixed box keeps the controls from jumping around as poses change height */
+.unit-picker-preview {
+  flex: none;
+  min-width: 120px;
+  min-height: 120px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.unit-picker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.unit-picker-controls label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Same width for both lists, so the labels line up */
+.unit-picker-controls label>span {
+  min-width: 5.5rem;
+  opacity: 0.8;
+}
+
+.unit-picker-controls select {
+  min-width: 8rem;
+}
+
+.unit-picker-size {
+  opacity: 0.6;
+  font-size: 0.9em;
+}
+
+.unit-sprite {
+  display: block;
+  flex: none;
+}
+
 .armor {
   pointer-events: none;
   position: relative;

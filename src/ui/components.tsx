@@ -24,7 +24,7 @@ function spritePath(src?: string) {
     return undefined;
   if (src.startsWith("data:"))
     return src;
-  return rul.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : undefined);
+  return rul?.sprites[src]?.path ?? (/[\\/]/.test(src) ? src : undefined);
 }
 
 /**
@@ -94,13 +94,61 @@ function subscribePixelRatio(notify: () => void) {
 }
 
 /**
+ * Several sprites at once, for a component that rasterises more than one image
+ * (a unit figure is assembled from cells of a sheet, and a set may be spread
+ * over more than one image). Loads through the same cache as `Img`.
+ */
+export function useSpriteImages(paths: string[]) {
+  let images = state.images;
+  let key = paths.join("\n");
+  let [broken, setBroken] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let fails: string[] = [];
+    for (let path of paths) {
+      if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
+        continue;
+      resolveImage(path).then(img => {
+        if (cancelled)
+          return;
+        let value = img ? (img.url ?? (img.data ? imageDataToUrl(img.data) : null)) : null;
+        update({ images: { ...state.images, [path]: value } })
+      }).catch(e => {
+        if (cancelled)
+          return;
+        console.warn("Can't load image", path, e);
+        fails.push(path);
+        update({ images: { ...state.images, [path]: null } })
+      });
+    }
+    // Recorded after the loop so one failed image does not stop the others
+    if (fails.length)
+      setBroken(fails);
+    return () => { cancelled = true; };
+  }, [key]);
+
+  /** path -> a url that will actually paint; paths still loading are absent */
+  let urls = new Map<string, string>();
+  let settled = true;
+  for (let path of paths) {
+    let value = path.startsWith("data:") ? path : images[path];
+    if (value)
+      urls.set(path, value);
+    else if (!Object.prototype.hasOwnProperty.call(images, path) && !broken.includes(path))
+      settled = false;
+  }
+  return { urls, settled };
+}
+
+/**
  * An image for `src`, either from the database, from the inlined pack's game
  * folder, or a transparent placeholder when it does not exist.
  */
 export function Img(props: {
   src?: string, scale?: number, alt?: string, style?: CSSProperties,
   maxWidth?: number, maxHeight?: number, zoom?: number, className?: string
-}) {  
+}) {
   let path = spritePath(props.src);
   let images = state.images;
   let [natural, setNatural] = useState<{ path: string, w: number, h: number }>();

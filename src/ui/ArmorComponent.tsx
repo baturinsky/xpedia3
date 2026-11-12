@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { rul, sortFirstLast, damageTypes } from "../rul/Ruleset";
 import { SpecialBonus, RecoveryTable, Subheader, Img } from "./components";
+import { canComposeUnit, UnitSheetPreview } from "./UnitSprite";
 import { Val } from './Val';
 import { state, update } from '../state';
 
@@ -244,15 +245,29 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
         </tr>
 
         {sortedEntries.map(([key, prop]: [string, any], index) => {
-          // A sprite sheet is far wider than any value column, so it spans the
-          // whole table instead of stretching that column.
+          // A unit sheet is an atlas of body parts, not a picture: draw the
+          // figure the game would assemble from it. Sheets of any other kind are
+          // still a single image, shown as before.
           if (key === "spriteSheet") {
+            let view = {
+              sheet: prop,
+              routine: entry.drawingRoutine,
+              female: entry.forcedTorso == 2,
+              deathFrames: entry.deathFrames
+            };
+            let composable = canComposeUnit(prop, entry.drawingRoutine);
             return <tr key={index}>
               <td colSpan={2}>
                 <Val of={key} />
-                <div className="sprite-sheet-image">
-                  <Val of={prop} />
-                </div>
+                {composable ? (
+                  <div className="unit-sheet">
+                    <UnitSheetPreview view={view} />
+                  </div>
+                ) : (
+                  <div className="sprite-sheet-image">
+                    <Val of={prop} />
+                  </div>
+                )}
               </td>
             </tr>;
           }
