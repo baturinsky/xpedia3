@@ -1,9 +1,9 @@
-import { CSSProperties, JSX, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { CSSProperties, JSX, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { state, update } from "../state";
 
 import { resolveImage } from "../packSource";
 import { rul, sortFirstLast } from "../rul/Ruleset";
-import { Val } from "./Val";
+import { Tr, Val } from "./Val";
 import React from "react";
 import { imageDataToUrl, allFieldValuesOf } from "../util";
 import { emptyImg } from "../imgPlaceholders";
@@ -494,6 +494,98 @@ export function PaginatedList(props: {
   </>;
 }
 
+/**
+ * Reveals a long list a batch at a time as it is scrolled to the end, instead
+ * of splitting it into pages.
+ *
+ * A section table can hold thousands of rows (`##ITEMS` has over four thousand)
+ * and every row renders its own cells, so building the whole table on each sort
+ * or filter would block the page. The first batch is drawn immediately and the
+ * next one is added once the end of the list comes into view: the page keeps
+ * scrolling normally, no inner scroll box is involved, and what has been
+ * revealed stays in the document for printing, searching and the browser's own
+ * find.
+ *
+ * The end of the list is watched with a `scroll` listener in the capture phase
+ * rather than an `IntersectionObserver`: the pedia scrolls inside `.content`,
+ * not the window, and a capture listener sees the scroll of whichever ancestor
+ * actually scrolls without having to guess it. `scroll` does not bubble, so
+ * capturing is what makes one document-level listener enough.
+ */
+export function IncrementalList(props: {
+  items: any[],
+  /** Rows drawn at once, and the number shown before the first scroll */
+  batchSize?: number,
+  /**
+   * Restarts the list when it changes. A new sort order or filter is a
+   * different list, so it must not inherit how far the old one was scrolled.
+   */
+  resetKey?: any,
+  /** Extra class on the wrapper; a table needs a block wrapper to scroll */
+  className?: string,
+  children: (items: any[]) => any
+}) {
+  let items = props.items ?? [];
+  let batchSize = props.batchSize ?? 100;
+  let [count, setCount] = useState(batchSize);
+  let sentinel = useRef<HTMLSpanElement>(null);
+
+  // Derived from the prop rather than synced in an effect: the list must be cut
+  // back to the first batch on the same render the sort changes, or the browser
+  // briefly lays out the old number of rows
+  let lastResetKey = useRef(props.resetKey);
+  if (lastResetKey.current !== props.resetKey) {
+    lastResetKey.current = props.resetKey;
+    setCount(batchSize);
+  }
+
+  let more = items.length > count;
+
+  // Printing wants the whole list on paper, not just what has been scrolled to
+  useEffect(() => {
+    let all = () => setCount(items.length);
+    addEventListener("beforeprint", all);
+    return () => removeEventListener("beforeprint", all);
+  }, [items.length]);
+
+  useEffect(() => {
+    if (!more)
+      return;
+    let atEnd = (e?: Event) => {
+      // A scroll far from the end of the scroller cannot have revealed the
+      // marker, and saying so from the scroll position alone avoids measuring
+      // a huge table on every wheel tick
+      let scroller = e?.target instanceof Element ? e.target : null;
+      if (scroller && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 200)
+        return;
+      let box = sentinel.current?.getBoundingClientRect();
+      // The margin starts the next batch slightly before its marker is on
+      // screen, so the list does not visibly stall while rows are appended
+      if (box && box.top <= innerHeight + 200)
+        setCount(c => c + batchSize);
+    };
+    // `more` and `count` changes re-run this, which checks again: a batch that
+    // still leaves the marker in view (a short list, a tall window) keeps adding
+    // until it is out of view
+    atEnd();
+    document.addEventListener("scroll", atEnd, true);
+    addEventListener("resize", atEnd);
+    return () => {
+      document.removeEventListener("scroll", atEnd, true);
+      removeEventListener("resize", atEnd);
+    };
+  }, [more, count, batchSize]);
+
+  return <>
+    <span className={"links-list " + (props.className ?? "")}>
+      {props.children(items.slice(0, count))}
+      {/* Zero height and empty, so it neither adds a line nor widens the
+          shrink-to-fit wrapper around a wide table */}
+      {more && <span className="incremental-sentinel" ref={sentinel} aria-hidden="true"></span>}
+    </span>
+  </>;
+}
+
 /** A page that is just a list of links, e.g. a section's article list */
 export function LinksPage(props: {
   links?: AnyRef[],
@@ -660,8 +752,20 @@ export function SectionTable(props: SectionTableProps) {
       <input value={filterId} onChange={e => setFilterId(e.target.value)}
         type="text" placeholder={rul.tr("Filter...") ?? ""} />
     </div>
-    <PaginatedList items={sorted} pageSize={40} onePageMax={200} className="table-list">
-      {paginatedItems =>
+    <IncrementalList items={sorted} className="table-list"
+      // A batch is bounded by the number of cells it builds, not just by rows:
+      // with every column shown a single row is over a hundred cells, and a
+      // hundred such rows would block the page for seconds. Fewer rows per batch
+      // keeps each append short and costs nothing while there are few columns.
+      batchSize={Math.max(4, Math.min(100, Math.round(600 / Math.max(1, shownFields.length))))}
+      // Sorting or filtering changes which rows there are, so the list starts
+      // over from its first batch. So does the number of columns: revealing a
+      // long list and then showing every column at once would otherwise have to
+      // rebuild all of those rows at once, which is exactly the stall the batch
+      // exists to avoid. Reordering the same columns keeps the reveal, since it
+      // does not change how much there is to draw.
+      resetKey={JSON.stringify([filtersSelected, filterId, sortField, sortDescending, shownFields.length])}>
+      {visibleRows =>
         <table className="section-table">
           <thead>
             <tr>
@@ -672,8 +776,10 @@ export function SectionTable(props: SectionTableProps) {
                   onDrop={e => moveField(shownFields, field, e.dataTransfer.getData("field"), setShownFields)}
                   onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move" }}
                   onClick={() => sortBy(field)}>
-                  <span className="sort-order-arrow">&#9660;</span>
-                  <Val of={field} />
+                  {/* Keeps the label centred whether or not an arrow shows, the
+                      same placeholder the old `SectionTable` used */}
+                  <span className="sort-order-arrow invisible">&#9660;</span>
+                  <Tr text={field} />
                   <span className="sort-order-arrow">
                     {sortField != field ? <span className="invisible">&#9660;</span> : sortDescending ? "▼" : "▲"}
                   </span>
@@ -682,7 +788,7 @@ export function SectionTable(props: SectionTableProps) {
             </tr>
           </thead>
           <tbody>
-            {paginatedItems.map((entry: any, i: number) =>
+            {visibleRows.map((entry: any, i: number) =>
               <tr key={entry.id ?? i}>
                 {shownFields.map(field =>
                   <td key={field} className={"st-" + field}>
@@ -695,7 +801,7 @@ export function SectionTable(props: SectionTableProps) {
           </tbody>
         </table>
       }
-    </PaginatedList>
+    </IncrementalList>
   </>;
 }
 

@@ -235,6 +235,11 @@ export default class Ruleset {
           str = str.replace(/_/g, " ");
 
         str = str.replace(/([a-z])([A-Z])/g, "$1 $2");
+        // A derived label has no translation to preserve, so `capital` still
+        // normalises it to lower case; a translated one keeps its own capitals
+        // such as "TU" and "CQC"
+        if (props?.capital)
+          str = str.toLowerCase();
       }
     }
 

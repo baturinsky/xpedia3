@@ -1937,6 +1937,342 @@ en-US:
   tip_shots: shots<br><br>Number of shots in this attack.
   tip_profit: profit<br><br>Money gained per produced item, calculated from the sell value of the produced items minus the value of the required items and the production cost.
   tip_sizeChange: sizeChange<br><br>Change in total Stores size per produced item, calculated from the produced items minus the required items.
+#==================================================================================================================
+  tip_alienRank: 'alienRank<br><br>Rank this deployment slot uses, as an index into the member list of the alien race.'
+  tip_allWeaponTypes: 'allWeaponTypes<br><br>Every weapon type this craft can mount, collected from all of its weapon slots.'
+  tip_allowedArmors: 'allowedArmors<br><br>List of armors that crew may wear under this starting condition.'
+  tip_allowedCraft: 'allowedCraft<br><br>List of vessels available at the start of the campaign.'
+  tip_allowedItemCategories: 'allowedItemCategories<br><br>List of item categories that may be bought or carried at the start.'
+  tip_allowedSoldierTypes: 'allowedSoldierTypes<br><br>List of crew types that are allowed.'
+  tip_allowedVehicles: 'allowedVehicles<br><br>List of auxilia that are allowed.'
+  tip_allowsBuying: 'allowsBuying<br><br>List of item categories this research unlocks for purchase.'
+  tip_ammo: 'ammo<br><br>Groups of ammo this weapon can load, one per attack. They are merged into compatibleAmmo.'
+  tip_areas: 'areas<br><br>Rectangles on the globe written as [lon1, lat1, lon2, lat2]. Anything that happens inside counts towards the activity graph of this region.'
+  tip_battleTypes: 'battleTypes<br><br>Item types this commendation can be earned with, such as firearms, grenades or medikits.'
+  tip_blocksTransformations: 'blocksTransformations<br><br>Transformations that become unavailable once a soldier has undergone this one.'
+  tip_cities: 'cities<br><br>Cities of this region, each with a name and lon/lat coordinates. They appear on the globe and are used for terror sites.'
+  tip_civilianTypes: 'civilianTypes<br><br>Units used as civilians on maps of this terrain.'
+  tip_commendations: 'commendations<br><br>Commendations (infamy awards) that can be earned with this item, damage type, battle type or race.'
+  tip_compatibleWeapons: 'compatibleWeapons<br><br>Weapons this ammo fits, filled in from the ammo lists of those weapons.'
+  tip_costs: 'costs<br><br>TU cost of moving an item from this inventory slot to another one, written as target slot: cost.'
+  tip_count: 'count<br><br>Number of UFOs to spawn in this wave.'
+  tip_criteria: 'criteria<br><br>Values of the criteria columns of this commendation, one per stage.'
+  tip_dQty: 'dQty<br><br>Random extra aliens spawned on top of the minimum, the same on every difficulty.'
+  tip_damageAlter: 'damageAlter<br><br>Damage parameters of this attack: multipliers, armor effectiveness, blast radius and so on. They are listed under the attack table.'
+  tip_damageTypes: 'damageTypes<br><br>Damage types used by this item, or damage types this commendation can be earned with.'
+  tip_data: 'data<br><br>One entry per alien rank on this mission: how many aliens to spawn, which gear sets they use, how many appear outside the UFO and so on.'
+  tip_dependencies: 'dependencies<br><br>Research projects that unlock access to this one. It becomes available once the whole list is researched, or when any project leads to it.'
+  tip_deployments: 'deployments<br><br>Alien deployments this starting condition may use.'
+  tip_eventWeights: 'eventWeights<br><br>Weighted list of events this script can fire.'
+  tip_files: 'files<br><br>Files this mod adds or replaces, listed as id: filename.'
+  tip_finalBonus: 'finalBonus<br><br>Soldier bonus of the last stage of this commendation.'
+  tip_forbiddenArmors: 'forbiddenArmors<br><br>Armors that may not be worn under this starting condition.'
+  tip_forbiddenBaseFunc: 'forbiddenBaseFunc<br><br>Services that prevent this facility from being built in the same Hideout.'
+  tip_forbiddenPreviousTransformations: 'forbiddenPreviousTransformations<br><br>Transformations that must not have been applied before this one.'
+  tip_forbiddenSoldierTypes: 'forbiddenSoldierTypes<br><br>Crew types that are not allowed under this starting condition.'
+  tip_freeFrom: 'freeFrom<br><br>Research projects that grant this one for free once completed.'
+  tip_frequency: 'frequency<br><br>How often this map block is picked relative to the others.'
+  tip_getOneFree: 'getOneFree<br><br>Bonus research this project may grant when completed, for example a live alien handing over information about other races. Only applies to living aliens.'
+  tip_groundTimer: 'groundTimer<br><br>Seconds the UFO spends on ground waypoints.'
+  tip_height: 'height<br><br><ul><li>Map block: height in battlescape grid units.</li><li>Deployment: height of the battlescape map.</li><li>Sprite: height in pixels.</li></ul>'
+  tip_heldBy: 'heldBy<br><br>Units that have this item in their hands by default.'
+  tip_hemisphere: 'hemisphere<br><br>Geoscape hemisphere of this terrain:<ul><li>-1 = northern;</li><li>0 = both;</li><li>1 = southern.</li></ul>'
+  tip_highQty: 'highQty<br><br>Number of aliens spawned on the hardest difficulty. Middle difficulties take the value in between.'
+  tip_itemSets: 'itemSets<br><br>Three lists of items, one per alien technology level, that this rank comes equipped with.'
+  tip_items: 'items<br><br>Items linked to this entry: what a battle type or damage type applies to, or what a commendation can be earned with.'
+  tip_kcd: 'kcd<br><br>Kill criteria deeds of this commendation, after parsing.'
+  tip_killCriteria: 'killCriteria<br><br>Raw kill criteria: what a soldier has to do to earn each stage, before the races, units and items are resolved.'
+  tip_killCriteria2: 'killCriteria2<br><br>Kill criteria grouped per stage, with races, units and items resolved into links.'
+  tip_labelLat: 'labelLat<br><br>Latitude of the country label on the globe, shown only when the globe is zoomed in with detail turned on.'
+  tip_labelLon: 'labelLon<br><br>Longitude of the country label on the globe, shown only when the globe is zoomed in with detail turned on.'
+  tip_largeBlockLimit: 'largeBlockLimit<br><br>Maximum number of large map blocks that may be placed when generating a map.'
+  tip_layersDefaultPrefix: 'layersDefaultPrefix<br><br>String prefix used to name the paper-doll layers of this armor when no explicit layer is set.'
+  tip_layersDefinition: 'layersDefinition<br><br>Paper-doll layers drawn over the inventory background for a unit wearing this armor, so one body sprite can be recoloured and combined.'
+  tip_leadsTo: 'leadsTo<br><br>Research projects this one unlocks directly.'
+  tip_length: 'length<br><br><ul><li>Map block: length in battlescape grid units.</li><li>Deployment: length of the battlescape map.</li></ul>'
+  tip_loftemps: 'loftemps<br><br>Deprecated hitbox definition that only works for 1x1 units. Use loftempsSet instead.'
+  tip_loot: 'loot<br><br>Items carried by the aliens of this mission, and therefore recoverable after the battle.'
+  tip_lowQty: 'lowQty<br><br>Number of aliens spawned on the easiest difficulties.'
+  tip_mapBlocks: 'mapBlocks<br><br>Map blocks this terrain draws from when generating a map.'
+  tip_mapDataSets: 'mapDataSets<br><br>Names of the tile sets (MCD plus PCK and TAB) that make up this terrain.'
+  tip_maxCount: 'maxCount<br><br>How many times this map block may appear in one map. -1 means no limit.'
+  tip_maxStats: 'maxStats<br><br>Upper bounds used to generate starting stats of a crew member. For psi skill it is the minimum of the first month of training.'
+  tip_meleeAlter: 'meleeAlter<br><br>Damage parameters of the melee attack of this item. They are listed under the attack table.'
+  tip_members: 'members<br><br>Units that make up this race, in rank order. A position in this list is the rank number used by deployments; a rank that does not exist is filled in by repeating another unit.'
+  tip_minStats: 'minStats<br><br>Lower bounds used to generate starting stats of a crew member. Psi skill is used as-is rather than generated.'
+  tip_missionRegion: 'missionRegion<br><br>Region this mission runs in instead of the one it is listed under. Used for regions without land.'
+  tip_missionWeights: 'missionWeights<br><br>Weighted list of mission types for this region, for example STR_ALIEN_RESEARCH: 14.'
+  tip_missionZones: 'missionZones<br><br>Rectangles written as [lon1, lat1, lon2, lat2] where missions of this region may place their objectives. They are also waypoints for UFO trajectories.'
+  tip_nextStage: 'nextStage<br><br>Deployment used for the next stage of a multi-stage mission.'
+  tip_oneTimeRandomEvents: 'oneTimeRandomEvents<br><br>Events this script may fire once, with their weights.'
+  tip_percentageOutsideUfo: 'percentageOutsideUfo<br><br>Share of the aliens spawned outside the UFO, in per cent.'
+  tip_raceWeights: 'raceWeights<br><br>Races that may carry out this mission and their chance, listed by number of months since the campaign started.'
+  tip_randomProducedItems: 'randomProducedItems<br><br>Alternative results of this project with their chances, used instead of a fixed set of produced items.'
+  tip_regionWeight: 'regionWeight<br><br>Weight of this region when the game picks one for an alien mission.'
+  tip_relatedScripts: 'relatedScripts<br><br>Event scripts connected to this entry: the scripts that can fire this event, or the scripts a research topic appears in.'
+  tip_requiresBuyBaseFunc: 'requiresBuyBaseFunc<br><br>Services needed in a Hideout before this item can be bought there. Without them it can still be used, just not purchased.'
+  tip_researchForbidden: 'researchForbidden<br><br>Research that must not be completed for this mission to run.'
+  tip_researchNeeded: 'researchNeeded<br><br>Research that must be completed for this mission to run.'
+  tip_researchTriggers: 'researchTriggers<br><br>Research projects that enable or forbid this script, depending on whether they are set to true or false.'
+  tip_retaliation: 'retaliation<br><br>Can this race be sent on retaliation missions?'
+  tip_roadTypeOdds: 'roadTypeOdds<br><br>Chance in per cent of each road type: east-west, then north-south, and crossings take whatever is left.'
+  tip_section: 'section<br><br>UFOpaedia section this article belongs to.'
+  tip_seeAlso: 'seeAlso<br><br>Extra research topics shown as related reading on this article.'
+  tip_shade: 'shade<br><br>Light level of the map, 0 being full daylight and 15 full darkness. Not used on UFO sites, where it comes from the globe.'
+  tip_singleImage: 'singleImage<br><br>Is the image a single sprite rather than a sheet?'
+  tip_slots: 'slots<br><br>Grid squares that make up this inventory section, written as [x, y]. A 2x2 section is [0, 0] [0, 1] [1, 0] [1, 1].'
+  tip_soldierBonusTypes: 'soldierBonusTypes<br><br>Soldier bonuses granted by each stage of this commendation, in stage order.'
+  tip_startingCondition: 'startingCondition<br><br>Crew and equipment limits this mission imposes on the player.'
+  tip_statCaps: 'statCaps<br><br>Stats that a crew member can no longer raise through experience. A stat still goes over the cap once, then stops growing.'
+  tip_string: 'string<br><br>Text appended to a crew member name.'
+  tip_strings: 'strings<br><br>Strings this mod adds or replaces, listed as id: text.'
+  tip_subType: 'subType<br><br>Sub-type of this map block. Its meaning depends on the type.'
+  tip_subX: 'subX<br><br>Width of one sprite inside the sheet, in pixels. Leave at 0 when the file holds a single sprite.'
+  tip_subY: 'subY<br><br>Height of one sprite inside the sheet, in pixels. Leave at 0 when the file holds a single sprite.'
+  tip_terrains: 'terrains<br><br>Terrains this mission may pick from when generating its map. Not used on UFO sites, where the terrain comes from the globe.'
+  tip_text: 'text<br><br>String ID of the description displayed on this article.'
+  tip_textures: 'textures<br><br>Geoscape textures used to paint this terrain on the globe.'
+  tip_timer: 'timer<br><br>Delay before this wave arrives or this event fires. Waves count it in minutes after the previous wave.'
+  tip_title: 'title<br><br>String ID of the article title. If omitted, the id is used.'
+  tip_totalProducedItems: 'totalProducedItems<br><br>Average items produced per run, counting the random results by their chance.'
+  tip_trajectory: 'trajectory<br><br>Flight path this UFO follows when it enters the atmosphere.'
+  tip_type: 'type<br><br>Kind of this entry:<ul><li>Most entries: a string ID, the same as the id.</li><li>Inventory section: 0 = slot, 1 = hand, 2 = ground.</li><li>Map block: -1 = undefined, 0 = default, 1 = landing zone, 2 = east-west road, 3 = north-south road, 4 = crossing, 5 = dirt, 6 = spawn point, 7 = alien base target, 8 = Cydonia target.</li></ul>'
+  tip_ufo: 'ufo<br><br>UFO spawned in this wave.'
+  tip_unlocks: 'unlocks<br><br>Research projects this one unlocks when completed, regardless of their other dependencies.'
+  tip_waves: 'waves<br><br>UFO waves spawned as this mission progresses, in order.'
+  tip_weapon: 'weapon<br><br>Weapon this HWP article talks about. Only used on HWP articles.'
+  tip_width: 'width<br><br><ul><li>Map block: width in battlescape grid units.</li><li>Deployment: width of the battlescape map.</li><li>Sprite: width in pixels.</li></ul>'
+  tip_xcomBaseInCountryTriggers: 'xcomBaseInCountryTriggers<br><br>Countries that must, or must not, hold a Hideout of yours for this script to run.'
+#==================================================================================================================
+  tip_abortCutscene: 'abortCutscene<br><br>Cutscene played when the mission is aborted. "winGame" and "loseGame" both return the player to the main menu afterwards.'
+  tip_abortPenalty: 'abortPenalty<br><br>Points lost when the mission is aborted.'
+  tip_alert: 'alert<br><br>Message shown in the popup when this mission appears on the globe.'
+  tip_alertBackground: 'alertBackground<br><br>Background image of that popup.'
+  tip_alertDescription: 'alertDescription<br><br>Extra description shown behind the [Info] button on the target screen.'
+  tip_allowedIn: 'allowedIn<br><br>Missions and starting conditions that allow this outfit or vessel. Filled in from their own allowed lists.'
+  tip_allowedItems: 'allowedItems<br><br>Items that may be taken on this mission. Anything else stays in the Hideout.'
+  tip_allowsDeadSoldiers: 'allowsDeadSoldiers<br><br>Can dead soldiers undergo this transformation? They come back to life in the Hideout that started the project.'
+  tip_allowsLiveSoldiers: 'allowsLiveSoldiers<br><br>Can live, unwounded soldiers undergo this transformation?'
+  tip_allowsWoundedSoldiers: 'allowsWoundedSoldiers<br><br>Can wounded soldiers undergo this transformation?'
+  tip_allowTwoMainWeapons: 'allowTwoMainWeapons<br><br>During auto-equip, allow two main weapons instead of one. Only applies to the crew; aliens and civilians have it on by default.'
+  tip_armorForAvatar: 'armorForAvatar<br><br>Outfit drawn for this crew type when the avatar display is on instead of the rank display.'
+  tip_avatarOffsetX: 'avatarOffsetX<br><br>Horizontal offset in pixels of the avatar inside the inventory sprite.'
+  tip_avatarOffsetY: 'avatarOffsetY<br><br>Vertical offset in pixels of the avatar inside the inventory sprite.'
+  tip_background: 'background<br><br>Background image shown in the window of this event.'
+  tip_baseDetectionChance: 'baseDetectionChance<br><br>Chance in per cent that the Hideout radar picks up a vessel entering its range.'
+  tip_baseDetectionRange: 'baseDetectionRange<br><br>Radar range of a Hideout in nautical miles. Above zero it also scans for your vessels and sends hunt missions after them.'
+  tip_berserkFemale: 'berserkFemale<br><br>Berserk sound for female crew. A single sound ID or a list of them.'
+  tip_berserkMale: 'berserkMale<br><br>Berserk sound for male crew. A single sound ID or a list of them.'
+  tip_briefing: 'briefing<br><br>Data for the mission briefing screen: text, background, music and palette.'
+  tip_builtIn: 'builtIn<br><br>Units that carry this item built in, so it never appears in their inventory.'
+  tip_bulletSaving: 'bulletSaving<br><br>Apply statistical bullet saving to this craft weapon?'
+  tip_chronoTrigger: 'chronoTrigger<br><br>What happens when the mission timer reaches 0:<ul><li>0 = lose;</li><li>1 = abort;</li><li>2 = win;</li><li>3 = win, and all remaining enemies surrender.</li></ul>'
+  tip_city: 'city<br><br>Does this event happen in a random city of its regions? The city name can be part of the event''s name and description.'
+  tip_civilians: 'civilians<br><br>Maximum number of civilians on the map. The actual number is 50-100% of it.'
+  tip_conditionals: 'conditionals<br><br>Labels of earlier commands that decide whether this one runs. [1, -4] means command 1 must have succeeded and command 4 failed.'
+  tip_connectorsDisabled: 'connectorsDisabled<br><br>Should the base view draw corridors leading to and from this facility?'
+  tip_cosmetic: 'cosmetic<br><br>Is this unit ignored in soldier diaries and commendations?'
+  tip_costSalary: 'costSalary<br><br>Money paid every month for employing this crew type.'
+  tip_costSalaryCaptain: 'costSalaryCaptain<br><br>Extra monthly pay for each Captain.'
+  tip_costSalaryColonel: 'costSalaryColonel<br><br>Extra monthly pay for each Colonel.'
+  tip_costSalaryCommander: 'costSalaryCommander<br><br>Extra monthly pay for each Commander.'
+  tip_costSalarySergeant: 'costSalarySergeant<br><br>Extra monthly pay for each Sergeant.'
+  tip_craftInventoryTile: 'craftInventoryTile<br><br>Grid square [x, y, z] where the vessel''s weapon pile sits. Without it, the square of the first crew member is used.'
+  tip_createsClone: 'createsClone<br><br>Apply the transformation to a fresh copy of the soldier instead of the soldier themself.'
+  tip_customArmorPreviewIndex: 'customArmorPreviewIndex<br><br>Icon for this outfit on the craft screen: one index into the CustomArmorPreviews sheet, or a list of indices for a larger icon.'
+  tip_customItemPreviewIndex: 'customItemPreviewIndex<br><br>Icon for this auxilium on the craft screen: one index into the CustomItemPreviews sheet, or a list of indices for a larger icon.'
+  tip_customUfo: 'customUfo<br><br>UFO this mission hands to addUFO map commands, so one script can be shared by many missions.'
+  tip_cutscene: 'cutscene<br><br>Cutscene played when this research is completed.'
+  tip_deathFemale: 'deathFemale<br><br>Death sound for female crew. A single sound ID or a list of them.'
+  tip_deathMale: 'deathMale<br><br>Death sound for male crew. A single sound ID or a list of them.'
+  tip_defaultArmor: 'defaultArmor<br><br>Outfits a crew member is switched to when the one worn is not allowed on this mission, as a weighted list per crew type. The special id noChange keeps the original outfit.'
+  tip_depth: 'depth<br><br>Lowest and highest map depth, written as [min, max]. The actual depth is picked at random unless the mission sets it.'
+  tip_description: 'description<br><br>String ID of the text describing this event or commendation.'
+  tip_despawnPenalty: 'despawnPenalty<br><br>Score the aliens gain when this site is left alone until it disappears.'
+  tip_disables: 'disables<br><br>Research projects that become unavailable once this one is completed.'
+  tip_dogfightExperience: 'dogfightExperience<br><br>Chance in per cent to improve a stat (bravery, firing or reactions) after a won dogfight, given per stat.'
+  tip_duration: 'duration<br><br>Shortest and longest time this mission stays on the globe, in hours, written as [min, max].'
+  tip_enviroEffects: 'enviroEffects<br><br>Environment effects applied to battles on this terrain or mission.'
+  tip_escapeType: 'escapeType<br><br>Which tiles count as escape tiles:<ul><li>0 = none;</li><li>1 = exit tiles;</li><li>2 = entry tiles;</li><li>3 = either.</li></ul>'
+  tip_events: 'events<br><br>Events fired by this entry, filled in from their own triggers.'
+  tip_executionOdds: 'executionOdds<br><br>Chance in per cent that this script command runs.'
+  tip_explodeInventory: 'explodeInventory<br><br>How primed items in the inventory behave:<ul><li>-1 = use the global setting;</li><li>0 = never explode in the inventory;</li><li>1 = explode in the inventory, except in the hands;</li><li>2 = explode in the inventory anywhere.</li></ul>'
+  tip_facilityTriggers: 'facilityTriggers<br><br>Facilities in any Hideout that enable or forbid this script. true requires one to be built, false requires it not to be.'
+  tip_femaleFrequency: 'femaleFrequency<br><br>Chance in per cent that a newly hired crew member is female.'
+  tip_firstMonth: 'firstMonth<br><br>First month this script runs in. 0 means from the start of a new campaign.'
+  tip_flagOffset: 'flagOffset<br><br>Offset into the flag sprite sheet for this crew type.'
+  tip_flatOverallStatChange: 'flatOverallStatChange<br><br>Direct change to the soldier''s stats: tu: 5 gives 5 more maximum TU, tu: -5 takes 5 away.'
+  tip_forbiddenCraft: 'forbiddenCraft<br><br>Vessels that may not be used under this starting condition.'
+  tip_forbiddenIn: 'forbiddenIn<br><br>Missions and starting conditions that forbid this outfit or vessel. Filled in from their own forbidden lists.'
+  tip_forbiddenVehicles: 'forbiddenVehicles<br><br>Auxilia that may not be used under this starting condition.'
+  tip_fuseTriggerEvents: 'fuseTriggerEvents<br><br>How fuse triggers behave: which of them are thrown, primed, stepped on or otherwise set off.'
+  tip_genMission: 'genMission<br><br>Alien mission this Hideout generates, with its chances.'
+  tip_genMissionFreq: 'genMissionFreq<br><br>Daily chance in per cent for that mission to be generated.'
+  tip_getOneFreeProtected: 'getOneFreeProtected<br><br>Bonus research that may be granted when this project is completed, each one gated behind another topic so the bonus can be timed.'
+  tip_hasThisRace: 'hasThisRace<br><br>Races this unit appears in.'
+  tip_hasThisRank: 'hasThisRank<br><br>Ranks this unit appears as.'
+  tip_hidePediaInfo: 'hidePediaInfo<br><br>Hide this craft weapon''s stats from its article.'
+  tip_huntMissionMaxFrequency: 'huntMissionMaxFrequency<br><br>Longest gap in minutes between hunt missions sent after your vessels by this Hideout.'
+  tip_huntMissionWeights: 'huntMissionWeights<br><br>Hunt missions this Hideout can send, weighted and listed by months passed.'
+  tip_includeBonusesForMinStats: 'includeBonusesForMinStats<br><br>Count soldier bonuses when comparing stats against the required minimum.'
+  tip_instantWoundRecovery: 'instantWoundRecovery<br><br>Set the wearer''s health back to maximum once the battle is over?'
+  tip_interruptResearch: 'interruptResearch<br><br>Research that stops this event or mission from happening.'
+  tip_isFireExtinguisher: 'isFireExtinguisher<br><br>Can this item be used to put out fires on units?'
+  tip_isHidden: 'isHidden<br><br>Keep this mission out of the New Battle mission list. Ignored when debug mode is on.'
+  tip_itemTriggers: 'itemTriggers<br><br>Items in Hideout stores that enable or forbid this script.'
+  tip_keepCraftAfterFailedMission: 'keepCraftAfterFailedMission<br><br>Keep the vessel after a failed mission. Useful for paratroopers, and for extraction missions where the vessel does not wait.'
+  tip_keepSoldierArmor: 'keepSoldierArmor<br><br>Does the soldier keep the outfit they are wearing through this transformation?'
+  tip_label: 'label<br><br>Number other commands refer to when checking for success or failure.'
+  tip_lastMonth: 'lastMonth<br><br>Last month this script runs in. -1 means no limit.'
+  tip_loseCutscene: 'loseCutscene<br><br>Cutscene played when the mission is lost. "winGame" and "loseGame" both return the player to the main menu afterwards.'
+  tip_lowerBoundAtMinStats: 'lowerBoundAtMinStats<br><br>Let stat changes drop below the minimum stats of the new crew type?'
+  tip_markerIcon: 'markerIcon<br><br>Icon used for this site on the globe, taken from the GlobeMarkers sprites.'
+  tip_markerName: 'markerName<br><br>String ID naming this mission type on the globe.'
+  tip_maxDifficulty: 'maxDifficulty<br><br>Hardest difficulty this command still applies to.'
+  tip_maxFunds: 'maxFunds<br><br>Command applies only while the new month''s funds are below this amount. Not checked before the first month.'
+  tip_maxLargeUnits: 'maxLargeUnits<br><br>How many 2x2 crew and 2x2 auxilia this vessel can carry. -1 means unlimited.'
+  tip_maxScore: 'maxScore<br><br>Command applies only while last month''s rating was below this amount. Not checked before the first month.'
+  tip_meleeAccuracy: 'meleeAccuracy<br><br>Stats that feed melee accuracy through the item''s meleeMultiplier.'
+  tip_meleeOriginVoxelVerticalOffset: 'meleeOriginVoxelVerticalOffset<br><br>Vertical offset of the point a melee attack is measured from, overriding the unit''s own value.'
+  tip_minDifficulty: 'minDifficulty<br><br>Easiest difficulty this command applies to.'
+  tip_minFunds: 'minFunds<br><br>Command applies only while the new month''s funds are above this amount. Not checked before the first month.'
+  tip_minRank: 'minRank<br><br>Lowest rank a soldier needs to be eligible: 0 = recruit, 5 = commander.'
+  tip_minScore: 'minScore<br><br>Command applies only while last month''s rating was above this amount. Not checked before the first month.'
+  tip_minShade: 'minShade<br><br>Darkest the map may become, 0 being daylight and 15 full darkness. Only used when shade is not set, to adjust the globe''s light.'
+  tip_missionBountyItem: 'missionBountyItem<br><br>Item added to Hideout stores for free when the mission is completed successfully.'
+  tip_missionBountyItemCount: 'missionBountyItemCount<br><br>How many of that item are added.'
+  tip_missionTypeFilter: 'missionTypeFilter<br><br>Mission types counted by this commendation''s total-missions criteria.'
+  tip_monthlyBuyLimit: 'monthlyBuyLimit<br><br>How many of these may be bought or hired per month. 0 means no limit.'
+  tip_moraleRecovery: 'moraleRecovery<br><br>Morale restored when painkillers are used, regardless of lost health.'
+  tip_moveCost: 'moveCost<br><br>Custom movement costs for the wearer, such as what flying up or down costs.'
+  tip_music: 'music<br><br>Music played for this mission, battle or screen.'
+  tip_needsCorpseRecovered: 'needsCorpseRecovered<br><br>If the project accepts dead soldiers, must the corpse have been recovered from the battle they died in?'
+  tip_noWeaponPile: 'noWeaponPile<br><br>Do not place the vessel''s unused equipment on the usual weapon pile.'
+  tip_objectiveComplete: 'objectiveComplete<br><br>Message and score change shown on the debriefing when the objectives are met.'
+  tip_objectivePopup: 'objectivePopup<br><br>Message shown between turns once the objectives are fulfilled.'
+  tip_objectivesRequired: 'objectivesRequired<br><br>How many of those tiles must be destroyed for the mission to count as won.'
+  tip_objectiveType: 'objectiveType<br><br>Map tile type counted when tallying the mission objectives.'
+  tip_panicFemale: 'panicFemale<br><br>Panic sound for female crew. A single sound ID or a list of them.'
+  tip_panicMale: 'panicMale<br><br>Panic sound for male crew. A single sound ID or a list of them.'
+  tip_percentGainedStatChange: 'percentGainedStatChange<br><br>Change to the stats the soldier has trained up since joining, in per cent: firing: -100 removes all of it, firing: 10 adds a tenth.'
+  tip_personalLightNeutral: 'personalLightNeutral<br><br>Brightness of the personal light of a neutral unit wearing this outfit.'
+  tip_placeSound: 'placeSound<br><br>Sound played when this facility is placed in a Hideout.'
+  tip_primeSound: 'primeSound<br><br>Sound played when this item is primed.'
+  tip_producedSoldierArmor: 'producedSoldierArmor<br><br>Outfit the soldier wears once the project finishes, used when keepSoldierArmor is off. Empty means the default outfit of the new crew type.'
+  tip_producedSoldierType: 'producedSoldierType<br><br>Crew type the soldier becomes. Empty means the type does not change.'
+  tip_randomDelay: 'randomDelay<br><br>Extra delay picked at random, in minutes. The total is startDelay plus a random value up to this.'
+  tip_randomItemList: 'randomItemList<br><br>Items of which one is picked at random and moved to the Hideout when this event pops up.'
+  tip_randomMultiItemList: 'randomMultiItemList<br><br>Groups of items and counts, one of which is picked at random and moved to the Hideout when this event pops up.'
+  tip_rankBattleSprite: 'rankBattleSprite<br><br>Offset of this crew type''s rank sprites in SMOKE.PCK.'
+  tip_rankSprite: 'rankSprite<br><br>Offset of this crew type''s rank sprites in BASEBITS.PCK.'
+  tip_rankStrings: 'rankStrings<br><br>Rank names used by this crew type instead of the standard ten.'
+  tip_recoverCorpse: 'recoverCorpse<br><br>Recover the corpse of a killed unit even though the body itself can be captured. Lets a mod ignore the dead bodies of killed humans.'
+  tip_recovery: 'recovery<br><br>Resources this outfit or bonus restores to the wearer every turn: TU, energy, health, stun, morale and freshness.'
+  tip_recoveryDividers: 'recoveryDividers<br><br>How special items are recovered after a mission, as a divisor per terrain.'
+  tip_recoveryTime: 'recoveryTime<br><br>Days of wound recovery given when the project and any transfer finish.'
+  tip_regionList: 'regionList<br><br>Regions this event can happen in. The region name can be part of the event''s name and description.'
+  tip_regionWeights: 'regionWeights<br><br>Region distribution that overrides the monthly weights, listed by months passed.'
+  tip_reinforcements: 'reinforcements<br><br>Scripted reinforcement waves for this mission, with the turn they arrive on and what they bring.'
+  tip_requiredCommendations: 'requiredCommendations<br><br>Commendations, with the minimum level, a soldier needs before this project can start.'
+  tip_requiredMinStats: 'requiredMinStats<br><br>Minimum stats a soldier needs before this project can start. Omitted stats are not checked.'
+  tip_requiredPreviousTransformations: 'requiredPreviousTransformations<br><br>Projects that must have been applied before this one.'
+  tip_script: 'script<br><br>Map generation script used for this terrain or mission, overriding the terrain''s own.'
+  tip_scripts: 'scripts<br><br>Scripting hooks attached to this entry, run by the game at the points the script names.'
+  tip_selfDestructItem: 'selfDestructItem<br><br>Item created in the wearer''s hands when this outfit is destroyed.'
+  tip_soldierBonusType: 'soldierBonusType<br><br>Soldier bonus granted to the soldier by this project.'
+  tip_soldierNames: 'soldierNames<br><br>Name files used for this crew type. The word delete clears the names loaded so far.'
+  tip_spawnedSoldier: 'spawnedSoldier<br><br>Overrides for the attributes of the person joining, written the same way as in a saved game.'
+  tip_spriteFaceColor: 'spriteFaceColor<br><br>New palette indices for face pixels, one per avatar.'
+  tip_spriteFaceGroup: 'spriteFaceGroup<br><br>Palette group used for face pixels.'
+  tip_spriteHairColor: 'spriteHairColor<br><br>New palette indices for hair pixels, one per avatar.'
+  tip_spriteHairGroup: 'spriteHairGroup<br><br>Palette group used for hair pixels.'
+  tip_spriteUtileColor: 'spriteUtileColor<br><br>New palette indices for utility pixels, one per avatar.'
+  tip_spriteUtileGroup: 'spriteUtileGroup<br><br>Palette group used for utility pixels.'
+  tip_startDelay: 'startDelay<br><br>Minutes to delay the start of the mission, rounded down to the nearest 30. 0 uses the mission''s own wave timer.'
+  tip_stopsMissions: 'stopsMissions<br><br>Alien missions that stop running once this research is completed.'
+  tip_takeoffSound: 'takeoffSound<br><br>Sound played when this vessel takes off.'
+  tip_targetBaseOdds: 'targetBaseOdds<br><br>Chance in per cent that this mission targets a region holding one of your Hideouts instead of a random region.'
+  tip_timerRandom: 'timerRandom<br><br>Extra delay picked at random, in minutes. The total is timer plus a random value up to this.'
+  tip_trainingStatCaps: 'trainingStatCaps<br><br>Stats a crew member can no longer raise through combat or Hideout training.'
+  tip_turnLimit: 'turnLimit<br><br>Number of turns before the mission ends by itself. 0 means no limit.'
+  tip_tuThrow: 'tuThrow<br><br>TU spent to throw, prime and unprime this item, written as throw prime unprime.'
+  tip_unlockedResearch: 'unlockedResearch<br><br>Research granted for free when the mission succeeds.'
+  tip_unlocksMissions: 'unlocksMissions<br><br>Alien missions that become available once this research is completed.'
+  tip_unprimeSound: 'unprimeSound<br><br>Sound played when this item is unprimed.'
+  tip_upperBoundAtMaxStats: 'upperBoundAtMaxStats<br><br>Let stat changes go above the maximum stats of the new crew type?'
+  tip_upperBoundAtStatCaps: 'upperBoundAtStatCaps<br><br>Let stat changes go above the stat caps of the new crew type?'
+  tip_useAllStartTiles: 'useAllStartTiles<br><br>Base the craft preview on every spawnable tile rather than only the ones named in the deployment.'
+  tip_useTable: 'useTable<br><br>Remove this mission from the mission tables now that it exists as a script.'
+  tip_vaporColorSurface: 'vaporColorSurface<br><br>Color offset of the vapor trail for surface, that is non-underwater, deployments.'
+  tip_varName: 'varName<br><br>Internal variable used to track maxRuns and avoidRepeats for this command.'
+  tip_vip: 'vip<br><br>Is this unit a VIP? Used by escort and protect-the-VIP missions.'
+  tip_vipSurvivalPercentage: 'vipSurvivalPercentage<br><br>Share of the VIPs that must survive for the mission to count as won.'
+  tip_weaponDamage: 'weaponDamage<br><br>Stats that add to the damage of a weapon through its damageBonus.'
+  tip_winCutscene: 'winCutscene<br><br>Cutscene played when the mission is won. "winGame" and "loseGame" both return the player to the main menu afterwards.'
+  tip_xcomBaseInRegionTriggers: 'xcomBaseInRegionTriggers<br><br>Regions that enable or forbid this script. true requires one of your Hideouts there, false requires none.'
+#==================================================================================================================
+  tip_alienBase: 'alienBase<br><br>Marks this deployment as an alien base assault. Only used by the New Battle mission list.'
+  tip_alienBaseUpgrades: 'alienBaseUpgrades<br><br>Weighted list of alien base upgrades, listed by the number of months passed.'
+  tip_allowPiloting: 'allowPiloting<br><br>Can this crew type pilot a vessel? Turn it off for the ones that should only ride along.'
+  tip_allowPromotion: 'allowPromotion<br><br>Can this crew type be promoted? Turn it off for those that do not need a military hierarchy.'
+  tip_annoyedFemale: 'annoyedFemale<br><br>Sound played when a female unit wearing this outfit is repeatedly selected by hand. A single sound ID or a list of them.'
+  tip_annoyedMale: 'annoyedMale<br><br>Sound played when a male unit wearing this outfit is repeatedly selected by hand. A single sound ID or a list of them.'
+  tip_annoyedSound: 'annoyedSound<br><br>Sound played when this unit is repeatedly selected by hand. A single sound ID or a list of them.'
+  tip_buildOverFacilities: 'buildOverFacilities<br><br>Facilities this one can be built over. When empty, it can be built over anything that allows it.'
+  tip_cheatTurn: 'cheatTurn<br><br>Turn on which the aliens learn where all your units are. Vanilla does it on turn 20.'
+  tip_civiliansByType: 'civiliansByType<br><br>Extra civilians to spawn, written as civilian type and their maximum number. The actual count is again 50-100% of it, rounded up.'
+  tip_confSnap: 'confSnap<br><br>Actions and ammo slots used by the snap shot of this weapon, so one weapon can fire different ammo through the same action.'
+  tip_costSalarySquaddie: 'costSalarySquaddie<br><br>Extra monthly pay for each Squaddie.'
+  tip_counterMax: 'counterMax<br><br>This script command only runs while its counter, named by missionVarName, is at most this number. -1 means no upper limit.'
+  tip_counterMin: 'counterMin<br><br>This script command only runs while its counter, named by missionVarName, is at least this number.'
+  tip_craftTransformations: 'craftTransformations<br><br>Vessels that change into another one under this starting condition, written as oldVessel: newVessel.'
+  tip_defaultInvSlotX: 'defaultInvSlotX<br><br>Column of the inventory slot square where a built-in weapon is placed when the unit is created.'
+  tip_defaultInvSlotY: 'defaultInvSlotY<br><br>Row of the inventory slot square where a built-in weapon is placed when the unit is created.'
+  tip_destroyRequiredItems: 'destroyRequiredItems<br><br>Are the required items used up when the landing is confirmed, instead of only being checked?'
+  tip_explosionSpeed: 'explosionSpeed<br><br>How much faster this item explodes than usual, as a whole number. A negative value makes it slower.'
+  tip_finalDestination: 'finalDestination<br><br>Is this the mission the final spacecraft is sent on?'
+  tip_flatMax: 'flatMax<br><br>Highest value the random stat change of flatMin may reach. The game picks a number in between for each stat.'
+  tip_flatMin: 'flatMin<br><br>Lowest value of the random stat change, paired with flatMax. The game picks a number in between for each stat.'
+  tip_flatThrowTime: 'flatThrowTime<br><br>Is the throw cost of this item a flat number rather than a share of the thrower''s TU?'
+  tip_forbiddenItemCategories: 'forbiddenItemCategories<br><br>Item categories that may not be taken on this mission. Only one of the allowed and forbidden lists can be used.'
+  tip_hidePower: 'hidePower<br><br>Hide the power of this weapon, and its whole ammo section, from its article.'
+  tip_ignoredByAI: 'ignoredByAI<br><br>Should the AI pass this unit over when picking targets and paths?'
+  tip_maxShade: 'maxShade<br><br>Darkest the map may become, 0 being daylight and 15 full darkness. Only used when shade is not set, to limit the light coming from the globe.'
+  tip_medikitBackground: 'medikitBackground<br><br>Sprite used as the background of the medikit window of this item.'
+  tip_mindPower: 'mindPower<br><br>Strength of the mind shield this facility provides.'
+  tip_missionVarName: 'missionVarName<br><br>Name of the counter this script command reads, either one it tracks itself or one of the game''s own object counters.'
+  tip_oneTimeSequentialEvents: 'oneTimeSequentialEvents<br><br>Events spawned one after another, each only once. The first that has not been generated yet is the one spawned.'
+  tip_percentOverallStatChange: 'percentOverallStatChange<br><br>Change to the soldier''s overall stats, in per cent: tu: 5 adds 5% of their maximum TU, tu: -5 takes 5% away.'
+  tip_personalLightHostile: 'personalLightHostile<br><br>Brightness of the personal light of a hostile unit wearing this outfit.'
+  tip_rankTinySprite: 'rankTinySprite<br><br>Offset of this crew type''s rank sprites in TinyRanks.'
+  tip_recoveryTransformations: 'recoveryTransformations<br><br>Items recovered as something else after the battle, with how many of the result each recovered item turns into.'
+  tip_reset: 'reset<br><br>Clear the bonuses gained from earlier transformations, and forget which ones the soldier has had.'
+  tip_selectUnitFemale: 'selectUnitFemale<br><br>Sound played when a female unit wearing this outfit is selected. A single sound ID or a list of them.'
+  tip_selectUnitMale: 'selectUnitMale<br><br>Sound played when a male unit wearing this outfit is selected. A single sound ID or a list of them.'
+  tip_selectUnitSound: 'selectUnitSound<br><br>Sound played when this unit is selected. A single sound ID or a list of them.'
+  tip_selectWeaponFemale: 'selectWeaponFemale<br><br>Sound played when a weapon of a female unit wearing this outfit is selected. A single sound ID or a list of them.'
+  tip_selectWeaponMale: 'selectWeaponMale<br><br>Sound played when a weapon of a male unit wearing this outfit is selected. A single sound ID or a list of them.'
+  tip_selectWeaponSound: 'selectWeaponSound<br><br>Sound played when a weapon of this unit is selected. A single sound ID or a list of them.'
+  tip_spawnedItemCount: 'spawnedItemCount<br><br>How many of the spawned item are added when this research project is completed.'
+  tip_spawnedPersonName: 'spawnedPersonName<br><br>Name given to the person who joins. It is translated like any other string ID.'
+  tip_spawnItem: 'spawnItem<br><br>Item created when this projectile or explosion goes off.'
+  tip_spawnItemChance: 'spawnItemChance<br><br>Chance in per cent that the item is spawned at all.'
+  tip_specialChance: 'specialChance<br><br>Chance in per cent that the special effects of this explosion happen at all: mine triggering, corpse explosion, zombifying, unit or item spawning.'
+  tip_startMovingFemale: 'startMovingFemale<br><br>Sound played when a female unit wearing this outfit starts moving. A single sound ID or a list of them.'
+  tip_startMovingMale: 'startMovingMale<br><br>Sound played when a male unit wearing this outfit starts moving. A single sound ID or a list of them.'
+  tip_startMovingSound: 'startMovingSound<br><br>Sound played when this unit starts moving. A single sound ID or a list of them.'
+  tip_targetMatrix: 'targetMatrix<br><br>Targets this item may be used against, as a bit map built from the allowed target kinds.'
+  tip_tractorBeamPower: 'tractorBeamPower<br><br>How strongly this weapon slows a UFO down while it is in range and the weapon is active.'
+  tip_tuUnload: 'tuUnload<br><br>TU needed to unload this item. In OXCE the cost of moving the ammo from its slot into a hand is paid on top of it.'
+  tip_unlockFinalMission: 'unlockFinalMission<br><br>Does this research topic allow the final spacecraft to be sent?'
+  tip_unprimeActionMessage: 'unprimeActionMessage<br><br>Message shown when this item is unprimed. Defaults to STR_GRENADE_IS_DEACTIVATED.'
+  tip_upperBoundType: 'upperBoundType<br><br>How strictly the upper stat bounds of the new crew type are applied:<ul><li>0 = use the maximum stats;</li><li>1 = use the stat caps;</li><li>2 = let stats go above both.</li></ul>'
+  tip_weightedItemList: 'weightedItemList<br><br>Items with their weights. One of them is picked and moved to the main Hideout when this event pops up.'
+  tip_zombieUnitChance: 'zombieUnitChance<br><br>Chance in per cent that a unit hit by this weapon is zombified rather than killed.'
+  tip_zombieUnitFaction: 'zombieUnitFaction<br><br>Faction the zombified unit belongs to: -1 keeps the faction of the shooter.'
+#==================================================================================================================
+  tip_weaponDamage<sup>2</sup>: 'weaponDamage<sup>2</sup><br><br>Stat that adds to weapon damage through the quadratic term of its damageBonus.'
+  tip_weaponDamage<sup>3</sup>: 'weaponDamage<sup>3</sup><br><br>Stat that adds to weapon damage through the cubic term of its damageBonus.'
   ACADEMY_CRUISE: Academy cruise
   AIRCAR_RACE: Yello's Aircar Rally
   CITY: City
@@ -2389,4 +2725,413 @@ en-US:
   xpediaColumnsAll: All
   xpediaColumnsNone: None
   xpediaColumnsDefault: Default
+#=================== Field labels ===================
+#Countries
+  fundingBase: Base funding
+  fundingCap: Funding cap
+  labelLat: Label latitude
+  labelLon: Label longitude
+  areas: Areas
+#Regions and missions
+  cities: Cities
+  regionWeight: Region weight
+  missionRegion: Mission region
+  missionWeights: Mission weights
+  missionZones: Mission zones
+  raceWeights: Race weights
+  waves: Waves
+  ufo: UFO
+  count: UFO count
+  timer: Delay
+  trajectory: Trajectory
+  groundTimer: Ground timer
+  retaliation: Retaliation allowed?
+  members: Members
+  alienRank: Alien rank
+  data: Deployment data
+  deployments: Allowed deployments
+  dQty: Extra quantity
+  highQty: Quantity at max difficulty
+  lowQty: Quantity at min difficulty
+  itemSets: Item sets
+  percentageOutsideUfo: Spawned outside, %
+  nextStage: Next stage
+  startingCondition: Starting condition
+  xcomBaseInCountryTriggers: Base-in-country triggers
+  researchNeeded: Research needed
+  researchForbidden: Research forbidden
+#Terrains and map blocks
+  civilianTypes: Civilian types
+  terrains: Terrains
+  shade: Shade
+  mapBlocks: Map blocks
+  mapDataSets: Map data sets
+  textures: Textures
+  hemisphere: Hemisphere
+  largeBlockLimit: Large block limit
+  roadTypeOdds: Road type odds
+  frequency: Frequency
+  maxCount: Maximum count
+  subType: Sub-type
+  width: Width
+  length: Length
+  height: Height
+#Inventory sections
+  costs: Move costs
+  slots: Slots
+  items: Items
+#Items and attacks
+  ammo: Ammo groups
+  damageAlter: Damage parameters
+  damageTypes: Damage types
+  heldBy: Held by
+  invSize: Inventory size
+  meleeAlter: Melee parameters
+  shotgunPellets: Shotgun pellets
+  turretType: Turret
+  waypoint: Waypoints?
+  waypoints: Waypoint limit
+  zombieUnit: Respawns as
+  spawnUnit: Spawns as
+  loot: Loot
+  commendations: Commendations
+  requiresBuyBaseFunc: Services required to buy
+  skillApplied: Melee skill applied?
+#Armors
+  frontArmor: Front armor
+  sideArmor: Side armor
+  rearArmor: Rear armor
+  underArmor: Under armor
+  spriteInv: Inventory background
+  layersDefinition: Paper-doll layers
+  layersDefaultPrefix: Default layer prefix
+  loftemps: Loftemps
+#Units
+  aggroSound: Aggro sound
+  deathSound: Death sound
+  builtInWeaponSets: Built-in weapon sets
+#Crafts
+  allWeaponTypes: Mountable weapon types
+  battlescapeTerrainData: Battlescape terrain
+  deployment: Crew deployment
+  score: Score
+  maxItems: Item capacity
+#Facilities
+  crafts: Vessel capacity
+  grav: Grav shield?
+  psiLabs: Psi training space
+  spriteFacility: Facility contents sprite
+  spriteShape: Facility shape sprite
+  forbiddenBaseFunc: Forbidden services
+#Research
+  allowsBuying: Unlocks buying
+  relatedScripts: Related scripts
+#Commendations
+  battleTypes: Battle types
+  criteria: Criteria values
+  finalBonus: Final bonus
+  kcd: Deeds
+  killCriteria: Kill criteria
+  soldierBonusTypes: Stage bonuses
+#Crew
+  maxStats: Maximum starting stats
+  minStats: Minimum starting stats
+  statCaps: Stat caps
+#Transformations and starting conditions
+  allowedArmors: Allowed armors
+  allowedCraft: Allowed vessels
+  allowedItemCategories: Allowed item categories
+  allowedSoldierTypes: Allowed crew types
+  allowedVehicles: Allowed auxilia
+  forbiddenArmors: Forbidden armors
+  forbiddenSoldierTypes: Forbidden crew types
+  blocksTransformations: Blocks transformations
+  forbiddenPreviousTransformations: Forbidden prior transformations
+#Manufacture
+  chanceSum: Total chance
+  time: Man-hours
+  totalProducedItems: Average produced items
+#Event scripts
+  eventWeights: Event weights
+  oneTimeRandomEvents: One-time random events
+  researchTriggers: Research triggers
+#Mod resources
+  files: Files
+  strings: Strings
+  string: Name suffix
+  singleImage: Single image?
+  subX: Sub-sprite width
+  subY: Sub-sprite height
+#Articles
+  section: Section
+  text: Article text
+  title: Title
+  weapon: Weapon
+  type: Type
+  name: Name
+  abortCutscene: Abort cutscene
+  abortPenalty: Abort penalty
+  accuracyUse: Use accuracy bonus
+  alert: Alert message
+  alertBackground: Alert background
+  alertDescription: Alert description
+  allowedIn: Allowed in
+  allowedItems: Allowed items
+  allowsDeadSoldiers: Allows dead soldiers?
+  allowsLiveSoldiers: Allows live soldiers?
+  allowsWoundedSoldiers: Allows wounded soldiers?
+  allowTwoMainWeapons: Two main weapons?
+  armorForAvatar: Avatar armor
+  armors: Armors
+  avatarOffsetX: Avatar X offset
+  avatarOffsetY: Avatar Y offset
+  background: Background
+  baseDetectionChance: Hideout detection chance
+  baseDetectionRange: Hideout detection range
+  berserkFemale: Female berserk sound
+  berserkMale: Male berserk sound
+  briefing: Briefing
+  builtIn: Built in for
+  bulletSaving: Bullet saving?
+  chronoTrigger: When the timer ends
+  city: In a city?
+  civilians: Civilian maximum
+  closeQuartersMultiplier: CQC accuracy multiplier
+  conditionals: Conditionals
+  connectorsDisabled: Corridors drawn?
+  cosmetic: Cosmetic?
+  costAuto: Auto shot cost
+  costMindControl: Mind control cost
+  costPanic: Panic cost
+  costSalary: Monthly salary
+  costSalaryCaptain: Captain salary bonus
+  costSalaryColonel: Colonel salary bonus
+  costSalaryCommander: Commander salary bonus
+  costSalarySergeant: Sergeant salary bonus
+  craftInventoryTile: Weapon pile square
+  createsClone: Creates a clone?
+  customArmorPreviewIndex: Preview icon
+  customItemPreviewIndex: Preview icon
+  customUfo: Custom UFO
+  cutscene: Cutscene
+  deathFemale: Female death sound
+  deathFrames: Death frames
+  deathMale: Male death sound
+  defaultArmor: Default armor
+  depth: Depth
+  description: Description
+  despawnPenalty: Despawn penalty
+  dogfightExperience: Dogfight experience
+  duration: Duration
+  enviroEffects: Environment
+  escapeType: Escape tiles
+  events: Events
+  everyItemList: Items all transferred
+  everyMultiItemList: Item sets all transferred
+  executionOdds: Execution chance, %
+  explodeInventory: Primed items go off
+  facilityTriggers: Facility triggers
+  femaleFrequency: Chance of female, %
+  firstMonth: First month
+  fixedWeapons: Fixed weapons
+  flagOffset: Flag sprite
+  flatOverallStatChange: Flat stat change
+  forbiddenCraft: Forbidden vessels
+  forbiddenIn: Forbidden in
+  forbiddenVehicles: Forbidden auxilia
+  funds: Money change
+  fuseTriggerEvents: Fuse triggers
+  genMission: Generated mission
+  genMissionFreq: Mission frequency, %
+  getOneFreeProtected: Protected free research
+  hasThisRace: Races using this
+  hasThisRank: Ranks using this
+  hiddenOnMinimap: On minimap?
+  hidePediaInfo: Hidden in article?
+  hitMissSound: Psi miss sound
+  huntMissionMaxFrequency: Hunt mission frequency
+  huntMissionWeights: Hunt mission weights
+  ignoreInCraftEquip: Hidden in craft equip?
+  includeBonusesForMinStats: Bonuses count for min stats?
+  instantWoundRecovery: Instant wound healing?
+  interruptResearch: Stopped by research
+  isFireExtinguisher: Puts out fires?
+  isHidden: Hidden from New Battle?
+  itemTriggers: Item triggers
+  keepCraftAfterFailedMission: Keeps vessel?
+  keepSoldierArmor: Keeps armor?
+  label: Label
+  lastMonth: Last month
+  loseCutscene: Lose cutscene
+  lowerBoundAtMinStats: Can drop below min stats?
+  manaRecovery: Freshness recovery
+  manaRecoveryPerDay: Freshness per day
+  markerIcon: Marker icon
+  markerName: Marker name
+  maxDifficulty: Maximum difficulty
+  maxFunds: Maximum funds
+  maxLargeUnits: Large unit capacity
+  maxRuns: Maximum runs
+  maxScore: Maximum score
+  medikitActionName: Medikit action name
+  medikitTargetImmune: Usable on immune units?
+  meleeAccuracy: Melee accuracy stats
+  meleeOriginVoxelVerticalOffset: Melee voxel offset
+  minDifficulty: Minimum difficulty
+  minFunds: Minimum funds
+  minRank: Minimum rank
+  minScore: Minimum score
+  minShade: Minimum shade
+  missionBountyItem: Bounty item
+  missionBountyItemCount: Bounty item count
+  missionTypeFilter: Mission type filter
+  monthlyBuyLimit: Monthly purchase limit
+  moraleRecovery: Morale recovery
+  moveCost: Move costs
+  music: Music
+  needsCorpseRecovered: Needs corpse recovered?
+  noWeaponPile: No weapon pile?
+  objectiveComplete: Objective complete
+  objectivePopup: Objective popup
+  objectivesRequired: Objectives required
+  objectiveType: Objective tile
+  panicFemale: Female panic sound
+  panicMale: Male panic sound
+  percentGainedStatChange: Percent stat change
+  personalLightNeutral: Neutral light
+  placeSound: Place sound
+  primeSound: Prime sound
+  producedSoldierArmor: Resulting armor
+  producedSoldierType: Resulting crew type
+  profit: Profit
+  profitPerHour: Profit per hour
+  psiAttackName: Third psi attack name
+  psiDefence: Psi defence
+  psiRequired: Psi skill required?
+  psiWeapon: Psi weapon
+  randomDelay: Random extra delay
+  randomItemList: One random item
+  randomMultiItemList: One random item list
+  rankBattleSprite: Rank sprite (SMOKE.PCK)
+  rankSprite: Rank sprite (BASEBITS.PCK)
+  rankStrings: Rank names
+  recoverCorpse: Recover corpse?
+  recoveryDividers: Recovery dividers
+  recoveryTime: Recovery time
+  regionList: Regions
+  regionWeights: Region weights
+  reinforcements: Reinforcements
+  requiredCommendations: Commendations required
+  requiredMinStats: Minimum stats required
+  requiredPreviousTransformations: Requires transformations
+  researchList: Free research
+  script: Map script
+  scripts: Scripts
+  selfDestructItem: Self-destruct item
+  shotgunBehavior: Shotgun spread mode
+  shotgunSpread: Shotgun spread
+  sightRange: Detection range
+  sizeChange: Size change
+  soldierBonusType: Soldier bonus
+  soldierNames: Name files
+  spawnedPersons: People joining
+  spawnedSoldier: Person joining
+  specialIconSprite: Special weapon icon
+  specialUseEmptyHand: Usable on empty hand?
+  spriteFaceColor: Face colors
+  spriteFaceGroup: Face palette group
+  spriteHairColor: Hair colors
+  spriteHairGroup: Hair palette group
+  spriteUtileColor: Utility colors
+  spriteUtileGroup: Utility palette group
+  startDelay: Start delay
+  stopsMissions: Stops missions
+  supportedInventorySections: Allowed slots
+  takeoffSound: Take-off sound
+  targetBaseOdds: Hideout targeting chance
+  timerRandom: Random extra timer
+  trainingStatCaps: Training caps
+  turnLimit: Turn limit
+  tuThrow: Throw TU cost
+  unlockedResearch: Research awarded
+  unlocksMissions: Unlocks missions
+  unprimeSound: Unprime sound
+  upperBoundAtMaxStats: Can exceed max stats?
+  upperBoundAtStatCaps: Can exceed stat caps?
+  useAllStartTiles: Uses all start tiles?
+  useTable: Removed from mission table?
+  vaporColor: Vapor color (underwater)
+  vaporDensity: Vapor density
+  vaporProbability: Vapor probability
+  varName: Variable name
+  vip: VIP?
+  vipSurvivalPercentage: VIP survival needed, %
+  weaponDamage: Damage bonus stats
+  winCutscene: Win cutscene
+  xcomBaseInRegionTriggers: Base-in-region triggers
+  alienBase: Alien base assault?
+  alienBaseUpgrades: Base upgrades
+  allowPiloting: Can pilot?
+  allowPromotion: Can be promoted?
+  annoyedFemale: Female annoyed sound
+  annoyedMale: Male annoyed sound
+  annoyedSound: Annoyed sound
+  autoPatrol: Returns to patrol?
+  avoidRepeats: Avoided coordinates
+  buildOverFacilities: Can be built over
+  cheatTurn: Turn aliens know all
+  civiliansByType: Civilians by type
+  confSnap: Snap shot action
+  costSalarySquaddie: Squaddie salary bonus
+  counterMax: Counter maximum
+  counterMin: Counter minimum
+  craftTransformations: Vessel changes
+  defaultInvSlotX: Default slot X
+  defaultInvSlotY: Default slot Y
+  destroyRequiredItems: Consumes required items?
+  explosionSpeed: Explosion speed
+  finalDestination: Final mission?
+  flatMax: Flat stat change, highest
+  flatMin: Flat stat change, lowest
+  flatThrowTime: Flat throw cost?
+  forbiddenItemCategories: Forbidden item categories
+  forceShowInMonthlyCosts: Always in monthly costs?
+  hidePower: Hidden power?
+  ignoredByAI: Ignored by the AI?
+  maxShade: Maximum shade
+  medikitBackground: Medikit background
+  mindPower: Mind shield power
+  missionVarName: Counter variable
+  oneTimeSequentialEvents: One-time events, in order
+  percentOverallStatChange: Percent stat change
+  personalLightHostile: Lights when hostile
+  powerBonus: Weapon power bonus, %
+  rankTinySprite: Rank sprite (TinyRanks)
+  recoveryTransformations: Recovers as
+  reset: Resets bonuses?
+  selectUnitFemale: Female unit selected sound
+  selectUnitMale: Male unit selected sound
+  selectUnitSound: Unit selected sound
+  selectWeaponFemale: Female weapon selected sound
+  selectWeaponMale: Male weapon selected sound
+  selectWeaponSound: Weapon selected sound
+  spawnedItemCount: Spawned item count
+  spawnedPersonName: Name of the person
+  spawnItem: Spawns item
+  spawnItemChance: Item spawn chance, %
+  specialChance: Special effect chance, %
+  startMovingFemale: Female start moving sound
+  startMovingMale: Male start moving sound
+  startMovingSound: Start moving sound
+  targetMatrix: Allowed targets
+  tractorBeamPower: Tractor beam power
+  tuUnload: Unload TU cost
+  unlockFinalMission: Unlocks final mission?
+  unprimeActionMessage: Unprime action message
+  upperBoundType: Stat limit mode
+  weightedItemList: One weighted random item
+  zombieUnitChance: Zombify chance, %
+  zombieUnitFaction: Zombified unit faction
+  weaponDamage<sup>2</sup>: Damage bonus (squared)
+  weaponDamage<sup>3</sup>: Damage bonus (cubed)
 

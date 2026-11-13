@@ -29,6 +29,10 @@ const MainTable = ({
     //return <div>No entry in main table</div>;
   }
 
+  if(Object.keys(of).length == 1 && "0" in of){
+    of = of[0];
+  }
+
   const sorted = sortFirstLast(of, sort);
 
   const subVal = (v: any) => (v!= null && typeof v == "object" && !isFlat(v)) ? <MainTable of={v} /> : <Val of={v} />

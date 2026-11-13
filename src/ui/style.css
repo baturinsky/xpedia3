@@ -1340,6 +1340,19 @@ ol>li:last-child::after {
   display: inline-block;
 }
 
+/* Marker the incremental list watches to add its next batch. It sits below the
+   table and carries no content of its own: no height, no text, no width, so a
+   shrink-to-fit wrapper around it keeps the table's own width. */
+.incremental-sentinel {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  /* An empty box still takes a line box from the wrapper's font, which would
+     show as a few stray pixels under the table */
+  font-size: 0;
+  line-height: 0;
+}
+
 .dark-pagination-nav {
   display: flex;
   gap: 0.25rem;

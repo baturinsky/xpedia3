@@ -69,7 +69,9 @@ export function isAncestorOf(ancestor: Node | null, descendant: Node | null) {
 export function capital(str: string | null) {
   if (str == null)
     return;
-  return str.substr(0, 1).toUpperCase() + str.substr(1).toLowerCase()
+  // Only the first letter changes: labels legitimately hold capitals after it,
+  // such as "TU", "CQC" and "VIP?"
+  return str.substr(0, 1).toUpperCase() + str.substr(1)
 }
 export function cullDoubles<T>(list: T[]) {
   return [...new Set(list)] as T[];

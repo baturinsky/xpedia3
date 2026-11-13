@@ -156,8 +156,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
                     </tr>
                     <tr>
                       <td style={{ textAlign: "right" }}>
-                        <Val of={m?.requiredItems || ""} />
-                        {m?.cost ? <>$<Val of={m?.cost} /></> : ""}
+                        <Val of={m?.requiredItems || ""} /> {m?.cost ? <> $<Val of={m?.cost} /></> : ""}
                         ⌛<em><Val of={m?.time} /></em>
                       </td>
                       <td>➔</td>

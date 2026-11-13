@@ -4,6 +4,7 @@ import { SpecialBonus, RecoveryTable, Subheader, Img } from "./components";
 import { canComposeUnit, UnitSheetPreview } from "./UnitSprite";
 import { Val } from './Val';
 import { state, update } from '../state';
+import MainTable from './MainTable';
 
 interface Entry {
   storeItem?: string;
@@ -283,6 +284,7 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
               </td>
             </tr>;
           }
+
           return <tr key={index}>
             <td>
               <Val of={key} />
@@ -303,6 +305,8 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
                     ))}
                   </tbody>
                 </table>
+              ) : ["moveCost"].includes(key) ? (                
+                <MainTable of={prop} />
               ) : ["corpseBattle"].includes(key) ? (
                 <Val of={prop[0]} />
               ) : ["psiDefence", "meleeDodge"].includes(key) ? (
