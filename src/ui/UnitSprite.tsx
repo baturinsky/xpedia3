@@ -431,10 +431,6 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   let heldFrame = holdsFrames ? Math.min(frame, phases) : 0;
 
   return <div className="unit-picker">
-    <div className="unit-picker-preview">
-      <UnitSprite view={props.view} pose={shown} direction={direction}
-        frame={heldFrame} scale={props.scale ?? 3} />
-    </div>
     <div className="unit-picker-controls">
       <label>
         <span>Animation</span>
@@ -474,8 +470,14 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
         </span>
       </label>
+      
+    </div>
 
+    <div className="unit-picker-preview">
+      <UnitSprite view={props.view} pose={shown} direction={direction}
+        frame={heldFrame} scale={props.scale ?? 3} />
       <span className="unit-picker-size">{[w, h].join(" × ")} px</span>
     </div>
+
   </div>;
 }
