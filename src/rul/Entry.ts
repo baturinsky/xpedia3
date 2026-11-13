@@ -280,14 +280,14 @@ function stageValue(bonus: Entry, n: string) {
 }
 
 export class Commendation extends Entry {
-  soldierBonusTypes: any[];
-  criteria;
-  killCriteria;
+  soldierBonusTypes?: any[];
+  criteria?:any;
+  killCriteria?:any[];
   finalBonus: Entry;
   damageTypes: string[] = [];
   battleTypes: string[] = [];
   items: string[] = [];
-  kcd = [];
+  kcd: any[] = [];
   killCriteria2 = []
 
   constructor(raw: any) {
@@ -657,19 +657,19 @@ let defaultRange = { snap: 15, auto: 7, aimed: 200 };
 
 export class Attack {
   possible = false;
-  cost: { time: number; energy: number };
+  cost?: { time: number; energy: number };
   flatTime = false;
-  damage: number;
-  damageBonus: { [key: string]: number };
-  damageType: number;
-  accuracy: number;
-  accuracyMultiplier: { [key: string]: number };
-  alter: { [key: string]: string };
+  damage?: number;
+  damageBonus?: { [key: string]: number };
+  damageType?: number;
+  accuracy?: number;
+  accuracyMultiplier?: { [key: string]: number };
+  alter?: { [key: string]: string };
   shots: number = 1;
-  range: number;
+  range?: number;
   pellets: number = 1;
-  name: string;
-  tuPercent: number;
+  name?: string;
+  tuPercent?: number;
 
   constructor(public item: Item, public mode: string) {
     let capMode = mode.charAt(0).toUpperCase() + mode.substr(1);
@@ -680,12 +680,14 @@ export class Attack {
       (mode == "psi" && item.battleType == 9) ||
       (mode == "throw" && [4, 5].includes(item.battleType));
 
-    if (mode == "throw" && !isDefaultAttack) return null;
+    if (mode == "throw" && !isDefaultAttack) 
+      return;
 
     let exists =
       item["accuracy" + capMode] || item["cost" + capMode] || isDefaultAttack;
 
-    if (!exists) return null;
+    if (!exists) 
+      return;
 
     if (mode == "melee" && item.battleType != 3) {
       this.damage = item.meleePower;
@@ -715,7 +717,8 @@ export class Attack {
 
     if (mode == "melee") this.alter = item.meleeAlter;
 
-    if (item.battleType == 3 || mode != "melee") this.alter = item.damageAlter;
+    if (item.battleType == 3 || mode != "melee") 
+      this.alter = item.damageAlter;
 
     if (this.alter && this.alter.ResistType) {
       // `ResistType` may be given as an index or as `STR_DAMAGE_*`; resolve the
@@ -950,8 +953,8 @@ export class Armor extends Entry {
 export class Item extends Entry {
   //sprite: string;
   battleType?: number;
-  invWidth: number;
-  invHeight: number;
+  invWidth = 1;
+  invHeight = 1;
   _attacks?: Attack[];
   spawnedBy?: string[];
   requiresBuyBaseFunc?: string[];
@@ -983,7 +986,7 @@ export class Item extends Entry {
   requiresBuy?: string[];
   commendations?: string[];
   heldBy?: Set<string>;
-  dropoff: number;
+  dropoff = 2;
   damageTypes?: number[]
   psiVision?: number;
   invSize: string;
@@ -1024,10 +1027,6 @@ export class Item extends Entry {
 
     if (this.damageType)
       this.addDamageType(this.damageType)
-
-    this.invWidth = this.invWidth || 1;
-    this.invHeight = this.invHeight || 1;
-    if (this.dropoff == null) this.dropoff = 2;
 
     let t = this as any;
 

@@ -130,17 +130,23 @@ const UNIT_DIRECTIONAL: UnitPose[] = ["standing", "walking", "kneeling", "floati
  * Facings, numbered the way the game numbers them: `directionToVector` starts
  * at north and goes clockwise, so 0 is the far side and 4 the near side.
  *
+ * The battle map is isometric, so these do not point the way their number
+ * suggests on screen: `Camera::convertMapToScreen` maps tile north (0,-1) to the
+ * upper right, and the whole ring is turned 45 degrees. North is therefore up
+ * and to the right, and it is frame 3 - south - that faces the viewer. The
+ * compass in `style.css` places the buttons along the same tilt.
+ *
  * `short` is what the compass shows, `title` spells the meaning out.
  */
 export const UNIT_DIRECTIONS: { dir: number, short: string, title: string }[] = [
-  { dir: 0, short: "N", title: "North — seen from behind" },
-  { dir: 1, short: "NE", title: "North-east" },
-  { dir: 2, short: "E", title: "East" },
-  { dir: 3, short: "SE", title: "South-east" },
-  { dir: 4, short: "S", title: "South — facing the viewer" },
-  { dir: 5, short: "SW", title: "South-west" },
-  { dir: 6, short: "W", title: "West" },
-  { dir: 7, short: "NW", title: "North-west" }
+  { dir: 0, short: "N", title: "North — up and to the right" },
+  { dir: 1, short: "NE", title: "North-east — to the right" },
+  { dir: 2, short: "E", title: "East — down and to the right" },
+  { dir: 3, short: "SE", title: "South-east — down, facing the viewer" },
+  { dir: 4, short: "S", title: "South — down and to the left" },
+  { dir: 5, short: "SW", title: "South-west — to the left" },
+  { dir: 6, short: "W", title: "West — up and to the left" },
+  { dir: 7, short: "NW", title: "North-west — up, seen from behind" }
 ];
 
 /**
