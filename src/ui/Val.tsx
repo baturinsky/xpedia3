@@ -282,7 +282,7 @@ const LinksList: FC<LinksListProps> = ({
       {keys.map((field: any, i: number) =>
         <Fragment key={field}>
           {i !== 0 && <Divider vertical={vertical} />}
-          <Nobr><Val of={items[field]} depth={depth - 1} /> <Val of={field} depth={depth - 1} /></Nobr>
+          <Val of={items[field]} depth={depth - 1} /> <Val of={field} depth={depth - 1} />
         </Fragment>
       )}
     </span>;

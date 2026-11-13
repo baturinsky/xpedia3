@@ -410,9 +410,10 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   // 0 means "play it"; anything else holds that step of the pose
   let [frame, setFrame] = useState(0);
   let pixelRatio = usePixelRatio();
-  // One picker can appear on many articles, so the radio group needs a name that
-  // is unique to this instance
+  // One picker can appear on many articles, so each radio group needs a name
+  // that is unique to this instance
   let group = useId();
+  let poseGroup = useId();
 
   if (!poses.length)
     return null;
@@ -432,34 +433,38 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
 
   return <div className="unit-picker">
     <div className="unit-picker-controls">
-      <label>
-        <span>Animation</span>
-        <select value={shown} onChange={e => setPose(e.target.value as UnitPose)}>
+      <div className="unit-picker-row">
+        <div className="unit-poses" role="radiogroup">
+          {/* The poses read as a short column beside the compass, so the two
+              choices sit side by side instead of stacking into a long list */}
           {UNIT_POSES.filter(p => poses.includes(p.id)).map(p =>
-            <option key={p.id} value={p.id}>{p.label}</option>
-          )}
-        </select>
-      </label>
-
-      <div className={"unit-directions" + (directional ? "" : " disabled")}
-        title={directional ? undefined : "This pose is drawn from one side only"}>
-        <span className="unit-label">Direction</span>
-        {/* A collapsing unit is a single frame that already contains the pose,
-            so the game draws it facing one way only */}
-        <div className="unit-compass">
-          {UNIT_DIRECTIONS.map(d =>
-            <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
-              <input type="radio" name={group} value={d.dir}
-                checked={direction == d.dir} disabled={!directional}
-                onChange={() => setDirection(d.dir)} />
-              <span>{d.short}</span>
+            <label key={p.id} className="unit-pose">
+              <input type="radio" name={poseGroup} value={p.id}
+                checked={shown == p.id}
+                onChange={() => setPose(p.id)} />
+              <span>{p.label}</span>
             </label>
           )}
+        </div>
+
+        <div className={"unit-directions" + (directional ? "" : " disabled")}
+          title={directional ? undefined : "This pose is drawn from one side only"}>
+          {/* A collapsing unit is a single frame that already contains the pose,
+              so the game draws it facing one way only */}
+          <div className="unit-compass">
+            {UNIT_DIRECTIONS.map(d =>
+              <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+                <input type="radio" name={group} value={d.dir}
+                  checked={direction == d.dir} disabled={!directional}
+                  onChange={() => setDirection(d.dir)} />
+                <span>{d.short}</span>
+              </label>
+            )}
+          </div>
         </div>
       </div>
 
       <label className={"unit-frame" + (holdsFrames ? "" : " disabled")}>
-        <span>Frame</span>
         <input type="range" min={0} max={phases} step={1}
           value={heldFrame} disabled={!holdsFrames}
           title={holdsFrames
@@ -470,7 +475,6 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
         </span>
       </label>
-      
     </div>
 
     <div className="unit-picker-preview">
