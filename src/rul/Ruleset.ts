@@ -1,6 +1,6 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
-import { addAllIfNew, addIfNew, capital, cullDoubles, delay, getFlagEmoji, imageToCanvas, loadImage, removeByValue, unique } from '../util';
+import { addAllIfNew, capital, getFlagEmoji, imageToCanvas, loadImage } from '../util';
 import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
@@ -13,7 +13,7 @@ export type SortFirstLastOptions = { first?: string[], last?: string[], exclude?
 type StringValue = [string, any]
 export const defaultLanguage = "en-US"
 
-export const obsTables = { "BIGOBS.PCK": "big", "FLOOROB.PCK": "floor", "HANDOB.PCK": "hand", "BASEBITS.PCK": "base", "INTICON.PCK": "icon" };
+export const obsTables: { [pck: string]: string } = { "BIGOBS.PCK": "big", "FLOOROB.PCK": "floor", "HANDOB.PCK": "hand", "BASEBITS.PCK": "base", "INTICON.PCK": "icon" };
 
 export type Mod = {
   lng: { [langName: string]: { [id: string]: string } }
@@ -50,9 +50,10 @@ export function mainMod(mods: Mod[]): Mod | undefined {
   return own[0];
 }
 
-function orderedFilteredEntries(item: Object, fields?: string[]) {
+/** `[key, value]` pairs for the named fields, in the given order */
+function orderedFilteredEntries(item: { [key: string]: any }, fields?: string[]): StringValue[] {
   if (item == null)
-    return;
+    return [];
   return fields ? fields.map(key => item[key] != null ? [key, item[key]] as StringValue : null).filter(v => v != null) : [];
 }
 
@@ -61,7 +62,7 @@ function orderedFilteredEntries(item: Object, fields?: string[]) {
  * returns lists of key-value pairs
  * "misc" in return is everything that is not "first" or "last"
  */
-export function sortFirstLast(item: Object, options: SortFirstLastOptions = {}): { first: StringValue[], misc: StringValue[], last: StringValue[], exclude: StringValue[], all: StringValue[] } {
+export function sortFirstLast(item: { [key: string]: any }, options: SortFirstLastOptions = {}): { first: StringValue[], misc: StringValue[], last: StringValue[], exclude: StringValue[], all: StringValue[] } {
   if (item == null)
     return { all: [], first: [], misc: [], last: [], exclude: [] };
 
@@ -76,13 +77,14 @@ export function sortFirstLast(item: Object, options: SortFirstLastOptions = {}):
   let last = orderedFilteredEntries(item, options.last);
   let exclude = orderedFilteredEntries(item, options.exclude);
   let special = new Set([...(options.first || []), ...(options.last || []), ...(options.exclude || []), "id", "list", "name", "collection"]);
-  let misc = Object.entries(item).filter(([k, v]) => !special.has(k));
-  if (options.sortBy) {
-    misc = misc.sort((a, b) => options.sortBy(a[1]) > options.sortBy(b[1]) ? 1 : -1)
+  let misc: StringValue[] = Object.entries(item).filter(([k, v]) => !special.has(k));
+  let sortBy = options.sortBy;
+  if (sortBy) {
+    misc = misc.sort((a, b) => sortBy(a[1]) > sortBy(b[1]) ? 1 : -1)
   } else {
     misc = misc.sort((a, b) => a[0] > b[0] ? 1 : -1)
   }
-  let all = [...first, ...misc, ...last]
+  let all: StringValue[] = [...first, ...misc, ...last]
   return { first, misc, last, exclude, all };
 }
 
@@ -102,7 +104,10 @@ export class Search {
 
   constructor() {
     for (let a of Object.values(rul.articles)) {
-      let texts = ["id", "type", "title", "text"].map(key => `${a[key]}`.toLowerCase()).join(" ");
+      // The fields are looked up by name: `title` and `text` are getters, and a
+      // pack may add others
+      let fields = a as { [key: string]: any };
+      let texts = ["id", "type", "title", "text"].map(key => `${fields[key]}`.toLowerCase()).join(" ");
       this.articles.indexDocument(a.id, texts);
     }
   }
@@ -114,6 +119,12 @@ export class Search {
 
 
 export class Service {
+  /**
+   * The service's lists, added by `Service.add`: `canBuy`, `allowsBuilding` and
+   * so on hold the ids of what the service offers.
+   */
+  [list: string]: any;
+
   constructor(public id: string) {
     Article.create(id, "SERVICES");
   }
@@ -137,10 +148,9 @@ export default class Ruleset {
   sectionsOrder: Section[] = [];
   typeSectionsOrder: Section[] = [];
   sprites: { [key: string]: Sprite } = {};
-  src: { ruls, langs, mods };
   raw: any = {};
   search: { [key: string]: Search } = {};
-  ourArmors: string[];
+  ourArmors: string[] = [];
   items: { [key: string]: Item } = {};
   categories: { [key: string]: string[] } = {};
   manufactureCategories: { [key: string]: string[] } = {};
@@ -187,17 +197,19 @@ export default class Ruleset {
   meta: any
   lang: { [key: string]: string } = {};
   langs: { [key: string]: { [key: string]: string } } = {};
-  mods: { [key: string]: { [key: string]: string } } = {};
+  /** The mods of the loaded pack, in merge order */
+  mods: Mod[] = [];
   langName: string | null = null;
   langNames: string[] = [];
-  convertedLangs = {};
+  /** Language names already run through `convertLang` */
+  convertedLangs: { [langName: string]: boolean } = {};
 
   constructor(processed?: {
-    mods: Mod[],
-    langs: any
+    mods?: Mod[],
+    langs?: any
   }) {
     rul = this;
-    window["rul"] = this;
+    window.rul = this;
     if (processed)
       this.loadProcessedMods(processed);
   }
@@ -233,7 +245,7 @@ export default class Ruleset {
     return str;
   }
 
-  addCategory(catName: string, id: string, where?) {
+  addCategory(catName: string, id: string, where?: { [cat: string]: string[] }) {
     if (where == null)
       where = rul.categories;
     let cat = where[catName] || [];
@@ -298,7 +310,8 @@ export default class Ruleset {
   mergeRuls(reversed = false) {
 
     for (let categoryName in this.raw) {
-      let merged = {} as { [id: string]: boolean };
+      // `merged` holds the ruleset blocks themselves, keyed by their id
+      let merged = {} as { [id: string]: any };
       let deleted = {} as { [id: string]: boolean };
 
       if (categoryName == "extraSprites")
@@ -380,9 +393,10 @@ export default class Ruleset {
   }
 
   /** Calls the respective class constructor for the entry */
-  parseType(type, klass) {
-    for (let data of Object.values(this.raw[type] ?? {})) {
-      let entry: Entry = new (klass || SimpleEntry)(data, type)
+  parseType(type: string, klass?: new (raw: any, collection?: string) => Entry) {
+    for (let data of Object.values(this.raw[type] ?? {}) as any[]) {
+      // The constructor registers the entry on `rul`; the value itself is unused
+      new (klass || SimpleEntry)(data, type)
     }
   }
 
@@ -396,8 +410,9 @@ export default class Ruleset {
     //if (this.raw.musics?.lengths) this.sounds = [...this.sounds, ...this.raw.musics.map(v=>`SOUND/${v.type}.ogg`)]
   }
 
+  /** Merges every mod's ruleset blocks, keyed by category and then by entry id */
   combineModRuls(mods: Mod[]) {
-    let rul = {}
+    let rul: { [category: string]: { [id: string]: any } } = {}
     for (let mod of mods) {
       for (let file of mod.rul) {
         for (let categoryName in file) {
@@ -415,7 +430,9 @@ export default class Ruleset {
               if (!old) {
                 category[id] = data;
               } else {
-                if (Array.isArray[data]) {
+                // A repeat of the same id merges: array data is concatenated,
+                // object data is merged field by field
+                if (Array.isArray(data)) {
                   category[id] = [...old, ...data];
                 } else {
                   category[id] = { ...old, ...data }
@@ -458,8 +475,9 @@ export default class Ruleset {
 
     if (this.raw?.extraSounds?.length)
       for (let table of this.raw.extraSounds) {
-        for (let e of Object.entries(table.files)) {
-          this.sounds[e[0]] = table.modDir + e[1]
+        for (let [id, path] of Object.entries(table.files) as [string, string][]) {
+          // The ruleset keys sounds by their numeric slot in `BATTLE.CAT`
+          this.sounds[Number(id)] = table.modDir + path
         }
       }
 
@@ -517,15 +535,20 @@ export default class Ruleset {
       this.parseType(typeName, typeConstructor);
     }
 
-    function blockItems(blocks) {
+    /**
+     * Item ids a set of alien-deployment blocks can drop: the `items` keys plus
+     * whatever the `randomizedItems` groups offer.
+     */
+    function blockItems(blocks: any) {
       if (blocks == null)
         return [];
       blocks = Object.values(blocks || []);
       if (blocks == null)
         return [];
       blocks = blocks.flat();
-      let x = blocks.map(b => b.randomizedItems || []).flat().map(c => c?.itemList || []).flat();
-      let y = blocks.map(b => b.items ? Object.keys(b.items) : []).flat();
+      let x = blocks.map((b: any) => b.randomizedItems || []).flat()
+        .map((c: any) => c?.itemList || []).flat();
+      let y = blocks.map((b: any) => b.items ? Object.keys(b.items) : []).flat();
       return [...x, ...y];
     }
 
@@ -542,7 +565,7 @@ export default class Ruleset {
     crosslink(this.alienDeployments, "startingCondition", this.startingConditions, "deployments");
     crosslink(this.missionScripts, "researchNeeded", this.research, "unlocksMissions");
     crosslink(this.missionScripts, "researchForbidden", this.research, "stopsMissions");
-    crosslink(this.alienMissions, t => Object.values(t.raceWeights || {})?.map(w => Object.keys(w)).flat(), "alienRaces", "missions");
+    crosslink(this.alienMissions, t => Object.values((t.raceWeights || {}) as { [key: string]: any }).map(w => Object.keys(w)).flat(), "alienRaces", "missions");
     crosslink(this.ufos, t => blockItems(t.battlescapeTerrainData?.mapBlocks), this.items, "ufos");
     crosslink(this.terrains, t => blockItems(t.mapBlocks), this.items, "terrains");
     crosslink(this.terrains, "civilianTypes", this.units, "terrains");
@@ -564,7 +587,7 @@ export default class Ruleset {
     if(rul.attacks?.length > 0)
       new Section("ATTACKS", true);
 
-    let all = {
+    let all: { [option: string]: string[] } = {
       Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),
       SoldierTypes: Object.keys(rul.soldiers),
       Vehicles: Object.keys(rul.units).filter(k => rul.items[k]?.battleType == 3),
@@ -572,7 +595,7 @@ export default class Ruleset {
     }
 
     for (let sc of Object.values(this.startingConditions)) {
-      if (sc.forbiddenSoldierTypes?.length > 0) {
+      if (sc.forbiddenSoldierTypes?.length) {
         let forbiddenSoldierTypes = new Set(sc.forbiddenSoldierTypes);
         sc.allowedSoldierTypes = Object.keys(rul.soldiers).filter(st => !forbiddenSoldierTypes.has(st));
       }
@@ -580,7 +603,7 @@ export default class Ruleset {
       sc.allowedSoldierTypes ||= all.SoldierTypes;
       sc.allowedArmors ||= all.Armors;
 
-      if (sc.forbiddenArmors?.length > 0) {
+      if (sc.forbiddenArmors?.length) {
         let forbiddenArmors = new Set(sc.forbiddenArmors);
         sc.allowedArmors = all.Armors.filter(a => !forbiddenArmors.has(a));
       }
@@ -602,7 +625,7 @@ export default class Ruleset {
     ) {
       for (let sc of Object.values(this.startingConditions)) {
         if (sc[`allowed${option[0]}`])
-          sc[`forbidden${option[0]}`] = all[option[0]].filter(e => !sc[`allowed${option[0]}`].includes(e))
+          sc[`forbidden${option[0]}`] = all[option[0]].filter((e: string) => !sc[`allowed${option[0]}`].includes(e))
       }
       crosslink(this.startingConditions, `allowed${option[0]}`, option[1], "allowedIn");
       crosslink(this.startingConditions, `forbidden${option[0]}`, option[1], "forbiddenIn");
@@ -646,8 +669,8 @@ export default class Ruleset {
     }
 
     for (let research of [...Object.values(this.research)]) {
-      backLink(research.name, research.dependencies, rul.research, "leadsTo");
-      backLink(research.name, research.getOneFree, rul.research, "freeFrom");
+      backLink(research.name, research.dependencies ?? null, rul.research, "leadsTo");
+      backLink(research.name, research.getOneFree ?? null, rul.research, "freeFrom");
 
       if (
         research.lookup &&
@@ -693,18 +716,18 @@ export default class Ruleset {
     this.loadMarkers()
   }
 
-  async loadMarkers() {
+  async loadMarkers(): Promise<string[]> {
     if (rul.globeMarkers)
       return rul.globeMarkers;
-    if (!window["GlobeMarkers"]) {
-      let markers = this.sprites["GlobeMarkers"];
-      let path = markers?.path;
-      /*let image = await util.loadImage(path);
-      console.log(util.canvasToBase64(util.imageToCanvas(image)));*/
-      let dataUrl = await util.pathToDataUrl(path);
-      window["GlobeMarkers"] = dataUrl;
+    if (!window.GlobeMarkers) {
+      // A pack without the marker sheet gets no markers, rather than a request
+      // for the string "undefined"
+      let path = this.sprites["GlobeMarkers"]?.path;
+      if (!path)
+        return [];
+      window.GlobeMarkers = await util.pathToDataUrl(path);
     }
-    let dataURL = window["GlobeMarkers"];
+    let dataURL = window.GlobeMarkers;
 
     let canvas = imageToCanvas(await loadImage(dataURL));
     let parts = util.splitCanvas(canvas)
@@ -786,14 +809,16 @@ export default class Ruleset {
   static preprocessMods(mods: { [modName: string]: Mod }) {
     let modOrder = Ruleset.activeMods(Object.values(mods));
 
-    let langs = {}
+    let langs: { [langName: string]: { [id: string]: string } } = {}
 
     for (let mod of modOrder) {
       for (let lname in mod.lng) {
         langs[lname] ||= {}
         Object.assign(langs[lname], mod.lng[lname])
       }
-      delete mod.lng;
+      // The language table has been merged into `langs`, so the per-mod copy is
+      // dropped to keep a large pack from holding it twice
+      delete (mod as { lng?: Mod["lng"] }).lng;
     }
     for (let lname in langs) {
       // `icon` is not a spoken language: it maps field names to emoji. Folding
@@ -848,7 +873,7 @@ export default class Ruleset {
 
     let chain: Mod[] = [];
     let seen = new Set<string>();
-    for (let mod = activeMaster; mod && !seen.has(idOf(mod)!);) {
+    for (let mod: Mod | undefined = activeMaster; mod && !seen.has(idOf(mod)!);) {
       seen.add(idOf(mod)!);
       chain.unshift(mod);
       mod = mod.meta?.master ? byId[mod.meta.master] : undefined;
@@ -897,22 +922,22 @@ export default class Ruleset {
     });
   }
 
-  loadProcessedMods(data: { mods: Mod[], langs: any, resources?: { [rel: string]: string } }) {
-    this.meta = mainMod(data.mods)?.meta ?? {}
-    this.mods = data.mods as any;
+  loadProcessedMods(data: { mods?: Mod[], langs?: any, resources?: { [rel: string]: string } }) {
+    this.meta = mainMod(data.mods ?? [])?.meta ?? {}
+    this.mods = data.mods ?? [];
     this.resourceMap = data.resources ?? {};
-    this.langs = data.langs;
-    this.langNames = Object.keys(data.langs)
+    this.langs = data.langs ?? {};
+    this.langNames = Object.keys(this.langs)
       // `icon` is an emoji map, and a language whose file produced no strings
       // at all would be a dead, blank entry in the dropdown
-      .filter(name => name != "icon" && data.langs[name] != null && typeof data.langs[name] == "object")
+      .filter(name => name != "icon" && this.langs[name] != null && typeof this.langs[name] == "object")
       .sort((a, b) => langWeight(b) - langWeight(a));
 
     function langWeight(name: string) {
       // The default language always leads the list, whatever its size
       if (name == defaultLanguage)
         return Infinity;
-      return Object.keys(data.langs[name] ?? {}).length;
+      return Object.keys(data.langs?.[name] ?? {}).length;
     }
 
     // Language buttons are labelled with a country flag, see old `loadOld`
@@ -925,22 +950,18 @@ export default class Ruleset {
       }
     }
 
-    this.parseRuls(data.mods);
+    this.parseRuls(data.mods ?? []);
     this.selectLang(defaultLanguage);
   }
 
   /** replaced with loadProcessedMods */
   loadOld({ ruls, langs, mods }: {
-    ruls,
+    ruls: any[],
     langs: { [key: string]: { [key: string]: string } },
-    mods: { [key: string]: { [key: string]: string } }
+    mods: Mod[]
   }) {
-    this.src = { ruls, langs: {}, mods };
     this.mods = mods;
     this.langs = langs;
-    for (let langName in this.langs) {
-      this.src.langs[langName] = { ...this.langs[langName] };
-    }
     let langWeight = Object.fromEntries(Object.keys(langs).map(n => [n, n == defaultLanguage ? 1e6 : Object.keys(langs[n]).length]));
     this.langNames = Object.keys(langs).sort((a, b) => langWeight[b] - langWeight[a]);
     if (this.langs.icon)
@@ -949,7 +970,7 @@ export default class Ruleset {
     for (let name of this.langNames) {
       if (!this.langs[defaultLanguage][name]) {
         let country = name.match(/([a-z]+)/i);
-        if (country?.length > 0) {
+        if (country?.length) {
           let flag = getFlagEmoji(country[1]);
           if (flag)
             this.langs[defaultLanguage][name] = flag;
@@ -961,7 +982,9 @@ export default class Ruleset {
     this.convertLang(defaultLanguage);
     let l = Object.keys(this.langs);
     if (l.length == 3) {
-      this.selectLang(l.find(n => n != defaultLanguage && n != "icon"));
+      let other = l.find(n => n != defaultLanguage && n != "icon");
+      if (other)
+        this.selectLang(other);
     } else {
       this.selectLang(defaultLanguage)
     }
@@ -990,6 +1013,8 @@ export default class Ruleset {
 
   /** Full text search over the current language's article index */
   findArticles(query: string) {
+    if (this.langName == null)
+      return undefined;
     let search = this.search[this.langName];
     return search?.findArticles(query);
   }
@@ -1021,14 +1046,14 @@ export default class Ruleset {
 
   /** Sort strings by their translated values */
   sortStrings(s: string[]) {
-    let tl: [string, string][] = s.map(s => [s, this.tr(s)])
+    let tl: [string, string][] = s.map(s => [s, this.tr(s) ?? s])
     tl = tl.sort((a, b) => a[1] > b[1] ? 1 : -1)
     return tl.map(a => a[0]);
   }
 
   /** Compare strings by their translated values */
   compareStrings(a: string, b: string) {
-    let [tra, trb] = [this.tr(a), this.tr(b)]
+    let [tra, trb] = [this.tr(a) ?? a, this.tr(b) ?? b]
     return tra > trb ? -1 : tra < trb ? 1 : 0;
   }
 
@@ -1039,7 +1064,9 @@ export default class Ruleset {
 }
 
 /** Main class to figure what to do with data in Ruls */
-export const entryConstructors = {
+export const entryConstructors: {
+  [collection: string]: new (raw: any, collection?: string) => Entry
+} = {
   items: Item,
   armors: Armor,
   units: Unit,
@@ -1056,12 +1083,9 @@ export const entryConstructors = {
   manufacture: Manufacture,
   damageTypes: DamageType,
   soldiers: Soldiers,
-  // Before `commendations`: a `Commendation` looks up its last stage in
-  // `rul.soldierBonuses` while it is being constructed, so the bonuses have to
-  // exist by then. This is also the order the old ruleset parsed them in.
-  soldierBonuses: SimpleEntry,
   commendations: Commendation,
 
+  /*soldierBonuses: SimpleEntry,
   ufos: SimpleEntry,
   battleTypes: SimpleEntry,
   alienRaces: SimpleEntry,
@@ -1071,7 +1095,7 @@ export const entryConstructors = {
   terrains: SimpleEntry,
   mapScripts: SimpleEntry,
   stats: SimpleEntry,
-  alienMissions: SimpleEntry,
+  alienMissions: SimpleEntry,*/
 
 }
 
@@ -1172,19 +1196,19 @@ export const internalBattleTypes = [
 export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"]
 
 
-export function backLink2(entry: Entry, list: string[] | { [key: string]: any }, to: any, field: string, field2?: string) {
+export function backLink2(entry: Entry, list: string[] | { [key: string]: any }, to: any, field: string, field2: string) {
   backLink(entry.id, list, to, field);
   addAllIfNew(entry[field2], list as any);
 }
 
 export function backLink(id: string, list: string[] | { [key: string]: any } | null, to: any, field: string, collection?: string) {
-  /*if(list && list.includes("STR_LASER_PISTOL_CLIP_HI") && field == "commendation") 
-    debugger;*/
   if (typeof to === "string") {
     collection = to;
-    to = rul[to];
+    // Tables are registered on `rul` under their collection name, so the lookup
+    // and the fallback both have to use it rather than the overwritten `to`
+    to = (rul as any)[collection];
     if (!to)
-      to = rul[to] = {};
+      to = (rul as any)[collection] = {};
   }
   if (list == null) return;
   if (typeof list == "object" && !Array.isArray(list)) {
@@ -1217,7 +1241,7 @@ export function backLink(id: string, list: string[] | { [key: string]: any } | n
   }
 }
 
-function addFields(entry: Entry, field: string, list) {
+function addFields(entry: Entry, field: string, list: string[] | { [key: string]: any }) {
   if (entry == null || field == null || list == null)
     return;
   if (Array.isArray(list)) {
@@ -1235,7 +1259,9 @@ function addFields(entry: Entry, field: string, list) {
 function crosslink(
   collection1: { [id: string]: any },
   prop1: string | ((v: { [id: string]: any }) => any),
-  collection2: { [id: string]: any },
+  // A collection is either the table itself or the name of one on `rul`, which
+  // `backLink` looks up; the named form is how the base-game tables are reached
+  collection2: { [id: string]: any } | string,
   prop2: string,
   prefix?: string) {
   let f = typeof prop1 === "function" ? prop1 : (t: any) => t[prop1];

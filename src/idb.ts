@@ -71,8 +71,10 @@ function storageBuckets(): any {
  * ever goes away on its own, and the UI must not say that it does.
  */
 export async function storageInfo() {
-  let estimate = await navigator.storage?.estimate?.().catch(() => undefined);
-  let persisted = await navigator.storage?.persisted?.().catch(() => undefined);
+  let estimate: StorageEstimate | undefined =
+    await navigator.storage?.estimate?.().catch((): undefined => undefined);
+  let persisted: boolean | undefined =
+    await navigator.storage?.persisted?.().catch((): undefined => undefined);
   let enforced = !!storageBuckets()?.open;
   return {
     usage: estimate?.usage, quota: estimate?.quota, persisted,

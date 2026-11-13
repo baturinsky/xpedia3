@@ -1,5 +1,4 @@
 import MainTable from "./MainTable";
-import { Val } from "./Val";
 
 /** Starting conditions table, follows old `StartingConditions.svelte` */
 export default function StartingConditionsComponent({

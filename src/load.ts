@@ -2,8 +2,8 @@
 import wasmRaw from './unrar.wasm?base64'
 import { state, update, slowProcessCancelRequested, resetSlowProcessCancel, autoCloseStatus } from "./state";
 import * as unrar from 'node-unrar-js'
-import { listDir, delay, readTextFile, inform, warn, base64ToArrayBuffer, asMB } from "./util";
-import { fileTypeFromBuffer } from "file-type";
+import { delay, base64ToArrayBuffer, asMB } from "./util";
+import { fileTypeFromBuffer, type FileTypeResult } from "file-type";
 import * as fflate from 'fflate';
 import JSYaml from "js-yaml";
 import Ruleset, { defaultLanguage, Mod } from "./rul/Ruleset";
@@ -25,11 +25,6 @@ const dataExts = ["dat"]
 
 
 type AssetType = "lng" | "rul" | "meta" | "img" | "nam" | "dat"
-
-async function loadBuiltinPack(packname: string, rawPack: string) {
-  let binary = base64ToArrayBuffer(rawPack);
-  let files = await unpackData(packname, binary);
-}
 
 /** Prefix of the builtin mod directories that exist for a single modpack only */
 const xhelperPrefix = "xhelper-";
@@ -189,8 +184,7 @@ export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, reso
 
   // Same order the save used, so asset overrides land on the same files
   let builtinActive = Ruleset.activeMods(Object.values(builtinParsed));
-  let builtinInterpreted = Object.entries(builtinFiles)
-    .map(([name, data]) => ({ ...interpretPath(name), data }));
+  let builtinInterpreted = interpretFiles(builtinFiles);
 
   let processed = Ruleset.preprocessMods(mods);
 
@@ -207,8 +201,7 @@ export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, reso
 
 /** Every lng/rul/meta file in an unpacked archive, decoded to text */
 function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
-  return Object.entries(files)
-    .map(([name, data]) => ({ ...interpretPath(name), data }))
+  return interpretFiles(files)
     .filter(f => ["lng", "rul", "meta"].includes(f.type))
     .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }));
 }
@@ -230,13 +223,30 @@ function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
  * `mod` is the full archive prefix of the mod folder, so a sprite path built as
  * `${mod}/${relativePath}` matches the stored asset name.
  */
-export function interpretPath(s: string): {
+/** A file's role and mod folder, see `interpretPath` */
+export type InterpretedPath = {
   type: AssetType;
   mod: string;
   path: string;
   name?: string;
   ext?: string;
-} {
+};
+
+/**
+ * `path -> data` archive files, each paired with the role and mod folder
+ * `interpretPath` gives it. Files the pedia has no use for are dropped.
+ */
+function interpretFiles(files: { [name: string]: Uint8Array }) {
+  let out: (InterpretedPath & { data: Uint8Array })[] = [];
+  for (let [name, data] of Object.entries(files)) {
+    let interpreted = interpretPath(name);
+    if (interpreted)
+      out.push({ ...interpreted, data });
+  }
+  return out;
+}
+
+export function interpretPath(s: string): InterpretedPath | undefined {
   let parts = s.split(/[/\\]/).filter(p => p != "");
   if (parts.length < 1)
     return;
@@ -314,11 +324,14 @@ function usefulFileName(name: string) {
   return /[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name);
 }
 
+/** Nested folder tree built from a flat `path -> value` map */
+type DirTree = { [name: string]: DirTree | any };
+
 export function createDirTree(files: { [name: string]: any }) {
-  let root = {};
+  let root: DirTree = {};
   for (let path of Object.keys(files)) {
     let parts = path.split(/[/\\]/);
-    let at = root, prev, part;
+    let at: DirTree = root, prev: DirTree = root, part = "";
     for (part of parts) {
       let dir = at[part];
       if (!dir) {
@@ -333,7 +346,7 @@ export function createDirTree(files: { [name: string]: any }) {
   return root;
 }
 
-export async function unpackZip(name: string, data: ArrayBuffer) {
+export async function unpackZip(name: string, data: ArrayBuffer): Promise<{ [name: string]: Uint8Array }> {
   let u8 = new Uint8Array(data);
   // Filter before inflating: large packs are mostly sounds and maps that would
   // otherwise be decompressed only to be dropped immediately afterwards
@@ -356,7 +369,7 @@ function unrarWasm() {
   return wasmCache ??= base64ToArrayBuffer(wasmRaw);
 }
 
-export async function unpackRar(name: string, data: ArrayBuffer) {
+export async function unpackRar(name: string, data: ArrayBuffer): Promise<{ [name: string]: Uint8Array }> {
   const extractor = await unrar.createExtractorFromData({ wasmBinary: unrarWasm(), data });
 
   const list = extractor.getFileList();
@@ -383,7 +396,12 @@ export async function unpackRar(name: string, data: ArrayBuffer) {
 
   files = files.sort((a, b) => a.fileHeader.name.localeCompare(b.fileHeader.name));
 
-  return Object.fromEntries(files.map(file => [file.fileHeader.name, file.extraction]));
+  let out: { [name: string]: Uint8Array } = {};
+  for (let file of files) {
+    if (file.extraction)
+      out[file.fileHeader.name] = file.extraction;
+  }
+  return out;
 }
 
 /** Message shown when the user aborts a load from the status window */
@@ -438,7 +456,7 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   reportStage("Reading archive", 0, `${packName ?? ""} (${asMB(data.byteLength)})`);
   await nextPaint();
 
-  let fileType = await fileTypeFromBuffer(data).catch(() => undefined);
+  let fileType = await fileTypeFromBuffer(data).catch(() => undefined as FileTypeResult | undefined);
 
   let files: { [name: string]: Uint8Array };
 
@@ -477,7 +495,7 @@ async function buildRuleset(files: { [name: string]: Uint8Array },
 
   await report("Reading files", 0, `${Object.keys(files).length} files`);
 
-  let interpretedFiles = Object.entries(files).map(([name, data]) => ({ ...interpretPath(name), data }));
+  let interpretedFiles = interpretFiles(files);
 
   /**A list of all lng/rul/meta files in the pack, with the full pathes */
   let decodedYamls = decodedYamlFiles(files);
@@ -705,22 +723,23 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
   if (typeof CompressionStream == "undefined")
     return fflate.compressSync(bytes);
-  let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  // `slice` gives a fresh array over an `ArrayBuffer`, which is what `Blob`
+  // accepts; a `Uint8Array` view may be backed by a shared buffer
+  let stream = new Blob([bytes.slice()]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 const extRegexp = /^(.+)\.([0-9a-z\-]+)?$/i;
 
-function splitName(name) {
+function splitName(name: string) {
   let m = name.match(extRegexp);
   return m ? [m[1], m[2]] : [name, ""];
 }
 
-function loadYaml(text: string) {
+function loadYaml(text: string): any {
   text = text.replace(/!(add|info|remove)/g, '')
   return JSYaml.load(text, {
     json: true,
-    skipInvalid: true,
     onWarning: (e) => {
       console.error(e.message);
     }
@@ -767,11 +786,12 @@ function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?
         if (typeof data == "object" && data != null) {
           // A language file normally declares one language at the top level, but
           // some packs repeat the key; every block is read so none is dropped.
-          for (let lngName in data)
-            addToLng(lngName, data[lngName])
+          let blocks = data as { [langName: string]: { [name: string]: any } };
+          for (let lngName in blocks)
+            addToLng(lngName, blocks[lngName])
         } else if (typeof data == "string") {
           // Non-yaml translations are named "STR_ID.<lang>.html"
-          let [strName, lngName] = splitName(f.name);
+          let [strName, lngName] = splitName(f.name ?? "");
           if (lngName)
             addToLng(lngName, { [strName]: data })
         }

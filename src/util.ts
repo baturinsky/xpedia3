@@ -1,98 +1,10 @@
-import JSYaml from "js-yaml";
 import { emptyImg } from "./imgPlaceholders";
-
-export function inform(...t: string[]) {
-  console.log(...t)
-}
-
-export function warn(...t: string[]) {
-  console.warn(...t)
-}
 
 
 //For possible app implementations
 declare const
-  fsFile: (path: string) => string,
-  fsData: (path: string) => string,
-  fsSave: (name: string, data: string) => string,
-  fsDir: (path: string, always: boolean) => string[]
+  fsData: (path: string) => string
   ;
-
-async function fetchAll(files: { [name: string]: string }) {
-  return Object.fromEntries(
-    await Promise.all(
-      Object.keys(files).map(async (path) => [
-        path,
-        await (await fetch(files[path])).text(),
-      ])
-    )
-  );
-}
-
-export async function readTextFile(path: string) {
-  let text: string;
-  try {
-    text = await fetchText(path)
-    inform(path);
-  } catch (e) {
-    console.error(e);
-    warn(e);
-    return null;
-  }
-  return text;
-}
-
-export async function fetchText(path:string) {
-  if (typeof fsFile != "undefined")
-    return fsFile(path);
-  else
-    return (await fetch(path)).text()
-}
-
-
-const dirFilesRegex = /<\s*a[^>]*>(.*?)<\s*\/\s*a>/gi;
-
-export async function listDir(path:string, full = false) {
-  if (typeof fsDir != "undefined") {
-    let files = fsDir(path, full)
-    return files;
-  }
-  let text = await readTextFile(path);
-  let matches: string[], files: string[] = [];
-  while (matches = dirFilesRegex.exec(text)) {
-    let dir = matches[1];
-    if (matches[0].indexOf("href=#") != -1 || dir.indexOf("<") != -1)
-      continue;
-    if (dir != "../" && dir.substring(0, 4) != "http")
-      files.push(full ? path + dir : dir);
-  }
-  return files;
-}
-
-
-export async function readYaml(path: string) {
-  let text = await readTextFile(path);
-  if(text == null)
-    return null;
-  let parsed = parseYaml(text, path);
-  return parsed as any;
-}
-
-export function parseYaml(file: string, filename: string) {
-  try {
-    return JSYaml.load(file, {
-      json: true,
-      filename,
-      onWarning: (e) => {
-        console.error(e.message);
-      }
-    });
-  } catch (e:any) {
-    console.error(e.message);
-    warn(e.message);
-  }
-}
-
 
 export function delay(n: number) {
   return new Promise(r => setTimeout(r, n));
@@ -108,10 +20,6 @@ export function camelToUnderscore(key:string) {
 export function getFlagEmoji(countryCode: string) {
   return countryCode.toUpperCase()
   //return String.fromCodePoint(...[...countryCode.toUpperCase()].map(x=>0x1f1a5+x.charCodeAt()));
-}
-
-export function singular(s: string) {
-  return s.replace(/(e?s)$/, "");
 }
 
 export function removeByValue<T>(arr: T[], item: T) {
@@ -146,8 +54,8 @@ export function addAllIfNew<T>(arr: T[], items: T[] | T) {
 }
 
 
-export function isAncestorOf(ancestor, descendant) {
-  let n = descendant;
+export function isAncestorOf(ancestor: Node | null, descendant: Node | null) {
+  let n: Node | null = descendant;
   while (n) {
     if (n === ancestor) {
       return true;
@@ -176,16 +84,16 @@ export function unique(a: any[]) {
 }
 
 
-export function withoutKeys(o: Object, keys: string[]) {
-  o = { ...o };
+export function withoutKeys(o: { [key: string]: any }, keys: string[]) {
+  let copy = { ...o };
   for (let k of keys) {
-    delete o[k];
+    delete copy[k];
   }
-  return o;
+  return copy;
 }
 
-export function allFieldValuesOf(objects: Object[], field: string) {
-  let s = new Set();
+export function allFieldValuesOf(objects: { [key: string]: any }[], field: string) {
+  let s = new Set<any>();
 
   for (let o of objects) {
     if (o[field] != undefined)
@@ -229,6 +137,8 @@ export function createCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRe
   const ctx = canvas.getContext('2d');
   canvas.width = w;
   canvas.height = h;
+  if (!ctx)
+    throw new Error("The browser did not provide a 2D canvas context");
   return [canvas, ctx]
 }
 
@@ -237,16 +147,6 @@ export function imageToCanvas(image: HTMLImageElement) {
   let [canvas, context] = createCanvas(image.width, image.height);
   context.drawImage(image, 0, 0);
   return canvas;
-}
-
-export const getBase64StringFromDataURL = (dataURL) =>
-  dataURL.replace('data:', '').replace(/^.+,/, '');
-
-
-export function canvasToBase64(canvas: HTMLCanvasElement) {
-  const dataURL = canvas.toDataURL();
-  const base64 = getBase64StringFromDataURL(dataURL);
-  return base64;
 }
 
 export async function pathToDataUrl(path: string) {
@@ -292,7 +192,7 @@ export function imageDataToUrl(data: Uint8Array | number[] | undefined | null) {
 }
 
 /** Formatted number */
-export function localeFixed2(n, digits = 4) {
+export function localeFixed2(n: number, digits = 4) {
   return n && ((~~n) == n ? n : n.toFixed(digits));
 }
 
@@ -317,4 +217,19 @@ export function clearHash() {
 }
 
 export const last = (list: any[]) => list[list.length - 1];
+
+/**
+ * Image bytes for a sprite, when the host application provides them.
+ *
+ * An embedded build can define `fsData` to hand the pedia real files; in the
+ * browser it is undefined, so the path itself is returned and the caller loads
+ * it over the network instead.
+ */
+export async function loadData(path: string) {
+  if (typeof fsData != "undefined") {
+    return fsData(path);
+  } else {
+    return path;
+  }
+}
 

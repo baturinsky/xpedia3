@@ -4,7 +4,7 @@ import { clearHash } from './util';
 import { article, section, state, update } from './state';
 import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
-import { inlinePack, packSource, loadPackRul } from './packSource';
+import { inlinePack, loadPackRul } from './packSource';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
@@ -91,7 +91,7 @@ async function init() {
   //
   // Reading can also fail outright when the page has no storage at all, e.g. an
   // exported file opened from disk in a browser that blocks IndexedDB there.
-  let loaded: string | undefined;
+  let loaded: Awaited<ReturnType<typeof getRul>>;
   if (!inlined && state.packName) {
     try {
       loaded = await getRul(state.packName);

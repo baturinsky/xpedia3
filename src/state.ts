@@ -36,7 +36,9 @@ export let state = {
       pack: string,
       assets: number,
       ruls: number,
-      archive: number
+      archive: number,
+      /** Pack installed before storage buckets, so it never expires */
+      legacy?: boolean
     }[]
   ,
   /** The name of the file (modpack) currently watched */

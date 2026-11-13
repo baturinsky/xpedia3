@@ -63,10 +63,10 @@ async function gzipTextInPieces(text: string) {
   let bytes = new TextEncoder().encode(text);
   if (typeof CompressionStream == "undefined")
     return fflate.gzipSync(bytes);
-  let source = new ReadableStream<Uint8Array>({
+  let source = new ReadableStream<Uint8Array<ArrayBuffer>>({
     start(controller) {
       for (let i = 0; i < bytes.length; i += 65536)
-        controller.enqueue(bytes.subarray(i, i + 65536));
+        controller.enqueue(bytes.slice(i, i + 65536));
       controller.close();
     }
   });
@@ -119,7 +119,7 @@ async function readAppAssets() {
   if (isWholeApp(own))
     return own;
 
-  let response = await fetch("/xpedia-built.html").catch(() => undefined);
+  let response = await fetch("/xpedia-built.html").catch((): undefined => undefined);
   let text = response?.ok ? await response.text() : "";
   if (text) {
     let built = collectTags(new DOMParser().parseFromString(text, "text/html"));

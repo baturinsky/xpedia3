@@ -1,4 +1,4 @@
-import { loadData } from '../loadOld';
+import { loadData } from '../util';
 import { rul } from './Ruleset';
 
 

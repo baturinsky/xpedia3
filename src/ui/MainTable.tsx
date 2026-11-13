@@ -30,7 +30,6 @@ const MainTable = ({
   }
 
   const sorted = sortFirstLast(of, sort);
-  let mainTable = title != undefined;
 
   const subVal = (v: any) => (v!= null && typeof v == "object" && !isFlat(v)) ? <MainTable of={v} /> : <Val of={v} />
 

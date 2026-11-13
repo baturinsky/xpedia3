@@ -2,7 +2,7 @@ import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { ValueRange } from "../rul/Entry";
-import { Divider, fromAnyRef, Img, Nobr, spriteScale, usePixelRatio } from "./components";
+import { Divider, fromAnyRef, Img, spriteScale, usePixelRatio } from "./components";
 
 /** Polymorphic value view */
 

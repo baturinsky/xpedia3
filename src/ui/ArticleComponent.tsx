@@ -2,7 +2,7 @@ import { createElement, RefObject, useEffect, useLayoutEffect, useRef, useState 
 import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
 import { article, section, state } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { BaseService, Img, LinksPage, RecoveryTable, SectionTable } from "./components";
+import { BaseService, Img, LinksPage, SectionTable } from "./components";
 import CommendationComponent, { SoldierBonusesComponent } from "./CommendationComponent";
 import Conditions from "./Conditions";
 import CraftComponent from "./CraftComponent";
@@ -268,11 +268,11 @@ function overflowsColumn(body: HTMLElement, column: number) {
 function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, fontSalt: unknown) {
   let [oneColumn, setOneColumn] = useState(false);
   // The layout the current decision was made for
-  let measured = useRef<{ articleId: string, width: number, recheck: number, fontSalt: unknown }>();
+  let measured = useRef<{ articleId: string, width: number, recheck: number, fontSalt: unknown }>(undefined);
   // Bumped when the body's box or an image changes: a sprite decoded, a font
   // arrived, the window was resized
   let [recheck, setRecheck] = useState(0);
-  let observer = useRef<ResizeObserver>();
+  let observer = useRef<ResizeObserver>(undefined);
 
   // One instance of the article exists at a time, so a single set of document
   // listeners is enough. Images become their real size only after they decode,
@@ -478,7 +478,7 @@ export function ArticleComponent() {
     {isSectionPage && sectionImage}
     {isSectionPage &&
       <div className="articles-list">
-        <LinksPage key={article.id} links={section.articles(state.alphabeticalSort).map(a => a.id)} />
+        <LinksPage key={article.id} links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
       </div>
     }
     {!isSectionPage && articleText}

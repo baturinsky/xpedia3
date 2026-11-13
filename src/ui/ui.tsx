@@ -1,6 +1,6 @@
-import { Children, Component, createContext, Fragment, JSX, MouseEventHandler, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, Fragment, JSX, MouseEventHandler, useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot, Root } from 'react-dom/client';
-import { article, externalStore, PageName, reveal, revealLock, section, state, update, type StoreType } from "../state";
+import { article, externalStore, reveal, revealLock, section, state, update, type StoreType } from "../state";
 import { clearHash } from "../util";
 import { goToLanding } from "../navigation";
 
@@ -12,7 +12,6 @@ import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDial
 import ExportDialog from "./ExportDialog";
 import { warmEstimate } from "../exportPedia";
 import { rul } from "../rul/Ruleset";
-import { favicon } from "../imgPlaceholders";
 import { Val, Tr } from "./Val";
 import { Divider } from "./components";
 import { ArticleComponent } from "./ArticleComponent";
@@ -398,7 +397,7 @@ const devModeKeyword = "devmode";
 
 /** Navbar full text search, mirrors old `App.svelte` */
 function SearchBox() {
-  let [handle, setHandle] = useState<number>();
+  let [handle, setHandle] = useState<ReturnType<typeof setTimeout>>();
 
   /** Search is driven by the hash so it can be linked and reached with history */
   function search(value: string) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import {
   rul,
   sortFirstLast,
@@ -7,7 +7,7 @@ import {
 } from "../rul/Ruleset";
 import { Val } from "./Val";
 import { Attack, Entry } from '../rul/Entry';
-import { Img, Nobr, SecondaryTable, AlterList, SpecialBonus, Divider } from './components';
+import { Img, Nobr, SecondaryTable, AlterList, SpecialBonus } from './components';
 import { state, update } from '../state';
 
 const Damage = ({ attack }: { attack: Attack }) =>
@@ -323,7 +323,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
                             ) : (
                               <>
                                 <td>
-                                  {rul.str(attack.name)}{attack.shots == 1 ? "" : "×" + attack.shots}
+                                  {rul.str(attack.name ?? "")}{attack.shots == 1 ? "" : "×" + attack.shots}
                                 </td>
                                 <td>
                                   <em className="big-number">{attack.accuracy}</em>{"%"}

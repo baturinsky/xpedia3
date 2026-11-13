@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { rul } from "../rul/Ruleset";
 import MainTable from "./MainTable";
 import { Img, spriteScale, usePixelRatio } from "./components";
@@ -21,7 +21,7 @@ function FacilitySprite(props: { size: number, prop: number, bottom?: boolean })
   // Cells are laid out from the same snapped scale the sprites are drawn with,
   // otherwise fractional display scaling would make the tiles drift apart
   let cell = gridSize * spriteScale(gridScale, usePixelRatio());
-  let cells: JSX.Element[] = [];
+  let cells: ReactElement[] = [];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       // OpenXcom numbers a facility's frames row by row, x first:

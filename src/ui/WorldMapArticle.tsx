@@ -212,7 +212,7 @@ function MapPicture({ map }: { map: WorldMap }) {
   let [highlighted, setHighlighted] = useState<string>();
   // Whether the current press has turned into a drag, shared with the click
   // handler that has to ignore the click a drag ends with
-  let drag = useRef<{ moved: boolean }>();
+  let drag = useRef<{ moved: boolean }>(undefined);
 
   // A new pack means a new picture, so the old magnification is meaningless
   useEffect(() => setView({ zoom: 1, x: 0, y: 0 }), [map]);

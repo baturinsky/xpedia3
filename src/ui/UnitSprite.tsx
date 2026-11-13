@@ -1012,7 +1012,6 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   let [turretDirection, setTurretDirection] = useState(2);
   // 0 means "play it"; anything else holds that step of the pose
   let [frame, setFrame] = useState(0);
-  let pixelRatio = usePixelRatio();
   // One picker can appear on many articles, so each radio group needs a name
   // that is unique to this instance
   let group = useId();
@@ -1027,7 +1026,6 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   // nothing
   let shown = poses.includes(pose) ? pose : poses[0];
   let { w, h } = unitSpriteSize(props.view);
-  let scale = spriteScale(props.scale ?? 3, pixelRatio);
 
   let phases = posePhases(shown, props.view);
   let holdsFrames = phases > 1;

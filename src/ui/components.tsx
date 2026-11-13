@@ -1,13 +1,10 @@
-import { CSSProperties, Fragment, JSX, MouseEventHandler, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { CSSProperties, JSX, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { state, update } from "../state";
-import { type Column } from 'react-data-grid';
 
 import { resolveImage } from "../packSource";
 import { rul, sortFirstLast } from "../rul/Ruleset";
 import { Val } from "./Val";
 import React from "react";
-import ItemComponent from "./ItemComponent";
-import { CraftWeapon } from "../rul/Entry";
 import { imageDataToUrl, allFieldValuesOf } from "../util";
 import { emptyImg } from "../imgPlaceholders";
 
@@ -239,20 +236,6 @@ export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
 
   return getter;
 }
-
-function adHocColumns(a: any[]) {
-  return Object.keys(a[0]).map(key => ({ key, name: key }))
-}
-
-interface FilesRow {
-  name: string;
-  size: number;
-}
-
-const columnsSizeName: readonly Column<FilesRow>[] = [
-  { key: 'size', name: 'size', cellClass: "num-grid", maxWidth: 200 },
-  { key: 'name', name: 'name' },
-];
 
 export function MyTable<T extends { key: any }>(props: {
   className?: string,
@@ -523,7 +506,7 @@ export function LinksPage(props: {
 
   // Sorting is controlled by the single `A-Z` button in the top navbar
   let items = state.alphabeticalSort
-    ? [...links].sort((a, b) => rul.tr(fromAnyRef(a) ?? "") > rul.tr(fromAnyRef(b) ?? "") ? 1 : -1)
+    ? [...links].sort((a, b) => (rul.tr(fromAnyRef(a) ?? "") ?? "") > (rul.tr(fromAnyRef(b) ?? "") ?? "") ? 1 : -1)
     : links;
 
   return <>
@@ -652,7 +635,7 @@ export function SectionTable(props: SectionTableProps) {
         return <React.Fragment key={field}>
           <Divider />
           <span className={"extra-field " + (shown ? "on" : "off")}>
-            <input type="checkbox" checked={shown} aria-label={rul.tr(field)}
+            <input type="checkbox" checked={shown} aria-label={rul.tr(field) ?? undefined}
               onChange={() => toggleField(field)} />
             <span className={isLink ? "extra-field-name" : "extra-field-name clickable"}
               onClick={isLink ? undefined : () => toggleField(field)}>
@@ -675,7 +658,7 @@ export function SectionTable(props: SectionTableProps) {
         </React.Fragment>
       )}
       <input value={filterId} onChange={e => setFilterId(e.target.value)}
-        type="text" placeholder={rul.tr("Filter...")} />
+        type="text" placeholder={rul.tr("Filter...") ?? ""} />
     </div>
     <PaginatedList items={sorted} pageSize={40} onePageMax={200} className="table-list">
       {paginatedItems =>
