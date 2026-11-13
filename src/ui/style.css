@@ -1468,6 +1468,24 @@ ol>li:last-child::after {
   flex: none;
 }
 
+/**
+ * The word in the middle of the ring. A tank has two compasses - one for the
+ * hull and one for the gun that turns on its own - and without a label the two
+ * would look alike.
+ */
+.unit-compass-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .unit-dir {
   position: absolute;
   top: 50%;
@@ -2170,4 +2188,31 @@ a.services {
   .world-map-legend ul {
     gap: .25rem .5rem;
   }
+
+  /* A turreted tank has two facing rings side by side, which is wider than a
+     phone. Shrink the rings rather than letting them scroll or wrap. */
+  .unit-picker-row {
+    flex-wrap: wrap;
+  }
+
+  .unit-compass {
+    width: 7rem;
+    height: 7rem;
+  }
+
+  .unit-dir {
+    width: 1.55rem;
+    height: 1.55rem;
+    margin: -0.775rem;
+    font-size: 90%;
+  }
+
+  .unit-dir-0 { transform: translate(1.68rem, -1.68rem); }
+  .unit-dir-1 { transform: translate(2.38rem, 0); }
+  .unit-dir-2 { transform: translate(1.68rem, 1.68rem); }
+  .unit-dir-3 { transform: translate(0, 2.38rem); }
+  .unit-dir-4 { transform: translate(-1.68rem, 1.68rem); }
+  .unit-dir-5 { transform: translate(-2.38rem, 0); }
+  .unit-dir-6 { transform: translate(-1.68rem, -1.68rem); }
+  .unit-dir-7 { transform: translate(0, -2.38rem); }
 }

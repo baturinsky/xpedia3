@@ -45,6 +45,15 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
     }
   }
 
+  // A tank's gun is a separate sprite chosen by the turret type of the weapon
+  // it is built around; `-1` means it has none
+  const turret = (entry.builtInWeapons ?? []).reduce((found: number, weapon: string) => {
+    if (found >= 0)
+      return found;
+    let type = rul?.items?.[weapon]?.turretType;
+    return type != null && type >= 0 ? type : -1;
+  }, -1);
+
   // Only the sprite *data* belongs in state. The markup has to be rebuilt on
   // every render: `Img` starts with the transparent placeholder and swaps in the
   // real bitmap once it arrives from the database, so freezing the elements
@@ -253,7 +262,10 @@ const ArmorComponent: React.FC<ArmorEntryProps> = ({ entry }) => {
               sheet: prop,
               routine: entry.drawingRoutine,
               female: entry.forcedTorso == 2,
-              deathFrames: entry.deathFrames
+              deathFrames: entry.deathFrames,
+              movementType: entry.movementType,
+              size: entry.size,
+              turret
             };
             let composable = canComposeUnit(prop, entry.drawingRoutine);
             return <tr key={index}>
