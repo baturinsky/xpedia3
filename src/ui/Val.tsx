@@ -2,7 +2,7 @@ import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { ValueRange } from "../rul/Entry";
-import { Divider, fromAnyRef, Img, spriteScale, usePixelRatio } from "./components";
+import { Divider, fromAnyRef, Img } from "./components";
 
 /** Polymorphic value view */
 
@@ -36,9 +36,6 @@ export const Val = ({
   postfix = undefined as string | undefined
 }) => {
 
-  let pixelRatio = usePixelRatio();
-
-
   if (!rul) {
     return val;
   }
@@ -66,14 +63,14 @@ export const Val = ({
     return <Img src={rul.obsSprite(obs, val)} alt={val} />;
   }
 
-  // Map markers are slices of a sprite sheet, see Ruleset.loadMarkers.
-  // Checked before numbers, markers themselves are numeric indices.
-  if (field && ["marker", "markerCrash", "markerLand"].includes(field)) {
-    if (rul.globeMarkers)
-      // A `transform` keeps the marker's layout size, as the old view did, but
-      // the magnification must still land on whole device pixels
-      return <Img src={rul.globeMarkers[val]} style={{ transform: `scale(${spriteScale(2, pixelRatio)})` }} />;
-    return <>{val}</>;
+  // Map markers are cells of the `GlobeMarkers` sheet, see Ruleset.globeMarker.
+  // Checked before numbers, markers themselves are numeric indices. A pack
+  // without the sheet, or a number past its end, keeps showing the number.
+  if (field && ["marker", "markerCrash", "markerLand", "markerIcon"].includes(field)) {
+    let marker = rul.globeMarker(val);
+    // The sprite is drawn twice the size, as the old globe view did
+    if (marker)
+      return <Img src={marker.path} frame={marker} scale={2} alt={`marker ${val}`} />;
   }
 
   // Primitive: number. Empty strings are checked so they don't render as 0

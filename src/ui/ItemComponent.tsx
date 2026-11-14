@@ -44,7 +44,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
   let hand1bonus = entry.twoHanded
     ? entry.blockBothHands
       ? rul.tr("2handOnly")
-      : `${rul.tr("1handPenalty")} ${ohpen}%`
+      : `${rul.tr("1handPenalty")}: ${ohpen}%`
     : "";
 
   if (entry.compatibleAmmo) {
@@ -282,10 +282,9 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
                           <>
                             <td><Val of="mode" /></td>
                             <td>
-                              <Val of="accuracy" />
-                              <Val of="kneeling" />
+                              <Val of="kneelBonus" />: {(entry.kneelBonus || 120)}%
                               <br/>
-                              {entry.kneelBonus || 120}% -{entry.dropoff}/<Val of="accPerTile" />
+                              <Val of="dropoff" />: {entry.dropoff}<br/>
                               {hand1bonus}
                             </td>
                             <td><Val of="cost" /></td>
@@ -314,8 +313,7 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
                                   <Val of={attack.item.type} />
                                   <br />
                                   <small>
-                                    {rul.tr("Shots")}: {attack.item.clipSize}
-                                    {rul.tr("Wgt")}: {attack.item.weight}
+                                    {rul.tr("Shots")}: {attack.item.clipSize} {rul.tr("Wgt")}: {attack.item.weight}
                                   </small>
                                 </td>
                               </>

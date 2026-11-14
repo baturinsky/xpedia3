@@ -1,10 +1,12 @@
 import * as fflate from "fflate";
 import { state } from "./state";
 import { readImgData, readImgSizes, readRulData } from "./idb";
-import { bytesToBase64 } from "./util";
-import { gameRelativePath, isPermanentPack } from "./packSource";
-import { mainMod } from "./rul/Ruleset";
-import { WORLD_DAT } from "./worldmap";
+import { isPermanentPack } from "./packSource";
+import {
+  base64Length, buildAssetFiles, buildPageHtml, exportedPackName, gzipText,
+  onlyTranslated, prepareRul, referencedPaths, renderPage, zipFiles,
+  type AppShell, type ExportFile, type TagCopy
+} from "./exportCore";
 
 /**
  * Exports the currently shown modpack as a standalone reference.
@@ -17,7 +19,14 @@ import { WORLD_DAT } from "./worldmap";
  *   CORS-restricted `fetch` of local files is needed;
  * - a ZIP: the same HTML file plus the images it references, laid out as the
  *   game expects, for a completely self-contained reference.
+ *
+ * The page and archive themselves are built by `exportCore.ts`, which the
+ * command line exporter shares; this module only supplies the browser's three
+ * inputs — the stored ruleset, the stored images and the app's own shell.
  */
+
+export { exportedPackName };
+export type { ExportFile };
 
 /** The export settings chosen in the modal dialog */
 export type ExportOptions = {
@@ -33,23 +42,6 @@ export type ExportResult = {
   name: string,
   data: Blob
 };
-
-/** The `.inline` suffix marks an exported pack in the modpack list */
-export const inlineSuffix = ".inline";
-
-/** Pack name the exported file shows itself under */
-export function exportedPackName(pack: string) {
-  return pack.replace(/\.(zip|rar)$/i, "") + inlineSuffix;
-}
-
-/** Compresses text, preferring the native stream like the pack loader does */
-async function gzipText(text: string) {
-  let bytes = new TextEncoder().encode(text);
-  if (typeof CompressionStream == "undefined")
-    return fflate.gzipSync(bytes);
-  let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
 
 /**
  * Compresses text for the size preview, in pieces.
@@ -73,9 +65,6 @@ async function gzipTextInPieces(text: string) {
   let stream = source.pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-
-/** One inline script or style of a page, ready to be copied verbatim */
-type TagCopy = { attrs: string, content: string };
 
 /** Inline scripts and styles of a document, as they must be copied out */
 function collectTags(root: ParentNode) {
@@ -114,7 +103,7 @@ function isWholeApp(tags: ReturnType<typeof collectTags>) {
  * linked rather than inline, so the last `npm run build` output is read instead
  * (`vite.config.ts` serves `build/xpedia.html` under `/xpedia-built.html`).
  */
-async function readAppAssets() {
+async function readAppAssets(): Promise<AppShell> {
   let own = collectTags(document);
   if (isWholeApp(own))
     return own;
@@ -129,152 +118,6 @@ async function readAppAssets() {
 
   throw new Error("The single-file build is not available. " +
     "Run `npm run build` once, then export again.");
-}
-
-/**
- * The strings of `lang` that English does not already provide identically.
- *
- * A language map in a processed ruleset is a full copy of the English map with
- * the translations written over it (`preprocessMods` does
- * `{ ...langs["en-US"], ...langs[name] }`), so everything untranslated is
- * repeated once per language. `Ruleset.selectLang` merges the two back together
- * when the language is picked, which makes the copies unnecessary in a file.
- *
- * Values are compared with `!==`, so a string is only dropped when it is
- * literally the same one; anything else (numbers, OXCE plural objects) stays.
- */
-function onlyTranslated(english: any, lang: any) {
-  let translated: { [key: string]: any } = {};
-  for (let key of Object.keys(lang))
-    if (english[key] !== lang[key])
-      translated[key] = lang[key];
-  return translated;
-}
-
-/**
- * Trims the processed ruleset to the languages the user picked. The ruleset is
- * stored exactly as the app runs it, so this only touches `langs`; everything
- * else (articles, entries, sprites) is already in its final form.
- */
-function prepareRul(processed: any, languages: string[]) {
-  // `icon` is the emoji label map, not a language the user can pick, and the
-  // page is unreadable without it
-  let keep = new Set(["en-US", "icon", ...languages]);
-  let english = processed.langs?.["en-US"] ?? {};
-  let langs: { [name: string]: any } = {};
-  for (let name of Object.keys(processed.langs ?? {})) {
-    if (!keep.has(name))
-      continue;
-    // English and the emoji map are the reference the others are merged onto,
-    // so they have to stay complete
-    langs[name] = name == "en-US" || name == "icon"
-      ? processed.langs[name]
-      : onlyTranslated(english, processed.langs[name]);
-  }
-  return { ...processed, langs };
-}
-
-/**
- * Image paths the pedia can show, so only those files are needed in an archive.
- *
- * Sprites cover items, facilities, armor layers and article illustrations;
- * obs tables are the indexed sprite sheets (`BIGOBS.PCK` and friends); the
- * globe's DAT file is needed to draw the world map.
- */
-function referencedPaths() {
-  let paths = new Set<string>();
-  let rul = state.rul;
-  if (!rul)
-    return paths;
-
-  let add = (path?: string) => {
-    // `emptyImg` is a placeholder, not a file from the pack
-    if (path && !path.startsWith("data:"))
-      paths.add(path);
-  };
-
-  for (let id of Object.keys(rul.sprites ?? {}))
-    add(rul.sprites[id]?.path);
-  for (let table of Object.values(rul.obs ?? {}) as any[])
-    for (let sprite of table)
-      add(sprite?.path);
-
-  // An article illustration is either a sprite id or an asset path
-  for (let article of Object.values(rul.articles ?? {}) as any[]) {
-    let id = article?.image_id;
-    if (!id)
-      continue;
-    let sprite = rul.sprites?.[id];
-    if (sprite)
-      add(sprite.path);
-    else if (/[\\/]/.test(id))
-      add(id);
-  }
-
-  // The world map reads the pack's globe data through the resource index. Only
-  // the file that index resolves to is needed, not every DAT the pack ships.
-  let dat = rul.resourceMap?.[WORLD_DAT]
-  if (dat)
-    add(dat);
-
-  return paths;
-}
-
-function escapeHtml(text: string) {
-  return text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-}
-
-/** JSON that can sit safely inside a `<script>` element */
-function scriptJson(value: any) {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
-}
-
-/** Builds the HTML text of the exported pedia */
-async function buildHtml(pack: string, processed: any, languages: string[]) {
-  let trimmed = prepareRul(processed, languages);
-  let gzipped = await gzipText(JSON.stringify(trimmed));
-  return renderPage(pack, trimmed, bytesToBase64(gzipped));
-}
-
-/**
- * The page text around a ruleset payload.
- *
- * Split out so the size estimate can measure the shell once and then add the
- * payload length, see `prepareEstimate`.
- */
-async function renderPage(pack: string, processed: any, rulesetBase64: string) {
-  let payload = {
-    pack: exportedPackName(pack),
-    rul: rulesetBase64
-  };
-
-  let { scripts, styles } = await readAppAssets();
-  // The page title names the mod the pack is about, the same one the navbar
-  // shows, not whichever mod happens to come last in the archive
-  let meta = mainMod(processed.mods ?? [])?.meta;
-  let title = [meta?.name, meta?.version].filter(Boolean).join(" ") || "XPedia";
-
-  // The payload must exist before the app starts. Module scripts run after
-  // parsing, so a plain script above them is always safe.
-  return `<!DOCTYPE html>
-<html>
-
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Offline reference for an OpenXCom modpack" />
-  <title>${escapeHtml(title)}</title>
-  <link rel="icon" href="data:;base64,iVBORwOKGO=" />
-  ${styles.map(css => `<style>${css}</style>`).join("\n  ")}
-  <script data-xpedia-export>window.xpedia = ${scriptJson(payload)};</script>
-  ${scripts.map(js => `<script ${js.attrs}>${js.content}</script>`).join("\n  ")}
-</head>
-
-<body>
-
-</body>
-
-</html>`;
 }
 
 /**
@@ -398,7 +241,7 @@ async function measureEstimate(pack: string): Promise<ExportEstimate | undefined
   // `renderPage` puts the base64 in `"rul":"..."`. Measuring with an empty
   // payload keeps the two quotes, so the shell is everything except the base64
   // characters themselves, which `estimateSize` adds back.
-  let html = await renderPage(pack, english, "");
+  let html = await renderPage(pack, english, "", await readAppAssets());
   let shellBytes = html.length;
   await nextPaint();
 
@@ -428,7 +271,7 @@ export async function measureArchive(estimate: ExportEstimate, pack: string) {
     // image total, which is usually much larger
     let sizes = await readImgSizes(pack);
     let imageBytes = 0;
-    for (let path of referencedPaths())
+    for (let path of referencedPaths(state.rul))
       imageBytes += sizes?.get(path) ?? 0;
     estimate.imageBytes = imageBytes;
   }
@@ -456,11 +299,6 @@ export async function measureLanguages(estimate: ExportEstimate, names: string[]
 /** The ruleset as it looks with no language selected */
 function englishOnly(processed: any) {
   return prepareRul(processed, []);
-}
-
-/** Base64 is 4 characters per 3 bytes, rounded up to a whole group */
-function base64Length(bytes: number) {
-  return Math.ceil(bytes / 3) * 4;
 }
 
 /**
@@ -514,7 +352,9 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
     throw new Error(`The stored ruleset of ${pack} is missing, so there is nothing to export`);
 
   report("Building the page...", 0.1);
-  let html = await buildHtml(pack, processed, options.languages);
+  let html = await buildPageHtml({
+    pack, processed, languages: options.languages, shell: await readAppAssets()
+  });
   let name = exportedPackName(pack);
 
   if (!options.archive) {
@@ -523,31 +363,16 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   }
 
   // The images go under the paths the game uses, next to the HTML file
-  let files: { [path: string]: Uint8Array } = {};
-  files[`${name}.html`] = new TextEncoder().encode(html);
-
-  let paths = [...referencedPaths()];
-  let images = 0;
-  for (let i = 0; i < paths.length; i++) {
-    let path = paths[i];
-    let data = await readImgData(pack, path);
-    if (data) {
-      // Two archive paths can map to the same game file (`common/...` is
-      // shared), so a later spelling must not overwrite the bytes already there
-      let target = gameRelativePath(path);
-      if (!files[target]) {
-        files[target] = data;
-        images++;
-      }
-    }
-    // One update per few images keeps the dialog responsive on big packs
-    if (i % 25 == 0 || i == paths.length - 1)
-      report(`Bundling images... ${i + 1}/${paths.length}`,
-        0.1 + 0.8 * (i + 1) / (paths.length || 1));
-  }
+  let files: ExportFile[] = await buildAssetFiles({
+    pack, html, rul: state.rul,
+    readImage: path => readImgData(pack, path),
+    onProgress: (done, total) => report(`Bundling images... ${done}/${total}`,
+      0.1 + 0.8 * done / (total || 1))
+  });
 
   report("Compressing the archive...", 0.95);
-  let zipped = fflate.zipSync(files, { level: 6 });
+  let zipped = zipFiles(files);
+  let images = files.length - 1;
   report(`Exported ${name}.zip with ${images} images`, 1);
   return { name: name + ".zip", data: new Blob([zipped], { type: "application/zip" }) };
 }

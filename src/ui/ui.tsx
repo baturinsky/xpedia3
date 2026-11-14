@@ -12,6 +12,7 @@ import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDial
 import ExportDialog from "./ExportDialog";
 import { warmEstimate } from "../exportPedia";
 import { rul } from "../rul/Ruleset";
+import { inlineLanguagePages, inlinePageLanguage } from "../packSource";
 import { Val, Tr } from "./Val";
 import { Divider } from "./components";
 import { ArticleComponent } from "./ArticleComponent";
@@ -290,7 +291,32 @@ function NavDropdown() {
 
 export function NavTop() {
 
+  // A split export writes one file per language, each carrying the strings of
+  // exactly one; the payload names those files. An export that is not split has
+  // no such list, and every language it carries can be switched to in place.
+  let languagePages = inlineLanguagePages();
+  let languages = languagePages
+    ? Object.keys(languagePages)
+    : rul?.langNames ?? [];
+
+  // The page's own language, which is what the selector highlights. Only a split
+  // export fixes it: each of its files carries one language's strings, so that
+  // language is the only true choice. Otherwise it is whatever the user picked.
+  let currentLanguage = languagePages
+    ? inlinePageLanguage() ?? rul?.langName ?? ""
+    : state.lang ?? rul?.langName ?? "";
+
   function selectLanguage(lang: string) {
+    if (lang == currentLanguage)
+      return;
+    // A split export has one file per language, so picking another one is a
+    // navigation: this page does not carry its strings. The hash names the
+    // article being read, which means the same thing in every file.
+    let page = languagePages?.[lang];
+    if (page) {
+      location.href = page + location.hash;
+      return;
+    }
     if (!rul.selectLang(lang))
       return;
     update({ lang, showLanguagesDropdown: false });
@@ -307,10 +333,10 @@ export function NavTop() {
       <button className="navbar-button" onClick={() => update({ hugeFont: !state.hugeFont })}>
         <span style={{ fontSize: "150%" }}>A</span><span style={{ fontSize: "75%" }}>A</span>
       </button>
-      {rul && rul.langNames?.length > 1 && (
-        rul.langNames.length <= 3
-          ? rul.langNames.map(lang =>
-            <button key={lang} className={"navbar-button" + (lang == state.lang ? " current" : "")}
+      {languages.length > 1 && (
+        languages.length <= 3
+          ? languages.map(lang =>
+            <button key={lang} className={"navbar-button" + (lang == currentLanguage ? " current" : "")}
               onClick={() => selectLanguage(lang)}>
               <Val of={lang} nobr />
             </button>
@@ -319,11 +345,11 @@ export function NavTop() {
             onPointerEnter={hoverOpens(() => update({ showLanguagesDropdown: true }))}
             onPointerLeave={hoverOpens(() => update({ showLanguagesDropdown: false }))}>
             <button className="navbar-button" onClick={() => dropdownButtonClick("showLanguagesDropdown")}>
-              <big><Val of={state.lang ?? rul.langName ?? ""} /></big>
+              <big><Val of={currentLanguage} /></big>
             </button>
             <div className="navbar-dropdown" style={{ visibility: state.showLanguagesDropdown ? "visible" : "hidden" }}>
-              {rul.langNames.map(lang =>
-                <div key={lang} className={"clickable" + (lang == state.lang ? " current" : "")}
+              {languages.map(lang =>
+                <div key={lang} className={"clickable" + (lang == currentLanguage ? " current" : "")}
                   onClick={() => selectLanguage(lang)}>
                   <Val of={lang} nobr />
                 </div>

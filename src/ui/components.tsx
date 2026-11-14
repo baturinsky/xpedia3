@@ -144,7 +144,13 @@ export function useSpriteImages(paths: string[]) {
  */
 export function Img(props: {
   src?: string, scale?: number, alt?: string, style?: CSSProperties,
-  maxWidth?: number, maxHeight?: number, zoom?: number, className?: string
+  maxWidth?: number, maxHeight?: number, zoom?: number, className?: string,
+  /**
+   * Crop one cell of a sprite sheet, in source pixels, as `Sprite.frameSource`
+   * describes it. The cell becomes the image's size and the sheet is shifted
+   * behind it, so a single frame needs no canvas.
+   */
+  frame?: { x: number, y: number, w: number, h: number }
 }) {
   let path = spritePath(props.src);
   let images = state.images;
@@ -187,6 +193,7 @@ export function Img(props: {
   let baseFactor = props.zoom ?? props.scale ?? 1;
   let factor = spriteScale(baseFactor, pixelRatio);
   let size = natural?.path === path ? natural : undefined;
+  let frame = props.frame;
   let element = <img className={"x-image" + (props.className ? " " + props.className : "")} src={dataImage} alt={props.alt ?? props.src}
     onLoad={e => {
       // The transparent placeholder is a 1x1 png; measuring it would pin every
@@ -203,12 +210,33 @@ export function Img(props: {
         setBrokenPath(path!);
       }
     }}
-    style={{
+    style={frame ? {
+      // The sheet is laid out at its natural size in the clip box, shifted so
+      // that the cell's corner is at the box's corner, then magnified about it
+      position: "absolute",
+      left: -frame.x * factor,
+      top: -frame.y * factor,
+      imageRendering: "pixelated",
+      transform: `scale(${factor})`,
+      transformOrigin: "0 0",
+      maxWidth: "none",
+      maxHeight: "none",
+      ...props.style ?? {}
+    } : {
       imageRendering: "pixelated",
       width: size ? size.w * factor : undefined,
       height: size ? size.h * factor : undefined,
       ...props.style ?? {}
     }} />;
+
+  // One cell of a sprite sheet: a box the size of the cell clips the rest away.
+  // The cell is measured in source pixels, so the box follows the magnification.
+  if (frame)
+    return <div className="img-clip" style={{
+      width: frame.w * factor, height: frame.h * factor, position: "relative"
+    }}>
+      {element}
+    </div>;
 
   if (props.maxWidth == null && props.maxHeight == null)
     return element;

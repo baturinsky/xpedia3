@@ -82,7 +82,23 @@ export type InlinePayload = {
   /** Pack name shown in the modpack list, ending in `.inline` */
   pack?: string,
   /** Base64 of the gzip-compressed processed ruleset */
-  rul: string
+  rul: string,
+  /**
+   * The language this page opens in.
+   *
+   * Only present when the export was split per language: each file then carries
+   * one language's strings, so the active language is a property of the file and
+   * not something the reader picks in place.
+   */
+  lang?: string,
+  /**
+   * Language name -> the file that shows it.
+   *
+   * English and any other language without its own page are absent: they are
+   * merged into every page as the fallback, so choosing one is a switch inside
+   * the current document rather than a navigation.
+   */
+  langPages?: { [name: string]: string },
 };
 
 function readInlinePayload(): InlinePayload | undefined {
@@ -90,6 +106,34 @@ function readInlinePayload(): InlinePayload | undefined {
   if (!payload || typeof payload != "object" || typeof payload.rul != "string")
     return;
   return payload;
+}
+
+/** The inlined payload, if this page is an exported pedia */
+export function inlinePayload(): InlinePayload | undefined {
+  return readInlinePayload();
+}
+
+/**
+ * The exported page of a language, when the pedia was split into one file per
+ * language. Absent for an ordinary single-file export.
+ */
+export function inlineLanguagePages() {
+  let pages = readInlinePayload()?.langPages;
+  if (!pages || typeof pages != "object")
+    return;
+  return pages;
+}
+
+/**
+ * The language the page was exported in.
+ *
+ * Only a split export sets it: each of its files carries one language's strings,
+ * so which language is showing is a property of the file rather than a choice
+ * the reader makes.
+ */
+export function inlinePageLanguage() {
+  let lang = readInlinePayload()?.lang;
+  return typeof lang == "string" ? lang : undefined;
 }
 
 /** Default name when the payload does not carry one */
@@ -238,7 +282,21 @@ export async function loadPackRul(pack: string) {
     return;
 
   let rul = new Ruleset(processed);
-  idb.applySavedLanguage(rul);
+  let pageLang = source.kind == "inline" ? inlinePageLanguage() : undefined;
+  if (pageLang && inlineLanguagePages()) {
+    // A split export carries exactly one language's strings, so the file it was
+    // opened from decides: any other choice would highlight a language the page
+    // cannot show
+    if (rul.selectLang(pageLang))
+      update({ lang: pageLang });
+  } else {
+    // An unsplit page can switch language in place, so the language the export
+    // was asked for is only the starting point; a choice this browser already
+    // saved wins over it
+    if (pageLang)
+      rul.selectLang(pageLang);
+    idb.applySavedLanguage(rul);
+  }
   update({ rul, packName: pack });
   return processed;
 }

@@ -35,7 +35,7 @@ const MainTable = ({
 
   const sorted = sortFirstLast(of, sort);
 
-  const subVal = (v: any) => (v!= null && typeof v == "object" && !isFlat(v)) ? <MainTable of={v} /> : <Val of={v} />
+  const subVal = (v: any, field?: string) => (v!= null && typeof v == "object" && !isFlat(v)) ? <MainTable of={v} /> : <Val of={v} field={field} />
 
   return (
     <table className={"main-table"}>
@@ -62,7 +62,7 @@ const MainTable = ({
             let render = special[key];
             let content: JSX.Element;
             if (typeof render !== "function") {
-              content = subVal(val)
+              content = subVal(val, key)
             } else {
               content = <Fragment key={key}>{render({ key, val, row })}</Fragment>;
             }
@@ -90,7 +90,7 @@ const MainTable = ({
             return (
               <tr key={key}>
                 <td className="row-name"><Val of={key} capital={true} /></td>
-                <td>{subVal(val)}</td>
+                <td>{subVal(val, key)}</td>
               </tr>
             );
           }

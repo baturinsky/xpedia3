@@ -1,6 +1,6 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
-import { addAllIfNew, capital, getFlagEmoji, imageToCanvas, loadImage } from '../util';
+import { addAllIfNew, capital, getFlagEmoji } from '../util';
 import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
@@ -189,7 +189,6 @@ export default class Ruleset {
   baseServices: { [key: string]: Service } = {};
   redirect: { [key: string]: string } = {};
   attacks: Attack[] = [];
-  globeMarkers: string[] = [];
 
   itemFields = new Set<string>();
   unitFields = new Set<string>();
@@ -209,7 +208,6 @@ export default class Ruleset {
     langs?: any
   }) {
     rul = this;
-    window.rul = this;
     if (processed)
       this.loadProcessedMods(processed);
   }
@@ -717,27 +715,19 @@ export default class Ruleset {
       if (this.manufactureCategories[cat].length)
         Article.create(cat, "MANUFACTURE_CATEGORIES");
     }
-
-    this.loadMarkers()
   }
 
-  async loadMarkers(): Promise<string[]> {
-    if (rul.globeMarkers)
-      return rul.globeMarkers;
-    if (!window.GlobeMarkers) {
-      // A pack without the marker sheet gets no markers, rather than a request
-      // for the string "undefined"
-      let path = this.sprites["GlobeMarkers"]?.path;
-      if (!path)
-        return [];
-      window.GlobeMarkers = await util.pathToDataUrl(path);
-    }
-    let dataURL = window.GlobeMarkers;
-
-    let canvas = imageToCanvas(await loadImage(dataURL));
-    let parts = util.splitCanvas(canvas)
-    rul.globeMarkers = parts.map(p => p.toDataURL());
-    return rul.globeMarkers;
+  /**
+   * Where marker `num` of the `GlobeMarkers` sheet lives, or `undefined` when
+   * the pack has no such sheet or not that many markers.
+   *
+   * The sheet is an ordinary subdivided sprite (`subX`/`subY` cells, left to
+   * right then top to bottom), so the cell is worked out by `frameSource` and
+   * cropped by `Img`; no canvas or slicing is involved. Marker numbers count the
+   * same way in the game, see `Globe::drawMarker`.
+   */
+  globeMarker(num: number) {
+    return this.sprites["GlobeMarkers"]?.frameSource(num);
   }
 
   /** Sections that hold generated entries (items, units...) sorted by name */

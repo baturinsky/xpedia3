@@ -124,56 +124,6 @@ export function isFlat(value: any) {
   return children.every(child => child == null || typeof child != "object");
 }
 
-export function loadImage(path: string) {
-  return new Promise<HTMLImageElement>((done, fail) => {
-    const image = new Image();
-    image.src = path;
-    image.onload = () => {
-      done(image);
-    };
-  })
-}
-
-export function createCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext('2d');
-  canvas.width = w;
-  canvas.height = h;
-  if (!ctx)
-    throw new Error("The browser did not provide a 2D canvas context");
-  return [canvas, ctx]
-}
-
-
-export function imageToCanvas(image: HTMLImageElement) {
-  let [canvas, context] = createCanvas(image.width, image.height);
-  context.drawImage(image, 0, 0);
-  return canvas;
-}
-
-export async function pathToDataUrl(path: string) {
-  let blob = await (await fetch(path)).blob();
-  var reader = new FileReader();
-  reader.readAsDataURL(blob);
-  return new Promise<string>(done => {
-    reader.onloadend = function () {
-      done(reader.result as string);
-    }
-  })
-}
-
-export function splitCanvas(canvas: HTMLCanvasElement) {
-  let height = canvas.height;
-  let partsNum = canvas.width / canvas.height;
-  let parts: HTMLCanvasElement[] = [];
-  for (let i = 0; i < partsNum; i++) {
-    let [part, ctx] = createCanvas(height, height);
-    ctx.drawImage(canvas, i * height, 0, height, height, 0, 0, height, height)
-    parts.push(part)
-  }
-  return parts;
-}
-
 export function base64ToArrayBuffer(base64: string) {
   return Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
 }

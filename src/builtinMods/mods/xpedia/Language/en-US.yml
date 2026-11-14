@@ -1535,8 +1535,7 @@ en-US:
     (true)?
   tip_isExplodingInHands: isExplodingInHands<br><br>Does the item explode also when
     still in a unit's inventory?
-  tip_kneelBonus: kneelBonus<br><br>15% bonus would be encoded as '115' (i.e. 100 +
-    15), meaning you will use the weapon at 115% of its usual accuracy.
+  tip_kneelBonus: kneelBonus<br><br>Multiplicative, so with 120% kneel bonus 60% will become 72%
   tip_listOrder: listOrder<br><br>Sort order in the various lists (research, manufacture, craft equipment and so on).
   tip_liveAlien: liveAlien<br><br>Does this item represent a live creature?
   tip_LOSRequired: LOSRequired<br><br>Does this item require line of sight? (only applies
@@ -2524,7 +2523,7 @@ en-US:
   invWidth: Inventory width
   isConsumable: Consumable?
   isExplodingInHands: Exploding in hands?
-  kneelBonus: Kneel bonus multiplier, %
+  kneelBonus: Kneel bonus multiplier
   listOrder: List order
   liveAlien: Living creature?
   LOSRequired: LOS required?
@@ -3134,4 +3133,5 @@ en-US:
   zombieUnitFaction: Zombified unit faction
   weaponDamage<sup>2</sup>: Damage bonus (squared)
   weaponDamage<sup>3</sup>: Damage bonus (cubed)
+  1handPenalty: One Hand Penalty
 

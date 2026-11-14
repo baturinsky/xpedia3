@@ -1,6 +1,17 @@
 import { rul } from "./rul/Ruleset";
 import { resolveImage } from "./packSource";
+import { WORLD_DAT } from "./packBuild";
 import { builtinFile } from "./load";
+
+/**
+ * The OpenXcom world map, flattened.
+ *
+ * `WORLD_DAT` itself lives in `packBuild.ts`, so an exporter can ask which file
+ * the map needs without importing this module; it is re-exported below for the
+ * callers that already read it from here.
+ */
+
+export { WORLD_DAT };
 
 /**
  * The OpenXcom world map, flattened.
@@ -24,14 +35,6 @@ import { builtinFile } from "./load";
 
 /** Longitude that lands on the left and right edge of the map, in game degrees */
 export const ORIGIN = 190;
-
-/**
- * The stock globe file, in the form the resource index keys it.
- *
- * A pack names it in `globe: data:` or relies on it implicitly, and the builtin
- * mods ship a copy, so this is the one resource the world map always needs.
- */
-export const WORLD_DAT = "geodata/world.dat";
 
 /**
  * One `globe: textures: terrain:` row.

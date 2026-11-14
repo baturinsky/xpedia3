@@ -8,7 +8,8 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "min": "vite build --mode=min"
+    "min": "vite build --mode=min",
+    "cli": "vite build && node scripts/build-cli.mjs"
   },
   "//pinned": "React, its renderer and the data grid are held at the versions the tables were written against. A caret range would pull React 19.3 and react-data-grid beta.64 on the next install, which is a large unrequested change to the section tables.",
   "//resolutions": "Security pins for dependencies we only pull in at build time. Each is the first version patched for an advisory; they stay inside the major the parent tool already asks for, so nothing downstream changes.",
