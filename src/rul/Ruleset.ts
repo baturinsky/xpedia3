@@ -5,7 +5,7 @@ import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
-import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry } from './Entry';
+import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierBonus, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry } from './Entry';
 import { emptyImg } from '../imgPlaceholders';
 
 export let rul!: Ruleset;
@@ -1060,9 +1060,13 @@ export default class Ruleset {
 
 /** Main class to figure what to do with data in Ruls */
 export const entryConstructors: {
-  [collection: string]: new (raw: any, collection?: string) => Entry
+  [collection: string]: new (raw: any, collection: string) => Entry
 } = {
   items: Item,
+  // Before `armors`: an `Armor` pushes itself into `rul.soldiers[unit].armors`
+  // for every crew type it lists, so those crew types have to exist by then.
+  // This is also the order the old ruleset parsed them in.
+  soldiers: Soldiers,
   armors: Armor,
   units: Unit,
   crafts: Craft,
@@ -1077,10 +1081,12 @@ export const entryConstructors: {
   research: Research,
   manufacture: Manufacture,
   damageTypes: DamageType,
-  soldiers: Soldiers,
+  // Before `commendations`: a `Commendation` looks up its stages in
+  // `rul.soldierBonuses` while it is being constructed, so the bonuses have to
+  // exist by then
+  soldierBonuses: SoldierBonus,
   commendations: Commendation,
 
-  /*soldierBonuses: SimpleEntry,
   ufos: SimpleEntry,
   battleTypes: SimpleEntry,
   alienRaces: SimpleEntry,
@@ -1090,7 +1096,7 @@ export const entryConstructors: {
   terrains: SimpleEntry,
   mapScripts: SimpleEntry,
   stats: SimpleEntry,
-  alienMissions: SimpleEntry,*/
+  alienMissions: SimpleEntry,
 
 }
 

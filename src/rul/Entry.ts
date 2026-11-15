@@ -8,10 +8,32 @@ import {
 /** Root class for all ruleset entries */
 export class Entry {
   id: string = "";
-  armors?: string[];
+  /**
+   * Armor types that list this entry in their `units`.
+   *
+   * Declared with `declare` only: the class is compiled with
+   * `useDefineForClassFields`, so a plain `armors?: string[]` would emit an own
+   * `armors: undefined` field on every entry, and code that walks an entry's own
+   * keys (such as `Val` drawing a raw object) would show an empty row for it.
+   */
+  declare armors?: string[];
+  /**
+   * Name of the table this entry belongs to.
+   *
+   * It is not enumerable: `Val` and `MainTable` walk an entry's own keys to draw
+   * its rows, so an enumerable `collection` would show up as a row of every
+   * entry that is rendered raw, e.g. the "Final bonus" row of a commendation.
+   */
+  collection!: string;
   [id: string]: any;
 
-  constructor(public collection: string) {
+  constructor(collection: string) {
+    Object.defineProperty(this, "collection", {
+      value: collection,
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
   }
 
   from(raw: any) {
@@ -246,6 +268,29 @@ export class SoldierTransformation extends Entry {
 
   constructor(raw: any) {
     super("soldierTransformation")
+    this.from(raw)
+  }
+}
+
+/**
+ * A stat change a soldier gets: one stage of a commendation, or the reward of a
+ * transformation project.
+ *
+ * The blocks are keyed by `name` rather than `id`, so `Entry.from` relies on the
+ * `name` setter to fill in the id. Commendations look their stages up here by
+ * id while they are parsed, so this collection has to be parsed before them.
+ *
+ * The fields are `declare`d rather than plain class fields: the compiler emits
+ * own `undefined` properties for the latter, and `MainTable` draws a `special`
+ * row such as "Recovery" even when its value is undefined, so every bonus would
+ * grow an empty row it never had. `from` fills in whichever ones the pack sets.
+ */
+export class SoldierBonus extends Entry {
+  declare stats?: { [stat: string]: number };
+  declare recovery?: { [stat: string]: { flatOne?: number, flatHundred?: number } };
+
+  constructor(raw: any) {
+    super("soldierBonuses")
     this.from(raw)
   }
 }

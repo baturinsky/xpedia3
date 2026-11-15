@@ -3,6 +3,9 @@ import { Img } from "./components";
 import MainTable from "./MainTable";
 import { Val } from "./Val";
 
+
+const includeMarkerInPsrites = false;
+
 /** Craft table, follows old `Craft.svelte` */
 export default function CraftComponent({ entry }: { entry: any }) {
   // The globe marker is drawn from its own sheet, which is a plain grid of
@@ -26,7 +29,7 @@ export default function CraftComponent({ entry }: { entry: any }) {
         <Val obs="base" of={33 + val} />
         <Val obs="icon" of={val + 11} />
         <Val obs="icon" of={val} />
-        {/*marker && <Img src={marker.path} frame={marker} scale={2} alt={`marker ${markerNum}`} />*/}
+        {includeMarkerInPsrites && marker && <Img src={marker.path} frame={marker} scale={2} alt={`marker ${markerNum}`} />}
       </>,
     }}
   />;

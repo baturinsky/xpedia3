@@ -29,9 +29,9 @@ function deedDescription(deed: any) {
 }
 
 /** Bonus table for one commendation stage, follows old `SoldierBonuses.svelte` */
-export function SoldierBonusesComponent({ of, title, subtitle }: { of: any, title?: string, subtitle?: string }) {  
+export function SoldierBonusesComponent({ entry, title, subtitle }: { entry: any, title?: string, subtitle?: string }) {
   return <MainTable
-    of={of}
+    of={entry}
     title={title ?? "soldierBonuses"}
     subtitle={subtitle}
     special={{
@@ -90,7 +90,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
     />
     <div className="no-break-column">
       {bonuses.map((bonus, i) =>
-        <SoldierBonusesComponent key={i} of={bonus} title="Stage" subtitle={`${i + 1}`} />
+        <SoldierBonusesComponent key={i} entry={bonus} title="Stage" subtitle={`${i + 1}`} />
       )}
     </div>
   </>;
