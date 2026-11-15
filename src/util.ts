@@ -239,6 +239,38 @@ export function asMB(n: number) {
 export const pngDataPrefix = "data:image/png;base64,"
 
 /**
+ * Maps an archive path to the path the same file has under the game directory.
+ *
+ * The archive stores files under the pack's own root folder, while the game
+ * looks for them relative to its installation:
+ *
+ * - `<pack>/user/mods/<mod>/...` → `user/mods/<mod>/...`
+ * - `<pack>/standard/<mod>/...`  → `standard/<mod>/...`
+ * - `<pack>/common/...`          → `common/...`
+ * - `<mod>/...` packed on its own → `user/mods/<mod>/...`
+ *
+ * This mirrors the layout rules in `interpretPath`.
+ *
+ * It lives here rather than next to its callers because both the export code
+ * and the ruleset need it, and the ruleset must not import the pack builder.
+ */
+export function gameRelativePath(path: string): string {
+  let parts = path.split(/[/\\]/).filter(p => p != "");
+  let lower = parts.map(p => p.toLowerCase());
+
+  for (let i = 0; i < parts.length; i++) {
+    if (lower[i] == "user" && lower[i + 1] == "mods")
+      return parts.slice(i).join("/");
+    if (lower[i] == "standard" || lower[i] == "common" || lower[i] == "mods")
+      return parts.slice(i).join("/");
+  }
+
+  // No recognised install folder: a mod that was packed on its own belongs
+  // under `user/mods` when extracted next to the game
+  return "user/mods/" + parts.join("/");
+}
+
+/**
  * Replaces the URL with one that has no hash, without adding a history entry.
  *
  * The landing page has no hash of its own: it is the bare page. Assigning `""`

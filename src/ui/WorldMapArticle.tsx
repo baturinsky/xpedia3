@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadWorldMap, ORIGIN, type MapRectangle, type WorldMap } from "../worldmap";
+import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
+import { MAX_DRAWN_PATHS, pathShape, regionOverlay } from "./mapOverlay";
 import { colorForCountry, colorForTerrain, readDeclaredColors, readDeclaredCountryColors } from "./mapColors";
 import { rul } from "../rul/Ruleset";
 import { Tr } from "./Val";
@@ -19,6 +21,41 @@ import { Tr } from "./Val";
 const WIDTH = 2048;
 const HEIGHT = 1024;
 
+/**
+ * A region drawn over the map: the boxes its sites spawn in, the zones its
+ * trajectories bend through, and the paths themselves.
+ *
+ * The three are separate because they answer different questions and a pack
+ * rarely has all of them: `areas` is where a mission site can appear, `zones`
+ * is what a waypoint refers to, and `paths` is a flight. A region with no
+ * `areas` (most of them) is still worth drawing for its zones, which are the
+ * city points the game actually uses.
+ */
+export type Overlay = {
+  id: string;
+  color?: string;
+  areas?: MapArea[];
+  zones?: MapArea[][];
+  paths?: OverlayPath[];
+  /** Whether this overlay is the one under the pointer */
+  hot?: boolean;
+};
+
+/**
+ * One flight path, as globe points in flight order.
+ *
+ * `dropped` counts the waypoints of the trajectory that could not be placed:
+ * a waypoint names a mission zone, and a zone the game treats as "anywhere" has
+ * no centre. The line joins the stops that do have a place, and the count lets
+ * the page say that some were left out.
+ */
+export type OverlayPath = {
+  id: string;
+  points: { lon: number, lat: number }[];
+  dropped?: number;
+};
+
+
 /** Rows keep north up: OpenXcom stores latitude with north negative */
 const rowForLat = (lat: number) => (90 + lat) / 180 * HEIGHT;
 
@@ -31,7 +68,6 @@ const rowForLat = (lat: number) => (90 + lat) / 180 * HEIGHT;
  * 0..360; that is deliberate, and the extra copies at +-WIDTH fill the edge.
  */
 const columnForLon = (lon: number) => (lon - ORIGIN) / 360 * WIDTH;
-
 /**
  * A single longitude to a column on the visible turn.
  *
@@ -104,7 +140,7 @@ function splitPoles(points: [number, number][]) {
  * straddles the cut is still complete: the off-canvas copies are clipped away
  * and the parts that fall inside fill in the other edge.
  */
-function projectMap(map: WorldMap) {
+function projectMap(map: WorldMap, overlays?: Overlay[]) {
   let polygons = map.polygons.map(polygon => {
     let lons = center(polygon.points.map(p => p[0]));
     let lats = polygon.points.map(p => p[1]);
@@ -130,7 +166,64 @@ function projectMap(map: WorldMap) {
     areas: country.areas.map(area => countryRectangle(area))
   }));
 
-  return { polygons, lines, countries };
+  return {
+    polygons,
+    lines,
+    countries,
+    overlays: (overlays ?? []).map(overlay => projectOverlay(overlay))
+  };
+}
+
+/**
+ * A region's boxes and the paths drawn through them, in screen coordinates.
+ *
+ * `areas` are mission-site boxes and `zones` are the areas that the waypoints
+ * index, so both are plain rectangles from the same projection as the nations.
+ * A point zone (`lon1 == lon2`) becomes a dot, which is how the packs mark
+ * cities.
+ */
+function projectOverlay(overlay: Overlay) {
+  let boxes = (overlay.areas ?? []).map(area => globeBox(area));
+  let zoneBoxes = (overlay.zones ?? []).map(zone => zone.map(area => globeBox(area)));
+  return {
+    ...overlay,
+    boxes,
+    zoneBoxes,
+    // A zone counts as a dot when every box in it is a single point
+    zoneDots: (overlay.zones ?? []).map(zone => zone.every(isPointArea)),
+    paths: overlay.paths ?? []
+  };
+}
+
+/** Whether a globe area is a single point rather than a box */
+function isPointArea(area: MapArea) {
+  return area[0] == area[1] && area[2] == area[3];
+}
+
+/**
+ * One globe box as a screen rectangle.
+ *
+ * Unlike a mission zone, a region `area` may cross the prime meridian with
+ * `lonMax < lonMin`; adding a turn to the far edge keeps it one box instead of
+ * one covering the whole map. Mission zone longitudes never wrap, so the same
+ * correction is harmless there.
+ */
+function globeBox(area: MapArea) {
+  let lonMax = area[1] < area[0] ? area[1] + 360 : area[1];
+  let lons = center([area[0], lonMax, lonMax, area[0]]);
+  let lats = [area[2], area[2], area[3], area[3]];
+  return lons.map((lon, i) => [columnForLon(lon), rowForLat(lats[i])] as [number, number]);
+}
+
+/** The screen position of a globe point */
+export const pointFor = (lon: number, lat: number) =>
+  ({ x: wrapColumn(lon), y: rowForLat(lat) });
+
+/** The centre of a box or point, as a globe point */
+export function areaCenter(area: MapArea) {
+  let lon = (area[0] + area[1]) / 2;
+  let lat = (area[2] + area[3]) / 2;
+  return { lon, lat };
 }
 
 /**
@@ -152,6 +245,74 @@ function countryRectangle(area: MapRectangle) {
 function Repeated(props: { points: [number, number][], render: (points: string, shift: number) => any }) {
   let serialized = props.points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   return <>{[-1, 0, 1].map(shift => props.render(serialized, shift * WIDTH))}</>;
+}
+
+/**
+ * A region's map data: its boxes, its zone boxes, and any paths drawn in it.
+ *
+ * A flight path is a polyline through zone centres with a dot at each waypoint,
+ * because the waypoints *are* the zones: the game picks a random point inside
+ * the zone, so the centre is the honest answer for a still picture. Arrows mark
+ * the direction, since a path read backwards describes a different flight.
+ */
+function RegionOverlay({ overlay }: { overlay: ReturnType<typeof projectOverlay> }) {
+  let color = overlay.color ?? "#ffd24a";
+  let style = { "--region-color": color } as any;
+  // A marker cannot pick up the colour of the line that uses it: its contents
+  // inherit down the document tree from where the `marker` itself is declared,
+  // not from the shape referencing it. So each overlay carries its own arrow,
+  // declared inside the group that sets `--region-color`.
+  let arrow = "region-arrow-" + overlay.id.replace(/[^\w-]/g, "_");
+  let arrowHref = `url(#${arrow})`;
+
+  return <g className={"region-overlay" + (overlay.hot ? " region-hot" : "")} style={style}>
+    <marker id={arrow} viewBox="0 0 10 10" refX="8" refY="5"
+      markerWidth="7" markerHeight="7" orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse">
+      <path className="region-arrowhead" d="M 0 0 L 10 5 L 0 10 z" />
+    </marker>
+
+    {overlay.boxes.map((box, i) => <Repeated key={"a" + i} points={box}
+      render={(points, shift) => <polygon className="region-area" points={points}
+        transform={shift ? `translate(${shift} 0)` : undefined} />} />)}
+
+    {overlay.zoneBoxes.map((zone, i) => zone.map((box, j) => overlay.zoneDots[i]
+      ? <Repeated key={"z" + i + "_" + j} points={box}
+        render={(points, shift) => <circle className="region-zone-point"
+          cx={box[0][0]} cy={box[0][1]} r={5}
+          transform={shift ? `translate(${shift} 0)` : undefined} />} />
+      : <Repeated key={"z" + i + "_" + j} points={box}
+        render={(points, shift) => <polygon className="region-zone" points={points}
+          transform={shift ? `translate(${shift} 0)` : undefined} />} />))}
+
+    {overlay.paths.map(path => {
+      // Each path is drawn three times like every other shape, so a flight that
+      // crosses the seam stays in one piece
+      let at = path.points.map(p => pointFor(p.lon, p.lat));
+      // A waypoint names a zone, and consecutive waypoints often name the same
+      // one: the UFO loiters there rather than moving. Those repeats are a real
+      // part of the path, so they are numbered but not drawn as extra marks on
+      // top of each other.
+      let stops = at.filter((p, i) => i == 0 || p.x != at[i - 1].x || p.y != at[i - 1].y);
+      return [-1, 0, 1].map(shift => {
+        let serialized = at.map(p => `${(p.x + shift * WIDTH).toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+        return <g key={path.id + shift} className="region-path">
+          {/* A marker so the line is a proper arrow per segment, not one
+              direction for the whole flight */}
+          <polyline points={serialized} markerMid={arrowHref} />
+          {stops.map((p, i) => <g key={i} className="region-stop">
+            <circle className="region-waypoint" cx={p.x + shift * WIDTH} cy={p.y} r={9} />
+            {/* The sequence number, so the order of the stops is readable even
+                where the line doubles back on itself */}
+            <text className="region-stop-number" x={p.x + shift * WIDTH} y={p.y}
+              textAnchor="middle" dominantBaseline="central">
+              {i + 1}
+            </text>
+          </g>)}
+        </g>;
+      });
+    })}
+  </g>;
 }
 
 /**
@@ -203,8 +364,8 @@ function pointInMap(svg: SVGSVGElement, clientX: number, clientY: number) {
   return { x: local.x, y: local.y };
 }
 
-function MapPicture({ map }: { map: WorldMap }) {
-  let projected = useMemo(() => projectMap(map), [map]);
+function MapPicture({ map, overlays }: { map: WorldMap, overlays?: Overlay[] }) {
+  let projected = useMemo(() => projectMap(map, overlays), [map, overlays]);
   let svgRef = useRef<SVGSVGElement>(null);
   let [view, setView] = useState<View>({ zoom: 1, x: 0, y: 0 });
   let [panning, setPanning] = useState(false);
@@ -356,7 +517,11 @@ function MapPicture({ map }: { map: WorldMap }) {
               : <Fragment key={shift}>{shape}</Fragment>;
           }} />))}
         {/* Plain text only: an SVG `text` cannot contain HTML, so this cannot go
-            through `Tr`, which renders a `<span>` */}
+            through `Tr`, which renders a `<span>`.
+
+            The labels are drawn before the region overlays so the overlay sits on
+            top: a name is orientation, while the boxes and paths are the subject
+            of the page, and a label crossing a flight line only gets in the way. */}
         {projected.countries.map((country, i) => {
           if (!country.label)
             return null;
@@ -365,8 +530,8 @@ function MapPicture({ map }: { map: WorldMap }) {
               "--country-color": country.color,
               // Labels keep their reading size as the map is magnified, so the
               // sizes in viewBox units are divided back out
-              fontSize: `${36 / view.zoom}px`,
-              strokeWidth: `${6 / view.zoom}px`
+              fontSize: `${18 / view.zoom}px`,
+              strokeWidth: `${3 / view.zoom}px`
             } as any}>
             {rul?.tr(country.id) ?? country.id}
           </text>;
@@ -383,6 +548,9 @@ function MapPicture({ map }: { map: WorldMap }) {
               {...handlers}>{text}</a>
             : <g key={i} className={"country-label" + (hot ? " country-hot" : "")} {...handlers}>{text}</g>;
         })}
+        {/* Region overlays go above the nation labels: the boxes and the paths are
+            what the page is about, and the labels are only orientation */}
+        {projected.overlays.map(overlay => <RegionOverlay key={overlay.id} overlay={overlay} />)}
       </g>
     </g>
   </svg>;
@@ -463,3 +631,137 @@ export function WorldMapArticle() {
     <p className="world-map-note"><Tr text="xpediaMapNote" /></p>
   </div>;
 }
+
+/** Loads the world map once, for the pages that draw on top of it */
+function useWorldMap() {
+  let [map, setMap] = useState<WorldMap>();
+  let [status, setStatus] = useState<"loading" | "ready" | "missing">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    readDeclaredColors();
+    readDeclaredCountryColors();
+    loadWorldMap().then(found => {
+      if (cancelled)
+        return;
+      setMap(found);
+      setStatus(found ? "ready" : "missing");
+    }).catch(e => {
+      console.warn("Can't load the world map", e);
+      if (!cancelled)
+        setStatus("missing");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  return { map, status };
+}
+
+/** The message shown instead of a picture when the pack has no geoscape data */
+function NoMap() {
+  return <div className="world-map-status"><Tr text="xpediaMapMissing" /></div>;
+}
+
+/**
+ * A region drawn on the world map, with the flights its missions send through it.
+ *
+ * Many regions have no `areas` at all: they exist to weight missions, and are
+ * marked on the map only by their zone points. Drawing something is still much
+ * more use than drawing nothing, so the zones are shown either way and the
+ * missing site boxes are simply absent.
+ */
+export function RegionMapArticle({ region }: { region: Region }) {
+  let { map, status } = useWorldMap();
+  let [highlight, setHighlight] = useState<string>();
+
+  let paths = useMemo(() => rul.trajectoriesFor(region).slice(0, MAX_DRAWN_PATHS), [region]);
+  let overlays = useMemo(() => [regionOverlay(region, paths)], [region, paths]);
+  // The list names every flight the region's missions send, and a flight whose
+  // waypoints all name "anywhere" zones has no line to draw, so say which ones
+  // the map leaves out rather than leaving a gap in the picture unexplained
+  let shapes = useMemo(() => new Map(paths.map(path => [path.id, pathShape(path, region)])), [paths, region]);
+  let undrawn = paths.filter(path => (shapes.get(path.id)?.points.length ?? 0) < 2);
+
+  if (status == "loading")
+    return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
+  if (status == "missing" || !map)
+    return <NoMap />;
+
+  return <div className="world-map-block">
+    <MapPicture map={map} overlays={overlays} />
+    <p className="world-map-note"><Tr text="xpediaRegionMapNote" /></p>
+    {paths.length > 0 && <div className="region-paths">
+      <div className="world-map-legend-title"><Tr text="xpediaTrajectories" /></div>
+      <ul>
+        {paths.map(path => <li key={path.id} onPointerEnter={() => setHighlight(path.id)}
+          onPointerLeave={() => setHighlight(current => current == path.id ? undefined : current)}>
+          <a href={pageFor(path.id) ?? undefined}>{path.id}</a>
+          <span className="world-map-count">{(path.waypoints ?? []).length}</span>
+          {undrawn.includes(path) && <span className="world-map-unplaced-mark">
+            <Tr text="xpediaPathUnplaced" />
+          </span>}
+        </li>)}
+      </ul>
+      {highlight && <div className="region-paths-hot">{highlight}</div>}
+    </div>}
+  </div>;
+}
+
+/**
+ * One flight path, drawn in a region it can actually fly in.
+ *
+ * The path is a set of zone indices, so it has no place of its own: a region has
+ * to be named, and the regions shown are the ones the missions that fly this
+ * path can pick, per `Ruleset.regionsFor`. When several qualify they are all
+ * offered, because the pack itself does not say which one a given flight uses.
+ */
+export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory }) {
+  let { map, status } = useWorldMap();
+
+  let regions = useMemo(() => rul.regionsFor(trajectory), [trajectory]);
+  let [chosen, setChosen] = useState<string>(regions[0]?.id ?? "");
+  let region = regions.find(r => r.id == chosen) ?? regions[0];
+
+  let overlays = useMemo(() =>
+    region ? [regionOverlay(region, [trajectory])] : [], [region, trajectory]);
+  // A zone the game treats as "anywhere" has no place to point at, so the line
+  // skips it. Saying how many were skipped is better than a path that quietly
+  // lost stops, and it explains an empty map for a path like `P9`, whose every
+  // waypoint is such a zone.
+  let shape = useMemo(() => region ? pathShape(trajectory, region) : undefined, [region, trajectory]);
+
+  if (status == "loading")
+    return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
+  if (status == "missing" || !map)
+    return <NoMap />;
+
+  // A path with no region to read its zones against cannot be drawn at all; the
+  // article still lists its waypoints, so say why the picture is missing
+  if (!region)
+    return <div className="world-map-status"><Tr text="xpediaTrajectoryNoRegion" /></div>;
+
+  return <div className="world-map-block">
+    <MapPicture map={map} overlays={overlays} />
+    <div className="trajectory-region">
+      <label>
+        <Tr text="xpediaTrajectoryRegion" />{" "}
+        <select value={region.id} onChange={e => setChosen(e.target.value)}>
+          {regions.map(r => <option key={r.id} value={r.id}>{rul.tr(r.id)}</option>)}
+        </select>
+      </label>
+      <span className="trajectory-region-count">
+        {regions.length} <Tr text="xpediaTrajectoryRegions" />
+      </span>
+    </div>
+    {shape && (shape.points.length < 2 || shape.dropped > 0) && <p className="world-map-unplaced">
+      {shape.points.length < 2
+        ? <Tr text="xpediaTrajectoryAnywhereOnly" />
+        : <>
+          <span className="world-map-count">{shape.dropped}</span>{" "}
+          <Tr text="xpediaTrajectoryAnywhere" />
+        </>}
+    </p>}
+    <p className="world-map-note"><Tr text="xpediaTrajectoryMapNote" /></p>
+  </div>;
+}
+

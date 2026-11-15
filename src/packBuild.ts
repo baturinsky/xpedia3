@@ -2,7 +2,7 @@ import * as fflate from "fflate";
 import * as unrar from "node-unrar-js";
 import JSYaml from "js-yaml";
 import Ruleset, { defaultLanguage, Mod } from "./rul/Ruleset";
-import { base64ToArrayBuffer } from "./util";
+import { base64ToArrayBuffer, gameRelativePath as utilGameRelativePath } from "./util";
 
 /**
  * Turning an unpacked modpack archive into the data the pedia runs on.
@@ -537,20 +537,7 @@ export async function unpackRar(
  * - `<pack>/common/...`          → `common/...`
  * - `<mod>/...` packed on its own → `user/mods/<mod>/...`
  *
- * This mirrors the layout rules in `interpretPath`.
+ * This mirrors the layout rules in `interpretPath`. The implementation is in
+ * `util` so the ruleset can share it without importing this module.
  */
-export function gameRelativePath(path: string): string {
-  let parts = path.split(/[/\\]/).filter(p => p != "");
-  let lower = parts.map(p => p.toLowerCase());
-
-  for (let i = 0; i < parts.length; i++) {
-    if (lower[i] == "user" && lower[i + 1] == "mods")
-      return parts.slice(i).join("/");
-    if (lower[i] == "standard" || lower[i] == "common" || lower[i] == "mods")
-      return parts.slice(i).join("/");
-  }
-
-  // No recognised install folder: a mod that was packed on its own belongs
-  // under `user/mods` when extracted next to the game
-  return "user/mods/" + parts.join("/");
-}
+export const gameRelativePath = utilGameRelativePath;

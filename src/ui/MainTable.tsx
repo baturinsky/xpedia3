@@ -62,7 +62,7 @@ const MainTable = ({
     let isRef = typeof v == "object" && ref != null && rul?.article(ref) != null;
     return v != null && typeof v == "object" && !isFlat(v) && !isRef
       ? <MainTable of={v} />
-      : <Val of={v} field={field} />;
+      : <Val of={v} field={field} collection={of?.collection} />;
   }
 
   return (

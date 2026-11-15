@@ -9,6 +9,7 @@ import 'normalize.css';
 import './didactGothic.css';
 import './style.css';
 import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDialog } from "./files";
+import { AudioDialog } from "./Audio";
 import ExportDialog from "./ExportDialog";
 import { warmEstimate } from "../exportPedia";
 import { rul } from "../rul/Ruleset";
@@ -86,6 +87,7 @@ function UI() {
       {/* The status overlay lives at the root so a drop is visible from any page */}
       <ConfirmDialog />
       <SlowProcessStatus />
+      <AudioDialog />
     </StoreContext>
   );
 }

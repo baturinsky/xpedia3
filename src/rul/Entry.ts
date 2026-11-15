@@ -306,6 +306,145 @@ export class DamageType extends Entry {
 
 }
 
+/**
+ * A geoscape region.
+ *
+ * A region is mostly a *distribution*, not a place: it declares how likely a
+ * mission is to target it (`regionWeight`), the boxes its sites spawn in
+ * (`areas`), and the `missionZones` that UFO trajectories bend through. Only the
+ * first thing is uniform across a pack — in the packs checked, 15 of 54 regions
+ * have areas and most have a single zone — so the page has to cope with a region
+ * that has no map data at all.
+ *
+ * The zones are kept as they come from the ruleset. A zone is a list of
+ * `[lon1, lon2, lat1, lat2, textureId?, cityId?]`; a single point (a city) is
+ * written with `lon1 == lon2`. Zone longitudes do **not** wrap: `lon2` is never
+ * below `lon1` and may exceed 360, which is the opposite of `areas`.
+ */
+export class Region extends Entry {  declare cost?: number;
+  declare regionWeight?: number;
+  declare areas?: MapArea[];
+  declare missionZones?: MapArea[][];
+  /** Texture ids this region's sites can use, from `globe: textures:` */
+  declare textures?: number[];
+  declare missionWeights?: any;
+  declare typeString?: string;
+
+  constructor(raw: any) {
+    super("regions")
+    this.from(raw)
+  }
+}
+
+/**
+ * An inventory section: a place a soldier can hold an item.
+ *
+ * The ruleset calls the numeric kind `type`, but `Entry` already uses `type` as
+ * an alias for `id`, so the raw value is kept as `invType` instead: copying it
+ * through `from` would otherwise run `set type` and overwrite the id with a
+ * digit. `type` here is the engine's `InventoryType`: 0 is a slot grid, 1 is a
+ * hand, 2 is the ground. A section also stores where the game draws it (`x`,
+ * `y`, in pixels), which cells it offers (`slots`, as `[x, y]`), and the time
+ * each move into it costs (`costs`). A hand has no slots: its one cell can hold
+ * any item.
+ */
+export class InventorySection extends Entry {
+  declare x?: number;
+  declare y?: number;
+  /** `InventoryType`: 0 slot grid, 1 hand, 2 ground */
+  declare invType?: number;
+  /** `[x, y]` cells of a slot grid, empty for a hand or the ground */
+  declare slots?: [number, number][];
+  /** Time cost of moving into each section, keyed by its id */
+  declare costs?: { [section: string]: number };
+  declare listOrder?: number;
+
+  constructor(raw: any) {
+    // The raw table is `invs`, and `camelToUnderscore` would make its section
+    // `INVS`; the engine calls the collection `inventorySections`, and items
+    // already list their allowed places in `supportedInventorySections`, which
+    // is crosslinked to that same name.
+    super("inventorySections")
+    // `type` is taken out of the raw node so `from` cannot copy it over `id`
+    // through `Entry`'s `set type`, and kept as `invType` instead.
+    //
+    // It stays absent when the pack does not state it, rather than falling back
+    // to the engine's `INV_SLOT` default: a pack may override only part of a
+    // section and leave the rest to the game's own `standard` ruleset, which the
+    // pedia does not read. XComFiles does exactly that — its hands have no
+    // `type`, `x` or `y` at all, and they are hands because the stock ruleset
+    // says so. Printing "INV_SLOT" there would be inventing data.
+    let { type, ...rest } = raw ?? {};
+    this.from({ ...rest, invType: type == null ? undefined : Number(type) })
+  }
+}
+
+/**
+ * A globe box or point, `[lon1, lon2, lat1, lat2, textureId?, cityId?]` */
+export type MapArea = [number, number, number, number, number?, string?];
+
+/**
+ * A UFO flight path, as a list of waypoints.
+ *
+ * A waypoint is `[zone, altitude, speed]`, and the zone is an index into the
+ * `missionZones` of whichever region the mission picked. A trajectory therefore
+ * has no place on the globe by itself: the same waypoints describe a different
+ * path in every region. That is why the page always draws it against a named
+ * region, resolved through the missions that fly it.
+ */
+export class UfoTrajectory extends Entry {
+  declare groundTimer?: number;
+  /** `[zone, altitude, speed]` triples, in flight order */
+  declare waypoints?: [number, number, number][];
+
+  constructor(raw: any) {
+    super("ufoTrajectories")
+    this.from(raw)
+  }
+
+  /** The highest zone index the path visits, or -1 when it has no waypoints */
+  get maxZone() {
+    let zones = (this.waypoints ?? []).map(w => Number(w?.[0]) ?? 0);
+    return zones.length ? Math.max(...zones) : -1;
+  }
+
+  /** Whether `region` has zones for every waypoint of this path */
+  fits(region?: Region) {
+    return !!region && (region.missionZones?.length ?? 0) > this.maxZone;
+  }
+}
+
+/**
+ * A music track.
+ *
+ * A pack never states a track's file: the engine derives it as
+ * `SOUND/<name>.<ext>`, where `name` is the optional `name` field or the id
+ * when absent (see `RuleMusic::getName`). The extension is decided at runtime
+ * by the player's `preferredMusic`, so none can be printed with certainty; the
+ * pedia tries the common ones when it attempts playback.
+ *
+ * Deliberately not an `Entry`: a track has no stats worth an article, and
+ * `Entry.from` would create a page for each one.
+ */
+export class Music {
+  id: string = "";
+  /** The file name stem the engine builds `SOUND/<name>.<ext>` from */
+  fileName: string = "";
+  /** `catPos` and `normalization` are only used by CAT-based music */
+  catPos?: number;
+  normalization?: number;
+
+  constructor(id: string, raw: any) {
+    this.id = id;
+    let name = raw?.name || id;
+    this.fileName = String(name);
+    if (raw?.catPos != null)
+      this.catPos = Number(raw.catPos);
+    if (raw?.normalization != null)
+      this.normalization = Number(raw.normalization);
+  }
+}
+
 /** A value that differs between stages, shown in a table as `first..last` */
 export class ValueRange {
   constructor(public first: any, public last: any) { }

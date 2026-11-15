@@ -78,6 +78,13 @@ export type WorldMap = {
  * eighths of a degree, then the texture id. The fourth pair is absent when its
  * longitude is `-1`, so the record length is fixed and only the used part
  * varies.
+ *
+ * Every record is validated, because the bytes may not be a globe at all. A
+ * server that answers a missing file with its own `index.html` (a common
+ * single-page fallback) hands back a few megabytes of HTML, and a plain loop
+ * would turn that into a hundred thousand polygons scattered off the map
+ * instead of failing. Land never leaves -90..90 latitude or a whole turn of
+ * longitude, so anything outside is treated as "not a globe" and dropped.
  */
 export function parseWorldDat(bytes: Uint8Array): MapPolygon[] {
   let view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -86,13 +93,57 @@ export function parseWorldDat(bytes: Uint8Array): MapPolygon[] {
     let value: number[] = [];
     for (let i = 0; i < 10; i++)
       value.push(view.getInt16(offset + i * 2, true));
-    let count = value[6] != -1 ? 4 : 3;
-    let points: [number, number][] = [];
-    for (let i = 0; i < count; i++)
-      points.push([value[i * 2] * 0.125, value[i * 2 + 1] * 0.125]);
-    polygons.push({ texture: value[8], points });
+    let polygon = recordToPolygon(value);
+    if (polygon)
+      polygons.push(polygon);
   }
   return polygons;
+}
+
+/** One 20-byte record, or nothing when its numbers are not globe coordinates */
+function recordToPolygon(value: number[]): MapPolygon | undefined {
+  // A record is three or four vertices plus a texture id; an HTML page read as
+  // one gives negative, huge or mismatched values
+  let count = value[6] != -1 ? 4 : 3;
+  let points: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    let lon = value[i * 2] * 0.125;
+    let lat = value[i * 2 + 1] * 0.125;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat))
+      return;
+    if (lat < -90 || lat > 90)
+      return;
+    // Longitudes may legitimately run past a whole turn (368 is 8 degrees), but
+    // not by more than the game's own map data ever does
+    if (lon < -360 || lon > 720)
+      return;
+    points.push([lon, lat]);
+  }
+  let texture = value[8];
+  if (!Number.isInteger(texture) || texture < -64 || texture > 1024)
+    return;
+  // Three points is the minimum that can be drawn
+  if (points.length < 3)
+    return;
+  return { texture, points };
+}
+
+/** Whether these bytes look like a globe file rather than some other file */
+export function looksLikeWorldDat(bytes: Uint8Array) {
+  if (bytes.byteLength < 20 || bytes.byteLength % 20 != 0)
+    return false;
+  let points = 0;
+  for (let offset = 0; offset + 20 <= bytes.byteLength && offset < 400; offset += 20) {
+    let view = new DataView(bytes.buffer, bytes.byteOffset + offset, 20);
+    let value: number[] = [];
+    for (let i = 0; i < 10; i++)
+      value.push(view.getInt16(i * 2, true));
+    if (recordToPolygon(value))
+      points++;
+    else
+      return false;
+  }
+  return points > 0;
 }
 
 /** Reads the terrain criteria of each texture id from the ruleset's `globe:` node */
@@ -283,16 +334,24 @@ async function readDat(rel: string) {
   let path = findDatPath(rel) ?? rel;
   let resolved = await resolveImage(path);
   if (resolved?.data)
-    return resolved.data;
+    return looksLikeWorldDat(resolved.data) ? resolved.data : undefined;
 
   // An inlined pack has no bytes in storage: its files sit next to the HTML
   // page, so the URL has to be fetched instead. The stock globe usually is not
   // there, which is not a problem, hence no warning.
+  //
+  // What comes back is checked, because a missing file is often not a 404: a
+  // single-page server answers everything with its own `index.html`, and that
+  // is a few megabytes of HTML which parses as tens of thousands of polygons.
   if (resolved?.url) {
     try {
       let response = await fetch(resolved.url);
-      if (response.ok)
-        return new Uint8Array(await response.arrayBuffer());
+      if (response.ok) {
+        let bytes = new Uint8Array(await response.arrayBuffer());
+        if (looksLikeWorldDat(bytes))
+          return bytes;
+        console.warn(`${resolved.url} is not a globe file (${bytes.byteLength} bytes), ignoring it`);
+      }
     } catch (e) {
       console.debug(`Can't read ${resolved.url}`, e);
     }

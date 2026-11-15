@@ -6,6 +6,7 @@ import {
   internalBattleTypes,
 } from "../rul/Ruleset";
 import { Val } from "./Val";
+import { SoundRef } from "./Audio";
 import { Attack, Entry } from '../rul/Entry';
 import { Img, Nobr, SecondaryTable, AlterList, SpecialBonus } from './components';
 import { state, update } from '../state';
@@ -98,12 +99,6 @@ const bonusFields = [
   "meleeMultiplier",
   "closeQuartersMultiplier",
 ];
-
-const soundsFrom = (sounds: any) => {
-  if (!sounds) return [];
-  if (!sounds.length) sounds = [sounds];
-  return sounds.map((s: number) => rul.sounds[s]).filter((s: any) => s);
-};
 
 /** Header of the item table: weight, size, shots and battle type */
 const ItemHeader = ({ entry }: { entry: any }) => <>
@@ -305,16 +300,11 @@ const ItemComponent = ({ entry }: { entry: Entry }) => {
     <Val of={val} />
   </SecondaryTable>;
 
-  // A sound field holds sound slots, which the browser should play
+  // A sound field holds sound slots, whose file may be a mod resource
   for (let [field] of sorted.all)
     if (field.includes("Sound"))
       rows[field] = ({ val }) => <>
-        {soundsFrom(val).map((sound: string, i: number) =>
-          <React.Fragment key={i}>
-            {i > 0 && <br />}
-            <audio controls src={sound}>Audio tag not working</audio>
-          </React.Fragment>
-        )}
+        <SoundRef value={val} field={field} collection={entry.collection} />
       </>;
 
   // The "See details" button splits the fields in two, so the rows are built

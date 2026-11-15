@@ -1,11 +1,11 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
-import { addAllIfNew, capital, getFlagEmoji } from '../util';
+import { addAllIfNew, capital, getFlagEmoji, gameRelativePath } from '../util';
 import * as util from "../util"
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
-import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, MissionScript, Research, Soldiers, SoldierBonus, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry } from './Entry';
+import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, Music, MissionScript, Research, Soldiers, SoldierBonus, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry, Region, UfoTrajectory, InventorySection } from './Entry';
 import { emptyImg } from '../imgPlaceholders';
 
 export let rul!: Ruleset;
@@ -180,12 +180,24 @@ export default class Ruleset {
   missionScripts: { [key: string]: MissionScript } = {};
   alienMissions: { [key: string]: Entry } = {};
   ufos: { [key: string]: Entry } = {};
+  regions: { [key: string]: Region } = {};
+  ufoTrajectories: { [key: string]: UfoTrajectory } = {};
   terrains: { [key: string]: Entry } = {};
   mapScripts: { [key: string]: Entry } = {};
   obs = { big: [], floor: [], hand: [], base: [], icon: [] } as {[id:string]:any[]};
   /** Relative resource path (lowercased) -> full archive path, see `getFilePath` */
   resourceMap: { [rel: string]: string } = {};
-  sounds: string[] = [];
+  /**
+   * Sound slot -> game-root path, per CAT file.
+   *
+   * A slot number is only unique within its CAT file, so `55` in BATTLE.CAT and
+   * `55` in GEO.CAT are different sounds. Only the slots a mod replaces are
+   * known by path; every other sound is still inside the pack's CAT archive,
+   * which the pedia does not unpack.
+   */
+  sounds: { [cat: string]: { [slot: string]: string } } = {};
+  /** Music id -> track, see `Music`. A lookup, not a set of articles */
+  musics: { [id: string]: Music } = {};
   config: any;
   baseServices: { [key: string]: Service } = {};
   redirect: { [key: string]: string } = {};
@@ -261,8 +273,101 @@ export default class Ruleset {
     return this.lang[damageTypes[type]];
   }
 
-  sound(id: number) {
-    return this.sounds[id];
+  /**
+   * The file a sound slot names, or `null` when the pack does not replace it.
+   *
+   * Sound slots live inside a `.CAT` archive that the pedia does not unpack, so
+   * only a slot a mod replaces with `extraSounds` has a path at all. The CAT is
+   * chosen by the field the slot came from: BATTLE.CAT for battlescape sounds,
+   * GEO.CAT for the few geoscape ones.
+   */
+  sound(id: number, cat = "BATTLE.CAT") {
+    return this.sounds[cat]?.[id] ?? null;
+  }
+
+  /**
+   * The regions a UFO flight path can actually be drawn in.
+   *
+   * A waypoint's first number indexes the `missionZones` of one region, so the
+   * path means nothing without a region to read it against. The engine decides
+   * that region at runtime, at the moment `GeoscapeState` launches a mission:
+   *
+   * - a mission script that names regions (`regionWeights`) dictates one;
+   * - otherwise the strategy picks from its own table, which in practice is
+   *   every region that declares a `regionWeight`.
+   *
+   * That is the rule this mirrors, once per script that selects a mission flying
+   * this path. Regions that do not have enough zones for the path are dropped,
+   * because the game would never draw the path there either.
+   */
+  regionsFor(trajectory: string | UfoTrajectory) {
+    let path = typeof trajectory == "string" ? this.ufoTrajectories?.[trajectory] : trajectory;
+    if (!path)
+      return [];
+
+    let chosen = new Set<string>();
+    for (let mission of this.missionsFlying(path.id))
+      for (let script of this.scriptsSelecting([mission])) {
+        let weights = this.missionScripts?.[script]?.regionWeights;
+        let names = regionNamesOf(weights);
+        if (names.size)
+          for (let name of names) chosen.add(name);
+        else
+          // No script-level choice means the engine falls back to the table of
+          // weighted regions, so every one of those is a possibility
+          for (let region of this.weightedRegions()) chosen.add(region);
+      }
+
+    // A path nothing selects any more is still a real path; fall back to the
+    // zones alone rather than showing a page that cannot draw anything
+    if (!chosen.size)
+      for (let region of this.weightedRegions()) chosen.add(region);
+
+    return [...chosen]
+      .map(id => this.regions?.[id])
+      .filter(region => path.fits(region))
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /** Regions the strategy may pick a mission in: the ones with a weight */
+  weightedRegions() {
+    return Object.values(this.regions ?? {})
+      .filter(region => region.regionWeight != null && region.regionWeight > 0)
+      .map(region => region.id);
+  }
+
+  /** Ids of the alien missions whose waves fly this trajectory */
+  missionsFlying(trajectory: string) {
+    let out: string[] = [];
+    for (let mission of Object.values(this.alienMissions ?? {}) as any[])
+      for (let wave of mission.waves ?? [])
+        if (wave?.trajectory == trajectory) {
+          out.push(mission.id);
+          break;
+        }
+    return out;
+  }
+
+  /** Ids of the mission scripts that can launch one of these missions */
+  scriptsSelecting(missions: string[]) {
+    let wanted = new Set(missions), out: string[] = [];
+    for (let script of Object.values(this.missionScripts ?? {}) as any[])
+      for (let mission of regionNamesOf(script.missionWeights))
+        if (wanted.has(mission)) {
+          out.push(script.id);
+          break;
+        }
+    return out;
+  }
+
+  /** The trajectories whose paths a region could draw */
+  trajectoriesFor(region: string | Region) {
+    let target = typeof region == "string" ? this.regions?.[region] : region;
+    if (!target)
+      return [];
+    return Object.values(this.ufoTrajectories ?? {})
+      .filter(path => path.fits(target))
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /** Sprite from one of the obs tables (BIGOBS.PCK etc). Returns the asset path,
@@ -404,6 +509,21 @@ export default class Ruleset {
     }
   }
 
+  /**
+   * Builds the `musics` lookup without giving each track an article.
+   *
+   * A track has no stats worth a page, and 71 of them would add a section of
+   * near-empty articles. It is a lookup table, so it is filled directly.
+   */
+  parseMusics() {
+    this.musics = {};
+    for (let [id, raw] of Object.entries(this.raw.musics ?? {}) as [string, any][]) {
+      if (raw == null || typeof raw != "object")
+        continue;
+      this.musics[id] = new Music(id, raw);
+    }
+  }
+
   deleteModDirs() {
     for (let tableKind in this.raw)
       if (Array.isArray(this.raw[tableKind]))
@@ -411,7 +531,6 @@ export default class Ruleset {
           if ("modDir" in table)
             delete table.modDir;
         }
-    //if (this.raw.musics?.lengths) this.sounds = [...this.sounds, ...this.raw.musics.map(v=>`SOUND/${v.type}.ogg`)]
   }
 
   /** Merges every mod's ruleset blocks, keyed by category and then by entry id */
@@ -425,7 +544,7 @@ export default class Ruleset {
           let rawCategory = file[categoryName];
           if (Array.isArray(rawCategory)) {
             for (let data of rawCategory) {
-              let id = data.type || data.id || data.name || data.delete || data.typeSingle;
+              let id = categoryId(categoryName, data);
               if (data.delete) {
                 delete category[id];
                 continue
@@ -475,15 +594,39 @@ export default class Ruleset {
       delete this.raw.ufopaedia?.XPEDIA_WORLD_MAP;
     }
 
-    this.sounds = []
-
-    if (this.raw?.extraSounds?.length)
-      for (let table of this.raw.extraSounds) {
-        for (let [id, path] of Object.entries(table.files) as [string, string][]) {
-          // The ruleset keys sounds by their numeric slot in `BATTLE.CAT`
-          this.sounds[Number(id)] = table.modDir + path
+    // Sounds are read from the mods rather than from `this.raw`: a slot's file
+    // path is relative to the mod folder that declares it, and merging the
+    // `extraSounds` blocks into one table loses which mod that was.
+    //
+    // `extraSounds` is an object keyed by CAT file in every pack checked, not
+    // an array. This used to test `.length`, which an object does not have, so
+    // the whole table was skipped and no sound had a path.
+    this.sounds = {}
+    for (let mod of mods) {
+      for (let file of mod.rul) {
+        let extra = file?.extraSounds;
+        if (!extra)
+          continue;
+        let blocks = Array.isArray(extra)
+          ? extra
+          : Object.entries(extra).map(([type, def]: [string, any]) => ({ type, ...def }));
+        for (let block of blocks) {
+          let cat = block?.type;
+          if (!cat || !block?.files)
+            continue;
+          for (let [slot, path] of Object.entries(block.files) as [string, string][]) {
+            if (path == null || path === "")
+              continue;
+            // Browsers read forward slashes; a mod folder may contain spaces.
+            // The path is stored the way the page must ask for it: relative to
+            // the game root, so the pack's own outer folder is not part of it.
+            // That is the same rule images follow, see `gameRelativePath`.
+            let full = gameRelativePath((mod.dir ? mod.dir + "/" : "") + String(path));
+            (this.sounds[cat.toUpperCase()] ||= {})[slot] = full;
+          }
         }
       }
+    }
 
 
     for (let mod of mods) {
@@ -538,6 +681,11 @@ export default class Ruleset {
     for (let [typeName, typeConstructor] of Object.entries(entryConstructors) || []) {
       this.parseType(typeName, typeConstructor);
     }
+
+    // Music is a lookup table, not a set of pages: a track has no stats worth
+    // its own article, and 71 of them would add a section of near-empty pages.
+    // It is parsed here so `Val` can turn a bare id into a name and a path.
+    this.parseMusics();
 
     /**
      * Item ids a set of alien-deployment blocks can drop: the `items` keys plus
@@ -1140,7 +1288,67 @@ export const entryConstructors: {
   mapScripts: SimpleEntry,
   stats: SimpleEntry,
   alienMissions: SimpleEntry,
+  // Regions and trajectories are real pages: a region is what a mission targets
+  // and a trajectory is the path its UFOs fly, and both are referenced from
+  // fields that render as plain text today
+  regions: Region,
+  ufoTrajectories: UfoTrajectory,
+  // The raw table is called `invs`, so the constructor is registered under that
+  // name; the entry itself files into `inventorySections`, which is what items
+  // crosslink their `supportedInventorySections` to
+  invs: InventorySection,
+}
 
+/**
+ * Extensions the engine will look for next to a music track, from the order it
+ * tries them in (`Mod.cpp`, `exts[]`). The player's `preferredMusic` decides
+ * which one is used, and it is not in the ruleset, so playback has to try them
+ * in turn rather than name a single file.
+ */
+export const audioExtensions = [".ogg", ".flac", ".mp3", ".mod", ".wav", ".mid"];
+
+/** The CAT file a sound field's slot indexes into, from the ruleset reference */
+export const soundCatOf: { [field: string]: string } = {
+  hitSound: "BATTLE.CAT",
+  fireSound: "BATTLE.CAT",
+  placeSound: "GEO.CAT",
+  alertSound: "GEO.CAT",
+  selectBaseSound: "GEO.CAT",
+  selectSound: "GEO.CAT",
+  startDogfightSound: "GEO.CAT",
+  takeoffSound: "GEO.CAT",
+};
+
+/**
+ * The CAT a sound field reads from, given the collection the entry is in.
+ *
+ * `hitSound` and `fireSound` are the awkward ones: the same name means a
+ * battlescape sound on an item and a geoscape sound on a facility or a UFO.
+ */
+export function soundCat(field: string, collection?: string) {
+  if ((field == "hitSound" || field == "fireSound") &&
+    (collection == "facilities" || collection == "ufos"))
+    return "GEO.CAT";
+  return soundCatOf[field] ?? "BATTLE.CAT";
+}
+
+/**
+ * The ids inside a weighted table.
+ *
+ * The engine's weighted lists are sparse maps from a month (or difficulty) to a
+ * set of ids, written as `{ 0: {...}, 3: {...} }`; the modern array form is also
+ * accepted. Only the ids matter here, since the pedia shows who can be chosen
+ * rather than how the odds evolve over time.
+ */
+export function regionNamesOf(weights: any) {
+  let out = new Set<string>();
+  if (weights == null || typeof weights != "object")
+    return out;
+  for (let block of Array.isArray(weights) ? weights : Object.values(weights))
+    if (block && typeof block == "object" && !Array.isArray(block))
+      for (let id of Object.keys(block))
+        out.add(id);
+  return out;
 }
 
 export const statsList = ["tu", "stamina", "health", "bravery", "reactions", "firing", "throwing", "strength", "psiStrength", "psiSkill", "melee"];
@@ -1239,6 +1447,24 @@ export const internalBattleTypes = [
 
 export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"]
 
+
+/**
+ * The name that identifies one entry of a ruleset table.
+ *
+ * The format uses `type` for the id in most tables (a `ufos:` entry is
+ * `{ type: STR_UFO }`) and `id` in others, so both are tried. `type` comes
+ * first, which is the order the game itself reads them in.
+ *
+ * `invs` is the exception: an inventory section has a string `id` and a
+ * *numeric* `type` (the engine's `InventoryType`, 0/1/2), so keying it by
+ * `type` would collapse every section of the same kind into one entry. There the
+ * two fields mean different things, and `id` is the name.
+ */
+export function categoryId(category: string, data: any) {
+  if (category == "invs")
+    return data.id || data.type || data.name || data.delete || data.typeSingle;
+  return data.type || data.id || data.name || data.delete || data.typeSingle;
+}
 
 export function backLink2(entry: Entry, list: string[] | { [key: string]: any }, to: any, field: string, field2: string) {
   backLink(entry.id, list, to, field);

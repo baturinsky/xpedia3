@@ -4,7 +4,7 @@ import MainTable from "./MainTable";
 import { Val } from "./Val";
 
 
-const includeMarkerInPsrites = false;
+const includeMarkerInSprites = true;
 
 /** Craft table, follows old `Craft.svelte` */
 export default function CraftComponent({ entry }: { entry: any }) {
@@ -29,7 +29,7 @@ export default function CraftComponent({ entry }: { entry: any }) {
         <Val obs="base" of={33 + val} />
         <Val obs="icon" of={val + 11} />
         <Val obs="icon" of={val} />
-        {includeMarkerInPsrites && marker && <Img src={marker.path} frame={marker} scale={2} alt={`marker ${markerNum}`} />}
+        {includeMarkerInSprites && marker && <Img src={marker.path} frame={marker} scale={2} alt={`marker ${markerNum}`} />}
       </>,
     }}
   />;

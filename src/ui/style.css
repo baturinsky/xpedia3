@@ -903,6 +903,119 @@ button:disabled:hover {
   background: #c33;
 }
 
+/** Audio references and their window, see `Audio.tsx` */
+
+/* A reference reads like a link but opens the audio window instead of a page */
+.audio-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.audio-link:hover {
+  text-decoration: underline;
+}
+
+.audio-slot .audio-link .num {
+  color: inherit;
+}
+
+/** Modal window with a path and a player, see `AudioDialog` */
+.audio-dialog {
+  max-width: min(34rem, 92vw);
+  background: var(--background);
+  border: solid 1px var(--border);
+  box-shadow: 0 0 1rem var(--shadow);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.audio-dialog-title {
+  font-size: 115%;
+  text-align: center;
+}
+
+.audio-dialog-id {
+  text-align: center;
+  opacity: 0.7;
+  font-size: 90%;
+}
+
+.audio-dialog-path {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.audio-dialog-path code {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--table-main);
+  border: solid 1px var(--border);
+  overflow-x: auto;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: all;
+}
+
+.audio-dialog audio {
+  width: 100%;
+}
+
+.audio-dialog-missing {
+  color: #c33;
+}
+
+.audio-dialog-hint {
+  opacity: 0.8;
+}
+
+.audio-dialog-paths {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.audio-dialog-note {
+  font-size: 90%;
+  opacity: 0.8;
+}
+
+.audio-dialog-buttons {
+  display: flex;
+  justify-content: center;
+}
+
+.audio-dialog-buttons button {
+  min-width: 6rem;
+}
+
+/** A sound list keeps the fields apart without breaking the row */
+.audio-sounds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.audio-sound-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.audio-sound-label {
+  min-width: 8rem;
+}
+
 /** Article */
 
 .article-title {
@@ -2017,6 +2130,143 @@ a.services {
 
 .world-map-status {
   margin-bottom: 1rem;
+}
+
+/* A note that part of a picture could not be drawn: a waypoint naming a zone the
+   game fills with a random point anywhere in the world has no place to mark, so
+   the map is missing something and says so instead of looking complete. */
+.world-map-unplaced {
+  font-size: 85%;
+  opacity: .8;
+  max-width: 60rem;
+  padding-left: .6rem;
+  border-left: solid 2px var(--border);
+}
+
+.world-map-unplaced-mark {
+  margin-left: .5rem;
+  font-size: 85%;
+  opacity: .6;
+  font-style: italic;
+}
+
+/* ---- Region and trajectory overlays ---- */
+
+/* A region's site boxes: a wash of its colour with a drawn outline, so the boxes
+   read as areas over the land. `pointer-events: none` throughout the overlay
+   keeps the nations and biomes underneath clickable: the overlay is an
+   illustration, not a set of links. */
+.region-overlay {
+  pointer-events: none;
+}
+
+.region-area {
+  fill: var(--region-color, #ffd24a);
+  fill-opacity: .22;
+  stroke: var(--region-color, #ffd24a);
+  stroke-opacity: .95;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The zones a path bends through. They are drawn thinner than the site boxes
+   because there are many more of them and they are meant to sit behind the
+   path rather than compete with it. */
+.region-zone {
+  fill: var(--region-color, #ffd24a);
+  fill-opacity: .08;
+  stroke: var(--region-color, #ffd24a);
+  stroke-opacity: .45;
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A point zone is a city: one dot, no box. */
+.region-zone-point {
+  fill: var(--region-color, #ffd24a);
+  fill-opacity: .55;
+  stroke: var(--region-color, #ffd24a);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A flight path is drawn over everything else: a solid line with a numbered
+   circle at every distinct stop, since the waypoints are the zones the game
+   steers between. */
+.region-path polyline {
+  fill: none;
+  stroke: var(--region-color, #ffd24a);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The arrowhead is filled by the marker, which cannot inherit the region colour
+   from the line, so it uses the same custom property the line does. */
+.region-arrowhead {
+  fill: var(--region-color, #ffd24a);
+}
+
+.region-path .region-waypoint {
+  fill: #0d2f52;
+  stroke: var(--region-color, #ffd24a);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The stop number. It is plain SVG text, so it cannot go through `Tr`; the size
+   is in viewBox units and is divided back out to keep it readable when the map
+   is magnified. */
+.region-stop-number {
+  font-size: 13px;
+  fill: var(--region-color, #ffd24a);
+  /* A dark rim keeps the number legible over land of any colour */
+  paint-order: stroke;
+  stroke: #0d2f52;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* The flight-path list under a region map */
+.region-paths {
+  font-size: 90%;
+}
+
+.region-paths ul {
+  list-style: none;
+  margin: .25rem 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+}
+
+.region-paths li {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+}
+
+.region-paths-hot {
+  opacity: .7;
+  font-size: 85%;
+}
+
+/* Which region a trajectory was drawn in */
+.trajectory-region {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .5rem 1rem;
+  font-size: 95%;
+}
+
+.trajectory-region-count {
+  opacity: .7;
+  font-size: 90%;
 }
 
 

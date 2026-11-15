@@ -2724,6 +2724,26 @@ en-US:
   xpediaColumnsAll: All
   xpediaColumnsNone: None
   xpediaColumnsDefault: Default
+  xpediaClose: Close
+  xpediaAudioPlay: Play
+  xpediaAudioCopy: Copy path
+  xpediaAudioCopied: Copied
+  xpediaAudioCopyTip: Click a path to copy it
+  xpediaAudioNotFound: The browser could not load this file. It is not part of the pedia export, so the page has to be opened from the game root for the path below to resolve.
+  xpediaAudioNote: The pack's audio is not included in the pedia, which keeps exports small. Only the name and location are stored.
+  xpediaAudioMusicHint: SOUND folder
+  REGIONS: REGIONS
+  UFO_TRAJECTORIES: UFO TRAJECTORIES
+  INVENTORY_SECTIONS: INVENTORY SECTIONS
+  xpediaRegionMapNote: These boxes are where the game may place a mission site; the dots are the mission zones its UFOs fly between. A flight path only means something in the region it is flown in, so the paths drawn here are the ones this region's missions use.
+  xpediaTrajectories: Flight paths
+  xpediaTrajectoryRegion: Drawn against
+  xpediaTrajectoryRegions: regions can fly this path
+  xpediaTrajectoryMapNote: A waypoint names a mission zone, not a place, so this path is only one of the several the game can fly. Each zone is shown as a dot at its centre, because the game picks a random point inside it.
+  xpediaTrajectoryNoRegion: No region in this pack has the mission zones this path refers to, so it cannot be drawn.
+  xpediaTrajectoryAnywhere: of this path's stops are not shown, because they name a zone the game fills with a random point anywhere in the world and so have no place to mark.
+  xpediaTrajectoryAnywhereOnly: Every stop of this path names a zone the game fills with a random point anywhere in the world, so there is nothing to draw. The UFO simply appears, waits and leaves.
+  xpediaPathUnplaced: no place on the map
 #=================== Field labels ===================
 #Countries
   fundingBase: Base funding
@@ -2780,6 +2800,11 @@ en-US:
   costs: Move costs
   slots: Slots
   items: Items
+  invType: Kind
+  invSlot: Slot grid
+  invHand: Hand
+  invGround: Ground
+  xpediaSlotCells: cells
 #Items and attacks
   ammo: Ammo groups
   damageAlter: Damage parameters

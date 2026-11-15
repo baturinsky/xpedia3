@@ -16,7 +16,7 @@ import StartingConditionsComponent from "./StartingConditionsComponent";
 import { LandingPage, packTitle, onLandingPage } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
-import { WorldMapArticle } from "./WorldMapArticle";
+import { WorldMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
 
 export function ArticleTitle() {
   let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
@@ -117,8 +117,63 @@ const renderers = {
       eventWeights: asSubTable,
     }
   },
-  inventorySections: {},
+  inventorySections: {
+    title: "INVENTORY_SECTIONS",
+    sort: { last: ["invType", "slots", "costs", "items"] },
+    // These three draw their own rows, because each has a case where the pack
+    // states nothing: `special` renderers always emit a row, which would leave
+    // an empty "Slots" line on every hand.
+    rows: {
+      invType: ({ val }: { val: any }) => {
+        // A kind the pack leaves to the game's own ruleset has no number to
+        // print, so the row is absent rather than reading "undefined"
+        let name = invTypeName(val);
+        return name == null ? null : <tr>
+          <td className="row-name"><Val of="invType" capital={true} /></td>
+          <td><Val of={name} /></td>
+        </tr>;
+      },
+      slots: ({ val }: { val: any }) => {
+        if (!val?.length)
+          return null;
+        let width = Math.max(...val.map((s: [number, number]) => s[0])) + 1;
+        let height = Math.max(...val.map((s: [number, number]) => s[1])) + 1;
+        return <tr>
+          <td className="row-name"><Val of="slots" capital={true} /></td>
+          <td>{val.length} <Tr text="xpediaSlotCells" postfix={` (${width} x ${height})`} /></td>
+        </tr>;
+      },
+      // `costs` maps every other section to the time a move into it takes, which
+      // is a table of its own rather than one long row
+      costs: ({ val }: { val: any }) => val == null ? null : <>
+        <tr><td colSpan={2} className="table-subheader"><Val of="costs" /></td></tr>
+        <tr><td colSpan={2}><MainTable of={val} /></td></tr>
+      </>,
+    },
+  },
 };
+
+/**
+ * The engine's `InventoryType` names, indexed by value.
+ *
+ * A section's kind is a number in the ruleset, so the number alone tells the
+ * reader nothing. These are the game's own place names rather than the engine
+ * constants, because the article is prose, not source code.
+ */
+const inventoryTypes = ["invSlot", "invHand", "invGround"];
+
+/**
+ * Whether the pack states a section's `type` itself.
+ *
+ * A pack may override only what it cares about and inherit the rest from the
+ * game's `standard` ruleset, which the pedia does not read, so a missing `type`
+ * must not be turned into the engine's default.
+ */
+function invTypeName(val: any) {
+  if (val == null || Number.isNaN(Number(val)))
+    return undefined;
+  return inventoryTypes[Number(val)];
+}
 
 /** Section articles that list their entries in a filterable table */
 function sectionTable() {
@@ -468,6 +523,13 @@ export function ArticleComponent() {
     {/* The map is a wide picture like a table, so it goes above the columns
         rather than into one of them, and before the pedia text that explains it */}
     {article.id == "WORLD_MAP" && <WorldMapArticle />}
+    {/* A region or a flight path is a picture of part of the globe, so its map
+        belongs in the same place: above the columns, full width */}
+    {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
+      <RegionMapArticle region={rul.regions[article.id]} />}
+    {article.section == "UFO_TRAJECTORIES" && article.id != "UFO_TRAJECTORIES" &&
+      rul.ufoTrajectories[article.id] &&
+      <TrajectoryMapArticle trajectory={rul.ufoTrajectories[article.id]} />}
     {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
       <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&

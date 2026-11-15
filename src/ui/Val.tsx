@@ -3,6 +3,7 @@ import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { ValueRange } from "../rul/Entry";
 import { Divider, fromAnyRef, Img, Nobr } from "./components";
+import { MusicRef, SoundRef } from "./Audio";
 
 /** Polymorphic value view */
 
@@ -30,6 +31,9 @@ export const Val = ({
   vertical = undefined as boolean | undefined,
   /** Name of the field the value belongs to, needed for a few special fields */
   field = undefined as string | undefined,
+  /** Collection of the entry the value belongs to, needed by sound slots, which
+   *  are numbered per CAT file and the CAT depends on the entry type */
+  collection = undefined as string | undefined,
   /** Prefix to be inlcuded in text/link */
   prefix = undefined as string | undefined,
   /** Postfix to be inlcuded in text/link */
@@ -71,6 +75,25 @@ export const Val = ({
     // The sprite is drawn twice the size, as the old globe view did
     if (marker)
       return <Img src={marker.path} frame={marker} scale={2} alt={`marker ${val}`} />;
+  }
+
+  // Sound slots and music ids are not references: the file behind them is more
+  // use than the number, so these are resolved before the number branch. Both
+  // fields are checked by name, and both may hold a single value or a list.
+  if (field && collection && /Sound$/.test(field))
+    return <SoundRef value={val} field={field} collection={collection} />;
+
+  if (field == "music") {
+    let ids = (Array.isArray(val) ? val : [val])
+      .map(v => typeof v == "string" ? v : v?.id)
+      .filter(v => v != null && v !== "");
+    if (ids.length)
+      return <>{ids.map((musicId, i) =>
+        <Fragment key={i}>
+          {i > 0 && <span className="list-divider">&nbsp;· </span>}
+          <MusicRef entry={musicId} />
+        </Fragment>
+      )}</>;
   }
 
   // Primitive: number. Empty strings are checked so they don't render as 0
@@ -293,7 +316,7 @@ const LinksList: FC<LinksListProps> = ({
         <Fragment key={field}>
           {i !== 0 && <Divider vertical={vertical} />}
           <Nobr>            
-            <Val of={field} depth={depth - 1} /> <Val of={items[field]} depth={depth - 1} />
+            <Val of={field} depth={depth - 1} /> <Val of={items[field]} field={field} depth={depth - 1} />
           </Nobr>
         </Fragment>
       )}

@@ -2,7 +2,7 @@ import * as fflate from "fflate";
 import { state, update } from "./state";
 import * as idb from "./idb";
 import Ruleset, { defaultLanguage } from "./rul/Ruleset";
-import { base64ToArrayBuffer } from "./util";
+import { base64ToArrayBuffer, gameRelativePath } from "./util";
 
 /**
  * Where a modpack's data comes from.
@@ -187,34 +187,7 @@ export function loadLanguagePack(lang: string): Promise<{ [id: string]: string }
 /** Default name when the payload does not carry one */
 const fallbackInlineName = "xpedia.inline";
 
-/**
- * Maps an archive path to the path the same file has under the game directory.
- *
- * The archive stores files under the pack's own root folder, while the game
- * looks for them relative to its installation:
- *
- * - `<pack>/user/mods/<mod>/...` → `user/mods/<mod>/...`
- * - `<pack>/standard/<mod>/...`  → `standard/<mod>/...`
- * - `<pack>/common/...`          → `common/...`
- * - `<mod>/...` packed on its own → `user/mods/<mod>/...`
- *
- * This mirrors the layout rules in `interpretPath`.
- */
-export function gameRelativePath(path: string): string {
-  let parts = path.split(/[/\\]/).filter(p => p != "");
-  let lower = parts.map(p => p.toLowerCase());
-
-  for (let i = 0; i < parts.length; i++) {
-    if (lower[i] == "user" && lower[i + 1] == "mods")
-      return parts.slice(i).join("/");
-    if (lower[i] == "standard" || lower[i] == "common" || lower[i] == "mods")
-      return parts.slice(i).join("/");
-  }
-
-  // No recognised install folder: a mod that was packed on its own belongs
-  // under `user/mods` when extracted next to the game
-  return "user/mods/" + parts.join("/");
-}
+export { gameRelativePath } from "./util";
 
 let inlineSource: PackSource | undefined;
 let inlineChecked = false;
