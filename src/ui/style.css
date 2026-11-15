@@ -704,9 +704,39 @@ button:disabled:hover {
   background: var(--hover);
 }
 
-.modpack-empty {
+/** The phantom tile that invites an upload, see `UploadTile` */
+.modpack-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.5rem;
+  border: dashed 1px var(--border);
+  background: none;
   opacity: 0.7;
   text-align: center;
+  font-size: small;
+  cursor: pointer;
+  /* A real tile is a `<div>`; this one is a `<button>`, which brings its own
+     margin and centred text from the base rule */
+  margin: 0;
+  font-family: inherit;
+  color: inherit;
+  line-height: normal;
+}
+
+.modpack-add:hover {
+  background: none;
+  opacity: 1;
+  border-color: var(--link);
+}
+
+/* A file is over the page and `makeDropzone` has marked `<body>`, so the tile
+   says where it will land; the same colour as a hover, plus a fill, because the
+   drag itself is the transient thing worth showing */
+.modpack-add.dragging {
+  opacity: 1;
+  border-color: var(--link);
+  background: var(--lighter);
 }
 
 .modpack-hint {

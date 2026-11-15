@@ -35,7 +35,8 @@ ru:
   RESEARCH: ИССЛЕДОВАНИЕ
   STATS: ПАРАМЕТРЫ ЮНИТА
 
-  STR_ABOUT_XPEDIA: "Перетащите zip или rar файл с модпаком на эту страницу, чтобы добавить его."
+  STR_ABOUT_XPEDIA: ""
+  STR_ABOUT_UPLOAD: "Перетащите zip или rar файл с модпаком на эту страницу, чтобы добавить его."
 
   "Pedia sections": Разделы
   Categories: Категории

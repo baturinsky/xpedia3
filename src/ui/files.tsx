@@ -1,11 +1,12 @@
 import { DataGrid } from 'react-data-grid';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats, storageInfo } from "../idb";
 import { isPermanentPack, loadPackRul } from "../packSource";
-import { loadBuiltinOnlyPack } from "../load";
+import { loadBuiltinOnlyPack, uploadUsersFiles } from "../load";
 import { CogAnimation, MyTable, viewImage } from "./components";
 import { state, update, requestCancelSlowProcess, closeStatus, askConfirm, acceptConfirm, cancelConfirm } from "../state";
 import { asMB } from "../util";
+import { Tr } from "./Val";
 
 /** True while a load, delete or other modal operation is running */
 function busy() {
@@ -184,11 +185,9 @@ export function ArchiveFiles() {
 
 function ModpackList() {
   let packs = state.packs ?? [];
-  if (!packs.length)
-    return <p className="modpack-empty">No modpacks uploaded yet.</p>;
 
   return <>
-    <StorageSummary packs={packs} />
+    {packs.length > 0 && <StorageSummary packs={packs} />}
     <div className="modpack-list">
       {packs.map(pack => {
         let current = pack.pack == state.packName;
@@ -210,8 +209,72 @@ function ModpackList() {
           {current && <div className="modpack-current">currently shown</div>}
         </div>;
       })}
+      {/* A tile that is not a modpack, sitting where the next one would go: the
+          empty space after the last pack says nothing, while a dashed tile in
+          the same shape says "another one belongs here". */}
+      <UploadTile />
     </div>
   </>
+}
+
+/**
+ * The phantom tile at the end of the modpack list.
+ *
+ * It is a `<button>`, not a decorative box: until now the only way to add a pack
+ * was `makeDropzone`, which listens for a drop on `<body>`, so a touch device
+ * had no way in at all. A click opens the file picker instead, which is the same
+ * `FileList` that the drop handler already takes.
+ *
+ * It also owns the drag feedback. `makeDropzone` marks `<body>` with a `hover`
+ * class while a file is dragged over the page, and nothing in the stylesheet
+ * used to match that class, so a drag used to give no sign at all that the page
+ * would accept it.
+ */
+function UploadTile() {
+  let input = useRef<HTMLInputElement>(null);
+  let [dragging, setDragging] = useState(false);
+
+  // The drop itself is still handled by the page-wide dropzone. This only
+  // mirrors which files are being dragged over it.
+  useEffect(() => {
+    let body = document.body;
+    let sync = () => setDragging(body.classList.contains("hover"));
+    // `dragleave` fires on every child the cursor crosses, so the class is read
+    // back after each event rather than trusted directly
+    let events = ["dragenter", "dragover", "dragleave", "drop"];
+    for (let e of events)
+      body.addEventListener(e, sync);
+    return () => {
+      for (let e of events)
+        body.removeEventListener(e, sync);
+    };
+  }, []);
+
+  // The input is a sibling of the button, not a child: a `<button>` cannot
+  // contain another interactive control, and the picker has to stay reachable
+  // for a keyboard user even though the tile is what they see and click.
+  return <>
+    <button type="button"
+      className={"modpack-panel modpack-add" + (dragging ? " dragging" : "")}
+      title="Add a modpack: choose a zip or rar file, or drag one onto the page"
+      onClick={() => input.current?.click()}>
+      <Tr text="STR_ABOUT_UPLOAD" nobr={false} />
+    </button>
+    {/* Hidden, because the tile is the visible control; the picker only needs to
+        exist for the click to open it. The accepted types are a hint for the
+        file dialog, which `uploadUsersFiles` still validates. */}
+    <input ref={input} type="file" accept=".zip,.rar" hidden
+      onChange={e => {
+        let files = e.target.files;
+        // The status window is modal, so the picker must not start a second load
+        // on top of a running one; `makeDropzone` guards its own path the same way
+        if (files?.length && !state.slowProcessStatus && !state.confirmRequest)
+          uploadUsersFiles(files);
+        // Clearing lets the same file be picked again after a failed load, since
+        // an unchanged value fires no `change` event
+        e.target.value = "";
+      }} />
+  </>;
 }
 
 /**
