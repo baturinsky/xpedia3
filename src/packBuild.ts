@@ -297,10 +297,14 @@ export function buildPackData(
     if (builtinDirs?.has(mod.dir))
       mod.builtin = true;
 
-  // The language files have to be taken before `preprocessMods`, which folds
-  // them into `langs` and deletes the per-mod copy
+  // The pack's own half, as it must be *stored*: with its language files.
+  // `preprocessMods` folds those into the merged table and then deletes the
+  // per-mod copy, and it deletes it on the very same objects, so this has to be
+  // a deep copy taken first. A reference here would arrive at the database
+  // already stripped, and a stored pack would then lose every string it
+  // translated — including another language's name for itself.
   let ownMods = builtinDirs
-    ? Object.values(mods).filter(mod => !mod.builtin)
+    ? JSON.parse(JSON.stringify(Object.values(mods).filter(mod => !mod.builtin)))
     : undefined;
 
   let processed = Ruleset.preprocessMods(mods);
