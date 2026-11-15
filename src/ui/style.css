@@ -14,7 +14,7 @@
   --table-subheader: hsl(var(--hue), var(--saturation), 25%);
   --table-header: hsl(var(--hue), var(--saturation), 25%);
   --table-secondary: hsl(var(--hue), var(--saturation), 7%);
-  --table-main: hsl(var(--hue), var(--saturation), 5%);
+  --table-main: hsl(var(--hue), var(--saturation), 10%);
   --dead-link: #ffffff;
   --link: #ffc67c;
   --title: #ffffff;
@@ -1150,6 +1150,12 @@ button:disabled:hover {
   transition: .2s;*/
 }
 
+table.thin, table.thin td, table.thin td{
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
 /** Main table */
 
 .main-table {
@@ -1160,13 +1166,13 @@ button:disabled:hover {
   break-inside: avoid-column;
   margin-bottom: 3px;
 }
-  
 
-.main-table>tr:nth-child(odd) {
+
+.main-table tr:nth-child(odd) {
   background: var(--table-secondary);
 }
 
-.main-table>tr:nth-child(even) {
+.main-table tr:nth-child(even) {
   background: var(--table-main);
 }
 
@@ -1695,14 +1701,37 @@ ol>li:last-child::after {
  *
  * The radius leaves a gap between neighbouring dots.
  */
-.unit-dir-0 { transform: translate(2.05rem, -2.05rem); }
-.unit-dir-1 { transform: translate(2.9rem, 0); }
-.unit-dir-2 { transform: translate(2.05rem, 2.05rem); }
-.unit-dir-3 { transform: translate(0, 2.9rem); }
-.unit-dir-4 { transform: translate(-2.05rem, 2.05rem); }
-.unit-dir-5 { transform: translate(-2.9rem, 0); }
-.unit-dir-6 { transform: translate(-2.05rem, -2.05rem); }
-.unit-dir-7 { transform: translate(0, -2.9rem); }
+.unit-dir-0 {
+  transform: translate(2.05rem, -2.05rem);
+}
+
+.unit-dir-1 {
+  transform: translate(2.9rem, 0);
+}
+
+.unit-dir-2 {
+  transform: translate(2.05rem, 2.05rem);
+}
+
+.unit-dir-3 {
+  transform: translate(0, 2.9rem);
+}
+
+.unit-dir-4 {
+  transform: translate(-2.05rem, 2.05rem);
+}
+
+.unit-dir-5 {
+  transform: translate(-2.9rem, 0);
+}
+
+.unit-dir-6 {
+  transform: translate(-2.05rem, -2.05rem);
+}
+
+.unit-dir-7 {
+  transform: translate(0, -2.9rem);
+}
 
 /* A pose with no facing leaves the compass readable but not clickable */
 .unit-directions.disabled {
@@ -2037,11 +2066,14 @@ a.services {
 }
 
 @keyframes country-contour-blink {
-  0%, 50% {
+
+  0%,
+  50% {
     stroke-width: 1;
   }
 
-  50.01%, 100% {
+  50.01%,
+  100% {
     stroke-width: 3;
   }
 }
@@ -2476,12 +2508,35 @@ a.services {
     font-size: 90%;
   }
 
-  .unit-dir-0 { transform: translate(1.68rem, -1.68rem); }
-  .unit-dir-1 { transform: translate(2.38rem, 0); }
-  .unit-dir-2 { transform: translate(1.68rem, 1.68rem); }
-  .unit-dir-3 { transform: translate(0, 2.38rem); }
-  .unit-dir-4 { transform: translate(-1.68rem, 1.68rem); }
-  .unit-dir-5 { transform: translate(-2.38rem, 0); }
-  .unit-dir-6 { transform: translate(-1.68rem, -1.68rem); }
-  .unit-dir-7 { transform: translate(0, -2.38rem); }
+  .unit-dir-0 {
+    transform: translate(1.68rem, -1.68rem);
+  }
+
+  .unit-dir-1 {
+    transform: translate(2.38rem, 0);
+  }
+
+  .unit-dir-2 {
+    transform: translate(1.68rem, 1.68rem);
+  }
+
+  .unit-dir-3 {
+    transform: translate(0, 2.38rem);
+  }
+
+  .unit-dir-4 {
+    transform: translate(-1.68rem, 1.68rem);
+  }
+
+  .unit-dir-5 {
+    transform: translate(-2.38rem, 0);
+  }
+
+  .unit-dir-6 {
+    transform: translate(-1.68rem, -1.68rem);
+  }
+
+  .unit-dir-7 {
+    transform: translate(0, -2.38rem);
+  }
 }

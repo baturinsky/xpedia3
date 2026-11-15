@@ -3167,4 +3167,7 @@ en-US:
   weaponDamage<sup>2</sup>: Damage bonus (squared)
   weaponDamage<sup>3</sup>: Damage bonus (cubed)
   1handPenalty: One Hand Penalty
+  soldierBonuses: Soldier Bonus
+  soldierTransformation: Soldier Transformation
+  
 

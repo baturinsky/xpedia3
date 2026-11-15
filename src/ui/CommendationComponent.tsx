@@ -35,7 +35,7 @@ export function SoldierBonusesComponent({ entry, title, subtitle }: { entry: any
     title={title ?? "soldierBonuses"}
     subtitle={subtitle}
     special={{
-      recovery: ({ val: prop }) => <table><tbody><RecoveryTable recovery={prop} /></tbody></table>,
+      recovery: ({ val: prop }) => <table className="thin"><tbody><RecoveryTable recovery={prop} /></tbody></table>,
     }}
   />;
 }
@@ -82,7 +82,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
           {prop?.recovery &&
             <>
               <br />Recover per turn:
-              <table><tbody><RecoveryTable recovery={prop.recovery} /></tbody></table>
+              <table className="thin"><tbody><RecoveryTable recovery={prop.recovery} /></tbody></table>
             </>
           }
         </>,

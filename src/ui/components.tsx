@@ -459,7 +459,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
       {flat.map((b, i) => {
         let [type, value, kind, power = 1] = b as any;
         return (
-          <React.Fragment key={i}>
+          <span className="num" key={i}>
             {i !== 0 && " +"}
             {kind === "flatHundred" ? (
               value * 100
@@ -472,7 +472,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
                 {value !== 1 && <em>×{value}</em>}
               </Nobr>
             )}
-          </React.Fragment>
+          </span>
         );
       })}
     </>
