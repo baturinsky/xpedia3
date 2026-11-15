@@ -1172,6 +1172,7 @@ ol>li:last-child::after {
   margin: 0;
   padding: 0;
   border-spacing: 0;
+  border-bottom: solid 1px var(--border);
 }
 
 .td-attacks-table>div {
@@ -1684,20 +1685,6 @@ ol>li:last-child::after {
 
 td.attacks-alter {
   border-top: dashed 1px var(--lighter);
-}
-
-.sub-table {
-  padding: 0px;
-  margin-left: 0;
-  border: solid .3px var(--border);
-}
-
-.sub-table td:first-child {
-  text-align: right;
-  border-left: none;
-  padding-left: 0px;
-  width: 10rem;
-  border: solid .3px var(--border);
 }
 
 .number-table {

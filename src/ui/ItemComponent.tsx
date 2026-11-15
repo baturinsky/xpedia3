@@ -9,6 +9,7 @@ import { Val } from "./Val";
 import { Attack, Entry } from '../rul/Entry';
 import { Img, Nobr, SecondaryTable, AlterList, SpecialBonus } from './components';
 import { state, update } from '../state';
+import MainTable, { MainTableRenderer } from './MainTable';
 
 const Damage = ({ attack }: { attack: Attack }) =>
   ("damage" in attack || "damageType" in attack) && (
@@ -27,21 +28,213 @@ const Damage = ({ attack }: { attack: Attack }) =>
     </>
   )
 
+/** Fields shown before the "See details" button, in the order old `Item.svelte`
+ *  listed them */
+const firstFields = [
+  "fixedWeapon",
+  "builtIn",
+  "costBuy",
+  "costSell",
+  "tuUse",
+  "monthlySalary",
+  "monthlyMaintenance",
+  "size",
+  "isConsumable",
+  "medikitTargetSelf",
+  "medikitType",
+  "stimulant",
+  "stunRecovery",
+  "costUnprime",
+  "blastRadius",
+  "requires",
+  "categories",
+  "armors",
+  "compatibleWeapons",
+  "liveAlien",
+  "recover",
+  "energyRecovery",
+  "healthRecovery",
+  "experienceTrainingMode",
+  "prisonType",
+  "powerRangeReduction",
+  "powerRangeThreshold",
+  "commendations",
+  "loot",
+  "ufos",
+  "terrains",
+  "spawnUnit",
+  "manufacture",
+  "componentOf",
+];
 
-const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
-  let attacks = [] as Attack[];
+/** Fields the header or the attacks table already show, or that describe the
+ *  ruleset rather than the item */
+const hiddenFields = [
+  "requiresBuy",
+  "sprite",
+  "type",
+  "compatibleAmmo",
+  "_attacks",
+  "damageAlter",
+  "accuracyMelee",
+  "accuracyMultiplier",
+  "accuracySnap",
+  "costAuto",
+  "costMelee",
+  "costSnap",
+  "damageBonus",
+  "damageType",
+];
 
-  const soundsFrom = (sounds: any) => {
-    if (!sounds) return [];
-    if (!sounds.length) sounds = [sounds];
-    return sounds.map((s: number) => rul.sounds[s]).filter((s: any) => s);
-  };
+/** Bonuses that replace the plain value rather than adding to it */
+const bonusFields = [
+  "damageBonus",
+  "meleeBonus",
+  "accuracyMultiplier",
+  "meleeMultiplier",
+  "closeQuartersMultiplier",
+];
 
+const soundsFrom = (sounds: any) => {
+  if (!sounds) return [];
+  if (!sounds.length) sounds = [sounds];
+  return sounds.map((s: number) => rul.sounds[s]).filter((s: any) => s);
+};
 
-  const attacksList = entry.attacks().slice();
+/** Header of the item table: weight, size, shots and battle type */
+const ItemHeader = ({ entry }: { entry: any }) => <>
+  {entry.weight ? entry.weight + rul.tr("kg") : ""}&nbsp;
+  {entry.invSize}&nbsp;
+  {entry.clipSize > 0 ? entry.clipSize + rul.tr("-shot") : ""}&nbsp;
+  <Val of={entry.internalBattleType} />&nbsp;
+  <Val of="Item" />
+</>;
+
+/** One process that uses the item as a component, as two rows plus a divider */
+const ManufactureRows = ({ entry, man }: { entry: any, man: string }) => {
+  let m = rul.manufacture[man];
+  return <>
+    <tr>
+      <td colSpan={3} style={{ textAlign: "left" }}>
+        <Val of={man} />
+        {m?.requiresBaseFunc && <> / <Val of={m?.requiresBaseFunc} /></>}
+      </td>
+    </tr>
+    <tr>
+      <td style={{ textAlign: "right" }}>
+        <Val of={m?.requiredItems || ""} /> {m?.cost ? <> $<Val of={m?.cost} /></> : ""}
+        ⌛<em><Val of={m?.time} /></em>
+      </td>
+      <td>➔</td>
+      <td style={{ textAlign: "left" }}>
+        <Val of={m?.totalProducedItems[entry.id]} />&nbsp;
+        <Val of={entry.id} />
+      </td>
+    </tr>
+    <tr><td colSpan={3}><hr /></td></tr>
+  </>;
+};
+
+/** The item's attack modes, with accuracy, cost and damage per mode */
+const AttacksTable = ({ entry, attacks, hand1bonus }: {
+  entry: any, attacks: Attack[], hand1bonus: React.ReactNode
+}) => <table className="attacks-table">
+  <thead>
+    <tr>
+      {entry.battleType == 2 ? (
+        <td colSpan={3} />
+      ) : (
+        <>
+          <td><Val of="mode" /></td>
+          <td>
+            <Val of="kneelBonus" />: {(entry.kneelBonus || 120)}%
+            <br />
+            <Val of="dropoff" />: {entry.dropoff}<br />
+            {hand1bonus}
+          </td>
+          <td><Val of="cost" /></td>
+        </>
+      )}
+      <td><Val of="damage" /></td>
+    </tr>
+  </thead>
+  <tbody>
+    {attacks.map((attack, idx) => {
+      if (!attack)
+        return "";
+      return <React.Fragment key={idx}>
+        <tr>
+          {attack?.mode == "ammo" ? (
+            <>
+              <td className="item-ammo-img">
+                <Img
+                  src={attack.item.sprite}
+                  maxWidth={32 * attack.item.invWidth}
+                  maxHeight={32 * attack.item.invHeight}
+                  zoom={2}
+                />
+              </td>
+              <td colSpan={2}>
+                <Val of={attack.item.type} />
+                <br />
+                <small>
+                  {rul.tr("Shots")}: {attack.item.clipSize} {rul.tr("Wgt")}: {attack.item.weight}
+                </small>
+              </td>
+            </>
+          ) : (
+            <>
+              <td>
+                {rul.str(attack.name ?? "")}{attack.shots == 1 ? "" : "×" + attack.shots}
+              </td>
+              <td>
+                <em className="big-number">{attack.accuracy}</em>{"%"}
+                {attack.range &&
+                  // The range used to be a string assembled for
+                  // `dangerouslySetInnerHTML`; as markup it is just an element
+                  <span> up to <em className={attack.range == entry.maxRange ? "bad" : ""}>
+                    {entry.minRange ? entry.minRange + "-" : ""}{attack.range}
+                  </em> m</span>
+                }
+                <br />
+                <SpecialBonus bonus={attack.accuracyMultiplier} />
+              </td>
+              <td>
+                <UseCost cost={attack.cost} flatTime={attack.flatTime} />
+                {entry.costPrime && (
+                  <div>
+                    <Val of="Prime:" />
+                    <UseCost cost={entry.costPrime} />
+                  </div>
+                )}
+              </td>
+            </>
+          )}
+          <td>
+            <Damage attack={attack} />
+          </td>
+        </tr>
+
+        {attack?.mode == "melee" && entry.meleeAlter && (
+          <AlterList items={entry.meleeAlter} />
+        )}
+
+        {attack?.mode == "ammo" && attack.alter && (
+          <AlterList items={attack.alter} />
+        )}
+      </React.Fragment>;
+    })}
+    {entry.damageAlter && entry.battleType != 2 && (
+      <AlterList items={entry.damageAlter} />
+    )}
+  </tbody>
+</table>;
+
+const ItemComponent = ({ entry }: { entry: Entry }) => {
+  const attacks = entry.attacks().slice();
   const ohpen = entry.oneHandedPenalty || entry.battleType == 3 ? 67 : 50;
 
-  let hand1bonus = entry.twoHanded
+  const hand1bonus = entry.twoHanded
     ? entry.blockBothHands
       ? rul.tr("2handOnly")
       : `${rul.tr("1handPenalty")}: ${ohpen}%`
@@ -50,335 +243,120 @@ const ItemComponent = ({ entry, title }: { entry: Entry, title: string }) => {
   if (entry.compatibleAmmo) {
     for (let ammoId of entry.compatibleAmmo) {
       let ammo = rul.items[ammoId];
-      let ammoAttack = ammo.attacks()[0];
-      attacksList.push(ammoAttack);
+      attacks.push(ammo.attacks()[0]);
     }
   }
 
-  attacks = attacksList;
+  // The reader sees the first block of fields, and the rest of the ruleset's
+  // properties only after asking for them
+  const sorted = sortFirstLast(entry, { first: firstFields, exclude: hiddenFields });
+  const hidden = sorted.misc;
 
-  const sorted = sortFirstLast(entry, {
-    first: [
-      "fixedWeapon",
-      "builtIn",
-      "costBuy",
-      "costSell",
-      "tuUse",
-      "monthlySalary",
-      "monthlyMaintenance",
-      "size",
-      "isConsumable",
-      "medikitTargetSelf",
-      "medikitType",
-      "stimulant",
-      "stunRecovery",
-      "costUnprime",
-      "blastRadius",
-      "requires",
-      "categories",
-      "armors",
-      "compatibleWeapons",
-      "liveAlien",
-      "recover",
-      "energyRecovery",
-      "healthRecovery",
-      "experienceTrainingMode",
-      "prisonType",
-      "powerRangeReduction",
-      "powerRangeThreshold",
-      "commendations",
-      "loot",
-      "ufos",
-      "terrains",
-      "spawnUnit",
-      "manufacture",
-      "componentOf",
-    ],
-    exclude: [
-      "requiresBuy",
-      "sprite",
-      "type",
-      "compatibleAmmo",
-      "_attacks",
-      "damageAlter",
-      "accuracyMelee",
-      "accuracyMultiplier",
-      "accuracySnap",
-      "costAuto",
-      "costMelee",
-      "costSnap",
-      "damageBonus",
-      "damageType",
-    ],
-  });
+  const special: { [field: string]: MainTableRenderer } = {};
 
-  const items = state.anal ? [...sorted.first, ["anal"], ...sorted.misc] : [...sorted.first, ["anal"]];
+  for (let field of bonusFields)
+    special[field] = ({ val }) => <SpecialBonus bonus={val} />;
 
-  const renderTableRows = items.map(([key, prop]) => {
-    if (key == "anal") {
-      if (sorted.misc.length > 0) {
-        return (
-          <tr key="anal-button">
-            <td colSpan={2}>
-              <button
-                className="btn-hover-effect btn-hover-effect--effect-1"
-                onClick={() => update({ anal: !state.anal })}
-              >
-                {state.anal ? "Hide" : "See"} details
-              </button>
-            </td>
-          </tr>
-        );
-      }
-      return null;
-    }
+  // Through `Val` so the icon map is applied, like every other damage type on
+  // the page. `damageTypeName` returns bare text.
+  for (let field of ["damageType", "meleeType"])
+    special[field] = ({ val }) =>
+      <Val of={damageTypes[Number(val)] ?? rul.damageTypeName(Number(val))} />;
 
-    if (key == "manufacture") {
-      if(!Array.isArray(prop))
-        return <Val of={prop}/>
-      return (
-        <SecondaryTable key={key} text={key}>
-          <table className="item-manufacture">
-            <tbody>
-              {prop.map((man: any, i: number) => {
-                const m = rul.manufacture[man];
-                return (
-                  <React.Fragment key={i}>
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: "left" }}>
-                        <Val of={man} />
-                        {m?.requiresBaseFunc && (
-                          <>
-                            / <Val of={m?.requiresBaseFunc} />
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style={{ textAlign: "right" }}>
-                        <Val of={m?.requiredItems || ""} /> {m?.cost ? <> $<Val of={m?.cost} /></> : ""}
-                        ⌛<em><Val of={m?.time} /></em>
-                      </td>
-                      <td>➔</td>
-                      <td style={{ textAlign: "left" }}>
-                        <Val of={m?.totalProducedItems[entry.id]} />&nbsp;
-                        <Val of={entry.id} />
-                      </td>
-                    </tr>
-                    <tr><td colSpan={3}><hr /></td></tr>
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </SecondaryTable>
-      );
-    }
+  // The stored field is a list of numeric indices; show the types they name,
+  // each with its icon, instead of the bare numbers
+  special.damageTypes = ({ val }) =>
+    <Val of={(Array.isArray(val) ? val : [val])
+      .map((i: any) => damageTypes[Number(i)])
+      .filter(Boolean)} />;
 
-    if (key == "componentOf") {
-      return (
-        <SecondaryTable key={key} text={key}>
-          <Val of={prop} />
-        </SecondaryTable>
-      );
-    }
+  special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val])}`;
+  special.prisonType = ({ val }) => <Val of={"prisonType" + val} />;
+  special.experienceTrainingMode = ({ val }) =>
+    <><Val of={val} />: <Val of={"experienceTrainingMode" + val} /></>;
+  special.costBuy = ({ val }) => <><Val of={val} /> <Val of={entry.requiresBuy || ""} /></>;
 
-    return (
-      <tr key={key}>
-        <td><Val of={key} capital={true} /></td>
-        <td className="item-right-column">
-          {["damageBonus", "meleeBonus", "accuracyMultiplier", "meleeMultiplier", "closeQuartersMultiplier"].includes(key) && (
-            <SpecialBonus bonus={prop} />
-          )}
-          {["damageType", "meleeType"].includes(key) && (
-            // Through `Val` so the icon map is applied, like every other
-            // damage type on the page. `damageTypeName` returns bare text.
-            <Val of={damageTypes[Number(prop)] ?? rul.damageTypeName(Number(prop))} />
-          )}
-          {key == "damageTypes" && (
-            // The stored field is a list of numeric indices; show the types
-            // they name, each with its icon, instead of the bare numbers
-            <Val of={(Array.isArray(prop) ? prop : [prop])
-              .map((i: any) => damageTypes[Number(i)])
-              .filter(Boolean)} />
-          )}
-          {key == "battleType" && (
-            `${prop}: ${rul.tr(internalBattleTypes[prop])}`
-          )}
-          {key.includes("Sound") && (
-            soundsFrom(prop).map((sound: string, i: number) => (
-              <React.Fragment key={i}>
-                {i > 0 && <br />}
-                <audio controls src={sound}>Audio tag not working</audio>
-              </React.Fragment>
-            ))
-          )}
-          {["floorSprite", "handSprite"].includes(key) && (
-            <>
-              <a style={{ verticalAlign: "top" }} href={rul.obsSprite(key, prop)}>
-                {prop}
-              </a>
-              <Img
-                className="item-img sprite"
-                alt={String(prop)}
-                src={rul.obsSprite(key, prop)}
-              />
-            </>
-          )}
-          {key == "prisonType" && (
-            <Val of={"prisonType" + prop} />
-          )}
-          {key == "experienceTrainingMode" && (
-            <>
-              <Val of={prop} />: <Val of={"experienceTrainingMode" + prop} />
-            </>
-          )}
-          {key == "costBuy" && (
-            <>
-              <Val of={prop} /> <Val of={entry.requiresBuy || ""} />
-            </>
-          )}
-          {!["damageBonus", "meleeBonus", "accuracyMultiplier", "meleeMultiplier", "closeQuartersMultiplier", "damageType", "damageTypes", "meleeType", "battleType", "floorSprite", "handSprite", "prisonType", "experienceTrainingMode", "costBuy"].some(k =>
-            key === k || (key.includes("Sound") && k.includes("Sound"))
-          ) && (
-              <Val of={prop} />
-            )}
+  for (let field of ["floorSprite", "handSprite"])
+    special[field] = ({ val }) => <>
+      <a style={{ verticalAlign: "top" }} href={rul.obsSprite(field, val)}>{val}</a>
+      <Img className="item-img sprite" alt={String(val)} src={rul.obsSprite(field, val)} />
+    </>;
+
+  // A component is used by a list of processes, each of which is a little
+  // table of its own, so it needs more than one row
+  const rows: { [field: string]: MainTableRenderer } = {};
+
+  // Old `Item.svelte` drew both of these under a subheader of their own
+  rows.manufacture = ({ key, val }) => <SecondaryTable text={key}>
+    {!Array.isArray(val)
+      ? <Val of={val} />
+      : <table className="item-manufacture">
+        <tbody>
+          {val.map((man: any, i: number) => <ManufactureRows key={i} entry={entry} man={man} />)}
+        </tbody>
+      </table>}
+  </SecondaryTable>;
+
+  rows.componentOf = ({ key, val }) => <SecondaryTable text={key}>
+    <Val of={val} />
+  </SecondaryTable>;
+
+  // A sound field holds sound slots, which the browser should play
+  for (let [field] of sorted.all)
+    if (field.includes("Sound"))
+      rows[field] = ({ val }) => <>
+        {soundsFrom(val).map((sound: string, i: number) =>
+          <React.Fragment key={i}>
+            {i > 0 && <br />}
+            <audio controls src={sound}>Audio tag not working</audio>
+          </React.Fragment>
+        )}
+      </>;
+
+  // The "See details" button splits the fields in two, so the rows are built
+  // here: the first block, the button, then the rest once it is expanded
+  const pairs: [string, any][] = hidden.length == 0
+    ? sorted.first
+    : [
+      ...sorted.first,
+      ["_details", null] as [string, any],
+      ...(state.anal ? hidden : []),
+    ];
+
+  const showAttacks = !!(entry.sprite && entry.sprite != "Resources/Blanks/Blank.png")
+    || attacks.length > 0;
+
+  return <MainTable
+    key="item"
+    of={entry}
+    pairs={pairs}
+    header={<ItemHeader entry={entry} />}
+    special={special}
+    rows={{
+      ...rows,
+      // The button row, which is why `pairs` carries a placeholder key
+      _details: () => <tr>
+        <td colSpan={2}>
+          <button
+            className="btn-hover-effect btn-hover-effect--effect-1"
+            onClick={() => update({ anal: !state.anal })}
+          >
+            {state.anal ? "Hide" : "See"} details
+          </button>
+        </td>
+      </tr>,
+    }}
+    before={showAttacks &&
+      <tr>
+        <td colSpan={2} className="td-attacks-table">
+          <div>
+            {attacks.length > 0 &&
+              <AttacksTable entry={entry} attacks={attacks} hand1bonus={hand1bonus} />}
+          </div>
         </td>
       </tr>
-    );
-  });
-
-  let showAttacks = (entry.sprite && entry.sprite != "Resources/Blanks/Blank.png") || attacks.length > 0;
-  
-  //if(showAttacks == false)    debugger
-
-  return (
-    <table className="main-table item-table" key={"item"}>
-      <thead>
-        <tr>
-          <td colSpan={2}>
-            {entry.weight ? entry.weight + rul.tr("kg") : ""}&nbsp;
-            {entry.invSize}&nbsp;
-            {entry.clipSize > 0 ? entry.clipSize + rul.tr("-shot") : ""}&nbsp;
-            <Val of={entry.internalBattleType} />&nbsp;
-            <Val of="Item" />
-          </td>
-        </tr>
-      </thead>
-
-      <tbody>
-
-        {showAttacks && (
-          <tr>
-            <td colSpan={2} className="td-attacks-table">
-              <div>                
-                {attacks.length > 0 && (
-                  <table className="attacks-table">
-                    <thead>
-                      <tr>
-                        {entry.battleType == 2 ? (
-                          <td colSpan={3} />
-                        ) : (
-                          <>
-                            <td><Val of="mode" /></td>
-                            <td>
-                              <Val of="kneelBonus" />: {(entry.kneelBonus || 120)}%
-                              <br/>
-                              <Val of="dropoff" />: {entry.dropoff}<br/>
-                              {hand1bonus}
-                            </td>
-                            <td><Val of="cost" /></td>
-                          </>
-                        )}
-                        <td><Val of="damage" /></td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attacks.map((attack, idx) => {
-                        if (!attack)
-                          return "";
-                        return <React.Fragment key={idx}>
-                          <tr>
-                            {attack?.mode == "ammo" ? (
-                              <>
-                                <td className="item-ammo-img">
-                                  <Img
-                                    src={attack.item.sprite}
-                                    maxWidth={32 * attack.item.invWidth}
-                                    maxHeight={32 * attack.item.invHeight}
-                                    zoom={2}
-                                  />
-                                </td>
-                                <td colSpan={2}>
-                                  <Val of={attack.item.type} />
-                                  <br />
-                                  <small>
-                                    {rul.tr("Shots")}: {attack.item.clipSize} {rul.tr("Wgt")}: {attack.item.weight}
-                                  </small>
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td>
-                                  {rul.str(attack.name ?? "")}{attack.shots == 1 ? "" : "×" + attack.shots}
-                                </td>
-                                <td>
-                                  <em className="big-number">{attack.accuracy}</em>{"%"}
-                                  {attack.range && (
-                                    <span dangerouslySetInnerHTML={{
-                                      __html: rul
-                                        .str(" up to !N! m")
-                                        .replace(
-                                          "!N!",
-                                          `<em class="${attack.range == entry.maxRange ? "bad" : ""
-                                          }">${entry.minRange ? entry.minRange + "-" : ""}${attack.range
-                                          }</em>`
-                                        )
-                                    }} />
-                                  )}
-                                  <br />
-                                  <SpecialBonus bonus={attack.accuracyMultiplier} />
-                                </td>
-                                <td>
-                                  <UseCost cost={attack.cost} flatTime={attack.flatTime} />
-                                  {entry.costPrime && (
-                                    <div>
-                                      <Val of="Prime:" />
-                                      <UseCost cost={entry.costPrime} />
-                                    </div>
-                                  )}
-                                </td>
-                              </>
-                            )}
-                            <td>
-                              <Damage attack={attack} />
-                            </td>
-                          </tr>
-
-                          {attack?.mode == "melee" && entry.meleeAlter && (
-                            <AlterList items={entry.meleeAlter} />
-                          )}
-
-                          {attack?.mode == "ammo" && attack.alter && (
-                            <AlterList items={attack.alter} />
-                          )}
-                        </React.Fragment>
-                      })}
-                      {entry.damageAlter && entry.battleType != 2 && (
-                        <AlterList items={entry.damageAlter} />
-                      )}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </td>
-          </tr>
-        )}
-        {renderTableRows}
-      </tbody>
-
-    </table>
-  );
+    }
+  />;
 };
 
 export default ItemComponent;

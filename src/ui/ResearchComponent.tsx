@@ -1,99 +1,61 @@
-import { Fragment } from "react";
-import {
-  BaseServiceList,
-} from "./components";
-import { sortFirstLast } from "../rul/Ruleset";
 import { Entry } from "../rul/Entry";
+import MainTable, { MainTableRenderer } from "./MainTable";
 import { Val } from "./Val";
 
+/** Fields shown as a subheader with the whole list under it, in the order old
+ *  `Research.svelte` showed them */
+const longLists = [
+  "unlocks",
+  "seeAlso",
+  "allowsBuying",
+  "freeFrom",
+  "dependencies",
+  "leadsTo",
+  "disables",
+  "getOneFree",
+  "getOneFreeProtected",
+  "requiresBaseFunc",
+  "manufacture"
+];
+
+/** A wide field always draws its subheader, while the research table used to
+ *  draw the block only when the entry had a non-empty list in that field */
+function hasContent(val: any) {
+  return val != null && (val.length ?? 0) > 0;
+}
+
+/** Research table, follows old `Research.svelte` */
 export const ResearchComponent = ({ entry }: { entry: Entry }) => {
-  const longLists = [
-    "unlocks",
-    "seeAlso",
-    "allowsBuying",
-    "freeFrom",
-    "dependencies",
-    "leadsTo",
-    "disables",
-    "getOneFree",
-    "getOneFreeProtected",
-    "requiresBaseFunc",
-    "manufacture"
-  ];
+  // `getOneFreeProtected` maps a group name to the list it protects, so it
+  // needs a row per group instead of one block of nested tables
+  let groups = entry.getOneFreeProtected;
+  let wide = longLists.filter(field =>
+    field != "getOneFreeProtected" && hasContent(entry[field]));
 
-  const sortedEntries = sortFirstLast(entry, { last: longLists, exclude: ["name"] }).all;
+  // The research table centred the list that sits under each subheader
+  let centred: MainTableRenderer = ({ val }) =>
+    <div className="centered-text"><Val of={val} /></div>;
+  let special: { [field: string]: MainTableRenderer } = Object.fromEntries(
+    wide.map(field => [field, centred]));
 
-  return (
-    <table className="main-table research-table" key="research">
-      <thead>
-        <tr>
-          <td colSpan={2}><Val of={"Research"} /></td>
-        </tr>
-      </thead>
-      <tbody>
-        {sortedEntries.map(([key, prop]) => {
-          // Handle long lists (colspan=2 sections)
-          if (longLists.includes(key) && prop && prop.length > 0) {
-            return (
-              <Fragment key={key}>
-                <tr>
-                  <td colSpan={2} className="table-subheader">
-                    <Val of={key} />
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={2} className="centered-text">
-                    <Val of={prop} />
-                  </td>
-                </tr>
-              </Fragment>
-            );
-          }
-
-          // Handle requiresBaseFunc (only when the first branch didn't pick it up)
-          if (key === "requiresBaseFunc") {
-            return (
-              <tr key={key}>
-                <td colSpan={2} className="centered-text">
-                  <BaseServiceList
-                    items={prop}
-                    vertical={true}
-                  />
-                </td>
-              </tr>
-            );
-          }
-
-          // Handle getOneFreeProtected (nested object of lists)
-          if (key === "getOneFreeProtected") {
-            return (
-              <Fragment key={key}>
-                <tr>
-                  <td colSpan={2} className="table-subheader">
-                    <Val of={key} />
-                  </td>
-                </tr>
-                {Object.entries(prop).map(([nestedKey, nestedValue]) => (
-                  <tr key={nestedKey}>
-                    <td><Val of={nestedKey} />:</td>
-                    <td><Val of={nestedValue as any} /></td>
-                  </tr>
-                ))}
-              </Fragment>
-            );
-          }
-
-          // Default case: simple key-value pair
-          return (
-            <tr key={key}>
-              <td><Val of={key} /></td>
-              <td><Val of={prop}/></td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+  return <MainTable
+    of={entry}
+    title="Research"
+    sort={{ last: longLists, exclude: ["name"] }}
+    wide={wide}
+    special={special}
+    rows={{
+      getOneFreeProtected: () => groups == null ? null : <>
+        <tr><td colSpan={2} className="table-subheader"><Val of="getOneFreeProtected" /></td></tr>
+        {Object.entries(groups).map(([group, list]) =>
+          <tr key={group}>
+            <td><Val of={group} />:</td>
+            <td><Val of={list} /></td>
+          </tr>
+        )}
+      </>
+    }}
+  />;
 };
 
 export default ResearchComponent;

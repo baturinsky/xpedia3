@@ -224,7 +224,9 @@ const LinksList: FC<LinksListProps> = ({
   if (cols) {
     return <div className={"cols " + className} style={{ columns: cols }}>
       {keys.map((field: any) =>
-        <div key={field}><a href={"##" + field} className={rul.article(field) ? undefined : "dead"}>{rul.tr(field)}</a></div>
+        <div key={field}>
+          <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}><Tr text={field} /></a>
+        </div>
       )}
     </div>;
   }

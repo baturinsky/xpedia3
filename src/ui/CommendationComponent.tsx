@@ -14,14 +14,14 @@ function deedLink(id?: string) {
 
 function deedDescription(deed: any) {
   let parts: any[] = [
-    rul.tr(deed.status),
-    rul.tr(deed.times),
+    <Tr key="status" text={deed.status} />,
+    <Tr key="times" text={deed.times} />,
     deedLink(deed.race),
     deedLink(deed.unit),
     deedLink(deed.faction),
   ];
   if (deed.element || deed.type || deed.item) {
-    parts.push(rul.tr("commendationWith"), deedLink(deed.item), deedLink(deed.type), deedLink(deed.element));
+    parts.push(<Tr key="with" text="commendationWith" />, deedLink(deed.item), deedLink(deed.type), deedLink(deed.element));
   }
   return <>{parts.filter(p => p !== "" && p != null).map((p, i) =>
     <span key={i}>{i != 0 && " "}{p}</span>
