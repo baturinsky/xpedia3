@@ -11,8 +11,10 @@ import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
+import MissionComponent from "./MissionComponent";
 import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
+import TrajectoryComponent from "./TrajectoryComponent";
 import { LandingPage, packTitle, onLandingPage, xpediaNamed } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
@@ -68,6 +70,8 @@ export const asSubTable = (props: any) => <MainTable of={props.val} />,
 
 /*Which renderer to use for each article type */
 const renderers = {
+  alienMissions: MissionComponent,
+  ufoTrajectories: TrajectoryComponent,
   units: UnitComponent,
   armors: ArmorComponent,
   battleTypes: {},
@@ -97,12 +101,6 @@ const renderers = {
     special: {
       missionWeights: asSubTable,
       regionWeights: asSubTable
-    }
-  },
-  alienMissions: {
-    special: {
-      raceWeights: asSubTable,
-      waves: (props: any) => <Val of={props.val} depth={10} />
     }
   },
   startingConditions: StartingConditionsComponent,

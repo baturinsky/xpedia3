@@ -2740,7 +2740,12 @@ en-US:
   xpediaTrajectories: Flight paths
   xpediaTrajectoryRegion: Drawn against
   xpediaTrajectoryRegions: regions can fly this path
+  xpediaTrajectoryRegionOne: region can fly this path
   xpediaTrajectoryMapNote: A waypoint names a mission zone, not a place, so this path is only one of the several the game can fly. Each zone is shown as a dot at its centre, because the game picks a random point inside it.
+  xpediaTrajectoryLegLabels: The numbers on the lines are flight legs, numbered as in the table below. A ring marks a stop where the UFO lands.
+  # A sentence on the map, so it opens with a capital and ends with a full stop.
+  # The table on the same page uses `xpediaLegLandsFor`, a mid-sentence fragment.
+  xpediaTrajectoryLandsFor: When it lands, it stays
   xpediaTrajectoryNoRegion: No region in this pack has the mission zones this path refers to, so it cannot be drawn.
   xpediaTrajectoryAnywhere: of this path's stops are not shown, because they name a zone the game fills with a random point anywhere in the world and so have no place to mark.
   xpediaTrajectoryAnywhereOnly: Every stop of this path names a zone the game fills with a random point anywhere in the world, so there is nothing to draw. The UFO simply appears, waits and leaves.
@@ -2766,6 +2771,86 @@ en-US:
   timer: Delay
   trajectory: Trajectory
   groundTimer: Ground timer
+  # Alien mission fields. `points` is shared with research and deployments, so
+  # it says only "points": the packs disagree on what to call them (X-Piratez
+  # calls them Infamy), and a pack can rename it in its own language file.
+  points: Points
+  objective: Objective
+  siteType: Site deployment
+  spawnZone: Site zone
+  spawnUfo: Retaliation craft
+  operationType: Operation type
+  operationSpawnZone: Operation base zone
+  retaliationOdds: Retaliation chance, %
+  endlessInfiltration: Repeats forever?
+  skipScoutingPhase: Skips the scouting phase?
+  multiUfoRetaliation: Keeps going after a base defence?
+  multiUfoRetaliationExtra: Keeps sending UFOs after a base defence?
+  ignoreBaseDefenses: Skips base defences?
+  instaHyper: Shown even if undetected?
+  despawnEvenIfTargeted: Site expires even if targeted?
+  respawnUfoAfterSiteDespawn: UFO returns when the site expires?
+  showAlienBase: Reveals the new base?
+  # Mission wave fields
+  objectiveOnTheLandingSite: Site exactly where it lands?
+  objectiveOnXcomBase: Site on an XCOM base?
+  escort: Escorts other UFOs?
+  interruptPercentage: Interrupt chance, %
+  # The missions 0..6 in `alienMissions.objective`. These are the engine's own
+  # names for them (`MissionObjective`), spelled out for a reader.
+  xpediaObjective0: Score
+  xpediaObjective1: Infiltration
+  xpediaObjective2: Alien base
+  xpediaObjective3: Mission site
+  xpediaObjective4: Retaliation
+  xpediaObjective5: Supply
+  xpediaObjective6: Instant retaliation
+  xpediaObjectiveUnknown: Unknown objective
+  xpediaWave: Wave
+  xpediaWaveGround: On the ground
+  xpediaWaveLands: lands
+  xpediaWaveNoLanding: never lands
+  xpediaWaveSite: mission site, not a UFO
+  xpediaWaveNoUfo: no UFO of this id, so the site is built from the region
+  xpediaWaveObjective: carries out the objective
+  xpediaWaveLandingSite: site exactly where it lands
+  xpediaWaveXcomBase: site on an XCOM base
+  xpediaWaveEscort: escorts other UFOs
+  xpediaWaveHunter: hunter-killer chance
+  xpediaWaveInterrupt: chance a shoot-down ends the mission
+  xpediaAtOnce: at once
+  xpediaMissionPoints: score the aliens gain when this mission succeeds
+  # Altitudes a UFO flies at. The game names them with the engine keys
+  # STR_GROUND/STR_VERY_LOW/STR_LOW_UC/STR_HIGH_UC/STR_VERY_HIGH, which a pack is
+  # free to translate however it likes; these are XPedia's own wording so the
+  # column reads the same in every pack. The keys spell the altitude out rather
+  # than being numbered, so a translator can see what is being named, and the
+  # values are short because they sit in a table column: lengthening them here is
+  # all it takes to say "Very low" instead of "VL".
+  xpediaGround: G
+  xpediaVeryLow: VL
+  xpediaLow: L
+  xpediaHigh: H
+  xpediaVeryHigh: VH
+  # The flight legs of a trajectory, as the engine really flies them
+  xpediaLeg: Leg
+  xpediaLegs: Legs flown
+  xpediaLine: Line
+  xpediaLines: Lines as written
+  xpediaLegFrom: From
+  xpediaLegTo: To
+  xpediaLegAltitude: Altitude
+  xpediaLegSpeed: Speed, %
+  xpediaLegLands: lands
+  xpediaLegSpawns: spawns
+  xpediaLegEnds: vanishes
+  xpediaLegHere: here
+  xpediaLegRepeats: waits, then the same zone again
+  xpediaLegNeverLands: This path never lands a UFO, so nothing it carries can be found on the ground.
+  xpediaLegLandsFor: lands for
+  xpediaLegSpawnsGrounded: The UFO starts on the ground and only takes off afterwards.
+  xpediaLegTooShort: This path has a single line, which the game rejects with "Missing second waypoint!", so no UFO can fly it.
+  xpediaLegNote: A line of a trajectory is a destination, not a stop, and the game re-targets the second line once, so a path of N lines is flown as N legs and the second zone is visited twice. A leg flies at the altitude and speed of the line before it, because those are what the UFO adopted on the way.
   retaliation: Retaliation allowed?
   members: Members
   alienRank: Alien rank

@@ -384,6 +384,27 @@ export class InventorySection extends Entry {
 export type MapArea = [number, number, number, number, number?, string?];
 
 /**
+ * One leg of a flight, as the engine really flies it.
+ *
+ * `altitude` is the altitude in force *during* the leg, which is the previous
+ * line's rather than the destination's — see `UfoTrajectory.legs`.
+ */
+export type FlightLeg = {
+  /** 1-based: leg 1 is the one away from the spawn point */
+  index: number;
+  /** Zone the leg starts in */
+  from: number;
+  /** Zone the leg flies to */
+  to: number;
+  /** The engine's altitude index: 0 ground, 1 very low, 2 low, 3 high, 4 very high */
+  altitude: number;
+  /** Percentage of the craft's `speedMax` */
+  speed: number;
+  /** Whether the UFO lands when the leg ends */
+  lands: boolean;
+};
+
+/**
  * A UFO flight path, as a list of waypoints.
  *
  * A waypoint is `[zone, altitude, speed]`, and the zone is an index into the
@@ -391,6 +412,12 @@ export type MapArea = [number, number, number, number, number?, string?];
  * has no place on the globe by itself: the same waypoints describe a different
  * path in every region. That is why the page always draws it against a named
  * region, resolved through the missions that fly it.
+ *
+ * A line is a **destination**, not a stop: it says which zone to fly to and the
+ * altitude and speed to adopt on the way there. Line 0 doubles as the spawn
+ * state. The engine also re-targets line 1 on the first arrival (because it
+ * advances the index only afterwards), so line 1 is visited twice and N lines
+ * make N legs, not N-1. `legs` reproduces that; do not count `waypoints - 1`.
  */
 export class UfoTrajectory extends Entry {
   declare groundTimer?: number;
@@ -404,13 +431,89 @@ export class UfoTrajectory extends Entry {
 
   /** The highest zone index the path visits, or -1 when it has no waypoints */
   get maxZone() {
-    let zones = (this.waypoints ?? []).map(w => Number(w?.[0]) ?? 0);
-    return zones.length ? Math.max(...zones) : -1;
+    let zones = this.waypoints ?? [];
+    return zones.length ? Math.max(...zones.map(w => Number(w?.[0]) ?? 0)) : -1;
   }
 
   /** Whether `region` has zones for every waypoint of this path */
   fits(region?: Region) {
     return !!region && (region.missionZones?.length ?? 0) > this.maxZone;
+  }
+
+  /**
+   * The legs the engine flies, in order.
+   *
+   * `AlienMission::spawnUfo` puts the UFO in line 0's zone and sends it to line
+   * 1's; `ufoReachedWaypoint` then advances the trajectory index *after*
+   * re-targeting, so the first arrival sends it to line 1's zone a second time.
+   * Hence the zone sequence is `0, 1, 1, 2, 3, …` and N lines give N legs.
+   *
+   * Two consequences are easy to get wrong and are handled here:
+   *
+   * - the altitude and speed of a leg are the *previous* line's, since that is
+   *   what the UFO adopted on the way to its current destination;
+   * - a landing leaves the UFO on the ground, and taking off again always
+   *   happens at very low altitude (`ufoLifting`), so the leg after a landing is
+   *   not flown at the ground line's altitude.
+   *
+   * A landing is decided by the altitude the UFO *arrives* at, which is the
+   * destination line's. The last line is never applied to an arrival — the UFO
+   * is destroyed on reaching it — so a ground line at the very end does not land
+   * anything.
+   *
+   * Fewer than two lines is not flyable: the engine throws "Missing second
+   * waypoint!", because the spawn point and the first destination are separate
+   * lines. Such a path returns no legs rather than an invented one.
+   */
+  get legs(): FlightLeg[] {
+    let lines = this.waypoints ?? [];
+    let n = lines.length;
+    if (n < 2)
+      return [];
+    let zoneOf = (i: number) => Number(lines[i]?.[0]);
+    let altitudeOf = (i: number) => Number(lines[i]?.[1]);
+    // A UFO that spawns on the ground stays there for the ground timer before
+    // it can fly on, exactly like one that lands later
+    let grounded = altitudeOf(0) === 0;
+    let out: FlightLeg[] = [];
+    let from = zoneOf(0);
+    for (let m = 1; m <= n; m++) {
+      // Leg 1 is already aimed at line 1; every later leg at the line before it
+      let to = m == 1 ? zoneOf(1) : zoneOf(m - 1);
+      let lands = m < n && altitudeOf(m) === 0;
+      out.push({
+        index: m,
+        from,
+        to,
+        altitude: grounded ? 1 : altitudeOf(m - 1),
+        speed: Number(lines[m - 1]?.[2] ?? 0),
+        lands,
+      });
+      from = to;
+      grounded = lands;
+    }
+    return out;
+  }
+
+  /** The zones the UFO is in, in order: the spawn point, then each leg's arrival */
+  get stops(): number[] {
+    let legs = this.legs;
+    if (!legs.length)
+      return (this.waypoints ?? []).map(w => Number(w?.[0]));
+    return [legs[0].from, ...legs.map(leg => leg.to)];
+  }
+
+  /**
+   * How long one stay on the ground lasts, in seconds, or nothing when the path
+   * never puts a UFO down.
+   *
+   * `groundTimer` is counted down five seconds at a time, so it is five times
+   * longer than its own help text ("seconds") suggests.
+   */
+  get landingSeconds(): number | undefined {
+    let lands = (this.waypoints ?? []).length > 1
+      && (Number(this.waypoints?.[0]?.[1]) === 0 || this.legs.some(leg => leg.lands));
+    return lands ? Math.max(0, Number(this.groundTimer ?? 0)) * 5 : undefined;
   }
 }
 

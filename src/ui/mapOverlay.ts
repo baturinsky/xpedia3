@@ -69,27 +69,70 @@ export function zoneCenter(zone: MapArea[]): { lon: number, lat: number } | unde
 }
 
 /**
+ * One stop of a flight: where the UFO is, and how it got there.
+ *
+ * `leg` is the leg of the trajectory that arrives here, which is 0 for the
+ * spawn point, so the numbers on the picture are the numbers in the article's
+ * leg table rather than a separate count.
+ */
+export type PathStop = {
+  zone: number;
+  point: { lon: number, lat: number };
+  leg: number;
+  /** Whether the UFO lands when it arrives */
+  lands: boolean;
+};
+
+/**
  * What a trajectory looks like drawn in one region.
  *
- * `points` is the flight line. `dropped` counts the waypoints that could not be
- * placed, which happens when a waypoint names a zone the game treats as
- * "anywhere": those have no centre, so the line skips them instead of inventing
- * a spot. A page says so rather than showing a path that silently lost stops.
+ * `dropped` counts the stops that could not be placed, which happens when a
+ * zone is one the game fills with a random point anywhere in the world: it has
+ * no centre, so the line skips it instead of inventing a spot. A page says so
+ * rather than showing a path that silently lost stops.
  */
 export type PathShape = {
-  points: { lon: number, lat: number }[];
-  /** Waypoints that name a zone with no meaningful centre */
+  stops: PathStop[];
+  /** Stops that name a zone with no meaningful centre */
   dropped: number;
-  /** Waypoints whose zone index the region does not have at all */
+  /** Stops whose zone index the region does not have at all */
   missing: number;
 };
 
-/** The centres of the zones a path visits, in flight order */
+/** Whether two stops are the same point on the globe */
+export function samePlace(a: PathStop, b: PathStop) {
+  return a.point.lon == b.point.lon && a.point.lat == b.point.lat;
+}
+
+/**
+ * How many stops of a shape are at a place other than the one before them.
+ *
+ * This is what the picture can actually draw, since a leg between two stops in
+ * the same zone is the UFO waiting rather than moving.
+ */
+export function drawnLegs(shape: PathShape) {
+  return shape.stops.filter((stop, i) => i > 0 && !samePlace(shape.stops[i - 1], stop)).length;
+}
+
+/**
+ * The stops of a path in one region.
+ *
+ * The stop sequence is `trajectory.stops`, which is the engine's own: the spawn
+ * point, then one arrival per leg, with the second line's zone appearing twice
+ * because the engine re-targets it. Zone centres are used for the positions,
+ * since a zone is a box the game picks a random point in.
+ */
 export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape {
+  let shape: PathShape = { stops: [], dropped: 0, missing: 0 };
+  let legs = trajectory.legs;
+  // A path the engine refuses to fly has no shape worth drawing; the article
+  // says why rather than showing a single dot
+  if (!legs.length)
+    return shape;
+
   let zones = region.missionZones ?? [];
-  let shape: PathShape = { points: [], dropped: 0, missing: 0 };
-  for (let waypoint of trajectory.waypoints ?? []) {
-    let zone = zones[Number(waypoint?.[0])];
+  for (let [index, zoneIndex] of trajectory.stops.entries()) {
+    let zone = zones[zoneIndex];
     if (!zone) {
       shape.missing++;
       continue;
@@ -99,7 +142,12 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
       shape.dropped++;
       continue;
     }
-    shape.points.push(center);
+    shape.stops.push({
+      zone: zoneIndex,
+      point: center,
+      leg: index,
+      lands: index > 0 && legs[index - 1].lands,
+    });
   }
   return shape;
 }
@@ -107,8 +155,8 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
 /** A trajectory drawn in one region, or nothing when it has no line to draw */
 export function trajectoryPath(trajectory: UfoTrajectory, region: Region): OverlayPath | undefined {
   let shape = pathShape(trajectory, region);
-  return shape.points.length > 1
-    ? { id: trajectory.id, points: shape.points, dropped: shape.dropped }
+  return drawnLegs(shape)
+    ? { id: trajectory.id, stops: shape.stops, dropped: shape.dropped }
     : undefined;
 }
 

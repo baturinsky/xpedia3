@@ -2286,10 +2286,18 @@ a.services {
   vector-effect: non-scaling-stroke;
 }
 
-/* The stop number. It is plain SVG text, so it cannot go through `Tr`; the size
-   is in viewBox units and is divided back out to keep it readable when the map
-   is magnified. */
-.region-stop-number {
+/* A stop where the UFO actually lands. This is the stop that matters: the site,
+   the crash site or the base is built where it touches down. */
+.region-path .region-waypoint-land {
+  fill: var(--region-color, #ffd24a);
+  stroke: #0d2f52;
+  stroke-width: 3;
+}
+
+/* The leg number written on a drawn stretch of a flight. It is plain SVG text,
+   so it cannot go through `Tr`; the size is in viewBox units and is divided back
+   out to keep it readable when the map is magnified. */
+.region-leg-label {
   font-size: 13px;
   fill: var(--region-color, #ffd24a);
   /* A dark rim keeps the number legible over land of any colour */
@@ -2337,6 +2345,65 @@ a.services {
 .trajectory-region-count {
   opacity: .7;
   font-size: 90%;
+}
+
+/* Alien mission wave table */
+.mission-waves td {
+  vertical-align: top;
+}
+
+/* The wave number is an index, not a value: it should not read as a stat */
+.mission-wave-number {
+  width: 2rem;
+  text-align: center;
+  opacity: .7;
+}
+
+/* A derived figure the article adds, such as a delay in days */
+.mission-delay {
+  font-variant: small-caps;
+}
+
+/* The ruleset's own number, kept next to the derived one */
+.mission-raw {
+  font-size: 85%;
+  opacity: .6;
+}
+
+.mission-notes {
+  margin-top: .15rem;
+  font-size: 80%;
+  opacity: .8;
+}
+
+.mission-note {
+  font-size: 80%;
+  opacity: .8;
+}
+
+/* An id that resolves to nothing: the wave names no UFO the pack has */
+.mission-dangling {
+  text-decoration: underline dotted;
+}
+
+/* Alien mission wave table */
+.trajectory-legs td,
+.trajectory-lines td {
+  vertical-align: top;
+}
+
+/* A zone that the pack names, e.g. "0 STR_NEW_YORK". The name is the same in
+   every region that can fly the path, or it would not be printed. */
+.trajectory-zone-name {
+  opacity: .85;
+}
+
+/* The explanation of why N lines are N legs, which is the one thing about
+   trajectories that a ruleset cannot say by itself */
+.trajectory-note {
+  font-size: 85%;
+  opacity: .8;
+  max-width: 60rem;
 }
 
 

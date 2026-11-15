@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadWorldMap, ORIGIN, type MapRectangle, type WorldMap } from "../worldmap";
 import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
-import { MAX_DRAWN_PATHS, pathShape, regionOverlay } from "./mapOverlay";
+import { MAX_DRAWN_PATHS, drawnLegs, pathShape, regionOverlay, type PathStop } from "./mapOverlay";
+import { formatSeconds } from "./timing";
 import { colorForCountry, colorForTerrain, readDeclaredColors, readDeclaredCountryColors } from "./mapColors";
 import { rul } from "../rul/Ruleset";
 import { Tr } from "./Val";
@@ -44,14 +45,15 @@ export type Overlay = {
 /**
  * One flight path, as globe points in flight order.
  *
- * `dropped` counts the waypoints of the trajectory that could not be placed:
- * a waypoint names a mission zone, and a zone the game treats as "anywhere" has
- * no centre. The line joins the stops that do have a place, and the count lets
- * the page say that some were left out.
+ * `stops` carries the leg number of each placed stop, so the picture can number
+ * its stops the same way the leg table does. `dropped` counts the stops of the
+ * trajectory that could not be placed: a stop names a mission zone, and a zone
+ * the game treats as "anywhere" has no centre. The line joins the stops that do
+ * have a place, and the count lets the page say that some were left out.
  */
 export type OverlayPath = {
   id: string;
-  points: { lon: number, lat: number }[];
+  stops: PathStop[];
   dropped?: number;
 };
 
@@ -250,10 +252,13 @@ function Repeated(props: { points: [number, number][], render: (points: string, 
 /**
  * A region's map data: its boxes, its zone boxes, and any paths drawn in it.
  *
- * A flight path is a polyline through zone centres with a dot at each waypoint,
- * because the waypoints *are* the zones: the game picks a random point inside
- * the zone, so the centre is the honest answer for a still picture. Arrows mark
- * the direction, since a path read backwards describes a different flight.
+ * A flight path is a polyline through zone centres with a dot at each stop,
+ * because the stops *are* zones: the game picks a random point inside the zone,
+ * so the centre is the honest answer for a still picture. Arrows mark the
+ * direction, since a path read backwards describes a different flight, and every
+ * drawn segment is numbered with the leg it stands for — which is how the picture
+ * and the article's leg table are read together. A stop where the UFO lands gets
+ * a ring, because that is where its cargo can be found on the ground.
  */
 function RegionOverlay({ overlay }: { overlay: ReturnType<typeof projectOverlay> }) {
   let color = overlay.color ?? "#ffd24a";
@@ -288,27 +293,50 @@ function RegionOverlay({ overlay }: { overlay: ReturnType<typeof projectOverlay>
     {overlay.paths.map(path => {
       // Each path is drawn three times like every other shape, so a flight that
       // crosses the seam stays in one piece
-      let at = path.points.map(p => pointFor(p.lon, p.lat));
-      // A waypoint names a zone, and consecutive waypoints often name the same
-      // one: the UFO loiters there rather than moving. Those repeats are a real
-      // part of the path, so they are numbered but not drawn as extra marks on
-      // top of each other.
-      let stops = at.filter((p, i) => i == 0 || p.x != at[i - 1].x || p.y != at[i - 1].y);
+      let at = path.stops.map(stop => pointFor(stop.point.lon, stop.point.lat));
+      let serialized = at.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      // The numbers a reader sees are the leg numbers of the leg table, so the
+      // drawn line and the table can be read together. A leg between two stops
+      // in the same zone is the UFO waiting rather than moving: it has no line of
+      // its own, so it is not labelled either, and the table says "waits".
+      //
+      // Only a single flight is labelled. A region page draws every path its
+      // missions use, and six overlapping lines with numbers on each are
+      // unreadable rather than informative.
+      let labelled: { x: number, y: number, text: string }[] = [];
+      if (overlay.paths.length == 1)
+        for (let i = 1; i < at.length; i++) {
+          let [a, b] = [at[i - 1], at[i]];
+          if (a.x == b.x && a.y == b.y)
+            continue;
+          let length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+          // Nudge the label off the stroke, in the direction perpendicular to it
+          let off = 14;
+          // A stop that could not be placed collapses several legs into one
+          // stroke, which is then labelled with the range it stands for
+          let [first, last] = [path.stops[i - 1].leg + 1, path.stops[i].leg];
+          labelled.push({
+            x: (a.x + b.x) / 2 - (b.y - a.y) / length * off,
+            y: (a.y + b.y) / 2 + (b.x - a.x) / length * off,
+            text: first == last ? String(first) : `${first}–${last}`,
+          });
+        }
       return [-1, 0, 1].map(shift => {
-        let serialized = at.map(p => `${(p.x + shift * WIDTH).toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-        return <g key={path.id + shift} className="region-path">
+        return <g key={path.id + shift} className="region-path"
+          transform={shift ? `translate(${shift} 0)` : undefined}>
           {/* A marker so the line is a proper arrow per segment, not one
               direction for the whole flight */}
           <polyline points={serialized} markerMid={arrowHref} />
-          {stops.map((p, i) => <g key={i} className="region-stop">
-            <circle className="region-waypoint" cx={p.x + shift * WIDTH} cy={p.y} r={9} />
-            {/* The sequence number, so the order of the stops is readable even
-                where the line doubles back on itself */}
-            <text className="region-stop-number" x={p.x + shift * WIDTH} y={p.y}
-              textAnchor="middle" dominantBaseline="central">
-              {i + 1}
-            </text>
-          </g>)}
+          {labelled.map((label, i) => <text key={"leg" + i} className="region-leg-label"
+            x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central">
+            {label.text}
+          </text>)}
+          {/* The stops are marks, not labels: their numbers are on the stretches
+              between them, and a loiter would otherwise stack two numbers on one
+              dot. A ring marks the stop where the UFO lands. */}
+          {path.stops.map((stop, i) => <circle key={i}
+            className={stop.lands ? "region-waypoint region-waypoint-land" : "region-waypoint"}
+            cx={at[i].x} cy={at[i].y} r={9} />)}
         </g>;
       });
     })}
@@ -680,7 +708,7 @@ export function RegionMapArticle({ region }: { region: Region }) {
   // waypoints all name "anywhere" zones has no line to draw, so say which ones
   // the map leaves out rather than leaving a gap in the picture unexplained
   let shapes = useMemo(() => new Map(paths.map(path => [path.id, pathShape(path, region)])), [paths, region]);
-  let undrawn = paths.filter(path => (shapes.get(path.id)?.points.length ?? 0) < 2);
+  let undrawn = paths.filter(path => drawnLegs(shapes.get(path.id)!) == 0);
 
   if (status == "loading")
     return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
@@ -729,6 +757,7 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
   // lost stops, and it explains an empty map for a path like `P9`, whose every
   // waypoint is such a zone.
   let shape = useMemo(() => region ? pathShape(trajectory, region) : undefined, [region, trajectory]);
+  let landing = trajectory.landingSeconds;
 
   if (status == "loading")
     return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
@@ -750,11 +779,18 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
         </select>
       </label>
       <span className="trajectory-region-count">
-        {regions.length} <Tr text="xpediaTrajectoryRegions" />
+        {regions.length} <Tr text={regions.length == 1 ? "xpediaTrajectoryRegionOne" : "xpediaTrajectoryRegions"} />
       </span>
     </div>
-    {shape && (shape.points.length < 2 || shape.dropped > 0) && <p className="world-map-unplaced">
-      {shape.points.length < 2
+    {/* The numbers on the picture are leg numbers, so say so and say what they
+        are not: they are not stops of a list of waypoints */}
+    {shape && shape.stops.length > 0 && <p className="world-map-note">
+      <Tr text="xpediaTrajectoryLegLabels" />
+      {landing != null && <>{" "}<Tr text="xpediaTrajectoryLandsFor" />{" "}
+        <span className="mission-delay">{formatSeconds(landing)}</span>.</>}
+    </p>}
+    {shape && (drawnLegs(shape) == 0 || shape.dropped > 0) && <p className="world-map-unplaced">
+      {drawnLegs(shape) == 0
         ? <Tr text="xpediaTrajectoryAnywhereOnly" />
         : <>
           <span className="world-map-count">{shape.dropped}</span>{" "}

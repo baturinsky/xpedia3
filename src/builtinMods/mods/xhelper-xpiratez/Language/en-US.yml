@@ -1,4 +1,7 @@
 en-US:
+  # X-Piratez calls every score "Infamy", including the one an alien mission
+  # earns. The shared label says only "Points", because other packs do not.
+  points: Infamy points
   STR_DLC_0: ALL PEOPLE DIFFERENT
   STR_DLC_0_UFOPEDIA: This mod changes the stats of most enemy units (including manned
     vehicles) within small limits to introduce an additional element of randomness into
