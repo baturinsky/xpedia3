@@ -2309,11 +2309,13 @@ a.services {
 }
 
 /* The flight-path list under a region map */
-.region-paths {
+.region-paths,
+.region-missions {
   font-size: 90%;
 }
 
-.region-paths ul {
+.region-paths ul,
+.region-missions ul {
   list-style: none;
   margin: .25rem 0;
   padding: 0;
@@ -2322,10 +2324,33 @@ a.services {
   gap: .25rem 1rem;
 }
 
-.region-paths li {
+.region-paths li,
+.region-missions li {
   display: flex;
   align-items: baseline;
   gap: .35rem;
+}
+
+/* The missions a region can host are a longer list than its flight paths, so
+   they stack one per line rather than wrapping */
+.region-missions ul {
+  flex-direction: column;
+  gap: .15rem;
+}
+
+/* How many regions share a mission. Muted, because it qualifies the name rather
+   than competing with it. */
+.region-mission-count {
+  opacity: .75;
+  font-size: 90%;
+}
+
+.region-missions-more {
+  margin: .35rem 0 .1rem;
+  font: inherit;
+  font-size: 90%;
+  padding: .1rem .5rem;
+  cursor: pointer;
 }
 
 .region-paths-hot {

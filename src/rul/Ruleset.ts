@@ -182,6 +182,8 @@ export default class Ruleset {
   ufos: { [key: string]: Entry } = {};
   regions: { [key: string]: Region } = {};
   ufoTrajectories: { [key: string]: UfoTrajectory } = {};
+  /** Cache for `missionsIn`, built on first use: packs take thousands of lookups */
+  private _missionReach?: Map<string, Set<string>>;
   terrains: { [key: string]: Entry } = {};
   mapScripts: { [key: string]: Entry } = {};
   obs = { big: [], floor: [], hand: [], base: [], icon: [] } as {[id:string]:any[]};
@@ -368,6 +370,81 @@ export default class Ruleset {
     return Object.values(this.ufoTrajectories ?? {})
       .filter(path => path.fits(target))
       .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /**
+   * The mission scripts that can launch a mission in `region`.
+   *
+   * The engine chooses the region and the mission separately, and the region
+   * choice has two routes that are worth spelling out:
+   *
+   * - a script names regions with `regionWeights`;
+   * - a script that names none falls back to the strategy's weighted table, which
+   *   in practice is every region declaring a `regionWeight`.
+   *
+   * The second route makes almost every script a candidate for every weighted
+   * region — in XFiles a single unnamed script puts its mission in every weighted
+   * region at once — so `missionsIn` counts how many regions can host each mission
+   * rather than claiming a region has a long list of its own.
+   */
+  private missionScriptsFor(region: Region) {
+    let weighted = region.regionWeight != null && region.regionWeight > 0;
+    let out: MissionScript[] = [];
+    for (let script of Object.values(this.missionScripts ?? {})) {
+      let names = regionNamesOf(script.regionWeights);
+      if (names.has(region.id) || (weighted && !names.size))
+        out.push(script);
+    }
+    return out;
+  }
+
+  /**
+   * The alien missions that can appear in `region`, with how many regions share
+   * each one.
+   *
+   * `regionCount` counts the regions that can host a mission at all, which is what
+   * makes the list useful: a mission one region alone can spawn is the reason to
+   * read that region's page, while one that half the world can spawn is
+   * background. The count is over the whole pack, so a page can say "only here".
+   *
+   * Every region's reachable missions are needed for the counts, so they are built
+   * once per pack rather than per region: a page asks this on every visit, and a
+   * pack with a hundred and seventy regions would otherwise walk every script a
+   * hundred and seventy times.
+   */
+  missionsIn(region: string | Region) {
+    let target = typeof region == "string" ? this.regions?.[region] : region;
+    if (!target)
+      return [];
+
+    let reach = this.missionReach();
+    let counts = new Map<string, number>();
+    for (let missions of reach.values())
+      for (let id of missions)
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+
+    let out: { mission: string, regionCount: number }[] = [];
+    for (let id of reach.get(target.id) ?? [])
+      out.push({ mission: id, regionCount: counts.get(id) ?? 1 });
+    // Rarest first, so the missions that distinguish the region lead; ties keep
+    // a stable, predictable order rather than the pack's own
+    return out.sort((a, b) => a.regionCount - b.regionCount || a.mission.localeCompare(b.mission));
+  }
+
+  /** Each region's reachable missions, built once per pack, since `missionsIn` sweeps every script */
+  private missionReach() {
+    if (!this._missionReach) {
+      let reach = new Map<string, Set<string>>();
+      for (let region of Object.values(this.regions ?? {})) {
+        let missions = new Set<string>();
+        for (let script of this.missionScriptsFor(region))
+          for (let mission of regionNamesOf(script.missionWeights))
+            missions.add(mission);
+        reach.set(region.id, missions);
+      }
+      this._missionReach = reach;
+    }
+    return this._missionReach;
   }
 
   /** Sprite from one of the obs tables (BIGOBS.PCK etc). Returns the asset path,

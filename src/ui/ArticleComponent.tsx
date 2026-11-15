@@ -536,10 +536,10 @@ export function ArticleComponent() {
     {/* A region or a flight path is a picture of part of the globe, so its map
         belongs in the same place: above the columns, full width */}
     {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
-      <RegionMapArticle region={rul.regions[article.id]} />}
+      <RegionMapArticle key={article.id} region={rul.regions[article.id]} />}
     {article.section == "UFO_TRAJECTORIES" && article.id != "UFO_TRAJECTORIES" &&
       rul.ufoTrajectories[article.id] &&
-      <TrajectoryMapArticle trajectory={rul.ufoTrajectories[article.id]} />}
+      <TrajectoryMapArticle key={article.id} trajectory={rul.ufoTrajectories[article.id]} />}
     {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
       <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&

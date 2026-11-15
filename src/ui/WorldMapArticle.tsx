@@ -5,7 +5,7 @@ import { MAX_DRAWN_PATHS, drawnLegs, pathShape, regionOverlay, type PathStop } f
 import { formatSeconds } from "./timing";
 import { colorForCountry, colorForTerrain, readDeclaredColors, readDeclaredCountryColors } from "./mapColors";
 import { rul } from "../rul/Ruleset";
-import { Tr } from "./Val";
+import { Tr, Val } from "./Val";
 
 /**
  * The pack's world map, drawn flat.
@@ -358,6 +358,17 @@ function pageFor(id?: string) {
 
 const MAX_ZOOM = 12;
 
+/**
+ * How many regions may share a mission and still count as its specialty.
+ *
+ * The cut has to sit above one, because a mission flown by two neighbours is
+ * still characteristic of both, and well below "half the world". Three keeps the
+ * list short enough to read in every pack checked: on XFiles it leaves the
+ * handful of regional cult and ocean missions, on X-Piratez the handful of
+ * faction missions, and skips the background every weighted region shares.
+ */
+const DISTINCT_REGION_COUNT = 3;
+
 /** A zoomed-and-panned view of the map, in viewBox units */
 type View = { zoom: number, x: number, y: number };
 
@@ -701,6 +712,7 @@ function NoMap() {
 export function RegionMapArticle({ region }: { region: Region }) {
   let { map, status } = useWorldMap();
   let [highlight, setHighlight] = useState<string>();
+  let [showAll, setShowAll] = useState(false);
 
   let paths = useMemo(() => rul.trajectoriesFor(region).slice(0, MAX_DRAWN_PATHS), [region]);
   let overlays = useMemo(() => [regionOverlay(region, paths)], [region, paths]);
@@ -709,6 +721,18 @@ export function RegionMapArticle({ region }: { region: Region }) {
   // the map leaves out rather than leaving a gap in the picture unexplained
   let shapes = useMemo(() => new Map(paths.map(path => [path.id, pathShape(path, region)])), [paths, region]);
   let undrawn = paths.filter(path => drawnLegs(shapes.get(path.id)!) == 0);
+
+  // A region can host hundreds of missions and most of them are background: in
+  // XFiles every weighted region is a candidate for any script that names no
+  // region. The missions worth leading with are the ones few regions share,
+  // because those are what the region is *for*; the rest are listed behind a
+  // toggle rather than dropped, since "no, not here" is also an answer a reader
+  // wants from this page.
+  let missions = useMemo(() => rul.missionsIn(region), [region]);
+  let allRegions = Object.keys(rul.regions ?? {}).length;
+  let distinctive = missions.filter(m => m.regionCount <= DISTINCT_REGION_COUNT);
+  let shown = showAll ? missions : distinctive;
+  let hidden = missions.length - shown.length;
 
   if (status == "loading")
     return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
@@ -732,6 +756,33 @@ export function RegionMapArticle({ region }: { region: Region }) {
       </ul>
       {highlight && <div className="region-paths-hot">{highlight}</div>}
     </div>}
+
+    {missions.length > 0
+      ? <div className="region-missions">
+        <div className="world-map-legend-title"><Tr text="xpediaRegionMissions" /></div>
+        {shown.length > 0 && <ul>
+          {shown.map(entry => <li key={entry.mission}>
+            <a href={pageFor(entry.mission) ?? undefined}>{entry.mission}</a>
+            {/* The count is the whole point of the list: "only here" reads very
+                differently from "one of a hundred and seventy regions" */}
+            <span className="region-mission-count">
+              {entry.regionCount == 1
+                ? <Tr text="xpediaRegionOnlyHere" />
+                : <><Tr text="xpediaRegionAlsoIn" /> <Val of={entry.regionCount} />{" "}
+                  <Tr text="xpediaRegionOfRegions" /></>}
+            </span>
+          </li>)}
+        </ul>}
+        {hidden > 0 && <button className="region-missions-more" onClick={() => setShowAll(true)}>
+          <Tr text="xpediaRegionMissionsMore" /> <Val of={hidden} />
+        </button>}
+        <p className="world-map-note">
+          <Tr text="xpediaRegionMissionsNote" />
+          {" "}<Val of={allRegions} />{" "}
+          <Tr text={allRegions == 1 ? "xpediaRegionCountOne" : "xpediaRegionCount"} />
+        </p>
+      </div>
+      : <p className="world-map-note"><Tr text="xpediaRegionNoMissions" /></p>}
   </div>;
 }
 

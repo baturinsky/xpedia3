@@ -2746,6 +2746,18 @@ en-US:
   # A sentence on the map, so it opens with a capital and ends with a full stop.
   # The table on the same page uses `xpediaLegLandsFor`, a mid-sentence fragment.
   xpediaTrajectoryLandsFor: When it lands, it stays
+  # Which alien missions can turn up in a region. The list leads with the
+  # missions that are characteristic of the region and can be expanded to
+  # everything that can reach it.
+  xpediaRegionMissions: Missions that can appear here
+  xpediaRegionOnlyHere: only here
+  xpediaRegionAlsoIn: also in
+  xpediaRegionOfRegions: regions
+  xpediaRegionMissionsMore: Show all, including
+  xpediaRegionMissionsNote: Only the missions few regions share are listed at first, because those are what makes a region different from its neighbours; a mission half the world can host says little about this one. A mission reaches a region either because a mission script names the region, or because the script names no region at all and this one is in the weighted table. This pack has
+  xpediaRegionCount: regions in all.
+  xpediaRegionCountOne: region in all.
+  xpediaRegionNoMissions: No mission script in this pack can start a mission in this region. It exists for its map data alone.
   xpediaTrajectoryNoRegion: No region in this pack has the mission zones this path refers to, so it cannot be drawn.
   xpediaTrajectoryAnywhere: of this path's stops are not shown, because they name a zone the game fills with a random point anywhere in the world and so have no place to mark.
   xpediaTrajectoryAnywhereOnly: Every stop of this path names a zone the game fills with a random point anywhere in the world, so there is nothing to draw. The UFO simply appears, waits and leaves.
