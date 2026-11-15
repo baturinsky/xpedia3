@@ -22,12 +22,26 @@ export default function ExportDialog() {
   return <ExportDialogBody />;
 }
 
+/**
+ * Names what an archive holds, for the note under the two checkboxes.
+ *
+ * The page is always in it, so only the parts that could be left out are named;
+ * "images off" is then visibly a different claim from "images on", which is the
+ * whole point of spelling it out.
+ */
+function describeContents(images: boolean, languagePacks: number) {
+  let parts = [images ? "every image" : "", languagePacks ? `${languagePacks} language pack${languagePacks == 1 ? "" : "s"}` : ""]
+    .filter(Boolean);
+  return parts.length ? `the page and ${parts.join(" and ")}` : "just the page";
+}
+
 function ExportDialogBody() {
   let languages = exportableLanguages();
   // The language the user is reading is on by default, as they expect it
   let [selected, setSelected] = useState<string[]>(() =>
     state.lang && state.lang != "en-US" && languages.includes(state.lang) ? [state.lang] : []);
-  let [archive, setArchive] = useState(false);
+  let [images, setImages] = useState(false);
+  let [split, setSplit] = useState(false);
   let [busy, setBusy] = useState(false);
   let [status, setStatus] = useState<string>();
   let [progress, setProgress] = useState<number>();
@@ -35,6 +49,16 @@ function ExportDialogBody() {
   // Measured once when the dialog opens: the shell and one gzip are the slow
   // parts, and every later selection only adds their stored sizes up
   let [estimate, setEstimate] = useState<ExportEstimate>();
+
+  // A browser can only save a file, not a folder, so an export that is more than
+  // one file has to travel as an archive. That is the container only: what goes
+  // inside is decided by `images` and `split` separately, so ticking "Split"
+  // gives language packs without dragging every image along.
+  let archive = images || split;
+  /** The page alone, so no archive and no packs */
+  let single = !archive;
+  /** Languages that become packs when split is on, i.e. everything but English */
+  let languagePacks = selected.filter(lang => lang != "en-US").length;
 
   let pack = state.packName;
 
@@ -67,7 +91,7 @@ function ExportDialogBody() {
   // counter rather than a new copy: the copy would not be kept in the cache, and
   // reopening the dialog would measure the same languages again
   let [, redraw] = useState(0);
-  let pending = estimatePending(estimate, selected, archive);
+  let pending = estimatePending(estimate, selected, archive, images);
   useEffect(() => {
     if (!estimate || !pending) {
       setTicking(false);
@@ -77,8 +101,10 @@ function ExportDialogBody() {
     setTicking(true);
     (async () => {
       await measureLanguages(estimate, selected);
+      // The shell is measured for any archive; the images only when they are
+      // going in, so ticking "Split" alone does not wait on sprite sizes
       if (archive)
-        await measureArchive(estimate, pack!);
+        await measureArchive(estimate, pack!, images);
     })()
       .then(() => {
         if (!live)
@@ -115,7 +141,7 @@ function ExportDialogBody() {
     setProgress(0);
     try {
       let result = await exportPedia({
-        languages: selected, archive,
+        languages: selected, images, split, archive,
         onProgress: (text, value) => { setStatus(text); setProgress(value); }
       });
       downloadExport(result);
@@ -178,32 +204,46 @@ function ExportDialogBody() {
 
           <h4><Tr text="Format" /></h4>
           <label className="export-format">
-            <input type="radio" checked={!archive} onChange={() => setArchive(false)} />
+            <input type="checkbox" checked={images} onChange={() => setImages(!images)} />
             <span>
-              <b>Single HTML file</b><br />
+              <b>Include images</b><br />
               <small>
-                Images are read from the game's <code>user/mods</code> folder next to
-                the file, so the file stays small.
+                Every image the pedia can show, so the game is not needed at all.
+                Without it, images are read from the game's{" "}
+                <code>user/mods</code> folder next to the file.
               </small>
             </span>
           </label>
           <label className="export-format">
-            <input type="radio" checked={archive} onChange={() => setArchive(true)} />
+            <input type="checkbox" checked={split} onChange={() => setSplit(!split)}
+              disabled={languages.length == 0} />
             <span>
-              <b>Archive with images</b><br />
+              <b>Split into language packs</b><br />
               <small>
-                A ZIP with the HTML file and every image it uses, so the game is not
-                needed at all.
+                The page keeps English and each other language becomes a small
+                script under <code>xpedia-lang/</code>, loaded only when that
+                language is picked. Makes the page smaller, and a translation can
+                be fixed by replacing one file.
+                {languages.length == 0 && " The pack has no other translation."}
               </small>
             </span>
           </label>
+          {/* The output shape follows from the two above, so it is stated rather
+              than chosen: a browser download cannot create a folder. What the
+              archive holds is named too, so a pack with images off is never
+              mistaken for one carrying them. */}
+          <p className="export-note">
+            {single
+              ? <>Exported as <b>a single HTML file</b>.</>
+              : <>Exported as <b>a ZIP archive</b> with {describeContents(images, split ? languagePacks : 0)}.</>}
+          </p>
 
           {/* Cheap enough to recompute on every render: the measuring is what
               costs, and it happened when the dialog opened or when the
               checkboxes changed */}
           <p className={"export-size" + (estimate && !ticking ? "" : " export-size-pending")}>
             {estimate && !ticking
-              ? <>Estimated file size: <b>{asMB(estimateSize(estimate, selected, archive))}</b></>
+              ? <>Estimated file size: <b>{asMB(estimateSize(estimate, selected, archive, images))}</b></>
               : "Estimating file size..."}
           </p>
 

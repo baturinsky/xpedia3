@@ -29,18 +29,54 @@ export type AppShell = { scripts: TagCopy[], styles: string[] };
 /**
  * What the language selector needs beyond the strings themselves.
  *
- * A page carries one language's strings, but the selector has to offer every
- * language that was exported, each pointing at the file that shows it. English
- * is deliberately absent from `langPages`: it is the fallback every page carries
- * in full, so picking it is a switch inside the current page rather than a
- * navigation.
+ * `packs` is for a split export: the page keeps English and names a script for
+ * every other language. `lang` is the language an ordinary export opens in, for
+ * when it was asked for in one particular language; a split export leaves it out
+ * and always opens in English, which is the only language it really carries.
  */
 export type PageLanguage = {
-  /** The language this page opens in */
+  /** The language this page opens in, when that is not English */
   lang?: string,
-  /** Language name -> the file that shows it, for the languages with a file */
-  langPages?: { [name: string]: string },
+  /** Language name -> the script that carries its strings */
+  packs?: { [name: string]: string },
 };
+
+/** Folder, next to the page, that holds the language packs of a split export */
+export const languagePackDir = "xpedia-lang";
+
+/**
+ * Where the strings of a language live in a split export.
+ *
+ * A script rather than JSON: a page opened from `file://` may load scripts but
+ * cannot `fetch` its neighbours, so this is what makes a split export work when
+ * the file is simply double-clicked.
+ */
+export function languagePackPath(lang: string) {
+  return `${languagePackDir}/${lang}.js`;
+}
+
+/**
+ * The script that carries one language's strings.
+ *
+ * Only the strings that differ from English travel, the same trim `prepareRul`
+ * applies inside a page, because `Ruleset.selectLang` merges them back over
+ * English. The result is a plain object literal, so a translator can open the
+ * file and read it.
+ */
+export function buildLanguagePack(processed: any, lang: string) {
+  let english = processed.langs?.["en-US"] ?? {};
+  let translated = onlyTranslated(english, processed.langs?.[lang] ?? {});
+  // JSON is valid JavaScript once the characters that could end the script or
+  // a line are escaped; those do occur in translations
+  let literal = JSON.stringify(translated)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  return `// XPedia language pack: ${lang}
+// Loaded by the pedia on demand; the page next to this folder lists it.
+(window.xpediaLangPacks ||= {})[${JSON.stringify(lang)}] = ${literal};
+`;
+}
 
 /**
  * Compresses text, preferring the native stream like the pack loader does.
@@ -186,12 +222,13 @@ export async function renderPage(
     pack: exportedPackName(pack),
     rul: rulesetBase64
   };
-  // Only written when the page is one of several, so an ordinary export keeps
-  // the exact shape it has always had
+  // Only written when the page starts in one language and holds the others, so
+  // an English export of an unsplit pack keeps the shape it has always had
   if (page?.lang)
     payload.lang = page.lang;
-  if (page?.langPages)
-    payload.langPages = page.langPages;
+  // Only written when the other languages live in scripts beside the page
+  if (page?.packs && Object.keys(page.packs).length)
+    payload.packs = page.packs;
 
   let { scripts, styles } = shell;
   // The page title names the mod the pack is about, the same one the navbar
@@ -234,9 +271,9 @@ export type BuildPageOptions = {
 /** Builds the HTML text of the exported pedia */
 export async function buildPageHtml(options: BuildPageOptions) {
   let trimmed = prepareRul(options.processed, options.languages,
-    // A split page shows every exported language in its selector, so even the
-    // ones it does not carry need their label
-    options.page?.langPages ? Object.keys(options.page.langPages) : []);
+    // A page with language packs offers every language in its selector, so even
+    // the ones whose strings live elsewhere need their flag label
+    options.page?.packs ? Object.keys(options.page.packs) : []);
   let gzipped = await gzipText(JSON.stringify(trimmed));
   return renderPage(options.pack, trimmed, bytesToBase64(gzipped), options.shell, options.page);
 }
@@ -258,12 +295,14 @@ export type ExportFile = { path: string, data: Uint8Array };
  */
 export async function buildAssetFiles(options: {
   pack: string,
+  /** Where the page goes inside the export */
+  page: string,
   html: string,
   rul: any,
   readImage: (path: string) => Promise<Uint8Array | undefined>,
   onProgress?: (done: number, total: number) => void,
 }): Promise<ExportFile[]> {
-  let files: ExportFile[] = [{ path: `${exportedPackName(options.pack)}.html`, data: new TextEncoder().encode(options.html) }];
+  let files: ExportFile[] = [{ path: options.page, data: new TextEncoder().encode(options.html) }];
   /** Paths already claimed, so a later spelling cannot overwrite the bytes */
   let taken = new Set(files.map(f => f.path));
 
@@ -293,19 +332,4 @@ export function zipFiles(files: ExportFile[]) {
   for (let file of files)
     entries[file.path] = file.data;
   return fflate.zipSync(entries, { level: 6 });
-}
-
-/**
- * The file a language is written to when the export is split per language.
- *
- * The primary language has no infix, so the site's front door is `index.html`
- * whatever language it shows; every other one gets `index.<lang>.html` beside
- * it. `file` is the name the export was asked for, so a bare `index` and
- * `index.html` both behave.
- */
-export function languageFileName(file: string, lang: string, primary: boolean) {
-  let dot = file.lastIndexOf(".");
-  let base = dot > 0 ? file.substring(0, dot) : file;
-  let ext = dot > 0 ? file.substring(dot) : ".html";
-  return primary ? base + ext : `${base}.${lang}${ext}`;
 }

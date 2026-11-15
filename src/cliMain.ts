@@ -8,8 +8,8 @@ import {
   unpackBuiltinMods, unpackRar, unpackZip
 } from "./packBuild";
 import {
-  buildPageHtml, exportedPackName, languageFileName, referencedPaths, zipFiles,
-  type AppShell, type ExportFile
+  buildPageHtml, buildLanguagePack, exportedPackName, languagePackPath,
+  referencedPaths, zipFiles, type AppShell, type ExportFile
 } from "./exportCore";
 import shellPayload from "xpedia:shell";
 import builtinModsPayload from "xpedia:builtin-mods";
@@ -32,32 +32,38 @@ Usage:
 Arguments:
   <pack>                 Modpack archive (ZIP or RAR)
   <target>               Output directory, or the path of a file to write. A
-                         directory gets index.html, plus one file per language
-                         when --split is used. A name ending in .html is written
-                         as that page; a name ending in .zip is the archive
-                         --zip writes.
+                         directory gets index.html and, with --split, an
+                         xpedia-lang/ folder of language scripts. A name ending
+                         in .html is written as that page; a name ending in .zip
+                         is the archive --zip writes.
 
 Options:
   --lang <names>         Languages to include, comma separated and repeatable.
                          Omitting it exports every language the pack has.
                          English is always carried as the fallback, so
                          "--lang en-US" means English only.
-  --split                Write one HTML file per language. The primary language
-                         gets the plain name; the others get the language
-                         inserted before ".html" (index.ru.html).
+  --split                Keep English in the page and write every other language
+                         as a script under xpedia-lang/, loaded when the reader
+                         picks that language. The page stays the size of an
+                         English export instead of growing with translations.
   --assets               Also write every image as a real file, laid out the way
                          the game expects, so the result runs without the game.
   --zip                  Write a single .zip instead of loose files, like the
                          browser export does.
+  --no-manifest          Do not write .xpedia-export.json, and remove one left by
+                         an earlier run. Stale files are then not cleaned up, so
+                         a directory stays exactly as this run left it.
   --force, -f            Overwrite and delete without asking.
   --quiet, -q            Only report errors.
   --help, -h             Show this help.
 
-The primary language is the first one named by --lang, or English.
+The primary language is the first one named by --lang, or English. It is the one
+an unsplit page opens in; with --split every language but English is a pack.
 
 Examples:
   xpedia-cli "Dioxine_XPiratez.zip" public/pedia
-  xpedia-cli pack.zip site --assets --lang ru,en-US --split
+  xpedia-cli pack.zip site --assets --lang ru,en-US
+  xpedia-cli pack.zip site --split --lang ru,de,pl
   xpedia-cli pack.rar pedia.zip --zip
 
 The page is the XPedia app compiled into this file, so a new UI build means a new
@@ -77,12 +83,14 @@ type Options = {
   zip: boolean,
   force: boolean,
   quiet: boolean,
+  manifest: boolean,
 };
 
 function parseArgs(argv: string[]): Options | "help" {
   let positional: string[] = [];
   let languages: string[] | undefined;
   let split = false, assets = false, zip = false, force = false, quiet = false;
+  let manifest = true;
 
   for (let i = 0; i < argv.length; i++) {
     let arg = argv[i];
@@ -95,6 +103,8 @@ function parseArgs(argv: string[]): Options | "help" {
       assets = true;
     else if (arg == "--zip")
       zip = true;
+    else if (arg == "--no-manifest" || arg == "--nomanifest")
+      manifest = false;
     else if (arg == "--force" || arg == "-f")
       force = true;
     else if (arg == "--quiet" || arg == "-q")
@@ -124,7 +134,7 @@ function parseArgs(argv: string[]): Options | "help" {
     source: positional[0],
     target: positional[1],
     languages: languages?.length ? languages : undefined,
-    split, assets, zip, force, quiet
+    split, assets, zip, force, quiet, manifest
   };
 }
 
@@ -509,6 +519,13 @@ function writeManifest(dir: string, outputs: Output[]) {
   fs.writeFileSync(path.join(dir, manifestName), JSON.stringify(manifest, null, 2) + "\n");
 }
 
+/** Drops a manifest left by an earlier run, so `--no-manifest` leaves none */
+function removeManifest(dir: string) {
+  let file = path.join(dir, manifestName);
+  if (fs.statSync(file, { throwIfNoEntry: false })?.isFile())
+    fs.unlinkSync(file);
+}
+
 /**
  * The `.html` name a target file or directory resolves to.
  *
@@ -569,63 +586,47 @@ async function main(argv: string[]) {
   // A page inside an archive is `index.html` so unzipping onto a website works,
   // unless the target named an `.html` file, which is then kept as asked. A
   // `.zip` target names the archive itself, not the page in it.
-  let baseName = options.zip
+  let pageName = options.zip
     ? (target.kind.directory === false && target.kind.html ? path.basename(target.kind.file) : "index.html")
     : target.baseName;
 
-  // Which file each language is written to. A split export gives every language
-  // its own page; a single one is written to the target itself.
-  let splitNames = new Map<string, string>();
-  if (options.split) {
-    for (let name of languages)
-      splitNames.set(name, languageFileName(baseName, name, name == primary));
-  } else
-    splitNames.set(primary, baseName);
-
-  // The selector of a split export has to know every file, including English's
-  // own page: that is what makes picking a language a navigation rather than a
-  // switch inside a document that does not carry its strings.
-  let langPages: { [name: string]: string } | undefined;
+  // A split export is one page carrying English plus a script per other
+  // language, so the page name never varies with the languages: every one of
+  // them, English included, lives in `languagePackPath`
+  let packs: { [name: string]: string } | undefined;
   if (options.split)
-    langPages = Object.fromEntries(splitNames);
+    packs = Object.fromEntries(extra.map(name => [name, languagePackPath(name)]));
 
   report.info(`Pack: ${pack.packName}`);
   report.info(`Languages: ${languages.join(", ")}` +
-    (options.split ? " (one file per language)" : ""));
+    (options.split ? " (English page, one language pack per other language)" : ""));
 
   let outputs: Output[] = [];
   /** How many of the outputs are pages rather than images */
   let pages = 0;
 
+  report.info(`Building ${pageName} (${options.split ? "English" : primary})`);
+  let html = await buildPageHtml({
+    pack: pack.packName,
+    processed: pack.processed,
+    // A split page carries English alone; the other languages travel as packs
+    languages: options.split ? [] : extra,
+    shell,
+    // Only a page that cannot hold every language needs to say how it starts
+    page: options.split
+      ? { packs }
+      : primary == defaultLanguage ? undefined : { lang: primary }
+  });
+  outputs.push({ rel: pageName, data: new TextEncoder().encode(html) });
+  pages++;
+
   if (options.split) {
-    for (let [name, file] of splitNames) {
-      report.info(`Building ${file} (${name})`);
-      let html = await buildPageHtml({
-        pack: pack.packName,
-        processed: pack.processed,
-        // A page carries its own language plus English, which `prepareRul` keeps
-        languages: name == defaultLanguage ? [] : [name],
-        shell,
-        page: { lang: name, langPages }
-      });
-      // The primary language's page is the site's front door, so it gets no infix
-      outputs.push({ rel: file, data: new TextEncoder().encode(html) });
-      pages++;
+    for (let name of extra) {
+      let rel = languagePackPath(name);
+      report.info(`Building ${rel} (${name})`);
+      let pack_ = buildLanguagePack(pack.processed, name);
+      outputs.push({ rel, data: new TextEncoder().encode(pack_) });
     }
-  } else {
-    let file = splitNames.get(primary)!;
-    report.info(`Building ${file} (${primary})`);
-    let html = await buildPageHtml({
-      pack: pack.packName,
-      processed: pack.processed,
-      languages: extra,
-      shell,
-      // A single page can switch language in place where it carries one, so it
-      // only needs a language when the reader cannot pick it there
-      page: primary == defaultLanguage ? undefined : { lang: primary }
-    });
-    outputs.push({ rel: file, data: new TextEncoder().encode(html) });
-    pages++;
   }
 
   /** How many image files were collected, for the closing summary */
@@ -680,17 +681,25 @@ async function main(argv: string[]) {
   }
 
   let manifest = readManifest(target.dir);
-  let conflicts = conflictingPaths(target.dir, outputs, manifest);
+  // `--no-manifest` turns the directory into a plain folder of files: nothing is
+  // recorded, and an older record is dropped rather than left to describe a
+  // directory it no longer matches. Without it, stale files also go.
+  let conflicts = options.manifest
+    ? conflictingPaths(target.dir, outputs, manifest)
+    : { overwrites: conflictingPaths(target.dir, outputs, undefined).overwrites, stale: [] as string[] };
   await confirmChanges("overwrite", conflicts.overwrites, options);
   await confirmChanges("delete", conflicts.stale, options);
 
   report.info(`Writing ${outputs.length} file(s) to ${target.dir}`);
   writeOutputs(target.dir, outputs);
   removeStale(target.dir, conflicts.stale);
-  writeManifest(target.dir, outputs);
+  if (options.manifest)
+    writeManifest(target.dir, outputs);
+  else
+    removeManifest(target.dir);
 
   report.info(`Exported ${pages} page(s)` +
-    (options.split ? ` (${languages.join(", ")})` : "") +
+    (options.split ? ` and ${extra.length} language pack(s)` : "") +
     (assets ? ` and ${assets} asset file(s)` : ""));
   return 0;
 }

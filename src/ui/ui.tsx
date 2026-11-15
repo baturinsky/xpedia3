@@ -12,7 +12,7 @@ import { SlowProcessStatus, ArchiveFiles, CurrentAssets, selectPack, ConfirmDial
 import ExportDialog from "./ExportDialog";
 import { warmEstimate } from "../exportPedia";
 import { rul } from "../rul/Ruleset";
-import { inlineLanguagePages, inlinePageLanguage } from "../packSource";
+import { inlineLanguageNames, inlineLanguagePacks, loadLanguagePack } from "../packSource";
 import { Val, Tr } from "./Val";
 import { Divider } from "./components";
 import { ArticleComponent } from "./ArticleComponent";
@@ -291,30 +291,29 @@ function NavDropdown() {
 
 export function NavTop() {
 
-  // A split export writes one file per language, each carrying the strings of
-  // exactly one; the payload names those files. An export that is not split has
-  // no such list, and every language it carries can be switched to in place.
-  let languagePages = inlineLanguagePages();
-  let languages = languagePages
-    ? Object.keys(languagePages)
-    : rul?.langNames ?? [];
+  // A split export keeps English in the page and names a script for every other
+  // language. An export that is not split has no such list, and every language
+  // it carries can be switched to in place.
+  let languagePacks = inlineLanguagePacks();
+  let languages = inlineLanguageNames() ?? rul?.langNames ?? [];
 
-  // The page's own language, which is what the selector highlights. Only a split
-  // export fixes it: each of its files carries one language's strings, so that
-  // language is the only true choice. Otherwise it is whatever the user picked.
-  let currentLanguage = languagePages
-    ? inlinePageLanguage() ?? rul?.langName ?? ""
-    : state.lang ?? rul?.langName ?? "";
+  let currentLanguage = state.lang ?? rul?.langName ?? "";
 
   function selectLanguage(lang: string) {
     if (lang == currentLanguage)
       return;
-    // A split export has one file per language, so picking another one is a
-    // navigation: this page does not carry its strings. The hash names the
-    // article being read, which means the same thing in every file.
-    let page = languagePages?.[lang];
-    if (page) {
-      location.href = page + location.hash;
+    // A language whose strings are in a pack is fetched first; on failure the
+    // current language stays, rather than switching to one with no strings
+    if (languagePacks?.[lang]) {
+      loadLanguagePack(lang).then(strings => {
+        if (!strings)
+          return;
+        // The pack holds only what differs from English, and `selectLang` merges
+        // it over English the same way it does for a language inside the page
+        rul.langs[lang] = strings;
+        if (rul.selectLang(lang))
+          update({ lang, showLanguagesDropdown: false });
+      });
       return;
     }
     if (!rul.selectLang(lang))

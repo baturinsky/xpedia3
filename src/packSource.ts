@@ -1,7 +1,7 @@
 import * as fflate from "fflate";
 import { state, update } from "./state";
 import * as idb from "./idb";
-import Ruleset from "./rul/Ruleset";
+import Ruleset, { defaultLanguage } from "./rul/Ruleset";
 import { base64ToArrayBuffer } from "./util";
 
 /**
@@ -84,21 +84,21 @@ export type InlinePayload = {
   /** Base64 of the gzip-compressed processed ruleset */
   rul: string,
   /**
-   * The language this page opens in.
+   * The language an unsplit page opens in.
    *
-   * Only present when the export was split per language: each file then carries
-   * one language's strings, so the active language is a property of the file and
-   * not something the reader picks in place.
+   * Written when the export was asked for in one particular language, so a page
+   * made for Russian readers starts in Russian. A split export has no such
+   * field: its page carries English only and always starts there.
    */
   lang?: string,
   /**
-   * Language name -> the file that shows it.
+   * Language name -> the script carrying its strings.
    *
-   * English and any other language without its own page are absent: they are
-   * merged into every page as the fallback, so choosing one is a switch inside
-   * the current document rather than a navigation.
+   * Only present when the export was split into language packs. Such a page
+   * carries English alone, so every other language is fetched when it is picked
+   * for the first time. English is absent: it is always already there.
    */
-  langPages?: { [name: string]: string },
+  packs?: { [name: string]: string },
 };
 
 function readInlinePayload(): InlinePayload | undefined {
@@ -113,27 +113,75 @@ export function inlinePayload(): InlinePayload | undefined {
   return readInlinePayload();
 }
 
-/**
- * The exported page of a language, when the pedia was split into one file per
- * language. Absent for an ordinary single-file export.
- */
-export function inlineLanguagePages() {
-  let pages = readInlinePayload()?.langPages;
-  if (!pages || typeof pages != "object")
-    return;
-  return pages;
+/** The language an unsplit page was exported in, when it was asked for one */
+export function inlinePageLanguage() {
+  let lang = readInlinePayload()?.lang;
+  return typeof lang == "string" && lang ? lang : undefined;
 }
 
 /**
- * The language the page was exported in.
- *
- * Only a split export sets it: each of its files carries one language's strings,
- * so which language is showing is a property of the file rather than a choice
- * the reader makes.
+ * The language packs of a split export: language name -> script path, relative
+ * to the page. Absent for an ordinary export, whose page carries every language.
  */
-export function inlinePageLanguage() {
-  let lang = readInlinePayload()?.lang;
-  return typeof lang == "string" ? lang : undefined;
+export function inlineLanguagePacks() {
+  let packs = readInlinePayload()?.packs;
+  if (!packs || typeof packs != "object" || !Object.keys(packs).length)
+    return;
+  return packs;
+}
+
+/**
+ * Every language a split page can show: the ones with a pack, plus English,
+ * which the page itself carries.
+ */
+export function inlineLanguageNames() {
+  let packs = inlineLanguagePacks();
+  if (!packs)
+    return;
+  return [defaultLanguage, ...Object.keys(packs)];
+}
+
+/** Language packs already loaded or loading, so a second click reuses them */
+let langPackLoads = new Map<string, Promise<{ [id: string]: string } | undefined>>();
+
+/**
+ * Loads a language pack and returns the strings it carries.
+ *
+ * The pack is a script rather than JSON because a page opened from `file://`
+ * cannot `fetch` its neighbours while it can still run a script next to itself.
+ * The strings are only the ones that differ from English, so the caller merges
+ * them over English the way `Ruleset.selectLang` does. A failed load resolves
+ * to nothing and is not remembered, so a later attempt starts over.
+ */
+export function loadLanguagePack(lang: string): Promise<{ [id: string]: string } | undefined> {
+  let path = inlineLanguagePacks()?.[lang];
+  if (!path)
+    return Promise.resolve(undefined);
+
+  let started = langPackLoads.get(lang);
+  if (started)
+    return started;
+
+  let load = new Promise<{ [id: string]: string } | undefined>(resolve => {
+    let script = document.createElement("script");
+    script.src = path;
+    script.onload = () => resolve((window as any).xpediaLangPacks?.[lang]);
+    script.onerror = () => resolve(undefined);
+    document.head.appendChild(script);
+  }).then(strings => {
+    // A pack that did not arrive leaves nothing behind: the tag is dropped so a
+    // retry starts clean, and the failure is not remembered, so a later click
+    // tries again rather than being stuck on it
+    if (!strings) {
+      langPackLoads.delete(lang);
+      for (let tag of document.querySelectorAll("script[src]"))
+        if (tag.getAttribute("src") == path)
+          tag.remove();
+    }
+    return strings;
+  });
+  langPackLoads.set(lang, load);
+  return load;
 }
 
 /** Default name when the payload does not carry one */
@@ -283,21 +331,22 @@ export async function loadPackRul(pack: string) {
 
   let rul = new Ruleset(processed);
   let pageLang = source.kind == "inline" ? inlinePageLanguage() : undefined;
-  if (pageLang && inlineLanguagePages()) {
-    // A split export carries exactly one language's strings, so the file it was
-    // opened from decides: any other choice would highlight a language the page
-    // cannot show
-    if (rul.selectLang(pageLang))
-      update({ lang: pageLang });
-  } else {
-    // An unsplit page can switch language in place, so the language the export
-    // was asked for is only the starting point; a choice this browser already
-    // saved wins over it
-    if (pageLang)
-      rul.selectLang(pageLang);
-    idb.applySavedLanguage(rul);
+  // A split page carries English alone and names a script for each other
+  // language, so those are candidates the browser's locale can also pick.
+  let packs = source.kind == "inline" ? Object.keys(inlineLanguagePacks() ?? {}) : undefined;
+  let wanted = idb.applySavedLanguage(rul, pageLang, packs);
+  // A language the page cannot show yet has to be fetched; this is what makes a
+  // shared split page open in the reader's language instead of in English. A
+  // failed load falls back to English, which every page carries.
+  let lang = rul.langName ?? undefined;
+  if (wanted && !rul.langs[wanted]) {
+    let strings = await loadLanguagePack(wanted);
+    if (strings)
+      rul.langs[wanted] = strings;
+    if (rul.selectLang(strings ? wanted : defaultLanguage))
+      lang = rul.langName ?? lang;
   }
-  update({ rul, packName: pack });
+  update({ rul, packName: pack, lang });
   return processed;
 }
 

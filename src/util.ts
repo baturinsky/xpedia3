@@ -22,6 +22,90 @@ export function getFlagEmoji(countryCode: string) {
   //return String.fromCodePoint(...[...countryCode.toUpperCase()].map(x=>0x1f1a5+x.charCodeAt()));
 }
 
+/**
+ * The tags of the user's browser languages, most preferred first.
+ *
+ * Empty outside a browser. Callers then fall back to their own default rather
+ * than guessing, which keeps this usable from a headless script.
+ */
+export function browserLanguages(): string[] {
+  if (typeof navigator == "undefined")
+    return [];
+  let list = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return [...list].filter(tag => typeof tag == "string" && tag.length > 0);
+}
+
+/**
+ * The language to open a ruleset in.
+ *
+ * In order of preference: the one the reader picked before, the one the page
+ * itself was exported in, and then whatever the browser asks for. The last one
+ * is only a hint — a reader whose browser is German gets the German pedia on a
+ * first visit instead of English, without any need for a per-language link.
+ *
+ * Every candidate has to be in `available`: a saved or detected language the
+ * pack does not carry is no use, and returning it would leave the caller with
+ * nothing to show.
+ */
+export function chooseLanguage(available: readonly string[], saved?: string, fallback?: string) {
+  if (saved && available.includes(saved))
+    return saved;
+  if (fallback && available.includes(fallback))
+    return fallback;
+  return matchLanguage(available, browserLanguages());
+}
+
+/**
+ * The entry of `available` that answers one of `preferred` locale tags best.
+ *
+ * `available` holds language names as the pedia spells them (`ru`, `pt-BR`),
+ * `preferred` holds browser tags (`ru-RU`, `pt-BR`, `en`), which may name a
+ * region the pack never translated. The tags are tried in order, and for each
+ * one an exact match wins over the same language in another region, so a
+ * Brazilian browser gets `pt-BR` even though `pt-PT` is there as well. A tag
+ * with no region of its own prefers the entry with none; failing that, any entry
+ * in that language is better than English, and `available`'s order decides
+ * which. Returns nothing when no tag shares a language with the pack.
+ */
+export function matchLanguage(available: readonly string[], preferred: readonly string[]) {
+  let byTag = new Map<string, string>();
+  let byPrimary = new Map<string, string[]>();
+  for (let name of available) {
+    let lower = name.toLowerCase();
+    byTag.set(lower, name);
+    let primary = lower.split("-")[0];
+    let group = byPrimary.get(primary);
+    if (group)
+      group.push(name);
+    else
+      byPrimary.set(primary, [name]);
+  }
+
+  for (let tag of preferred) {
+    // Tags in the wild use `_` as well as `-`, e.g. from older browsers
+    let lower = tag.toLowerCase().replace(/_/g, "-");
+    let exact = byTag.get(lower);
+    if (exact)
+      return exact;
+
+    let [primary, ...rest] = lower.split("-");
+    let candidates = byPrimary.get(primary);
+    if (!candidates?.length)
+      continue;
+    // `de-CH` against a pack with only `de` and `de-AT`
+    if (rest.length) {
+      let region = rest.join("-");
+      let sameRegion = candidates.find(c => c.toLowerCase().endsWith("-" + region));
+      if (sameRegion)
+        return sameRegion;
+    }
+    let bare = candidates.find(c => !c.includes("-"));
+    return bare ?? candidates[0];
+  }
+
+  return;
+}
+
 export function removeByValue<T>(arr: T[], item: T) {
   const ind = arr.indexOf(item);
   if (ind !== -1) {

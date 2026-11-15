@@ -77,8 +77,9 @@ async function init() {
   let inlined = inlinePack();
   if (inlined) {
     try {
-      // `loadPackRul` also selects the page's own language, which for a split
-      // export is the language of the file it was opened from
+      // `loadPackRul` also settles the opening language: the reader's own choice,
+      // the language the page was exported in, or the browser's locale — fetching
+      // a language pack first when the page carries English alone
       await loadPackRul(inlined.pack);
     } catch (e) {
       console.error("Can't open the inlined pedia", e);

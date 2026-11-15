@@ -3,9 +3,9 @@ import { state } from "./state";
 import { readImgData, readImgSizes, readRulData } from "./idb";
 import { isPermanentPack } from "./packSource";
 import {
-  base64Length, buildAssetFiles, buildPageHtml, exportedPackName, gzipText,
-  onlyTranslated, prepareRul, referencedPaths, renderPage, zipFiles,
-  type AppShell, type ExportFile, type TagCopy
+  base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, exportedPackName,
+  gzipText, languagePackPath, onlyTranslated, prepareRul, referencedPaths, renderPage,
+  zipFiles, type AppShell, type ExportFile, type TagCopy
 } from "./exportCore";
 
 /**
@@ -32,7 +32,21 @@ export type { ExportFile };
 export type ExportOptions = {
   /** Language names to keep besides `en-US`, which is always exported */
   languages: string[],
-  /** Bundle the images as well, producing a ZIP instead of a single file */
+  /** Bundle every image the pedia can show, so the game is not needed at all */
+  images: boolean,
+  /**
+   * Keep English in the page and write each other language as a script under
+   * `xpedia-lang/`, loaded when the reader picks it.
+   */
+  split: boolean,
+  /**
+   * Write one ZIP instead of loose files.
+   *
+   * This is the container, not the contents: a browser download is a single
+   * file, so the dialog sets it whenever the export is more than one file, but
+   * what goes *in* is decided by `images` and `split` alone. Asking for language
+   * packs must never drag the images along.
+   */
   archive: boolean,
   /** Stage text and 0..1 progress, for the dialog */
   onProgress?: (status: string, progress?: number) => void,
@@ -259,13 +273,18 @@ async function measureEstimate(pack: string): Promise<ExportEstimate | undefined
  * The archive stores the page deflated. Its payload is base64 of a gzip stream,
  * and deflating base64 gets those same bytes back, so the archive comes out as
  * the page's own compression plus the compressed ruleset plus the images.
+ *
+ * The shell is needed by every archive, the images only by those that carry
+ * them: `withImages` keeps a split export from measuring sprites it will not
+ * write. The two are independent so neither can be skipped by accident — a
+ * missing shell would price the page at nothing.
  */
-export async function measureArchive(estimate: ExportEstimate, pack: string) {
+export async function measureArchive(estimate: ExportEstimate, pack: string, withImages = true) {
   if (estimate.shellGzipBytes == null) {
     estimate.shellGzipBytes = (await gzipTextInPieces(estimate.html)).length;
     await nextPaint();
   }
-  if (estimate.imageBytes == null) {
+  if (withImages && estimate.imageBytes == null) {
     // The archive carries only the images the pedia can show, so the referenced
     // paths are collected and looked up rather than taking the pack's whole
     // image total, which is usually much larger
@@ -312,26 +331,35 @@ function englishOnly(processed: any) {
  * is the measured shell compression plus the compressed ruleset plus whatever
  * images the pedia can show.
  *
- * Languages are priced as if each were compressed alone, which ignores the
- * compression they could share, so the estimate errs slightly high — the safe
- * direction for a file size.
+ * The images are priced only when they are actually going in: `archive` is the
+ * container, so a split export without images must not be quoted as if it
+ * carried them. Languages are priced as if each were compressed alone, which
+ * ignores the compression they could share, so the estimate errs slightly high —
+ * the safe direction for a file size.
  */
-export function estimateSize(estimate: ExportEstimate, languages: string[], archive: boolean) {
+export function estimateSize(estimate: ExportEstimate, languages: string[], archive: boolean, images = false) {
   let ruleset = estimate.englishBytes;
   for (let name of languages)
     ruleset += estimate.languageBytes[name] ?? 0;
   if (archive)
-    return (estimate.shellGzipBytes ?? 0) + ruleset + (estimate.imageBytes ?? 0);
+    return (estimate.shellGzipBytes ?? 0) + ruleset + (images ? estimate.imageBytes ?? 0 : 0);
   return estimate.shellBytes + base64Length(ruleset);
 }
 
-/** True while something the chosen format needs has not been measured yet */
-export function estimatePending(estimate: ExportEstimate | undefined, languages: string[], archive: boolean) {
+/**
+ * True while something the chosen format needs has not been measured yet.
+ *
+ * The image total is only needed when images are going in; a split export
+ * without them waits for the shell alone, so ticking "Split" does not sit on a
+ * progress line measuring sprites it will never write.
+ */
+export function estimatePending(estimate: ExportEstimate | undefined,
+  languages: string[], archive: boolean, images = false) {
   if (!estimate)
     return true;
   if (languages.some(name => !(name in estimate.languageBytes)))
     return true;
-  return archive && (estimate.shellGzipBytes == null || estimate.imageBytes == null);
+  return archive && (estimate.shellGzipBytes == null || (images && estimate.imageBytes == null));
 }
 
 /**
@@ -352,28 +380,52 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
     throw new Error(`The stored ruleset of ${pack} is missing, so there is nothing to export`);
 
   report("Building the page...", 0.1);
-  let html = await buildPageHtml({
-    pack, processed, languages: options.languages, shell: await readAppAssets()
-  });
   let name = exportedPackName(pack);
+  let pairs = options.split ? options.languages.filter(lang => lang != "en-US") : [];
+  let html = await buildPageHtml({
+    pack, processed,
+    // A split page carries English alone; the others travel beside it
+    languages: options.split ? [] : options.languages,
+    shell: await readAppAssets(),
+    page: options.split ? { packs: Object.fromEntries(pairs.map(lang => [lang, languagePackPath(lang)])) } : undefined
+  });
 
+  // A single HTML file is only possible when nothing else is asked for; the
+  // caller decides that via `archive`, so reaching here means loose files
   if (!options.archive) {
     report(`Exported ${name}.html`);
     return { name: name + ".html", data: new Blob([html], { type: "text/html" }) };
   }
 
-  // The images go under the paths the game uses, next to the HTML file
-  let files: ExportFile[] = await buildAssetFiles({
-    pack, html, rul: state.rul,
-    readImage: path => readImgData(pack, path),
-    onProgress: (done, total) => report(`Bundling images... ${done}/${total}`,
-      0.1 + 0.8 * done / (total || 1))
-  });
+  // The page is written first either way. The images are a separate choice:
+  // language packs share the archive with them, but asking for the packs must
+  // not pull in hundreds of megabytes of sprites the reader never asked for.
+  let files: ExportFile[] = [{ path: `${name}.html`, data: new TextEncoder().encode(html) }];
+  let images = 0;
+  if (options.images) {
+    // Images go under the paths the game uses, next to the HTML file
+    let withImages = await buildAssetFiles({
+      pack, page: `${name}.html`, html, rul: state.rul,
+      readImage: path => readImgData(pack, path),
+      onProgress: (done, total) => report(`Bundling images... ${done}/${total}`,
+        0.1 + 0.8 * done / (total || 1))
+    });
+    files = withImages;
+    images = files.length - 1;
+  }
+
+  // The language packs are tiny next to the images, and they change the page
+  // very little, so they are built after it but reported with it
+  for (let lang of pairs)
+    files.push({ path: languagePackPath(lang), data: new TextEncoder().encode(buildLanguagePack(processed, lang)) });
 
   report("Compressing the archive...", 0.95);
   let zipped = zipFiles(files);
-  let images = files.length - 1;
-  report(`Exported ${name}.zip with ${images} images`, 1);
+  let contents = [
+    images ? `${images} images` : "",
+    pairs.length ? `${pairs.length} language packs` : ""
+  ].filter(Boolean).join(" and ");
+  report(`Exported ${name}.zip` + (contents ? ` with ${contents}` : ""), 1);
   return { name: name + ".zip", data: new Blob([zipped], { type: "application/zip" }) };
 }
 

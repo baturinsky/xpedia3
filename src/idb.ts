@@ -2,7 +2,7 @@ import { dbVersion, state, update } from "./state";
 import { unpackData, mergeBuiltinMods } from "./load";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
-import { asMB } from "./util";
+import { asMB, chooseLanguage } from "./util";
 import { inlinePackStats } from "./packSource";
 
 
@@ -328,12 +328,38 @@ export async function getRul(pack: string) {
   return processed;
 }
 
-/** Restores the language chosen by the user, if the loaded ruleset has it */
-export function applySavedLanguage(rul: Ruleset) {
-  if (state.lang && rul.langs?.[state.lang])
-    rul.selectLang(state.lang);
-  // Keep the saved preference in sync with whatever language ended up active
-  state.lang = rul.langName ?? state.lang;
+/**
+ * Picks the language a freshly loaded ruleset should open in, and applies it if
+ * the ruleset already carries it.
+ *
+ * The order is: the language the reader chose before, then the language the page
+ * says it was exported in, then the browser's own locale. The last one is what
+ * makes a shared file open in the reader's language even though the link to it
+ * cannot name one, and it costs nothing when the reader has already chosen.
+ *
+ * `available` names the languages that can be shown at all: those in the ruleset
+ * plus — for a split page that carries English alone — the ones a language pack
+ * can supply. Returns the language to show, which the caller still has to fetch
+ * when the ruleset does not contain it, or nothing when there is no choice to
+ * make.
+ */
+export function applySavedLanguage(rul: Ruleset, fallback?: string, available?: readonly string[]) {
+  let carried = Object.keys(rul.langs ?? {}).filter(name => name != "icon");
+  let names = available?.length ? [...new Set([...carried, ...available])] : carried;
+  let lang = chooseLanguage(names, state.lang, fallback);
+  if (!lang) {
+    // Nothing saved, nothing exported, nothing recognised: the ruleset keeps the
+    // language it loaded with, and the saved preference must not claim otherwise
+    state.lang = rul.langName ?? state.lang;
+    return;
+  }
+  if (rul.langs[lang] && rul.selectLang(lang)) {
+    state.lang = lang;
+    return lang;
+  }
+  // Not fetched yet: report it so the caller can load it, and leave the ruleset
+  // on whatever it already has rather than on a language with no strings
+  return lang;
 }
 
 export async function viewAssets(pack: string) {
