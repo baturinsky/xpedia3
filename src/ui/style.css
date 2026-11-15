@@ -21,6 +21,7 @@
   --shadow: #000;
   --em: rgb(255, 217, 47);
 
+  --num: #af8;
 }
 
 :root[data-theme="light"] {
@@ -40,8 +41,14 @@
   --dead-link: #7a6a58;
   --link: #9a5a12;
   --title: #3a2a18;
-  --shadow: transparent;
+  --shadow: #0004;
   --em: #a05a00;
+
+  --num: #080;
+}
+
+.num {
+  color: var(--num);
 }
 
 html {
@@ -1040,6 +1047,7 @@ button:disabled:hover {
   break-inside: avoid-column;
   margin-bottom: 3px;
 }
+  
 
 .main-table>tr:nth-child(odd) {
   background: var(--table-secondary);
@@ -1059,6 +1067,11 @@ button:disabled:hover {
 .main-table>tbody>tr>td:first-child {
   width: 10rem;
 }
+
+.main-table .main-table>tbody>tr>td:first-child {
+  width: 2rem;
+}
+
 
 .main-table>thead,
 .table-header,

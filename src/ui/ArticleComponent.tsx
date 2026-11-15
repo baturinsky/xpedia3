@@ -175,7 +175,7 @@ function sectionTable() {
         [...rul.itemFields].sort(), {
         internalBattleType: ["any", ...internalBattleTypes],
         damageTypes: ["any", ...damageTypes],
-        category: ["any", ...rul.sortStrings(Object.keys(rul.categories))],
+        category: ["any", ...rul.sortStringsAndNumbers(Object.keys(rul.categories))],
         invSize: ["any", "auto"],
       });
     case "MANUFACTURE":
@@ -351,7 +351,7 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
 
 /** All base services and the facilities that provide them, follows old `BaseServices.svelte` */
 function ServicesTable({ query = null as string | null }) {
-  let names = rul.sortStrings(Object.keys(rul.baseServices));
+  let names = rul.sortStringsAndNumbers(Object.keys(rul.baseServices));
   if (!names.length)
     return null;
 

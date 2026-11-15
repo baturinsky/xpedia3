@@ -2,7 +2,7 @@ import { FC, Fragment } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { ValueRange } from "../rul/Entry";
-import { Divider, fromAnyRef, Img } from "./components";
+import { Divider, fromAnyRef, Img, Nobr } from "./components";
 
 /** Polymorphic value view */
 
@@ -195,7 +195,6 @@ interface LinksListProps {
   className?: string
 }
 
-const alphabeticLocalizedSorter = (a: string[]) => rul.sortStrings(a)
 const noSorter = (a: string[]) => a
 
 /** Renders lists and objects of references as links, follows old LinksList.svelte */
@@ -209,6 +208,7 @@ const LinksList: FC<LinksListProps> = ({
   className = "",
   sorted: initialSorted
 }) => {
+
   if (initialItems == null) {
     return <>{rul.tr("NULL")}</>;
   }
@@ -220,9 +220,12 @@ const LinksList: FC<LinksListProps> = ({
   let isArray = Array.isArray(items);
   let keys = isArray ? items : Object.keys(items);
 
+  
+  //if(initialSorted == null && !Array.isArray(items)) initialSorted = true;
+
   let sorted = initialSorted ?? keys.length > 9;
   if (sorted) {
-    keys = isArray ? alphabeticLocalizedSorter(keys) : alphabeticLocalizedSorter(keys);
+    keys = (a: string[]) => rul.sortStringsAndNumbers(a);
   } else {
     keys = noSorter(keys);
   }
@@ -242,7 +245,7 @@ const LinksList: FC<LinksListProps> = ({
   if (numberTable) {
     return <table className={"number-table " + className}>
       <tbody>
-        {Object.keys(items).sort().map(field =>
+        {rul.sortStringsAndNumbers(Object.keys(items)).map(field =>
           <tr key={field}>
             <td><Val of={field} /></td>
             <td><em><Val of={items[field]} /></em></td>
@@ -289,7 +292,9 @@ const LinksList: FC<LinksListProps> = ({
       {keys.map((field: any, i: number) =>
         <Fragment key={field}>
           {i !== 0 && <Divider vertical={vertical} />}
-          <Val of={items[field]} depth={depth - 1} /> <Val of={field} depth={depth - 1} />
+          <Nobr>            
+            <Val of={field} depth={depth - 1} /> <Val of={items[field]} depth={depth - 1} />
+          </Nobr>
         </Fragment>
       )}
     </span>;

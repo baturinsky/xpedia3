@@ -82,7 +82,7 @@ export function sortFirstLast(item: { [key: string]: any }, options: SortFirstLa
   if (sortBy) {
     misc = misc.sort((a, b) => sortBy(a[1]) > sortBy(b[1]) ? 1 : -1)
   } else {
-    misc = misc.sort((a, b) => a[0] > b[0] ? 1 : -1)
+    misc = misc.sort((a, b) => comparator(a[0], b[0]))
   }
   let all: StringValue[] = [...first, ...misc, ...last]
   return { first, misc, last, exclude, all };
@@ -770,7 +770,7 @@ export default class Ruleset {
 
   /** Sections that hold generated entries (items, units...) sorted by name */
   sortedTypeSections() {
-    return this.sortStrings(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
+    return this.sortStringsAndNumbers(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
   }
 
   parseArticles(data: Object) {
@@ -808,7 +808,7 @@ export default class Ruleset {
   }
 
   sortArticlesByName(list: Article[]) {
-    return this.sortStrings(list.map(a => a.id)).map(id => this.articles[id]);
+    return this.sortStringsAndNumbers(list.map(a => a.id)).map(id => this.articles[id]);
   }
 
   str(id: string) {
@@ -1078,9 +1078,9 @@ export default class Ruleset {
   }
 
   /** Sort strings by their translated values */
-  sortStrings(s: string[]) {
+  sortStringsAndNumbers(s: string[]) {
     let tl: [string, string][] = s.map(s => [s, this.tr(s) ?? s])
-    tl = tl.sort((a, b) => a[1] > b[1] ? 1 : -1)
+    tl = tl.sort((a, b) => comparator(a[1], b[1]))
     return tl.map(a => a[0]);
   }
 
@@ -1095,6 +1095,11 @@ export default class Ruleset {
   }*/
 
 }
+
+export function comparator(a:any, b:any){
+  return (a??"").localeCompare(b, undefined, { numeric: true, sensitivity: "base" })  
+}
+
 
 /** Main class to figure what to do with data in Ruls */
 export const entryConstructors: {
