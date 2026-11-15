@@ -1,5 +1,5 @@
 import * as fflate from "fflate";
-import { bytesToBase64, getFlagEmoji } from "./util";
+import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
 import { mainMod } from "./rul/Ruleset";
 import { WORLD_DAT, gameRelativePath } from "./packBuild";
 
@@ -232,9 +232,13 @@ export async function renderPage(
 
   let { scripts, styles } = shell;
   // The page title names the mod the pack is about, the same one the navbar
-  // shows, not whichever mod happens to come last in the archive
+  // shows, not whichever mod happens to come last in the archive. When there is
+  // no such name the page is XPedia's own, so it carries XPedia's version, and
+  // that version is the one this build was exported with rather than whatever
+  // the reader's copy later became.
   let meta = mainMod(processed.mods ?? [])?.meta;
-  let title = [meta?.name, meta?.version].filter(Boolean).join(" ") || "XPedia";
+  let packName = [meta?.name, meta?.version].filter(Boolean).join(" ");
+  let title = packName || `XPedia ${xpediaVersion()}`;
 
   // The payload must exist before the app starts. Module scripts run after
   // parsing, so a plain script above them is always safe.

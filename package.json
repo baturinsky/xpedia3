@@ -1,6 +1,6 @@
 {
   "name": "xpedia3",
-  "version": "1.0.0",
+  "version": "3.0.0-alpha.6",
   "description": "A simple tactics engine",
   "main": "main.js",
   "type": "module",

@@ -239,6 +239,56 @@ export function asMB(n: number) {
 export const pngDataPrefix = "data:image/png;base64,"
 
 /**
+ * The version and build number XPedia prints, such as `3.0.0-alpha.6 #42`.
+ *
+ * The version comes from `package.json` and names a release. The number after
+ * `#` counts builds and tells one build or dev instance from another, which is
+ * what a bug report needs: "alpha 6" alone may be months of code.
+ *
+ * A release bakes the number in at build time. The dev server cannot, because
+ * `define` is evaluated once when the config loads; it writes a fresh number into
+ * a `<meta>` tag on each page instead, see `devBuildNumber` in `vite.config.ts`.
+ * Numbers spent by reloads leave gaps, which is expected: only their order
+ * matters.
+ *
+ * Nothing here reads the running machine, so an exported page reports the version
+ * it was exported with, not whatever the CLI later became.
+ */
+export function xpediaVersion(): string {
+  let build = __XPEDIA_BUILD__ || injectedBuildNumber();
+  return build ? `${__XPEDIA_VERSION__} #${build}` : __XPEDIA_VERSION__;
+}
+
+/**
+ * The build number the dev server wrote into the page, if any.
+ *
+ * A production page has no such tag: its number came from `define` instead. The
+ * tag is read rather than the DOM stored, because the value is fixed for the
+ * lifetime of the page.
+ */
+let injectedNumber: string | undefined;
+function injectedBuildNumber(): string {
+  if (injectedNumber === undefined) {
+    let meta = typeof document == "undefined" ? undefined
+      : document.querySelector('meta[name="xpedia-build"]');
+    injectedNumber = meta?.getAttribute("content") ?? "";
+  }
+  return injectedNumber;
+}
+
+/**
+ * `git describe` of the build, for a tooltip.
+ *
+ * The printed version has to stay short enough for a navbar, which leaves out the
+ * commit. Keeping the whole stamp here means a user can still be asked for it,
+ * and it is what turns a build number back into sources: two machines counting
+ * independently both reach #42 from different code.
+ */
+export function xpediaBuildStamp(): string {
+  return __XPEDIA_STAMP__;
+}
+
+/**
  * Maps an archive path to the path the same file has under the game directory.
  *
  * The archive stores files under the pack's own root folder, while the game

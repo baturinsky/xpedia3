@@ -32,5 +32,5 @@ export default function CraftComponent({ entry }: { entry: any }) {
         {includeMarkerInSprites && marker && <Img src={marker.path} frame={marker} scale={2} alt={`marker ${markerNum}`} />}
       </>,
     }}
-  />;
+  />; 
 }

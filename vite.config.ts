@@ -4,6 +4,7 @@ import { defineConfig, UserConfig } from 'vite';
 import topLevelAwait from "vite-plugin-top-level-await";
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from "vite-plugin-singlefile"
+import { versionDefines, devBuildNumber as nextDevBuildNumber } from "./scripts/version.mjs"
 
 export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
   return {
@@ -15,13 +16,20 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
       base64Loader(),
       builtinModsFolder(),
       outputName(),
-      builtPage()
+      builtPage(),
+      devBuildNumber()
     ],
     base: '',
     root: `src`,
     publicDir: `../public`,
     define: {
-      DEBUG: mode == 'development'
+      DEBUG: mode == 'development',
+      // The version and the build number are frozen into the bundle, so a copy
+      // of the page prints its own numbers rather than reading them from the
+      // machine it happens to run on. The dev server is the exception: it has no
+      // bundle to freeze one into, and injects a number into each page instead,
+      // so its constants must stay empty for that tag to be used.
+      ...versionDefines({ bump: mode != 'development', dev: mode == 'development' })
     },
     build: {
       assetsInlineLimit: 1000000,
@@ -67,6 +75,41 @@ function outputName() {
         delete bundle[key];
         bundle["xpedia.html"] = asset;
       }
+    }
+  };
+}
+
+/**
+ * Injects a fresh build number into the dev server's page.
+ *
+ * `define` cannot do this: it is evaluated once, when the config loads, so every
+ * page the server ever serves would carry the number it started with. The dev
+ * server does not serve a bundle from disk, it serves `index.html` and lets the
+ * browser pull modules, so the page itself is the place a per-request number can
+ * go.
+ *
+ * The number is written into a `<meta>` tag that the app reads once at startup.
+ * A reload therefore claims a number, and two tabs or two machines can be
+ * ordered by it. Numbers are spent on reloads that changed nothing, which leaves
+ * gaps; the point is only that a higher number means later code.
+ *
+ * Production is untouched: the build bakes the number in through `define`, and
+ * this plugin only applies when serving.
+ */
+function devBuildNumber() {
+  return {
+    name: "dev-build-number",
+    apply: "serve" as const,
+    transformIndexHtml(html: string) {
+      let number = nextDevBuildNumber();
+      return {
+        html,
+        tags: [{
+          tag: "meta",
+          attrs: { name: "xpedia-build", content: String(number) },
+          injectTo: "head-prepend" as const,
+        }],
+      };
     }
   };
 }

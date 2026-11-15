@@ -13,9 +13,10 @@ import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
-import { LandingPage, packTitle, onLandingPage } from "./ui";
+import { LandingPage, packTitle, onLandingPage, xpediaNamed } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
+import { xpediaVersion, xpediaBuildStamp } from "../util";
 import { WorldMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
 
 export function ArticleTitle() {
@@ -25,7 +26,14 @@ export function ArticleTitle() {
   if (onLandingPage()) {
     return <>
       <div className="article-title">
-        <div className="central"><Tr text={packTitle()} nobr={100} /></div>
+        <div className="central">
+          {/* Only XPedia itself carries XPedia's version: a pack's title is the
+              pack's name and its own version, and mixing the two numbers in one
+              line is ambiguous. See the navbar label for the same rule. */}
+          <Tr text={packTitle()} nobr={100} />
+          {xpediaNamed() &&
+            <span className="xpedia-version" title={xpediaBuildStamp()}> {xpediaVersion()}</span>}
+        </div>
       </div>
       <PackMeta />
     </>
@@ -461,7 +469,11 @@ export function ArticleComponent() {
   // Old `Article.svelte` set the document title from `<svelte:head>`. This must
   // run before any early return so the hook order stays stable.
   useEffect(() => {
-    document.title = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
+    // The tab title names the article, and falls back to XPedia on the landing
+    // page. The version belongs to that fallback only: an article's own name
+    // is already the pack's, and a pack's articles are not XPedia's version.
+    let name = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
+    document.title = article?.id ? name : `${name} ${xpediaVersion()}`;
   }, [article?.id]);
   let oneColumn = useColumnFit(bodyRef, article?.id ?? "", state.hugeFont);
 

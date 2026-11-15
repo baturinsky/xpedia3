@@ -704,6 +704,13 @@ button:disabled:hover {
   background: var(--hover);
 }
 
+/** The build's version, printed beside XPedia's name, see `xpediaVersion` */
+.xpedia-version {
+  font-size: small;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
 /** The phantom tile that invites an upload, see `UploadTile` */
 .modpack-add {
   display: flex;
@@ -1137,7 +1144,7 @@ button:disabled:hover {
 }
 
 
-.sections-list {
+.sections-list {  
   display: flex;
   flex-direction: row;
 

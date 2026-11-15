@@ -16,6 +16,7 @@ import * as esbuild from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { versionDefines } from "./version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const shellFile = path.join(root, "build", "xpedia.html");
@@ -131,6 +132,12 @@ await esbuild.build({
   target: "node20",
   outfile: outFile,
   plugins: [embeddedModules()],
+  // `exportCore.ts` is shared with the page and names the version in the title
+  // of an exported pedia, so the CLI has to replace the same constants `vite`
+  // does; without them the reference would survive into the bundle and throw.
+  // `bump` is off: `npm run cli` builds the page first, and the CLI reports that
+  // build's number rather than claiming the next one.
+  define: versionDefines(),
   banner: {
     js: [
       "import { createRequire as __createRequire } from 'node:module';",

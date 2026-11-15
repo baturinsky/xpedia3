@@ -1,6 +1,19 @@
 declare module "*.css"
 
 /**
+ * Constants the build replaces with literals, see `scripts/version.mjs`.
+ *
+ * They are spliced in by `vite`'s `define` (and the CLI's esbuild `define`), so
+ * a `const` here is only for the type checker: reading them at runtime gives the
+ * value that was current when the copy was built, never the running machine's.
+ */
+declare const __XPEDIA_VERSION__: string
+/** The build number for a release build; empty on the dev server, see `xpediaVersion` */
+declare const __XPEDIA_BUILD__: string
+/** `git describe` of the build, empty when the build had no git */
+declare const __XPEDIA_STAMP__: string
+
+/**
  * Properties the app hangs on `window` that the DOM lib does not know about.
  */
 interface Window {

@@ -452,7 +452,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
     flat = flat.sort((a, b) => (a[0] === "flatHundred" || a[0] === "flatOne" || a[0] < b[0] ? -1 : 1));
     return flat;
   }, [bonus]);
-
+ 
   return (
     <>
       {flat.length > 0 && plus && "+"}

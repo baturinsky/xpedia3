@@ -1,7 +1,7 @@
 import { createContext, Fragment, JSX, MouseEventHandler, useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot, Root } from 'react-dom/client';
 import { article, externalStore, reveal, revealLock, section, state, update, type StoreType } from "../state";
-import { clearHash } from "../util";
+import { clearHash, xpediaVersion, xpediaBuildStamp } from "../util";
 import { goToLanding } from "../navigation";
 
 import 'react-data-grid/lib/styles.css';
@@ -240,6 +240,18 @@ window.addEventListener("pointerdown", e => {
     update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
 }, true);
 
+/**
+ * Whether the landing title is XPedia's own name rather than a pack's.
+ *
+ * A pack's title is its name and its own version, so XPedia's version is only
+ * added when there is no pack title to add it to. This mirrors `packTitle` on
+ * purpose: a selected archive whose ruleset is missing still names the archive,
+ * and that is not XPedia naming itself.
+ */
+export function xpediaNamed() {
+  return !rul?.meta?.name && !state.packName;
+}
+
 export function packTitle() {
   let title = rul?.meta?.name
     ? [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ")
@@ -259,7 +271,14 @@ function NavDropdown() {
       title="Sections"
       onClick={() => dropdownButtonClick("showDropdown", current ? "##" + current : "##HOME")}>
       {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
+      {/* The version is added only where XPedia itself is named: a loaded pack
+          replaces this label with its own name and version, and appending
+          XPedia's there would say two versions in one place. It stays visible
+          on the navbar so a bug report has a copy to quote. It sits in its own
+          element so it can be dimmed and sized apart from the label. */}
       <Tr text={(onLandingPage() ? undefined : section?.id) ?? "XPedia"} notip />
+      {(!section?.id || onLandingPage()) &&
+        <span className="xpedia-version" title={xpediaBuildStamp()}> {xpediaVersion()}</span>}
     </button>
     <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
       <div className="flex-horisontal">
