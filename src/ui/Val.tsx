@@ -94,6 +94,12 @@ export const Val = ({
   }
 
   if (id && rul.article(id)) {
+    // A reference to the page being read. Two collections can share an id (a
+    // craft and its research entry, a terrain and its map script, ...): they are
+    // different entries on one article, so the reference is real and stays, but
+    // the link would only reload this same page
+    if (state.article && state.article.id === id)
+      return <span className="self-ref">{tr1(children ?? id)}</span>;
     return <a href={'##' + id}>{tr1(children ?? id)}</a>;
   }
 
@@ -225,7 +231,9 @@ const LinksList: FC<LinksListProps> = ({
     return <div className={"cols " + className} style={{ columns: cols }}>
       {keys.map((field: any) =>
         <div key={field}>
-          <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}><Tr text={field} /></a>
+          {state.article && state.article.id === field
+            ? <span className="self-ref"><Tr text={field} /></span>
+            : <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}><Tr text={field} /></a>}
         </div>
       )}
     </div>;

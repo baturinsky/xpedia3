@@ -181,6 +181,7 @@ export default class Ruleset {
   alienMissions: { [key: string]: Entry } = {};
   ufos: { [key: string]: Entry } = {};
   terrains: { [key: string]: Entry } = {};
+  mapScripts: { [key: string]: Entry } = {};
   obs = { big: [], floor: [], hand: [], base: [], icon: [] } as {[id:string]:any[]};
   /** Relative resource path (lowercased) -> full archive path, see `getFilePath` */
   resourceMap: { [rel: string]: string } = {};
@@ -586,6 +587,43 @@ export default class Ruleset {
     crosslink(this.missionScripts, "_missions", this.alienMissions, "scripts");
     crosslink(this.alienDeployments, "terrains", this.terrains, "alienDeployments");
     crosslink(this.terrains, "enviroEffects", this.enviroEffects, "terrains");
+
+    // Every commendation stage is a `soldierBonuses` entry, so a bonus page
+    // otherwise shows nothing but its own stats
+    crosslink(this.commendations, "soldierBonusTypes", this.soldierBonuses, "commendations");
+    crosslink(this.soldierTransformation, "soldierBonusType", this.soldierBonuses, "transformations");
+    crosslink(this.soldierTransformation, "allowedSoldierTypes", this.soldiers, "transformations");
+
+    // `craftWeapons` and `events` are the same article ids as `items`, so these
+    // can stay separate from the existing `builtIn` and `loot` lists
+    crosslink(this.craftWeapons, t => [t.clip, t.launcher].flat(), this.items, "craftWeapons");
+    crosslink(this.armors, "corpseBattle", this.items, "corpseOf");
+    // `corpseGeo` is the geoscape drop of the corpse, but a dismantled armor
+    // (`_UC` in Piratez) lists the parts it yields here instead, so this is not
+    // always a corpse and must not share `corpseOf`
+    crosslink(this.armors, "corpseGeo", this.items, "salvagedFrom");
+    crosslink(this.events, t => [t.randomItemList, t.everyItemList].flat(), this.items, "events");
+
+    // A wave's `ufo` may also name a deployment, and `dummy` exists in no table
+    // at all; only the real UFOs get a link, the rest would become stub pages
+    crosslink(this.alienMissions, t => (t.waves ?? []).map((w: any) => w?.ufo)
+      .filter((id: any) => id && this.ufos[id]), this.ufos, "missions");
+    crosslink(this.alienMissions, "interruptResearch", this.research, "stopsMissions");
+
+    crosslink(this.alienDeployments, "customUfo", this.ufos, "deployments");
+    crosslink(this.alienDeployments, "unlockedResearch", this.research, "deployments");
+    crosslink(this.alienDeployments, "script", this.mapScripts, "deployments");
+    crosslink(this.terrains, "script", this.mapScripts, "terrains");
+
+    // The `requires` of a soldier type, craft or transformation is a research
+    // entry whose id often equals the entry itself, so the name says what the
+    // target is rather than reusing a label that already means something else.
+    // A reference to one's own id is kept: the two entries are distinct, and
+    // `Val` draws it as plain text rather than a link to the page being read.
+    crosslink(this.soldiers, "requires", this.research, "soldierTypes");
+    crosslink(this.crafts, "requires", this.research, "craftTypes");
+    crosslink(this.facilities, "requires", this.research, "facilityTypes");
+    crosslink(this.soldierTransformation, "requires", this.research, "transformations");
 
     if(rul.attacks?.length > 0)
       new Section("ATTACKS", true);

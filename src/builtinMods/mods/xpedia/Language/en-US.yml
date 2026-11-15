@@ -2733,6 +2733,7 @@ en-US:
   areas: Areas
 #Regions and missions
   cities: Cities
+  missions: Used in missions
   regionWeight: Region weight
   missionRegion: Mission region
   missionWeights: Mission weights
@@ -2794,6 +2795,9 @@ en-US:
   spawnUnit: Spawns as
   loot: Loot
   commendations: Commendations
+  craftWeapons: Used by craft weapons
+  corpseOf: Corpse of
+  salvagedFrom: Salvaged from
   requiresBuyBaseFunc: Services required to buy
   skillApplied: Melee skill applied?
 #Armors
@@ -2825,6 +2829,10 @@ en-US:
 #Research
   allowsBuying: Unlocks buying
   relatedScripts: Related scripts
+  soldierTypes: Crew types
+  craftTypes: Craft types
+  facilityTypes: Base facility types
+  transformations: Transformations
 #Commendations
   battleTypes: Battle types
   criteria: Criteria values

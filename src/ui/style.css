@@ -117,6 +117,12 @@ a.dead {
   opacity: .6;
 }
 
+/* A reference that points at the page being read. Two collections can share an
+   id, so the reference is shown, but it would only reload this same page. */
+.self-ref {
+  color: inherit;
+}
+
 .list-divider {
   opacity: 30%;
   color: var(--link);
