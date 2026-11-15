@@ -78,7 +78,8 @@ em.bad {
 }
 
 .nobr {
-  white-space: nowrap;
+  /*white-space: nowrap;*/
+  display: inline-block;
 }
 
 /* `Tr` puts an icon next to its label in one of these wrappers. They must be
@@ -2090,7 +2091,7 @@ a.services {
   fill: var(--country-color, var(--border));
   fill-opacity: .25;
   stroke: var(--country-color, var(--border));
-  stroke-opacity: .8;
+  stroke-opacity: .3;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   pointer-events: stroke;
