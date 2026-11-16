@@ -12,6 +12,7 @@ import ItemComponent from "./ItemComponent";
 import MainTable from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import MissionComponent from "./MissionComponent";
+import MissionScriptComponent from "./MissionScriptComponent";
 import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
 import TrajectoryComponent from "./TrajectoryComponent";
@@ -71,6 +72,7 @@ export const asSubTable = (props: any) => <MainTable of={props.val} />,
 /*Which renderer to use for each article type */
 const renderers = {
   alienMissions: MissionComponent,
+  missionScripts: MissionScriptComponent,
   ufoTrajectories: TrajectoryComponent,
   units: UnitComponent,
   armors: ArmorComponent,
@@ -95,13 +97,6 @@ const renderers = {
   alienRanks: { title: "Ranks" },
   alienDeployments: {
     sort: { first: ["startingCondition", "loot"], last: ["data"] },
-  },
-  missionScripts: {
-    sort: { exclude: ["researchNeeded", "researchForbidden"] },
-    special: {
-      missionWeights: asSubTable,
-      regionWeights: asSubTable
-    }
   },
   startingConditions: StartingConditionsComponent,
   enviroEffects: {},

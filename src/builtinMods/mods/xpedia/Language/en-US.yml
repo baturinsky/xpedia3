@@ -2759,6 +2759,51 @@ en-US:
   xpediaRegionCountOne: region in all.
   xpediaRegionNoMissions: No mission script in this pack can start a mission in this region. It exists for its map data alone.
   xpediaTrajectoryNoRegion: No region in this pack has the mission zones this path refers to, so it cannot be drawn.
+  # A mission script is the scheduler, and its timing fields all mean something
+  # other than they say: `firstMonth: 0` is the run at the founding of the first
+  # base rather than a calendar month, and `startDelay` with `randomDelay` is one
+  # rolled number rather than two waits.
+  xpediaScriptSchedule: When this script runs
+  xpediaScriptMonths: Runs in
+  xpediaScriptAnyMonth: Every month of the campaign, from its start to its end.
+  xpediaScriptFromMonth: from month
+  xpediaScriptOnwards: onwards, with no last month.
+  xpediaScriptInMonth: only in month
+  xpediaScriptUntilMonth: until month
+  xpediaScriptFoundingOnly: Once, at the founding of the first base, before the campaign's first month.
+  xpediaScriptCountingStart: counting from the founding of the first base.
+  xpediaScriptToFounding: until the campaign's first month, the founding of the first base included.
+  xpediaScriptOnce: A window of a single month, so the script can run at most once in a campaign.
+  xpediaScriptDelay: First wave after
+  xpediaScriptNoDelay: the mission's own first-wave timer
+  xpediaScriptNoDelayNote: "No delay is stated, so the countdown is the mission's own first wave: its timer is halved first and then rolled against."
+  xpediaScriptDelayNote: "The game rolls a delay from this range and uses it in place of the mission's own first-wave timer. Countdowns tick down in half-hour steps, so the wave appears on the next step after it expires."
+  xpediaScriptFixedDelayNote: "The game waits exactly this long and then replaces the mission's own first-wave timer with it. Countdowns tick down in half-hour steps, so the wave appears on the next step after it expires."
+  xpediaScriptOdds: Execution chance
+  xpediaScriptOddsNote: The chance, rolled once a month, that this script starts a mission at all while its other conditions hold.
+  xpediaScriptMaxRuns: Missions this script may create under its variable, across the whole campaign.
+  xpediaScriptNeeds: needs research
+  xpediaScriptWithout: must not be researched
+  xpediaScriptResearchNote: Each topic is checked against what the player has researched, and a topic that must not be researched is as much a condition as one that must be.
+  xpediaScriptWorld: Also requires
+  xpediaScriptItems: items in store
+  xpediaScriptFacilities: facilities built
+  xpediaScriptBaseFunctions: base services
+  xpediaScriptSoldierTypes: soldier types hired
+  xpediaScriptBaseRegions: an XCOM base in the region
+  xpediaScriptBaseCountries: an XCOM base in the country
+  xpediaScriptPactCountries: countries that signed a pact
+  xpediaScriptAbsent: must be absent
+  xpediaScriptWorldNote: Each of these is a state of the world that must hold when the script is checked; a pack lists them as what it wants to be true.
+  xpediaScriptLimits: Only while
+  xpediaScriptMinScore: last month's rating at least
+  xpediaScriptMaxScore: last month's rating at most
+  xpediaScriptMinFunds: funds at least
+  xpediaScriptMaxFunds: funds at most
+  xpediaScriptMinDifficulty: difficulty at least
+  xpediaScriptMaxDifficulty: difficulty at most
+  xpediaScriptLimitsNote: Rating and funds are not checked on the first month, because there is no previous month to score.
+  xpediaScriptNoTable: The mission is kept off the region's mission table instead of being struck from it, so this script can run any number of times.
   xpediaTrajectoryAnywhere: of this path's stops are not shown, because they name a zone the game fills with a random point anywhere in the world and so have no place to mark.
   xpediaTrajectoryAnywhereOnly: Every stop of this path names a zone the game fills with a random point anywhere in the world, so there is nothing to draw. The UFO simply appears, waits and leaves.
   xpediaPathUnplaced: no place on the map
