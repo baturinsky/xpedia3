@@ -315,6 +315,12 @@ nav.side {
 
 .side-link.active-article-option {
   background: var(--lighter);
+  /* A bar down the left edge, because the tint alone is faint on a dark theme and
+     a reader looking for "where am I in this list" needs an edge to catch the
+     eye. `box-shadow` rather than a border or a margin, so the bar does not shift
+     the text and the rows of the list stay aligned. The link colour is kept: the
+     entry is still a link, and the bar is what says it is the current one. */
+  box-shadow: inset 3px 0 0 var(--link);
 }
 
 .side-hide-button {

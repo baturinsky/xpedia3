@@ -1,4 +1,4 @@
-import { createContext, Fragment, JSX, MouseEventHandler, useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, Fragment, JSX, MouseEventHandler, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createRoot, Root } from 'react-dom/client';
 import { article, externalStore, reveal, revealLock, section, state, update, type StoreType } from "../state";
 import { clearHash, xpediaVersion, xpediaBuildStamp } from "../util";
@@ -505,14 +505,64 @@ export function NavSide() {
   // COUNTRY list is exactly what the COUNTRIES category shows.
   let source = section?.id == "WORLD_MAP" ? rul.sections["COUNTRIES"] : section;
   let articlesList = source?.articles(state.alphabeticalSort) ?? [];
-  return <nav className="sidebar">
+  // The sidebar scrolls as a whole (see `.sidebar` in the stylesheet), so its
+  // `scrollTop` is what has to move; `.menu-list` is only the column of links
+  let list = useRef<HTMLElement>(null);
+  let current = useRef<HTMLAnchorElement>(null);
+
+  // Keep the current article's link in sight, so arriving by a link, a search or
+  // the `<`/`>` buttons also tells the reader where in the section they landed.
+  //
+  // Only the sidebar's own `scrollTop` is touched, never the page's: this must not
+  // fight with the article body being scrolled or restored. `useLayoutEffect`
+  // rather than `useEffect` because the sidebar is painted with the scroll
+  // already applied, instead of showing the top of the list for a frame and then
+  // jumping.
+  //
+  // A link that is already visible is deliberately left alone. Re-centring on
+  // every render would undo the reader's own scroll the moment anything else on
+  // the page changed, and moving a link that can already be seen is not an
+  // improvement.
+  let reveal = useCallback(() => {
+    let box = list.current, link = current.current;
+    if (!box || !link)
+      return;
+    let boxRect = box.getBoundingClientRect();
+    let linkRect = link.getBoundingClientRect();
+    if (linkRect.top >= boxRect.top && linkRect.bottom <= boxRect.bottom)
+      return;
+    // A band in the middle rather than the bare edges: the link lands with its
+    // neighbours visible around it, which is what makes it easy to find. Capped
+    // at six rows so a short sidebar does not get a band taller than itself.
+    let margin = Math.min(boxRect.height / 3, linkRect.height * 6);
+    if (linkRect.top < boxRect.top + margin)
+      box.scrollTop -= (boxRect.top + margin) - linkRect.top;
+    else
+      box.scrollTop += linkRect.bottom - (boxRect.bottom - margin);
+  }, []);
+
+  useLayoutEffect(reveal, [reveal, article?.id, state.seeSide, state.alphabeticalSort,
+    rul.langName]);
+
+  return <nav className="sidebar" ref={list}>
     <div className="menu-list">
-      {articlesList.map(option =>
-        <a key={option.id} href={"##" + option.id}
-          className={"side-link" + (article?.id == option.id ? " active-article-option" : "")}>
+      {articlesList.map(option => {
+        let here = article?.id == option.id;
+        return <a key={option.id} href={"##" + option.id}
+          ref={here ? current : undefined}
+          // The mark also has to be audible: a background tint says nothing to a
+          // screen reader, `aria-current` says which page this is
+          aria-current={here ? "page" : undefined}
+          // Pressing the entry for the page already being read changes nothing,
+          // so it is used for the one thing it can usefully do: bring the entry
+          // back into view after the reader has scrolled the list away. This is
+          // the only way to re-centre on purpose, rather than having the list
+          // snap back under the reader whenever something unrelated re-renders.
+          onClick={here ? reveal : undefined}
+          className={"side-link" + (here ? " active-article-option" : "")}>
           <Tr text={option.id} />
-        </a>
-      )}
+        </a>;
+      })}
     </div>
     <br />
   </nav>
