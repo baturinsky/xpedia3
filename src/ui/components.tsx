@@ -15,6 +15,76 @@ export async function viewImage(path: string) {
   update({ imagePreview: img.url ?? imageDataToUrl(img.data) })
 }
 
+/**
+ * Sprite urls waiting to be recorded, and whether a flush is already queued.
+ *
+ * Images arrive in bursts — a paperdoll page asks for hundreds at once — and
+ * every `update()` notifies the whole store, re-rendering the page. Recording
+ * them one by one made that a render per image. Buffering for a tick turns a
+ * burst into a single update, which is also when the browser paints anyway.
+ */
+let pendingImages: { [path: string]: string | null } | undefined;
+let imageFlushQueued = false;
+/** The pack the buffered urls belong to, so a switch cannot mix them up */
+let pendingPack: string | undefined;
+
+/** Image lookups already running, so a burst reads each path only once */
+let imageLookups = new Map<string, { pack?: string, promise: Promise<{ data?: Uint8Array, url?: string } | undefined> }>();
+
+/**
+ * `resolveImage` for a path that a whole page may ask for many times.
+ *
+ * One paperdoll reuses the same artwork across its bodies (X-Piratez's worst
+ * armor lists 770 layers but only 410 distinct images), and the components all
+ * mount before the first answer arrives, so without this each duplicate would
+ * be a separate trip to the database.
+ *
+ * A switch to another modpack makes every waiting lookup worthless — the path
+ * would answer with the previous pack's bytes — so they are started again. The
+ * pack a lookup was started for travels with it, see `cacheImage`.
+ */
+function lookupImage(path: string): { pack?: string, promise: Promise<{ data?: Uint8Array, url?: string } | undefined> } {
+  let pack = state.packName;
+  let running = imageLookups.get(path);
+  if (running && running.pack == pack)
+    return running;
+  let lookup = { pack, promise: resolveImage(path) };
+  imageLookups.set(path, lookup);
+  // Kept only while in flight: a missing image is cached as `null` separately,
+  // and a real one is in `state.images`, so a later mount has no reason to ask
+  let done = () => {
+    if (imageLookups.get(path) === lookup)
+      imageLookups.delete(path);
+  };
+  lookup.promise.then(done, done);
+  return lookup;
+}
+
+/** Records a loaded (or missing) sprite, flushing the whole burst at once */
+function cacheImage(path: string, value: string | null, pack?: string) {
+  // A lookup that was already running when the pack changed answers with the
+  // previous pack's bytes, so its result is dropped rather than buffered
+  if ((pack ?? state.packName) != state.packName)
+    return;
+  // Urls buffered for another pack must not land in this one's cache
+  if (pendingPack != null && pendingPack != state.packName) {
+    pendingImages = undefined;
+    imageFlushQueued = false;
+  }
+  pendingPack = state.packName;
+  (pendingImages ??= {})[path] = value;
+  if (imageFlushQueued)
+    return;
+  imageFlushQueued = true;
+  setTimeout(() => {
+    let batch = pendingImages;
+    pendingImages = undefined;
+    imageFlushQueued = false;
+    if (batch)
+      update({ images: { ...state.images, ...batch } });
+  }, 0);
+}
+
 /** A sprite may be passed by its ruleset id, an asset path or a ready data url */
 function spritePath(src?: string) {
   if (!src)
@@ -106,17 +176,18 @@ export function useSpriteImages(paths: string[]) {
     for (let path of paths) {
       if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
         continue;
-      resolveImage(path).then(img => {
+      let lookup = lookupImage(path);
+      lookup.promise.then(img => {
         if (cancelled)
           return;
         let value = img ? (img.url ?? (img.data ? imageDataToUrl(img.data) : null)) : null;
-        update({ images: { ...state.images, [path]: value } })
+        cacheImage(path, value, lookup.pack);
       }).catch(e => {
         if (cancelled)
           return;
         console.warn("Can't load image", path, e);
         fails.push(path);
-        update({ images: { ...state.images, [path]: null } })
+        cacheImage(path, null, lookup.pack);
       });
     }
     // Recorded after the loop so one failed image does not stop the others
@@ -169,15 +240,16 @@ export function Img(props: {
     if (!path || path.startsWith("data:") || Object.prototype.hasOwnProperty.call(state.images, path))
       return;
     let cancelled = false;
-    resolveImage(path).then(img => {
+    let lookup = lookupImage(path);
+    lookup.promise.then(img => {
       if (cancelled)
         return;
       let value = img ? (img.url ?? (img.data ? imageDataToUrl(img.data) : null)) : null;
-      update({ images: { ...state.images, [path!]: value } })
+      cacheImage(path, value, lookup.pack);
     }).catch(e => {
       console.warn("Can't load image", path, e);
       if (!cancelled)
-        update({ images: { ...state.images, [path!]: null } })
+        cacheImage(path, null, lookup.pack);
     });
     return () => { cancelled = true; };
   }, [path]);

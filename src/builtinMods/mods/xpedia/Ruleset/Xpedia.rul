@@ -1,0 +1,5 @@
+ufopaedia:
+  - id: STR_ABOUT_XPEDIA
+    type_id: 7
+    section: STR_ABOUT_XPEDIA
+    text: STR_ABOUT_XPEDIA_HTML

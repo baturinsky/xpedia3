@@ -5,6 +5,7 @@ import { article, section, state, update } from './state';
 import { initDB, getRul } from './idb';
 import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
 import { inlinePack, loadPackRul } from './packSource';
+import { loadPackFromLocation } from './packUrl';
 import { rul } from './rul/Ruleset';
 import { AnyRef, fromAnyRef } from './ui/components';
 import { Section } from './rul/Section';
@@ -127,6 +128,13 @@ async function init() {
     clearHash();
     goToHash();
   });
+
+  // `?packUrl=` is an explicit instruction from whoever opened the page, so it
+  // runs after the UI exists and outside the view that offers the field. Started
+  // rather than awaited: the import reports its progress in the usual status
+  // window, and the builtin pedia stays browsable while it runs.
+  loadPackFromLocation();
+
   goToHash()
 
 }

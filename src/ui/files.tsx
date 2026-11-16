@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats, storageInfo } from "../idb";
 import { isPermanentPack, loadPackRul } from "../packSource";
 import { loadBuiltinOnlyPack, uploadUsersFiles } from "../load";
+import { examplePacksBase, loadPackFromUrl } from "../packUrl";
 import { CogAnimation, MyTable, viewImage } from "./components";
 import { state, update, requestCancelSlowProcess, closeStatus, askConfirm, acceptConfirm, cancelConfirm } from "../state";
 import { asMB } from "../util";
@@ -179,6 +180,7 @@ export function ArchiveFiles() {
         onClick={deselectPack}>
         deselect
       </button>}
+    {state.devView && <UrlPackLoader />}
 
   </>;
 }
@@ -325,6 +327,70 @@ function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
         title={reasons.map(r => r[0].toUpperCase() + r.slice(1) + ".").join(" ")}>
         storage is not guaranteed
       </span>}
+  </div>;
+}
+
+/**
+ * Loads a modpack from a URL, for testing packs too large for the browser tools
+ * that push files into a page.
+ *
+ * Developer view only, because a normal player has the drop target and no reason
+ * to fetch an arbitrary address. The same loader is also reachable without this
+ * field through `?packUrl=`, which works in either view.
+ */
+function UrlPackLoader() {
+  let [url, setUrl] = useState("");
+  let [examples, setExamples] = useState<{ name: string, size: number }[]>([]);
+  let [error, setError] = useState<string | undefined>(undefined);
+  let base = examplePacksBase();
+
+  // The dev server can list what it serves, so the packs are picked by name
+  // rather than typed from memory. A release build has no such route and simply
+  // shows an empty field.
+  useEffect(() => {
+    if (!base)
+      return;
+    let live = true;
+    fetch(base)
+      .then(r => r.ok ? r.json() : [])
+      .then((list: { name: string, size: number }[]) => { if (live) setExamples(list); })
+      .catch(() => { /* a missing listing only costs the picker */ });
+    return () => { live = false; };
+  }, [base]);
+
+  async function load() {
+    if (!url.trim() || busy())
+      return;
+    setError(undefined);
+    try {
+      await loadPackFromUrl(url.trim());
+    } catch (e: any) {
+      // The import reports its own failures in the status window; this only
+      // covers a URL that could not be fetched at all
+      setError(e?.message ?? String(e));
+    }
+  }
+
+  return <div className="modpack-url">
+    <label title="Fetch a modpack archive from this address and import it as if it had been dropped on the page">
+      load pack from URL
+    </label>
+    {examples.length > 0 &&
+      <select value="" onChange={e => {
+        if (e.target.value)
+          setUrl(e.target.value);
+      }}>
+        <option value="">example packs…</option>
+        {examples.map(p => <option key={p.name} value={base + p.name}>
+          {p.name} ({asSize(p.size)})
+        </option>)}
+      </select>}
+    <input type="text" value={url} spellCheck={false}
+      placeholder={base ? base + "mod.zip" : "http://host/mod.zip"}
+      onChange={e => setUrl(e.target.value)}
+      onKeyDown={e => { if (e.key == "Enter") load(); }} />
+    <button disabled={!url.trim() || busy()} onClick={load}>load</button>
+    {error && <span className="modpack-url-error">{error}</span>}
   </div>;
 }
 

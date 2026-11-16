@@ -1,4 +1,5 @@
 import fs from "fs"
+import path from "path"
 import zlib from "zlib"
 import { defineConfig, UserConfig } from 'vite';
 import topLevelAwait from "vite-plugin-top-level-await";
@@ -15,6 +16,7 @@ export default defineConfig(({ command, mode, isSsrBuild, isPreview }) => {
       react({}),
       base64Loader(),
       builtinModsFolder(),
+      examplePacks(),
       outputName(),
       builtPage(),
       devBuildNumber()
@@ -155,6 +157,78 @@ function base64Loader() {  return {
 }
 
 /**
+ * Serves `misc/modpackExamples` for the developer view's "load from URL" field.
+ *
+ * A real modpack is far too large for the browser tools that push files into a
+ * page (5 MiB), so testing a full pack means the page fetching the archive
+ * itself. This route makes that possible from the dev server, replacing the
+ * separate `cors-server.js` that had to be started by hand.
+ *
+ * Only the *dev server* gets this: a release build serves nothing but its own
+ * page, and `__XPEDIA_DEV_PACKS__` is empty there, so the field starts blank.
+ *
+ * The examples are read straight from disk on each request rather than being
+ * bundled, so dropping a new archive into the folder needs no restart.
+ */
+function examplePacks() {
+  /** URL prefix the page uses, see `examplePacksUrl` in `src/packUrl.ts` */
+  let prefix = "/example-packs/";
+
+  return {
+    name: "example-packs",
+
+    // The address is only meaningful where the middleware exists, so the dev
+    // server publishes it and every other build says "no such route": a release
+    // build serves nothing but its own page, and its field starts blank
+    config(config: UserConfig, env: { command: string }) {
+      let define = config.define ?? {};
+      define.__XPEDIA_DEV_PACKS__ = JSON.stringify(env.command == "serve" ? prefix : "");
+      return { define };
+    },
+
+    configureServer(server: any) {
+      let root = `${__dirname}/misc/modpackExamples`;
+      server.middlewares.use(prefix, (req: any, res: any, next: any) => {
+        let name = decodeURIComponent(String(req.url ?? "").split("?")[0]).replace(/^\/+/, "");
+
+        // The bare prefix lists what is available, so the developer view can
+        // offer the packs by name instead of making the file name be typed from
+        // memory. Archives only: the folder also holds extracted copies.
+        if (!name) {
+          let listing = (fs.readdirSync(root, { withFileTypes: true }) as any[])
+            .filter(entry => entry.isFile() && /\.(zip|rar)$/i.test(entry.name))
+            .map(entry => ({
+              name: entry.name,
+              size: fs.statSync(path.join(root, entry.name)).size
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(listing));
+          return;
+        }
+
+        // `misc/modpackExamples` is outside the dev server's root, so this route
+        // is the only way to reach it — but it still must not serve anything
+        // else on disk, hence the containment check
+        let file = path.resolve(root, name);
+        if (!file.startsWith(path.resolve(root) + path.sep))
+          return next();
+        let stat = fs.statSync(file, { throwIfNoEntry: false });
+        if (!stat?.isFile())
+          return next();
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Length", stat.size);
+        // The page is served from the same origin, so no CORS header is needed;
+        // `no-store` keeps a rebuilt archive from being served from cache
+        res.setHeader("Cache-Control", "no-store");
+        fs.createReadStream(file).pipe(res);
+      });
+    }
+  };
+}
+
+/**
  * The builtin mods, compiled in from the plain `src/builtinMods` folder.
  *
  * They are authored as ordinary files, so editing a string in a language file
@@ -213,9 +287,24 @@ function builtinModsFolder() {
     // reloads the page instead of leaving the old strings on screen. Nothing
     // imports these files directly, so the watcher has to be told about the
     // folder: otherwise the first edit after starting the server is missed.
+    //
+    // `addWatchFile` above only re-runs this module for a file that the last
+    // build already walked. A file added afterwards is therefore never picked
+    // up, and neither is a parent folder the watcher did not know about — a
+    // brand new `Ruleset/Xpedia.rul` was silently left out of the container
+    // until the dev server restarted. Watching the folder itself covers both,
+    // so the container is rebuilt and the page reloaded.
     configureServer(server: any) {
       let root = `${__dirname}/src/builtinMods`;
       server.watcher.add(root);
+      server.watcher.on("add", (file: string) => {
+        if (!file.replace(/\\/g, "/").includes("/src/builtinMods/"))
+          return;
+        let module = server.moduleGraph.getModuleById(virtualId);
+        if (module)
+          server.moduleGraph.invalidateModule(module);
+        server.ws.send({ type: "full-reload" });
+      });
       server.watcher.on("change", (file: string) => {
         if (file.replace(/\\/g, "/").includes("/src/builtinMods/"))
           server.ws.send({ type: "full-reload" });

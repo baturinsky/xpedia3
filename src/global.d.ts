@@ -12,6 +12,14 @@ declare const __XPEDIA_VERSION__: string
 declare const __XPEDIA_BUILD__: string
 /** `git describe` of the build, empty when the build had no git */
 declare const __XPEDIA_STAMP__: string
+/**
+ * Base URL of the dev server's example-modpack route, empty in a release build.
+ *
+ * Only the developer view's "load from URL" field uses it, and only as a
+ * starting point: the page fetches whatever URL it is given, so this decides
+ * nothing about where a pack may come from.
+ */
+declare const __XPEDIA_DEV_PACKS__: string
 
 /**
  * Properties the app hangs on `window` that the DOM lib does not know about.

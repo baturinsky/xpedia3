@@ -630,6 +630,28 @@ button:disabled:hover {
   margin-left: 0.3rem;
 }
 
+/** "Load pack from URL" row in the developer view, see `UrlPackLoader` */
+.modpack-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.modpack-url input {
+  flex: 1 1 24rem;
+  min-width: 12rem;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0.15rem 0.4rem;
+}
+
+/** Why a URL could not be fetched at all, as opposed to a failed unpack */
+.modpack-url-error {
+  color: var(--error, #c33);
+}
+
 /** Simple modpack list, see `ModpackList` */
 .modpack-list {
   display: flex;

@@ -334,11 +334,21 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
   // listeners is enough. Images become their real size only after they decode,
   // which need not change the body's own box; `load` does not bubble, but a
   // capturing listener still sees it.
+  //
+  // A paperdoll page decodes hundreds of images, and measuring the whole body
+  // forces a synchronous layout, so a burst is coalesced into one measurement
+  // taken once the images have settled. Measuring per image made an article of
+  // 400 sprites spend seconds re-laying out the same unchanged body.
   useEffect(() => {
-    let bump = () => setRecheck(n => n + 1);
+    let timer: number | undefined;
+    let bump = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setRecheck(n => n + 1), 100);
+    };
     document.addEventListener("load", bump, true);
     document.addEventListener("error", bump, true);
     return () => {
+      window.clearTimeout(timer);
       document.removeEventListener("load", bump, true);
       document.removeEventListener("error", bump, true);
       observer.current?.disconnect();
