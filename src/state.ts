@@ -6,6 +6,31 @@ export type PageName = "files" | "main";
 export type Theme = "light" | "dark";
 export const dbVersion = 11;
 
+/**
+ * The pickers whose choice is remembered between articles and reloads, and the
+ * shape each remembered value has.
+ *
+ * Every one of these is a control where the reader says what they want to look
+ * at, not a property of the article: which region a flight is drawn in, which
+ * pose and facing an armor sprite is drawn at. The list is deliberately short —
+ * a remembered value is a claim about the reader, so it has to be a choice they
+ * would be annoyed to make twice.
+ */
+export type Selections = {
+  /** Id of the region chosen on a trajectory map, see `Ruleset.regionsFor` */
+  region?: string
+  /** Pose of the armor sprite sheet, see `UnitPose` */
+  pose?: string
+  /** Facing of the armor sprite, 0..7 as `UNIT_DIRECTIONS` numbers them */
+  direction?: number
+  /** Facing of a tank's gun, which turns on its own */
+  turretDirection?: number
+  /** Step held of the sprite animation, 0 meaning "play it" */
+  frame?: number
+}
+
+export type SelectionKey = keyof Selections
+
 export let state = {
   /** File unpacking status */
   slowProcessStatus: "",
@@ -61,6 +86,15 @@ export let state = {
   hugeFont: false,
   /** Sort article lists, sidebar and link pages alphabetically instead of rule order */
   alphabeticalSort: false,
+  /**
+   * Draw the nation titles and their area boxes on the map pages.
+   *
+   * Off by default on the region and trajectory pages: there the subject is one
+   * region's boxes and the path flown through it, and the nation names and
+   * contours underneath are orientation at best. The world map page keeps them
+   * regardless — showing the nations is what it is for.
+   */
+  showCountryLabels: false,
   /** Selected language name, see `Ruleset.selectLang` */
   lang: undefined as string | undefined,
   /** Theme name, see `Theme` */
@@ -76,6 +110,16 @@ export let state = {
    * button survives reloads like any other preference.
    */
   devUnlocked: false,
+  /**
+   * Choices the player made explicitly, remembered between articles and reloads.
+   *
+   * A member of this object is a statement about the reader rather than about
+   * the article on screen, so it outlives the article: ask for "kneeling" once
+   * and every armor that can kneel opens that way. Nothing is stored when the
+   * player has not chosen, so the default of each picker is simply an absent
+   * member rather than a value that has to be kept in step with that default.
+   */
+  selection: {} as Selections,
 
   /* ---- Transient UI state, not persisted ---- */
   /** Show the `#STR_` language keys instead of translations */
@@ -119,13 +163,64 @@ export let savedFields = [
   "seeSide",
   "hugeFont",
   "alphabeticalSort",
+  "showCountryLabels",
   "lang",
   "theme",
   "devView",
   "devUnlocked",
+  "selection",
 ];
 
 export type StoreType = typeof state
+
+/**
+ * The option a picker should show: the reader's remembered choice when the page
+ * can offer it, otherwise the default.
+ *
+ * This is the whole rule of remembered selections, stated once. The remembered
+ * value is looked up among the options actually on offer, so "it is not available
+ * here" is simply a lookup that found nothing — an armor with no kneeling frames,
+ * a flight that cannot be flown in the region last looked at. The picker then
+ * falls back to its own default, and crucially the memory is not touched: nothing
+ * here writes to `state.selection`, so the next armor that can kneel still opens
+ * kneeling. Only `rememberSelection` writes, and only on the reader's own
+ * gesture.
+ *
+ * An absent member is not the same as a remembered default. Picking "standing"
+ * explicitly is a choice and stays one; a reader who never opened the picker has
+ * chosen nothing, so that control's default is still free to change.
+ */
+export function remembered<T>(options: readonly T[], matches: (option: T) => boolean,
+  fallback: T): T {
+  return options.find(matches) ?? fallback;
+}
+
+/** Records a choice the reader made, for every later picker that can honour it */
+export function rememberSelection<K extends SelectionKey>(key: K, value: Selections[K]) {
+  update({ selection: { ...state.selection, [key]: value } });
+}
+
+/**
+ * Reads remembered choices out of stored settings, dropping anything malformed.
+ *
+ * A stored value is fed straight into a control, so a wrong type would leave that
+ * control with nothing lit and no obvious way to recover. Each field is therefore
+ * checked against the shape it is supposed to have, and a field that fails is
+ * simply forgotten — which is exactly the unset state, so the picker falls back
+ * to its default and the reader can choose again.
+ */
+function readSelection(raw: any): Selections {
+  let out: Selections = {};
+  if (raw == null || typeof raw != "object" || Array.isArray(raw))
+    return out;
+  for (let key of ["region", "pose"] as const)
+    if (typeof raw[key] == "string" && raw[key])
+      out[key] = raw[key];
+  for (let key of ["direction", "turretDirection", "frame"] as const)
+    if (typeof raw[key] == "number" && Number.isInteger(raw[key]) && raw[key] >= 0)
+      out[key] = raw[key];
+  return out;
+}
 
 /** Set while the user has asked to abort the running slow process */
 export let slowProcessCancelRequested = false;
@@ -181,6 +276,13 @@ function load() {
   // hidden behind a keyword; the field is now `devView`
   if (data.devView === undefined && data.developerMode !== undefined)
     data.devView = data.developerMode;
+
+  // Remembered choices are additive, so a reader upgrading from a build without
+  // them has nothing stored and simply gets each control's default. The shape is
+  // checked because a stored value is read straight into a control: a number
+  // where a string belongs would leave a picker with nothing lit, and nothing
+  // here can repair a choice that was meant in an older, different sense.
+  data.selection = readSelection(data.selection);
 
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.

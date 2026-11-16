@@ -1,6 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { rul } from "../rul/Ruleset";
 import type { Sprite } from "../rul/Sprite";
+import { remembered, rememberSelection, state } from "../state";
 import { usePixelRatio, useSpriteImages, spriteScale } from "./components";
 
 /**
@@ -1006,12 +1007,6 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   let poses = useMemo(() => unitPoses(props.view),
     [props.view.sheet, props.view.routine, props.view.female, props.view.deathFrames,
       props.view.movementType, props.view.turret, props.view.size]);
-  let [pose, setPose] = useState<UnitPose>("standing");
-  let [direction, setDirection] = useState(2);
-  // A gun that turns on its own starts out following the hull
-  let [turretDirection, setTurretDirection] = useState(2);
-  // 0 means "play it"; anything else holds that step of the pose
-  let [frame, setFrame] = useState(0);
   // One picker can appear on many articles, so each radio group needs a name
   // that is unique to this instance
   let group = useId();
@@ -1021,17 +1016,32 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   if (!poses.length)
     return null;
 
-  // A short sheet can lack a pose - it may have no floating legs, for instance -
-  // so a stale selection falls back to one that exists rather than drawing
-  // nothing
-  let shown = poses.includes(pose) ? pose : poses[0];
+  // Every choice here is remembered (`state.selection`), because it describes the
+  // reader rather than the armor: wanting to see how one armor kneels is a fact
+  // about the armor, but wanting to see everything kneeling is a fact about the
+  // reader, and the second is what a picker is for.
+  let pose = remembered(poses, p => p == state.selection.pose, poses[0]);
+  // Every facing is always offered, so a remembered one is nearly always usable;
+  // it is still looked up among the eight the compass draws, so a value from an
+  // older build cannot leave the compass with nothing lit. The compass is
+  // disabled for a pose drawn from a single side, and the remembered facing then
+  // simply waits for a pose that can use it.
+  let facings = UNIT_DIRECTIONS.map(d => d.dir);
+  let direction = remembered(facings, dir => dir == state.selection.direction, 2);
+  // A gun that turns on its own starts out following the hull
+  let turretDirection = remembered(facings, dir => dir == state.selection.turretDirection, 2);
+
   let { w, h } = unitSpriteSize(props.view);
 
-  let phases = posePhases(shown, props.view);
+  let phases = posePhases(pose, props.view);
   let holdsFrames = phases > 1;
-  let directional = poseIsDirectional(shown, props.view);
-  // A pose change can leave the selection past the end of the new pose
-  let heldFrame = holdsFrames ? Math.min(frame, phases) : 0;
+  // A held step belongs to one pose's animation: a step of a long walk does not
+  // exist on a two-picture kneel. The step drops to "play" there, while the
+  // memory keeps it, so going back to the walk resumes where it was left. A pose
+  // that does not animate has no steps at all, only "play".
+  let steps = holdsFrames ? Array.from({ length: phases + 1 }, (_, step) => step) : [0];
+  let heldFrame = remembered(steps, step => step == state.selection.frame, 0);
+  let directional = poseIsDirectional(pose, props.view);
   // Only a turreted tank draws its gun separately, and only when it is drawn
   // as four tiles - which is where the game puts the gun
   let hasTurret = routineKind(props.view.routine) == 2 && (props.view.turret ?? -1) >= 0
@@ -1046,8 +1056,8 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           {UNIT_POSES.filter(p => poses.includes(p.id)).map(p =>
             <label key={p.id} className="unit-pose">
               <input type="radio" name={poseGroup} value={p.id}
-                checked={shown == p.id}
-                onChange={() => setPose(p.id)} />
+                checked={pose == p.id}
+                onChange={() => rememberSelection("pose", p.id)} />
               <span>{p.label}</span>
             </label>
           )}
@@ -1063,7 +1073,7 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
               <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
                 <input type="radio" name={group} value={d.dir}
                   checked={direction == d.dir} disabled={!directional}
-                  onChange={() => setDirection(d.dir)} />
+                  onChange={() => rememberSelection("direction", d.dir)} />
                 <span>{d.short}</span>
               </label>
             )}
@@ -1078,7 +1088,7 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
               <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
                 <input type="radio" name={turretGroup} value={d.dir}
                   checked={turretDirection == d.dir}
-                  onChange={() => setTurretDirection(d.dir)} />
+                  onChange={() => rememberSelection("turretDirection", d.dir)} />
                 <span>{d.short}</span>
               </label>
             )}
@@ -1092,7 +1102,7 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           title={holdsFrames
             ? (heldFrame ? `Holding step ${heldFrame} of ${phases}` : "Playing the animation")
             : "This pose has a single frame"}
-          onChange={e => setFrame(+e.target.value)} />
+          onChange={e => rememberSelection("frame", +e.target.value)} />
         <span className="unit-frame-value">
           {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
         </span>
@@ -1100,7 +1110,7 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
     </div>
 
     <div className="unit-picker-preview">
-      <UnitSprite view={props.view} pose={shown} direction={direction}
+      <UnitSprite view={props.view} pose={pose} direction={direction}
         turretDirection={turretDirection} frame={heldFrame} scale={props.scale ?? 3} />
       <span className="unit-picker-size">{[w, h].join(" × ")} px</span>
     </div>

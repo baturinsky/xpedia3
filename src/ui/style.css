@@ -1228,11 +1228,11 @@ table.thin, table.thin td, table.thin td{
 }
 
 
-.main-table tr:nth-child(odd) {
+.main-table tbody tr:nth-child(even) {
   background: var(--table-secondary);
 }
 
-.main-table tr:nth-child(even) {
+.main-table tbody tr:nth-child(odd) {
   background: var(--table-main);
 }
 
@@ -1274,7 +1274,7 @@ table.thin, table.thin td, table.thin td{
 .main-table>thead,
 .table-header,
 .table-subheader {
-  background: var(--table-subheader);
+  background-color: var(--table-header);
   text-align: center;
   margin: 0.3rem 0rem;
   font-variant: small-caps;
@@ -2271,6 +2271,66 @@ a.services {
   pointer-events: none;
 }
 
+/* A stop marker only takes the pointer where the page can answer it, which is
+   the trajectory page: there it lights up every box of its zone, the area the
+   UFO may really be anywhere in. */
+.region-overlay .region-stop-live {
+  pointer-events: all;
+  cursor: help;
+}
+
+/* The highlighted zone, drawn again above the paths so it is the last thing on
+   the picture. It blinks its outline the way a nation's contour does when its
+   title is pointed at: the outline is what identifies a place, so a blink says
+   "this is the area" without hiding the land, the stops or the other zones
+   underneath it.
+
+   Drawn as `.region-zone.region-zone-hot` so it beats the base `.region-zone`
+   rule that gives an unvisited zone its thin dashed hairline; without the second
+   class that rule wins on order and the highlight stays invisible. */
+.region-zone.region-zone-hot {
+  fill: var(--zone-color, var(--region-color, #ffd24a));
+  fill-opacity: .22;
+  stroke: var(--zone-color, var(--region-color, #ffd24a));
+  stroke-opacity: 1;
+  stroke-dasharray: none;
+  animation: region-zone-blink .24s steps(1, end) infinite;
+}
+
+@keyframes region-zone-blink {
+
+  0%,
+  50% {
+    stroke-width: 2;
+  }
+
+  50.01%,
+  100% {
+    stroke-width: 5;
+  }
+}
+
+/* A highlight has to survive being printed and being viewed with reduced motion,
+   where the blink is suppressed: the fill and the full-opacity stroke do that on
+   their own. */
+@media (prefers-reduced-motion: reduce) {
+
+  .region-zone.region-zone-hot {
+    animation: none;
+    stroke-width: 4;
+  }
+}
+
+/* A highlighted stop gets a wider rim rather than a different colour, so its
+   zone colour still says which zone it belongs to. */
+.region-overlay .region-stop-hot .region-stop {
+  stroke-width: 3.5;
+}
+
+.region-overlay .region-stop-hot .region-stop-label {
+  font-weight: bold;
+}
+
 .region-area {
   fill: var(--region-color, #ffd24a);
   fill-opacity: .22;
@@ -2302,49 +2362,177 @@ a.services {
   vector-effect: non-scaling-stroke;
 }
 
-/* A flight path is drawn over everything else: a solid line with a numbered
-   circle at every distinct stop, since the waypoints are the zones the game
-   steers between. */
-.region-path polyline {
+/* A zone a drawn flight goes through. It keeps the flight's own colour for that
+   zone, so the box under a stop and the stop itself read as one thing. */
+.region-zone-visited {
+  fill: var(--zone-color, var(--region-color, #ffd24a));
+  fill-opacity: .16;
+  stroke: var(--zone-color, var(--region-color, #ffd24a));
+  stroke-opacity: .8;
+}
+
+.region-zone-visited.region-zone-point {
+  fill: var(--zone-color, var(--region-color, #ffd24a));
+  fill-opacity: .85;
+  stroke: var(--zone-color, var(--region-color, #ffd24a));
+}
+
+/* A flight leg. Dash length is speed and thickness is altitude, so both are set
+   per element by `RegionOverlay` and the stylesheet must not override them.
+
+   The colour is the leg's own series, not the destination zone's: a leg is a move,
+   and the stop it arrives at already carries that stop's colour, so colouring the
+   leg by its destination only repeated the stop above it.
+
+   Deliberately no `vector-effect: non-scaling-stroke` here. A dash has to stand
+   for a real distance — ten minutes of flying — so it must be measured in map
+   units and grow and shrink with the picture. A screen-space dash would mean
+   something different at every zoom level and at every window width. */
+.region-leg {
   fill: none;
-  stroke: var(--region-color, #ffd24a);
-  stroke-width: 3;
+  stroke: var(--leg-color, var(--region-color, #ffd24a));
+  stroke-linecap: butt;
   stroke-linejoin: round;
+}
+
+/* The direction of a leg, drawn as a small triangle a fifth of the way back from
+   the end it flies to. `transform-box` and `transform-origin` matter for the blink
+   below: a scaled SVG shape scales about the viewport origin, so without them the
+   highlight would fling the arrow a hundred map units off its line. */
+.region-leg-arrow {
+  fill: var(--leg-color, var(--region-color, #ffd24a));
+  stroke: #0d2f52;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The pointer target of a leg: an invisible wide line beside the visible one.
+   A leg's real stroke is 3 to 11 map units, which on a phone is far below the
+   size of a fingertip, so nothing would ever be pressed. Drawn first so the
+   visible line sits on top of it. */
+.region-leg-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 26;
+  /* In screen units, so the target is the same size however far the map is
+     magnified — a hit area is a property of the pointing device, not the globe */
+  vector-effect: non-scaling-stroke;
+  /* Only where the page can answer the gesture */
+  pointer-events: none;
+}
+
+.region-overlay .region-leg-live .region-leg-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* A haloing band under a leg. A leg's own stroke width is an encoding of altitude
+   and lives in map units, so it cannot be made to blink without overwriting that
+   fact. This is in screen units, so it is a constant band however far the map is
+   magnified, and the line keeps its meaning while the band says "this one". It is
+   zero-width until the leg is highlighted.
+
+   `pointer-events: none` because the band is wider than the pointer target would
+   be pleasant to hit and must never be what the cursor lands on. */
+.region-leg-halo {
+  fill: none;
+  stroke: var(--leg-color, var(--region-color, #ffd24a));
+  stroke-width: 0;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: .55;
 }
 
-/* The arrowhead is filled by the marker, which cannot inherit the region colour
-   from the line, so it uses the same custom property the line does. */
-.region-arrowhead {
-  fill: var(--region-color, #ffd24a);
+/* A highlighted leg blinks its halo, the way a highlighted nation blinks its
+   outline and a highlighted zone blinks its border. The blink is the "this is the
+   thing" signal used everywhere else on this picture, so it is reused rather than
+   invented again: a colour change alone would be invisible, because the leg
+   already has a colour of its own and a brighter one would still be some colour. */
+.region-overlay .region-leg-hot .region-leg-halo {
+  animation: region-leg-blink .24s steps(1, end) infinite;
 }
 
-.region-path .region-waypoint {
-  fill: #0d2f52;
-  stroke: var(--region-color, #ffd24a);
-  stroke-width: 2;
+.region-overlay .region-leg-hot .region-leg-arrow {
+  animation: region-leg-arrow-blink .24s steps(1, end) infinite;
+}
+
+@keyframes region-leg-blink {
+
+  0%,
+  50% {
+    stroke-width: 6;
+    opacity: .4;
+  }
+
+  50.01%,
+  100% {
+    stroke-width: 14;
+    opacity: .75;
+  }
+}
+
+/* The arrow grows with the line, and its dark rim is what keeps it visible over
+   the thicker stroke, so the rim blinks up too rather than staying hairline. */
+@keyframes region-leg-arrow-blink {
+
+  0%,
+  50% {
+    stroke-width: 1;
+    transform: scale(1);
+  }
+
+  50.01%,
+  100% {
+    stroke-width: 2;
+    transform: scale(1.35);
+  }
+}
+
+/* A highlight has to survive printing and reduced motion, where the blink is
+   suppressed: a static wide band and a larger arrow do that on their own. */
+@media (prefers-reduced-motion: reduce) {
+
+  .region-overlay .region-leg-hot .region-leg-halo {
+    animation: none;
+    stroke-width: 11;
+    opacity: .6;
+  }
+
+  .region-overlay .region-leg-hot .region-leg-arrow {
+    animation: none;
+    stroke-width: 2;
+    transform: scale(1.3);
+  }
+}
+
+/* A stop of a flight: a circle in the air, a square on the ground. The shape is
+   the one fact a player plans around — a landing is where a site appears — so it
+   is not left to a colour that already means "which zone". */
+.region-path .region-stop {
+  fill: var(--zone-color, var(--region-color, #ffd24a));
+  stroke: #0d2f52;
+  stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 
-/* A stop where the UFO actually lands. This is the stop that matters: the site,
-   the crash site or the base is built where it touches down. */
-.region-path .region-waypoint-land {
-  fill: var(--region-color, #ffd24a);
-  stroke: #0d2f52;
-  stroke-width: 3;
+/* A landing. The thicker rim reads as "this one matters" even where the shape is
+   small enough that a square and a slightly rounded circle look alike. */
+.region-path .region-stop-land {
+  stroke-width: 2.5;
 }
 
-/* The leg number written on a drawn stretch of a flight. It is plain SVG text,
-   so it cannot go through `Tr`; the size is in viewBox units and is divided back
-   out to keep it readable when the map is magnified. */
-.region-leg-label {
-  font-size: 13px;
-  fill: var(--region-color, #ffd24a);
-  /* A dark rim keeps the number legible over land of any colour */
+/* The stop number. Plain SVG text, so it cannot go through `Tr`. Sized in map
+   units like the markers, so a label keeps its relation to the stop it belongs to
+   when the map is magnified. */
+.region-stop-label {
+  font-size: 26px;
+  fill: var(--zone-color, var(--region-color, #ffd24a));
   paint-order: stroke;
   stroke: #0d2f52;
-  stroke-width: 3px;
+  stroke-width: 6px;
   stroke-linejoin: round;
   pointer-events: none;
 }
@@ -2399,18 +2587,230 @@ a.services {
   font-size: 85%;
 }
 
-/* Which region a trajectory was drawn in */
+/* Which region a trajectory was drawn in. A fieldset, because the choice is one
+   of a set and the browser already knows how to make that accessible. */
 .trajectory-region {
+  border: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: .5rem 1rem;
+  gap: .3rem .9rem;
   font-size: 95%;
+}
+
+.trajectory-region legend {
+  /* A float takes the legend out of the flex flow, so it lines up with the
+     choices instead of sitting on its own line */
+  float: left;
+  margin-right: .9rem;
+  padding: 0;
+}
+
+.trajectory-region-choice {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  cursor: pointer;
+}
+
+.trajectory-region-choice input {
+  margin: 0;
+  cursor: pointer;
 }
 
 .trajectory-region-count {
   opacity: .7;
   font-size: 90%;
+}
+
+/* The flight as a strip: stop, leg, stop, leg, … in flight order.
+   A chip-per-zone row said which zones existed; this says what the UFO did, which
+   is what the picture above it says too. It scrolls sideways rather than wrapping,
+   because a wrapped sequence stops being a sequence: after the line break the
+   reader has to work out which stop comes next. */
+.trajectory-flight {
+  display: flex;
+  align-items: center;
+  /* A path can have 77 stops, so the strip is one long row that scrolls */
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: .1rem 0 .2rem;
+  /* The row is wider than the column on a long path, and a scrollbar under a
+     short strip reads as a broken layout, so it is only reserved when needed */
+  scrollbar-width: thin;
+}
+
+/* A button, because pressing a stop pins its zone on the map: a touch screen has
+   no hover, so the point that must be reachable cannot be hover-only. */
+.trajectory-flight-stop {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Sized in em so the strip keeps its proportions with the text around it */
+  width: 1.55em;
+  height: 1.55em;
+  padding: 0;
+  font: inherit;
+  font-size: 85%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  /* The number sits on the zone colour, so it needs a rim to stay readable
+     whatever that colour is; the border does the job the map's dark rim does */
+  color: #10233c;
+  background: var(--zone-color, #ffd24a);
+  border: solid 1px #10233c;
+  /* A circle in the air, like the map */
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* A landing is a square on the map, so it is a square here */
+.trajectory-flight-land {
+  border-radius: 2px;
+}
+
+/* Pointing at or pressing a stop is answered by the map, so the plate under the
+   cursor says "I am the one being shown". */
+.trajectory-flight-stop:hover,
+.trajectory-flight-hot {
+  box-shadow: 0 0 0 2px var(--zone-color, var(--border));
+}
+
+/* The move between two stops, in the leg's own colour. Dashes, because the map's
+   dashes mean speed; a solid bar here would read as a different kind of thing.
+   It is a button, not decoration: pointing at the line on the map lights this
+   sample, and pointing at this sample lights the line, which is the only way to
+   pick one of two crossing lines apart. */
+.trajectory-flight-leg {
+  flex: none;
+  width: 1.7em;
+  /* Taller than it is drawn, so there is something to hit: the visible mark is a
+     hairline inside a band as high as the stop plates beside it */
+  height: 1.55em;
+  margin: 0 .1em;
+  padding: 0;
+  background: none;
+  /* The visible mark is the border, so the band itself must not draw anything */
+  border: solid 1px transparent;
+  border-top: none;
+  border-bottom: none;
+  cursor: pointer;
+  /* The mark sits in the middle of the band */
+  background-image: linear-gradient(var(--leg-color, var(--border)), var(--leg-color, var(--border)));
+  background-size: 100% 2px;
+  background-position: 0 50%;
+  background-repeat: no-repeat;
+}
+
+/* The press and the hover have to be visible on the sample itself, since the
+   map's answer to "which line is this" is on a different part of the page */
+.trajectory-flight-leg:hover,
+.trajectory-flight-leg-hot {
+  border-color: var(--leg-color, var(--border));
+  background-color: hsla(0, 0%, 50%, .16);
+}
+
+/* A highlighted leg blinks here too, matching the map's blink. A colour change
+   would not be enough: the sample already has its own colour, so a brighter one
+   is still just some colour. */
+.trajectory-flight-leg-hot {
+  animation: trajectory-flight-leg-blink .24s steps(1, end) infinite;
+}
+
+@keyframes trajectory-flight-leg-blink {
+
+  0%,
+  50% {
+    background-size: 100% 2px;
+  }
+
+  50.01%,
+  100% {
+    background-size: 100% 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .trajectory-flight-leg-hot {
+    animation: none;
+    background-size: 100% 5px;
+  }
+}
+
+/* A zone colour sample, matching the boxes drawn on the map */
+.trajectory-zone-swatch {
+  display: inline-block;
+  width: .9rem;
+  height: .9rem;
+  border: solid 1px var(--border);
+  background: var(--zone-color, #ffd24a);
+}
+
+/* What the line drawing means. The samples are the real drawing functions, so the
+   legend cannot drift from the picture. */
+.trajectory-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem 1.2rem;
+  font-size: 85%;
+  opacity: .85;
+}
+
+.trajectory-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.trajectory-legend-sample svg {
+  display: block;
+  /* The samples are drawn in map units, so the box has to show a slice of the
+     map rather than a fixed pixel size */
+  width: 7rem;
+  height: 2rem;
+  overflow: hidden;
+}
+
+.trajectory-legend-sample .region-leg {
+  stroke: currentColor;
+}
+
+.trajectory-legend-sample .region-stop {
+  fill: currentColor;
+  stroke: none;
+}
+
+.trajectory-legend-note {
+  flex-basis: 100%;
+  margin: 0;
+  opacity: .9;
+}
+
+/* A checkbox that changes what the map above it draws. It reads as a caption
+   under the picture rather than a control in a toolbar, so it stays small and
+   muted until hovered. */
+.world-map-toggle {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: 90%;
+  opacity: .85;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.world-map-toggle:hover {
+  opacity: 1;
+}
+
+.world-map-toggle input {
+  margin: 0;
+  cursor: pointer;
 }
 
 /* Alien mission wave table */
@@ -2452,10 +2852,70 @@ a.services {
   text-decoration: underline dotted;
 }
 
-/* Alien mission wave table */
-.trajectory-legs td,
-.trajectory-lines td {
+/* The flight plan: a stop, the move away from it, the next stop, and so on.
+   The two kinds of row are told apart by a left rule and a muted band, so the
+   alternation reads at a glance rather than needing column headers. */
+.trajectory-plan td {
   vertical-align: top;
+}
+
+.trajectory-plan-what {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+  width: 4.5rem;
+  white-space: nowrap;
+}
+
+.trajectory-plan-number {
+  opacity: .85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A stop's colour sample, matching the zone box and the stop marker on the map */
+.trajectory-plan-stop .trajectory-zone-swatch {
+  width: .7rem;
+  height: .7rem;
+  align-self: center;
+}
+
+/* What the UFO does at a stop, at full size: this is the row's content rather
+   than a remark about it, and the plan is the only place a flight's actions can
+   be read as actions. */
+.trajectory-plan-what-happens {
+  margin-top: .15rem;
+}
+
+/* A leg's row: a short dashed sample, so the speed encoding is recognisable here
+   too rather than being a picture-only convention */
+.trajectory-plan-dashes {
+  display: inline-block;
+  width: 1.6rem;
+  height: 0;
+  border-top: dotted 2px var(--zone-color, var(--border));
+  align-self: center;
+}
+
+.trajectory-plan-stop {
+  background: hsla(0, 0%, 50%, .08);
+}
+
+/* A leg row has no number in its first cell now, so give the cell a height of its
+   own: one line of the body text. Without it the row collapses to the height of
+   the dashed sample and the alternation stops reading. 1.35em is the line box that
+   `.trajectory-plan td` would otherwise have. */
+.trajectory-plan-leg .trajectory-plan-what {
+  min-height: 1.35em;
+}
+
+.trajectory-plan-leg td {
+  padding-top: .1rem;
+  padding-bottom: .1rem;
+  opacity: .95;
+}
+
+.trajectory-plan-flight {
+  font-variant: small-caps;
 }
 
 /* A zone that the pack names, e.g. "0 STR_NEW_YORK". The name is the same in

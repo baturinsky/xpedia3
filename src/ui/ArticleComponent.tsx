@@ -555,7 +555,10 @@ export function ArticleComponent() {
     {isSectionPage && sectionImage}
     {isSectionPage &&
       <div className="articles-list">
-        <LinksPage key={article.id} links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
+        {/* The section's own order, so the list and `<`/`>` agree. It is already
+            sorted by `articles()`, which caches it per language. */}
+        <LinksPage key={article.id} preSorted
+          links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
       </div>
     }
     {!isSectionPage && articleText}

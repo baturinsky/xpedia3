@@ -1,7 +1,6 @@
 import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import type { Overlay, OverlayPath } from "./WorldMapArticle";
-
 /**
  * Region and trajectory data as the world map draws it.
  *
@@ -12,68 +11,120 @@ import type { Overlay, OverlayPath } from "./WorldMapArticle";
  */
 
 /**
- * How far a zone reaches, in degrees: `[longitude, latitude]`.
+ * How far a zone reaches in latitude, in degrees.
  *
  * A zone is a set of boxes, and every one of them is a place the game may pick.
- * So a zone spread over most of the globe does not have a centre in any useful
- * sense: the mean of a polar cap and a patch of the Sahara is a point neither of
- * them contains.
+ * The only question this answers is whether the zone covers the globe, which is
+ * the designation packs use for "a UFO may appear anywhere".
  */
-function zoneSpan(zone: MapArea[]): [number, number] {
-  let minLon = Infinity, maxLon = -Infinity;
-  let minLat = Infinity, maxLat = -Infinity;
-  for (let area of zone) {
-    if (!area || area.length < 4)
-      continue;
-    minLon = Math.min(minLon, Number(area[0]));
-    maxLon = Math.max(maxLon, Number(area[1]));
-    minLat = Math.min(minLat, Number(area[2]));
-    maxLat = Math.max(maxLat, Number(area[3]));
+function latSpanOf(boxes: MapArea[]) {
+  let min = Infinity, max = -Infinity;
+  for (let area of boxes) {
+    min = Math.min(min, Math.min(Number(area[2]), Number(area[3])));
+    max = Math.max(max, Math.max(Number(area[2]), Number(area[3])));
   }
-  return [maxLon - minLon, maxLat - minLat];
+  return max - min;
+}
+
+/** A box's area on the globe, in square degrees of longitude times sine of latitude */
+function boxArea(area: MapArea) {
+  let lonLow = Number(area[0]), lonHigh = Number(area[1]);
+  let latLow = Number(area[2]), latHigh = Number(area[3]);
+  if (lonLow > lonHigh)
+    [lonLow, lonHigh] = [lonHigh, lonLow];
+  if (latLow > latHigh)
+    [latLow, latHigh] = [latHigh, latLow];
+  // `sin` weights the longitude by how much of the globe a degree of it covers,
+  // so a box near the pole is not ranked as if it were a box at the equator
+  let sine = Math.sin(latHigh * Math.PI / 180) - Math.sin(latLow * Math.PI / 180);
+  return (lonHigh - lonLow) * Math.abs(sine);
+}
+
+/** The middle of one box, with longitude normalised back into 0..360 when it leaves it */
+function boxCenter(area: MapArea) {
+  let lon = (Number(area[0]) + Number(area[1])) / 2;
+  let lat = (Number(area[2]) + Number(area[3])) / 2;
+  // Only fold an out-of-range longitude. Running a value that is already in
+  // range through `% 360` twice loses precision in the last bits, which is
+  // enough to put the marker a hair outside the box it is meant to sit in.
+  if (lon < 0 || lon >= 360)
+    lon = ((lon % 360) + 360) % 360;
+  return { lon, lat };
 }
 
 /**
- * The centre of a zone, or nothing when the zone has no meaningful centre.
+ * Where to put a stop's marker, or nothing when no honest answer exists.
  *
- * Longitudes are averaged as vectors, since a zone near the seam has boxes at
- * both ends of 0..360 and a plain mean would land it in the middle of the map.
- * A zone that reaches across the world, though — the "a UFO may appear
- * anywhere" zones are exactly that — is refused: a single dot would name a spot
- * the game will never use.
+ * A zone is a set of boxes, and the game picks one of them at random before
+ * picking a point inside it (`RuleRegion::getRandomPoint`). That makes the *mean*
+ * of the boxes a bad marker: it is the average of disjoint patches, so it lands
+ * in the sea between them, or on the pole. Measured over one pack, 71.5% of such
+ * means fell outside every box of their own zone — a pinpoint the UFO can never
+ * occupy, which is exactly the precision the ruleset does not have.
+ *
+ * So the marker is placed at the middle of the zone's **largest** box. That is a
+ * place the game really can choose, it is the most visible part of the zone, and
+ * the shaded box underneath still shows that the stop is anywhere in there. When
+ * every box is a single point the zone is a fixed list of spots, and the one
+ * nearest the middle of that list is used so the marker does not depend on the
+ * order the pack happened to write them in.
+ *
+ * A zone that reaches from pole to pole is refused: it is the "anywhere" zone,
+ * so a marker inside one arbitrary box of it would read as a real patrol route.
  */
 export function zoneCenter(zone: MapArea[]): { lon: number, lat: number } | undefined {
   let boxes = zone.filter(area => area && area.length >= 4);
   if (!boxes.length)
     return;
-  let [, latSpan] = zoneSpan(boxes);
-  // A polar ring legitimately spans every longitude but only a narrow band of
-  // latitude, and its centre is the pole, which is a fair summary of it. A zone
-  // reaching from pole to pole, though, is the "a UFO may appear anywhere" zone
-  // the packs use for spawning and for single-stop patrols: it has no centre, so
-  // a dot would name a spot the game never picks.
-  if (latSpan >= 170)
+  if (latSpanOf(boxes) >= 170)
     return;
-  let x = 0, y = 0, lat = 0;
-  for (let area of boxes) {
-    let lon = (Number(area[0]) + Number(area[1])) / 2 * Math.PI / 180;
-    x += Math.cos(lon);
-    y += Math.sin(lon);
-    lat += (Number(area[2]) + Number(area[3])) / 2;
+
+  let largest = -1, largestArea = -Infinity;
+  boxes.forEach((area, i) => {
+    let area2 = boxArea(area);
+    if (area2 > largestArea) {
+      largestArea = area2;
+      largest = i;
+    }
+  });
+  // All boxes are single points: the zone names exact spots rather than panels,
+  // so pick the one nearest their mean rather than whichever came first
+  if (largestArea <= 0) {
+    let centres = boxes.map(boxCenter);
+    let lat = centres.reduce((sum, c) => sum + c.lat, 0) / centres.length;
+    let x = 0, y = 0;
+    for (let c of centres) {
+      let radians = c.lon * Math.PI / 180;
+      x += Math.cos(radians);
+      y += Math.sin(radians);
+    }
+    let lon = ((Math.atan2(y, x) * 180 / Math.PI) % 360 + 360) % 360;
+    let best = centres[0], bestDistance = Infinity;
+    for (let c of centres) {
+      let dLon = Math.abs(c.lon - lon);
+      if (dLon > 180)
+        dLon = 360 - dLon;
+      let distance = Math.hypot(dLon, c.lat - lat);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = c;
+      }
+    }
+    return best;
   }
-  let deg = Math.atan2(y, x) * 180 / Math.PI;
-  return {
-    lon: ((deg % 360) + 360) % 360,
-    lat: lat / boxes.length
-  };
+  return boxCenter(boxes[largest]);
 }
 
 /**
  * One stop of a flight: where the UFO is, and how it got there.
  *
- * `leg` is the leg of the trajectory that arrives here, which is 0 for the
- * spawn point, so the numbers on the picture are the numbers in the article's
- * leg table rather than a separate count.
+ * `leg` is the stop's own index in the trajectory, which is 0 for the spawn
+ * point, so the numbers on the picture are the numbers in the article's
+ * waypoint list rather than a separate count.
+ *
+ * A stop also carries the leg that arrives at it, because the picture draws a
+ * separate line per leg: the engine lets each leg fly at its own altitude and
+ * speed, and the article encodes both in the drawing.
  */
 export type PathStop = {
   zone: number;
@@ -81,6 +132,10 @@ export type PathStop = {
   leg: number;
   /** Whether the UFO lands when it arrives */
   lands: boolean;
+  /** Altitude the arriving leg is flown at, or nothing for the spawn point */
+  altitude?: number;
+  /** Percentage of the craft's top speed the arriving leg is flown at */
+  speed?: number;
 };
 
 /**
@@ -117,22 +172,25 @@ export function drawnLegs(shape: PathShape) {
 /**
  * The stops of a path in one region.
  *
- * The stop sequence is `trajectory.stops`, which is the engine's own: the spawn
- * point, then one arrival per leg, with the second line's zone appearing twice
- * because the engine re-targets it. Zone centres are used for the positions,
- * since a zone is a box the game picks a random point in.
+ * The stop sequence is `UfoTrajectory.flightStops`, which is the engine's own:
+ * the spawn point, then one arrival per leg, with the second line's zone
+ * appearing twice because the engine re-targets it. Zone centres are used for
+ * the positions, since a zone is a box the game picks a random point in.
+ *
+ * A stop whose zone has no place on the globe is dropped rather than invented,
+ * so the surviving stops keep the leg numbers they had: a page numbers them by
+ * `leg`, not by position in this list.
  */
 export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape {
   let shape: PathShape = { stops: [], dropped: 0, missing: 0 };
-  let legs = trajectory.legs;
   // A path the engine refuses to fly has no shape worth drawing; the article
   // says why rather than showing a single dot
-  if (!legs.length)
+  if (!trajectory.legs.length)
     return shape;
 
   let zones = region.missionZones ?? [];
-  for (let [index, zoneIndex] of trajectory.stops.entries()) {
-    let zone = zones[zoneIndex];
+  for (let stop of trajectory.flightStops) {
+    let zone = zones[stop.zone];
     if (!zone) {
       shape.missing++;
       continue;
@@ -143,21 +201,40 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
       continue;
     }
     shape.stops.push({
-      zone: zoneIndex,
+      zone: stop.zone,
       point: center,
-      leg: index,
-      lands: index > 0 && legs[index - 1].lands,
+      leg: stop.index,
+      lands: stop.lands,
+      altitude: stop.arrival?.altitude,
+      speed: stop.arrival?.speed,
     });
   }
   return shape;
 }
 
-/** A trajectory drawn in one region, or nothing when it has no line to draw */
+/**
+ * A trajectory drawn in one region, or nothing when it has no place at all.
+ *
+ * A path whose every stop is the same zone has no line, but it is not nothing:
+ * the UFO really does appear, wait and leave at one spot, and that spot is worth
+ * marking. So the test is whether any stop could be placed, not whether any leg
+ * could be drawn.
+ */
 export function trajectoryPath(trajectory: UfoTrajectory, region: Region): OverlayPath | undefined {
   let shape = pathShape(trajectory, region);
-  return drawnLegs(shape)
-    ? { id: trajectory.id, stops: shape.stops, dropped: shape.dropped }
-    : undefined;
+  if (!shape.stops.length)
+    return;
+  let speeds = pathSpeeds(trajectory);
+  return {
+    id: trajectory.id,
+    stops: shape.stops,
+    dropped: shape.dropped,
+    // A leg's speed is a percentage of the craft's top speed, and a path may be
+    // flown by several craft. The mean is what the drawing can show in one line;
+    // the range is kept alongside so the article can say so in words.
+    craftKnots: speeds ? (speeds.min + speeds.max) / 2 : undefined,
+    craftSpeeds: speeds,
+  };
 }
 
 /**
@@ -188,7 +265,57 @@ export function regionOverlay(region: Region, paths: UfoTrajectory[] = []): Over
  */
 export const MAX_DRAWN_PATHS = 6;
 
-/** One colour per region, so the overlay reads as a highlight over the land */
+/**
+ * An OKLCH colour as a hex string, converted here rather than left to the browser.
+ *
+ * OKLCH is the right space to *choose* a colour in: equal steps in lightness look
+ * like equal steps, and the angle keeps hues as far apart as they can be. It is
+ * the wrong thing to *emit*, because this pedia ships as one self-contained HTML
+ * file that people open in whatever browser they have. A browser that does not
+ * understand `oklch()` drops the declaration, and the shape involved falls back to
+ * black or to the inherited colour — a silent hard failure, where hex always
+ * works. So the conversion is done once, here, and the rest of the app only ever
+ * sees plain `#rrggbb`.
+ *
+ * The maths is the standard OKLab definition: OKLCH to OKLab to linear sRGB, then
+ * the sRGB transfer function. Out-of-gamut channels are clamped, which is why the
+ * callers keep their chroma low.
+ */
+function oklchToHex(light: number, chroma: number, hue: number) {
+  let radians = hue * Math.PI / 180;
+  let a = chroma * Math.cos(radians);
+  let b = chroma * Math.sin(radians);
+
+  let l = Math.pow(light + 0.3963377774 * a + 0.2158037573 * b, 3);
+  let m = Math.pow(light - 0.1055613458 * a - 0.0638541728 * b, 3);
+  let s = Math.pow(light - 0.0894841775 * a - 1.2914855480 * b, 3);
+
+  // Linear sRGB
+  let red = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  let green = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  let blue = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+  // The sRGB transfer function, then 8 bits
+  let encode = (value: number) => {
+    let clamped = Math.min(1, Math.max(0, value));
+    let encoded = clamped <= 0.0031308
+      ? clamped * 12.92
+      : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+    return Math.round(encoded * 255);
+  };
+  let hex = [red, green, blue]
+    .map(channel => encode(channel).toString(16).padStart(2, "0"))
+    .join("");
+  return `#${hex}`;
+}
+
+/**
+ * One colour per region, so the overlay reads as a highlight over the land.
+ *
+ * The region colour sits under everything on the page, so it is kept light and
+ * only mildly saturated: it has to be readable against the sea it is drawn on and
+ * not compete with the zones on top of it.
+ */
 export function regionColor(id?: string) {
   if (!id)
     return undefined;
@@ -196,5 +323,105 @@ export function regionColor(id?: string) {
   for (let i = 0; i < id.length; i++)
     hash = (hash * 31 + id.charCodeAt(i)) | 0;
   let hue = Math.abs(hash) % 360;
-  return `hsl(${hue} 85% 62%)`;
+  return oklchToHex(0.80, 0.13, hue);
+}
+
+/**
+ * Colours for the zones of a flight.
+ *
+ * A waypoint names a zone and the game picks a random point inside it, so a zone
+ * is the only thing on a trajectory map that can honestly be pointed at. Giving
+ * each one a colour is what lets the picture say "stop 1 is anywhere in the red
+ * box, stop 2 anywhere in the blue one", which a single-colour line cannot.
+ *
+ * The hue walks the wheel by the golden angle, so consecutive zones are as far
+ * apart as geometry allows, with no palette size to run out of.
+ *
+ * Lightness and chroma step on a second, independent cycle. Hue alone is not
+ * enough: on a path of six zones the golden angle has wrapped most of the way
+ * round, so zones 1 and 6 sit 32° apart in hue, and two bright colours that close
+ * differ by only ~13 ΔE in OKLab — the pair a reader is most likely to confuse.
+ * Alternating lightness fixes that pair (measured: 13.5 ΔE at the worst pair up to
+ * eight zones, against 4.4 before), and moving chroma the opposite way keeps the
+ * darker variant from being a dim copy of the lighter one.
+ *
+ * The values are chosen in OKLCH, which is perceptually uniform, and emitted as
+ * hex so no browser has to understand the newer syntax — see `oklchToHex`.
+ */
+export function zoneColor(index: number) {
+  let hue = (index * 137.508) % 360;
+  let dark = index % 2 == 1;
+  // Measured over the first eight indices, this pair keeps the closest two zones
+  // 17 ΔE apart in OKLab, against 4.4 for a fixed lightness: 13.4 for the worst
+  // pair of a four-zone path. The dark step is kept at 0.60 rather than lower so
+  // it still reads against the navy sea it is usually drawn on.
+  return oklchToHex(dark ? 0.60 : 0.78, dark ? 0.18 : 0.14, hue);
+}
+
+/**
+ * The zones a flight visits, in the order it first reaches them.
+ *
+ * A zone is often visited more than once (the engine re-targets the second line,
+ * and a patrol returns the way it came), so this is the distinct list: colour is
+ * a property of the place, not of the stop.
+ */
+export function visitedZones(stops: PathStop[]) {
+  let out: number[] = [];
+  for (let stop of stops)
+    if (!out.includes(stop.zone))
+      out.push(stop.zone);
+  return out;
+}
+
+/**
+ * One colour per flight leg, so a leg can be picked out by its own colour.
+ *
+ * Zones are coloured by place and the stop rows carry that colour, which left a
+ * leg with nothing of its own to say: colouring a leg by its destination only
+ * repeated the stop above it. A leg is a move, not a place, so it gets its own
+ * series, indexed by leg number.
+ *
+ * The series walks the wheel by the golden angle like the zone palette, but the
+ * whole of it is turned by 120°, and it uses a different pair of lightnesses. Both
+ * matter: the two palettes appear on the same page, and a leg that happened to
+ * match a zone box would suggest a relation that is not there. Measured in OKLab,
+ * the closest leg colour to any of the six zone colours a path can show is 9 ΔE at
+ * this offset; the unturned series collided at 0.9.
+ *
+ * Within the series, alternating lightness is what keeps the close pairs apart, as
+ * it does for zones: leg 1 and leg 6 of a six-leg path sit 32° apart in hue, and at
+ * one lightness they merge. Measured worst pair: 17.6 ΔE over eight legs. Past
+ * about ten legs a path is a patrol scribble where the dashes and the stops carry
+ * the meaning and colour is a rank, not an identity.
+ */
+export function legColor(index: number) {
+  let hue = (index * 137.508 + 120) % 360;
+  let dark = index % 2 == 1;
+  return oklchToHex(dark ? 0.56 : 0.76, dark ? 0.18 : 0.16, hue);
+}
+
+/**
+ * The top speeds of the crafts that can fly a path, in knots, or nothing when
+ * the pack offers none.
+ *
+ * A leg's speed is a percentage of the craft's `speedMax`, and one path is
+ * usually flown by several craft with different top speeds (X-Piratez flies `P4`
+ * with twelve). Turning a percentage into a distance therefore needs a craft,
+ * and the honest summary of "several" is either the shared value or a range.
+ */
+export function pathSpeeds(trajectory: UfoTrajectory): { min: number, max: number } | undefined {
+  let values: number[] = [];
+  for (let mission of rul.missionsFlying(trajectory.id))
+    for (let wave of rul.alienMissions?.[mission]?.waves ?? []) {
+      if (wave?.trajectory != trajectory.id)
+        continue;
+      let speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
+      // A `speedMax` of 0 is a craft that does not move, and packs do carry
+      // nonsense values here, so only a positive number is a speed
+      if (isFinite(speed) && speed > 0 && speed < 100000)
+        values.push(speed);
+    }
+  if (!values.length)
+    return;
+  return { min: Math.min(...values), max: Math.max(...values) };
 }

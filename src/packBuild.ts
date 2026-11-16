@@ -450,8 +450,11 @@ export function mergeBuiltinMods(
   for (let mod of stored.mods ?? [])
     mods[mod.dir] = mod;
 
-  // Same order the save used, so asset overrides land on the same files
-  let builtinActive = Ruleset.activeMods(Object.values(builtinParsed));
+  // Same order the save used, so asset overrides land on the same files. The
+  // flag is set here because `builtinParsed` comes straight from the parser,
+  // which knows the folders but not that they ship inside XPedia.
+  let builtinActive = Ruleset.activeMods(
+    Object.values(builtinParsed).map(mod => ({ ...mod, builtin: true })));
   let builtinInterpreted = interpretFiles(builtinFiles);
 
   let processed = Ruleset.preprocessMods(mods);

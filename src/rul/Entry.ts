@@ -405,6 +405,40 @@ export type FlightLeg = {
 };
 
 /**
+ * One stop of a flight: the zone the UFO is in, and what brought it there.
+ *
+ * A stop is not a line of the ruleset. Line 0 is the spawn state and every later
+ * line is a *destination*, so the stops are what those lines add up to: the
+ * spawn point, then one arrival per leg.
+ *
+ * Two consecutive stops can name the same zone. The engine re-targets the second
+ * line, which sends the craft to a fresh random point in that zone, so it is
+ * moving inside the zone rather than resting: the page says so rather than
+ * calling it a wait.
+ */
+export type FlightStop = {
+  /** Zone index, into a region's `missionZones` */
+  zone: number;
+  /** 0-based position in the flight, which is the number a page prints */
+  index: number;
+  /** The leg that arrived here, or nothing at the spawn point */
+  arrival?: FlightLeg;
+  /** Whether the UFO is on the ground here, so its cargo can be found */
+  lands: boolean;
+};
+
+/**
+ * One step of a flight: a stop the UFO is at, or a leg it flies between two.
+ *
+ * This is the shape a page reads a flight in. A table interleaves the two, and a
+ * map needs each stop together with the leg that reaches it, so both are served
+ * by one alternating list rather than each zipping the raw views itself.
+ */
+export type FlightStep =
+  | { kind: "stop", stop: FlightStop }
+  | { kind: "leg", leg: FlightLeg };
+
+/**
  * A UFO flight path, as a list of waypoints.
  *
  * A waypoint is `[zone, altitude, speed]`, and the zone is an index into the
@@ -501,6 +535,53 @@ export class UfoTrajectory extends Entry {
     if (!legs.length)
       return (this.waypoints ?? []).map(w => Number(w?.[0]));
     return [legs[0].from, ...legs.map(leg => leg.to)];
+  }
+
+  /**
+   * The flight as stops, each carrying the leg that arrives at it.
+   *
+   * `legs` is a list of moves; this is the same flight read as a list of places.
+   * A binder, a table and a map all want the second, and none of them should have
+   * to re-derive it: a stop's altitude and speed are the arriving leg's, which is
+   * exactly the detail that is easy to get wrong.
+   */
+  get flightStops(): FlightStop[] {
+    let legs = this.legs;
+    if (!legs.length)
+      return (this.waypoints ?? []).map((w, i) => ({
+        zone: Number(w?.[0]),
+        index: i,
+        lands: i == 0 && Number(w?.[1]) === 0,
+      }));
+    return [legs[0].from, ...legs.map(leg => leg.to)].map((zone, i) => ({
+      zone,
+      index: i,
+      arrival: legs[i - 1],
+      // The spawn point counts only when the craft starts down there
+      lands: i == 0 ? Number(this.waypoints?.[0]?.[1]) === 0 : !!legs[i - 1]?.lands,
+    }));
+  }
+
+  /**
+   * The flight as one alternating list: a stop, the leg away from it, the next
+   * stop, and so on.
+   *
+   * A table reads a flight this way — "at 1, then fly there, then at 2" — and so
+   * does a map when it wants to label a stop and describe the move before it
+   * together. Deriving it once means the two views cannot disagree about which
+   * stop a leg belongs to.
+   */
+  get flightSteps(): FlightStep[] {
+    let stops = this.flightStops;
+    let legs = this.legs;
+    if (!legs.length)
+      return stops.map(stop => ({ kind: "stop" as const, stop }));
+    let out: FlightStep[] = [{ kind: "stop", stop: stops[0] }];
+    for (let [i, leg] of legs.entries()) {
+      out.push({ kind: "leg", leg });
+      out.push({ kind: "stop", stop: stops[i + 1] });
+    }
+    return out;
   }
 
   /**

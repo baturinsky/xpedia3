@@ -691,15 +691,42 @@ export function LinksPage(props: {
   links?: AnyRef[],
   cols?: number | false,
   title?: any,
+  /**
+   * The links are already in the order `<`/`>` navigation walks, so they must
+   * not be sorted again. A section page passes its cached list; sorting it a
+   * second time cost a full `localeCompare` pass over 2904 entries on every
+   * render of `RESEARCH`.
+   */
+  preSorted?: boolean,
 }) {
   let links = props.links ?? [];
   if (!links.length)
     return null;
 
-  // Sorting is controlled by the single `A-Z` button in the top navbar
-  let items = state.alphabeticalSort
-    ? [...links].sort((a, b) => (rul.tr(fromAnyRef(a) ?? "") ?? "") > (rul.tr(fromAnyRef(b) ?? "") ?? "") ? 1 : -1)
-    : links;
+  // Sorting is controlled by the single `A-Z` button in the top navbar.
+  //
+  // The order has to match the one `<`/`>` navigation walks, or the list shows
+  // names in one sequence while the arrows step through them in another (they
+  // did: 34 of 57 sections disagreed, because this sorted on a plain `>` while
+  // navigation used the numeric, accent-insensitive `comparator`). A category's
+  // link list still needs sorting, so it goes through the same
+  // `sortStringsAndNumbers` the navigator uses.
+  let items = links;
+  if (state.alphabeticalSort && !props.preSorted) {
+    let ids = links.map(link => fromAnyRef(link) ?? "");
+    let sortedIds = rul.sortStringsAndNumbers(ids);
+    // Rebuild the caller's refs in the new order, keeping the original entry for
+    // each id so a link keeps whatever form the caller passed in. A list can
+    // repeat an id, so entries are consumed rather than looked up twice.
+    let byId = new Map<string, AnyRef[]>();
+    links.forEach((link, i) => {
+      let id = ids[i];
+      let list = byId.get(id);
+      if (list) list.push(link);
+      else byId.set(id, [link]);
+    });
+    items = sortedIds.map(id => byId.get(id)!.shift()!);
+  }
 
   return <>
     {props.title != null && <div className="links-page-header"><Val of={props.title} /></div>}

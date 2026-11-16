@@ -1094,10 +1094,18 @@ export default class Ruleset {
    * Picks the mods OpenXcom would actually load, in the order it loads them.
    *
    * OpenXcom activates exactly one master mod and then the mods that depend on
-   * that master, plus standalone mods and mods explicitly marked active. A
-   * master may chain to a "super" master (`master: xcom1`), which is loaded
-   * underneath it. Other masters — most importantly `xcom2` next to `xcom1` —
-   * stay off, which keeps the TFTD half of a modpack out of the ruleset.
+   * that master. A master may chain to a "super" master (`master: xcom1`), which
+   * is loaded underneath it. Other masters — most importantly `xcom2` next to
+   * `xcom1` — stay off, which keeps the TFTD half of a modpack out of the ruleset.
+   *
+   * XPedia's own builtin mods are exempt from that filter and always load, so a
+   * helper does not have to name the pack's master to be included.
+   *
+   * `active` is deliberately ignored here. In a pack the game stores it to mean
+   * "installed but switched off", which is a load-time decision for a player, not
+   * a property of a reference page: the pedia describes everything the archive
+   * contains. Honouring it would also let the flag reorder the merge, which it
+   * must never do.
    *
    * Order is the merge order: later mods override earlier ones.
    */
@@ -1139,29 +1147,40 @@ export default class Ruleset {
 
     let masterId = activeMaster ? idOf(activeMaster) : undefined;
 
+    /** Whether a builtin mod is the per-pack helper rather than XPedia's base */
+    let isHelper = (mod: Mod) => /^xhelper-/i.test(mod.dir.split(/[/\\]/).pop() ?? "");
+
     /** Sorting key: `[group, position within the group]` */
     let order = (mod: Mod): [number, number] => {
       if (mod.common)
         return [0, 0];
+      // Builtin mods belong to XPedia, not to the pack, and exist to fill the
+      // gaps in the pack's own text. They therefore go underneath every mod the
+      // pack brought, so a string the pack translates always wins. XPedia's
+      // shared base goes before the per-pack helper, which then overrides it.
+      if (mod.builtin)
+        return [1, isHelper(mod) ? 1 : 0];
+      // A pack mod naming a master the pack does not contain cannot be placed by
+      // the chain. It is the one the pack is about, or a dependency of it, so it
+      // goes after the builtins but still underneath the chain's own order.
+      if (mod.meta?.master && !byId[mod.meta.master])
+        return [2, 0];
       let i = chain.indexOf(mod);
       if (i >= 0)
-        return [2, i];
-      // Mods for a master that is not part of the pack, e.g. XPedia's own base
-      // strings declared against the pseudo master `xpedia`, go first so every
-      // real translation can override them
-      if (mod.meta?.master && !byId[mod.meta.master])
-        return [1, 0];
-      if (mod.meta?.active === true)
-        return [4, 0];
-      return [3, 0];
+        return [3, i];
+      return [4, 0];
     };
 
     let active = all.filter(mod => {
       if (mod.common || chain.includes(mod))
         return true;
-      if (!mod.meta || Object.keys(mod.meta).length == 0)
+      // Builtin mods ship inside XPedia, so they are always loaded: they are not
+      // something a pack installs or enables, and their metadata must not have to
+      // name the pack's master to survive the filter below. This is also what
+      // lets the per-pack helper be declared against XPedia's own base.
+      if (mod.builtin)
         return true;
-      if (mod.meta.active === true)
+      if (!mod.meta || Object.keys(mod.meta).length == 0)
         return true;
       // A pack can be a single mod packed on its own rather than a whole
       // OpenXcom install: `Final Mod Pack/metadata.yml` declares `master: xcom1`
@@ -1321,8 +1340,23 @@ export default class Ruleset {
 
 }
 
+/**
+ * Collator for every name sort in the pedia.
+ *
+ * `localeCompare` with an options object constructs a collator on each call, and
+ * a section sort makes thousands of them: the 2904-article `RESEARCH` section
+ * cost ~90 ms, almost all of it in collator setup rather than comparison. One
+ * shared collator with the same options gives an order that is identical to the
+ * `localeCompare` call it replaces and costs a fraction of that.
+ *
+ * `numeric` keeps "Clip 2" before "Clip 10"; `sensitivity: "base"` makes case
+ * and accents not decide the order, so a pack's own capitalisation does not
+ * scatter its entries.
+ */
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
 export function comparator(a:any, b:any){
-  return (a??"").localeCompare(b, undefined, { numeric: true, sensitivity: "base" })  
+  return nameCollator.compare(a ?? "", b ?? "");
 }
 
 
