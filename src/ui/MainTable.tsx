@@ -52,17 +52,17 @@ const MainTable = ({
 
   const sorted = pairs != null ? { all: pairs } : sortFirstLast(of, sort);
 
-  const subVal = (v: any, field?: string) => {
+  const subVal = (key: string | undefined, value: any) => {
     // A field may hold a whole ruleset node rather than a plain value, and some
     // of those are references: `refNode` carries the inherited armour
     // definition but must still be drawn as a link to the node it came from.
     // `Val` already does exactly that, so only a node that is not a reference
     // becomes a table of its own.
-    let ref = fromAnyRef(v);
-    let isRef = typeof v == "object" && ref != null && rul?.article(ref) != null;
-    return v != null && typeof v == "object" && !isFlat(v) && !isRef
-      ? <MainTable of={v} />
-      : <Val of={v} field={field} collection={of?.collection} />;
+    let ref = fromAnyRef(value);
+    let isRef = typeof value == "object" && ref != null && rul?.article(ref) != null;
+    return value != null && typeof value == "object" && !isFlat(value) && !isRef
+      ? <MainTable of={value} />
+      : <Val of={value} field={key} collection={of?.collection} />;
   }
 
   return (
@@ -78,7 +78,7 @@ const MainTable = ({
       }
       <tbody>
         {before}
-        {sorted.all.map(([key, val]: [string, any], row) => {
+        {sorted.all.map(([key, value]: [string, any], row) => {
           // A field that draws its own rows, subheader included. Checked first
           // so a caller can name an internal row such as `_details`.
           if (key in rows) {
@@ -87,7 +87,7 @@ const MainTable = ({
               console.error(`Row renderer for '${key}' is not a function`)
               return null;
             }
-            return <Fragment key={key}>{render({ key, val, row })}</Fragment>;
+            return <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
           }
 
           // Skip keys starting with underscore
@@ -102,9 +102,9 @@ const MainTable = ({
             let render = special[key];
             let content: JSX.Element;
             if (typeof render !== "function") {
-              content = subVal(val, key)
+              content = subVal(key, value)
             } else {
-              content = <Fragment key={key}>{render({ key, val, row })}</Fragment>;
+              content = <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
             }
             return <Fragment key={key}>
               <tr><td colSpan={2} className="table-subheader"><Val of={key} /></td></tr>
@@ -121,16 +121,16 @@ const MainTable = ({
             }
             return <tr key={key}>
               <td className="row-name"><Val of={key} capital={true} /></td>
-              <td>{render({ key, val, row })}</td>
+              <td>{render({ key, val: value, row })}</td>
             </tr>
           }
 
           // Default fields - only render if prop has value
-          if (val != null && !(val.length === 0)) {
+          if (value != null && !(value.length === 0)) {
             return (
               <tr key={key}>
                 <td className="row-name"><Val of={key} capital={true} /></td>
-                <td>{subVal(val, key)}</td>
+                <td>{subVal(key, value)}</td>
               </tr>
             );
           }

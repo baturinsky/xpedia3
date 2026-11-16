@@ -1243,12 +1243,31 @@ table.thin, table.thin td, table.thin td{
   break-inside: auto;
 }
 
-.main-table>tbody>tr>td:first-child {
-  width: 10rem;
-}
-
-.main-table .main-table>tbody>tr>td:first-child {
-  width: 2rem;
+/*
+ * The label column is exactly as wide as its longest label, and no wider.
+ *
+ * A fixed `10rem` was either too wide, wasting space on the short labels most
+ * rows have ("Size", "Cost"), or too narrow, wrapping the longer ones. `width:
+ * 1%` makes table layout give the column only what its content needs, and the
+ * spare width then goes to the value column instead of being split evenly.
+ *
+ * `nowrap` is what makes it the *text* width rather than the longest word: a
+ * wrapping column would shrink to fit the widest single word and break "Damage
+ * modifiers" over two lines. Labels are short by nature, so a single line is
+ * both tidier and the only way the width can follow the text.
+ *
+ * No `max-width`: a cap would shorten the box while `nowrap` kept the text at
+ * full width, and the label would spill over the value column. A pathological
+ * label instead takes its space from the values, which wrap on their own; on a
+ * phone the table becomes a scrolling block, so it cannot break the page.
+ *
+ * This keys off `row-name` rather than `td:first-child` on purpose. A table
+ * whose first column holds data (`2` for a size, a date, a name) wants the
+ * spare width as much as one holding a list, so shrinking it would be wrong.
+ */
+.main-table>tbody>tr>td.row-name {
+  width: 1%;
+  white-space: nowrap;
 }
 
 
