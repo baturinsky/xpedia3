@@ -151,6 +151,8 @@ function isEditable(target: EventTarget | null) {
     || target.tagName == "SELECT";
 }
 
+const upAndDownKeysEnabled = false
+
 addEventListener("keydown", e => {
   // The load status window is modal, so navigation must wait for it
   if (state.slowProcessStatus)
@@ -169,16 +171,16 @@ addEventListener("keydown", e => {
     "KeyS": "down", "ArrowDown": "down",
   }[e.code];
   if (pageSwitch) {
-    if (pageSwitch == "up") {
+    if (upAndDownKeysEnabled && (pageSwitch == "up")) {
       if (section) {
         if (section.id == article?.id)
           goToLanding()
         else
           goToArticle(section)
       }
-    } else if (pageSwitch == "down") {
+    } else if (upAndDownKeysEnabled && (pageSwitch == "down")) {
       history.go(-1);
-    } else {
+    } else if(pageSwitch==1 || pageSwitch==-1){
       if (article && section)
         goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort))
     }
