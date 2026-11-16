@@ -243,10 +243,19 @@ function countryRectangle(area: MapRectangle) {
   return lons.map((lon, i) => [columnForLon(lon), rowForLat(lats[i])] as [number, number]);
 }
 
-/** One shape, repeated either side of the map so the seam is filled */
+/**
+ * One shape, repeated either side of the map so the seam is filled.
+ *
+ * Each copy is wrapped in a keyed fragment: the render callback usually returns
+ * a bare element, and a bare element in a list has no key of its own, so React
+ * cannot tell one copy from another when the map is redrawn. Some callers key
+ * their element anyway; the wrapper makes that a caller's choice rather than a
+ * requirement, since forgetting it only produced a console warning.
+ */
 function Repeated(props: { points: [number, number][], render: (points: string, shift: number) => any }) {
   let serialized = props.points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-  return <>{[-1, 0, 1].map(shift => props.render(serialized, shift * WIDTH))}</>;
+  return <>{[-1, 0, 1].map(shift =>
+    <Fragment key={shift}>{props.render(serialized, shift * WIDTH)}</Fragment>)}</>;
 }
 
 /**
