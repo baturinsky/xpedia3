@@ -21,6 +21,18 @@ interface Entry {
 /** Three layers of 40×40 pixels per figure, stacked into one doll */
 const dollColumns = 6;
 
+/**
+ * The label under a doll: the paperdoll's own name when the language table has
+ * one, otherwise the raw body id.
+ *
+ * Packs that draw their paperdolls name each body (`M0: M0 Reyi`), and those
+ * names are the only thing that makes the numbered variants distinguishable.
+ * The lookup only applies when the language table really has the id as a key:
+ * `tr` would otherwise prettify an arbitrary body id (`CivilianMale` becomes
+ * `Civilian Male`), which is not a name the pack intended.
+ */
+const bodyName = (body: string) => body in rul.lang ? rul.tr(body) ?? body : body;
+
 /** The doll of every body the armor was drawn for, with its stats and armor
  *  value columns; the "Show all variants" button belongs to the button block */
 const ArmorPreview = ({ entry }: { entry: Entry }) => {
@@ -71,7 +83,7 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
           top: `${Math.floor(i / dollColumns) * 120}px`,
         }}
       >
-        {shouldShowAll && <div className="armor-variant">{body}</div>}
+        {shouldShowAll && <div className="armor-variant">{bodyName(body)}</div>}
         {sprites[body].map((url, j) => <Img key={`${body}-${j}`} src={url} alt={body} className="armor-layer" />)}
       </div>;
     })}

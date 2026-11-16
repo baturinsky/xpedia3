@@ -133,12 +133,10 @@ pl:
 
   recovery: "Regeneracja"
   energyCurrent: "Aktualna Energia"
-  flatHundred: "*100"
   flatOne: "*1"
   health: "Zdrowie"
   healthCurrent: "Aktualne Zdrowie"
   manaNormalized: "Znormalizowana Świeżość"
-  morale: "Morale"
   moraleCurrent: "Aktualne Morale"
   stun: "Oszołomienie"
   stunCurrent: "Aktualne Oszołomienie"

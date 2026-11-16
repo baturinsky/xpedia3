@@ -5,3 +5,4 @@
 # Build output; `dist` is the old location, kept ignored in case it lingers
 /build
 AGENTS.md
+build-number.txt
