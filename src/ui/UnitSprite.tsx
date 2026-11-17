@@ -1023,9 +1023,9 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
   let pose = remembered(poses, p => p == state.selection.pose, poses[0]);
   // Every facing is always offered, so a remembered one is nearly always usable;
   // it is still looked up among the eight the compass draws, so a value from an
-  // older build cannot leave the compass with nothing lit. The compass is
-  // disabled for a pose drawn from a single side, and the remembered facing then
-  // simply waits for a pose that can use it.
+  // older build cannot leave the compass with nothing lit. The compass is hidden
+  // for a pose drawn from a single side, and the remembered facing then simply
+  // waits for a pose that can use it.
   let facings = UNIT_DIRECTIONS.map(d => d.dir);
   let direction = remembered(facings, dir => dir == state.selection.direction, 2);
   // A gun that turns on its own starts out following the hull
@@ -1063,22 +1063,26 @@ export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
           )}
         </div>
 
-        <div className={"unit-directions" + (directional ? "" : " disabled")}
-          title={directional ? undefined : "This pose is drawn from one side only"}>
-          {/* A collapsing unit is a single frame that already contains the pose,
-              so the game draws it facing one way only */}
+        {/* A collapsing unit is a single frame that already contains the pose,
+            and a blob is one picture that shimmers on the spot: for those the
+            facing changes nothing, so the compass is not offered at all. Left
+            in place, dimmed, it still had a facing lit in it, which read as
+            "this is the side you are looking at" when the side makes no
+            difference. The remembered facing is untouched and comes back with
+            the next pose that can use it. */}
+        {directional && <div className="unit-directions">
           <div className="unit-compass">
             {!hasTurret ? null : <span className="unit-compass-centre">hull</span>}
             {UNIT_DIRECTIONS.map(d =>
               <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
                 <input type="radio" name={group} value={d.dir}
-                  checked={direction == d.dir} disabled={!directional}
+                  checked={direction == d.dir}
                   onChange={() => rememberSelection("direction", d.dir)} />
                 <span>{d.short}</span>
               </label>
             )}
           </div>
-        </div>
+        </div>}
 
         {hasTurret ? <div className="unit-directions">
           {/* The gun turns on its own, so it gets its own ring */}

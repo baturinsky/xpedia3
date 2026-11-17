@@ -701,6 +701,14 @@ button:disabled:hover {
   background: var(--lighter);
 }
 
+/* A pack that is not a file on disk — an exported pedia, or a folder served by
+   `xpedia-cli --serve` — has nothing separate to delete or repack. The dashed
+   outline says that at a glance, and matches the dashed upload tile that sits
+   at the end of the list. */
+.modpack-panel.permanent {
+  border-style: dashed;
+}
+
 .modpack-name {
   font-variant: small-caps;
 }
@@ -1816,15 +1824,6 @@ ol>li:last-child::after {
 
 .unit-dir-7 {
   transform: translate(0, -2.9rem);
-}
-
-/* A pose with no facing leaves the compass readable but not clickable */
-.unit-directions.disabled {
-  opacity: 0.5;
-}
-
-.unit-directions.disabled .unit-dir {
-  cursor: default;
 }
 
 /* The frame slider: its left end is "play", the rest hold one step */

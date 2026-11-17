@@ -1303,17 +1303,33 @@ export class Armor extends Entry {
       }
     } else if (this.spriteInv) {
       let name: string = this.spriteInv;
-      let l = name?.length;
 
       if (this.spriteInv + ".SPK" in rul.sprites) {
         ds = {
           "0": [await rul.sprites[this.spriteInv + ".SPK"].data() as string],
         };
       } else {
+        // The paperdoll variants of one body are registered as
+        // `<spriteInv><body>`, sometimes with an extension and sometimes
+        // without: XCom Files declares `inventory_HYBRID_SOLDIER` beside a bare
+        // `inventory_HYBRID`, while the same pack's `ASTRAL_WEREWOLFM0.SPK`
+        // carries one. The body is whatever sits between the prefix and the
+        // extension, if there is one.
+        //
+        // Only single pictures are paperdolls. A subdivided set is a unit
+        // sprite sheet: `spriteInv: ASTRAL_WEREWOLF` beside `spriteSheet:
+        // ASTRAL_WEREWOLF.PCK`, or the drone's `DRONE_TASER.PCK`, each of which
+        // sits under the same prefix and was counted as a variant, drawn as a
+        // whole 512×720 atlas above the real dolls, labelled either blank or by
+        // whatever followed the prefix.
         for (let s in rul.sprites) {
-          if (s.substr(0, l) == name) {
-            ds[s.substr(l, s.length - l - 4)] = [await rul.sprite(s)];
-          }
+          if (!s.startsWith(name) || s == this.spriteSheet)
+            continue;
+          let sprite = rul.sprites[s];
+          if (sprite.subX || sprite.subY)
+            continue;
+          let body = s.substring(name.length).replace(/\.[^./\\]+$/, "");
+          ds[body] = [await rul.sprite(s)];
         }
       }
     }

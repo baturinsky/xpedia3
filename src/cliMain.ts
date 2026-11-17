@@ -14,6 +14,9 @@ import {
 import shellPayload from "xpedia:shell";
 import builtinModsPayload from "xpedia:builtin-mods";
 import unrarWasmPayload from "xpedia:unrar-wasm";
+import { UsageError } from "./cliError";
+import { resolveLanguages } from "./cliLanguages";
+import { servePack } from "./cliServe";
 
 /**
  * Exports an XPedia modpack without a browser.
@@ -28,6 +31,7 @@ const helpText = `xpedia-cli - export an XPedia modpack as a standalone referenc
 
 Usage:
   xpedia-cli <pack.zip|pack.rar> <target> [options]
+  xpedia-cli --serve[=<folder>] [options]
 
 Arguments:
   <pack>                 Modpack archive (ZIP or RAR)
@@ -38,6 +42,16 @@ Arguments:
                          is the archive --zip writes.
 
 Options:
+  --serve[=<folder>]     Serve a modpack folder instead of exporting anything,
+                         so a mod can be seen live without repacking it. The
+                         folder is the current one when none is named. Any of
+                         the usual arrangements is understood: a game root with
+                         user/mods, a folder of mod folders, or a single mod
+                         folder of its own. Mods, images and sounds are read
+                         from the folder as the request arrives; reload the page
+                         to pick up an edit.
+  --port <n>             Port for --serve, 9391 by default. The next free port
+                         is used when it is taken, and the one chosen is printed.
   --lang <names>         Languages to include, comma separated and repeatable.
                          Omitting it exports every language the pack has.
                          English is always carried as the fallback, so
@@ -65,13 +79,12 @@ Examples:
   xpedia-cli pack.zip site --assets --lang ru,en-US
   xpedia-cli pack.zip site --split --lang ru,de,pl
   xpedia-cli pack.rar pedia.zip --zip
+  xpedia-cli --serve "D:/OpenXcom/user/mods/MyMod"
+  xpedia-cli --serve --port 8080
 
 The page is the XPedia app compiled into this file, so a new UI build means a new
 CLI: rebuild it with \`npm run cli\`.
 `;
-
-/** Raised for anything the user can fix: bad arguments, missing files */
-class UsageError extends Error { }
 
 /** Parsed command line */
 type Options = {
@@ -84,13 +97,21 @@ type Options = {
   force: boolean,
   quiet: boolean,
   manifest: boolean,
+  /** Folder to serve, empty when the current directory is meant */
+  serve: string | undefined,
+  port: number,
 };
+
+/** The port `--serve` starts at, one that is easy to remember and unlikely taken */
+const defaultPort = 9391;
 
 function parseArgs(argv: string[]): Options | "help" {
   let positional: string[] = [];
   let languages: string[] | undefined;
   let split = false, assets = false, zip = false, force = false, quiet = false;
   let manifest = true;
+  let serve: string | undefined;
+  let port: number | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     let arg = argv[i];
@@ -109,7 +130,21 @@ function parseArgs(argv: string[]): Options | "help" {
       force = true;
     else if (arg == "--quiet" || arg == "-q")
       quiet = true;
-    else if (arg == "--lang" || arg.startsWith("--lang=")) {
+    else if (arg == "--serve" || arg.startsWith("--serve=")) {
+      // Both `--serve folder` and `--serve=folder` are accepted. A bare
+      // `--serve` serves the current directory, and a following argument is not
+      // taken as the folder: `--serve pack.zip out` would otherwise silently
+      // treat the archive as a folder.
+      let value = arg == "--serve" ? undefined : arg.substring("--serve=".length);
+      serve = value ?? "";
+    } else if (arg == "--port" || arg.startsWith("--port=")) {
+      let value = arg == "--port" ? argv[++i] : arg.substring("--port=".length);
+      if (value == null || value.startsWith("--"))
+        throw new UsageError("--port needs a number, e.g. --port 8080");
+      port = Number(value);
+      if (!Number.isInteger(port) || port < 1 || port > 65535)
+        throw new UsageError(`--port needs a whole number between 1 and 65535, not ${JSON.stringify(value)}`);
+    } else if (arg == "--lang" || arg.startsWith("--lang=")) {
       // Both `--lang ru,de` and `--lang=ru,de` are accepted, and repeating the
       // flag adds to the list rather than replacing it
       let value = arg == "--lang" ? argv[++i] : arg.substring("--lang=".length);
@@ -125,6 +160,28 @@ function parseArgs(argv: string[]): Options | "help" {
       positional.push(arg);
   }
 
+  if (port != null && serve === undefined)
+    throw new UsageError("--port only applies to --serve");
+
+  if (serve !== undefined) {
+    // The folder is normally named by `--serve=`, but a single positional is
+    // also read as one so `xpedia-cli --serve D:/mods/MyMod` works
+    let folder = serve;
+    if (!folder) {
+      if (positional.length == 1)
+        folder = positional[0];
+      else if (positional.length > 1)
+        throw new UsageError(`--serve takes one folder, not ${positional.length} arguments`);
+    }
+    return {
+      source: "", target: "", languages, split, assets, zip, force, quiet, manifest,
+      serve: folder, port: port ?? defaultPort
+    };
+  }
+
+  if (port != null)
+    throw new UsageError("--port only applies to --serve");
+
   if (positional.length < 2)
     throw new UsageError("A modpack archive and a target are required");
   if (positional.length > 2)
@@ -134,7 +191,8 @@ function parseArgs(argv: string[]): Options | "help" {
     source: positional[0],
     target: positional[1],
     languages: languages?.length ? languages : undefined,
-    split, assets, zip, force, quiet, manifest
+    split, assets, zip, force, quiet, manifest,
+    serve: undefined, port: defaultPort
   };
 }
 
@@ -209,38 +267,6 @@ function extractShell(html: string): AppShell {
   if (!scripts.some(s => s.content.length > 50_000))
     throw new Error("The embedded app shell has no application bundle: run `npm run build` and rebuild the CLI");
   return { scripts, styles };
-}
-
-/**
- * The languages to export, in the order they were asked for.
- *
- * `--lang` accepts any spelling of a language name; the pack's own spelling is
- * used from here on. An unknown name is a hard error: silently falling back to
- * English would hand back a file that is not what was asked for, and the usual
- * cause is a typo such as `en-us` or `ru-RU`.
- *
- * English is always part of the result: every page carries its strings as the
- * fallback, so `--lang en-US` is how to ask for English alone rather than a way
- * to leave it out.
- */
-function resolveLanguages(requested: string[] | undefined, available: string[]) {
-  // Omitting `--lang` means every language the pack has, English leading
-  if (!requested)
-    return [defaultLanguage, ...available.filter(name => name != defaultLanguage)];
-
-  let byLower = new Map(available.map(name => [name.toLowerCase(), name]));
-  let unknown = requested.filter(name => !byLower.has(name.toLowerCase()));
-  if (unknown.length)
-    throw new UsageError(`The pack has no language ${unknown.map(n => JSON.stringify(n)).join(", ")}. ` +
-      `Available: ${available.join(", ")}`);
-
-  // The same language twice is one language, and a repeat must not move it
-  let names = [...new Set(requested.map(name => byLower.get(name.toLowerCase())!))];
-  // English goes last when it was not named, so that the first language the
-  // user asked for stays the primary one
-  if (!names.includes(defaultLanguage))
-    names.push(defaultLanguage);
-  return names;
 }
 
 /**
@@ -554,6 +580,18 @@ async function main(argv: string[]) {
   }
   let options = parsed;
   let report = makeReporter(options.quiet);
+
+  // Serving replaces the whole export: there is nothing to read, unpack or
+  // write, so it branches off before any of that starts
+  if (options.serve !== undefined)
+    return servePack({
+      root: options.serve || ".",
+      port: options.port,
+      languages: options.languages,
+      shell: appShell(),
+      builtinModsPayload,
+      info: message => report.info(message),
+    });
 
   if (!fs.statSync(options.source, { throwIfNoEntry: false })?.isFile())
     throw new UsageError(`No such archive: ${options.source}`);

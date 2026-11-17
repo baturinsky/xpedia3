@@ -288,7 +288,17 @@ export function buildResourceMap(interpreted: { mod: string, path: string, type?
  */
 export function buildPackData(
   files: { [name: string]: Uint8Array },
-  builtinDirs?: Set<string>
+  builtinDirs?: Set<string>,
+  /**
+   * Whether to also return the pack's own half, the form the database stores.
+   *
+   * The copy of every mod's parsed ruleset is not free — a total conversion
+   * carries the whole ruleset per mod — so a caller that only wants to render
+   * the pedia, such as the live server, can say no. `builtinDirs` alone cannot
+   * express that: it is also what marks the builtin mods, and those have to be
+   * marked whether or not anything is stored.
+   */
+  storeOwn = true
 ) {
   let interpretedFiles = interpretFiles(files);
   let mods = loadModsAndLng(decodedYamlFiles(files));
@@ -303,7 +313,7 @@ export function buildPackData(
   // a deep copy taken first. A reference here would arrive at the database
   // already stripped, and a stored pack would then lose every string it
   // translated — including another language's name for itself.
-  let ownMods = builtinDirs
+  let ownMods = builtinDirs && storeOwn
     ? JSON.parse(JSON.stringify(Object.values(mods).filter(mod => !mod.builtin)))
     : undefined;
 
@@ -317,7 +327,7 @@ export function buildPackData(
   // The saved index covers the pack's own files only; the builtin part is
   // added back on read, see `mergeBuiltinMods`. Filtering the final merge
   // order keeps exactly the relative order the full index was built with.
-  let ownResources = builtinDirs
+  let ownResources = builtinDirs && storeOwn
     ? buildResourceMap(
       interpretedFiles.filter(f => !builtinDirs.has(f.mod)),
       processed.mods.filter(m => !m.builtin))
