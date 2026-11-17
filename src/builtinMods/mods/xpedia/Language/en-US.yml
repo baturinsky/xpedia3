@@ -2741,16 +2741,11 @@ en-US:
   REGIONS: REGIONS
   UFO_TRAJECTORIES: UFO TRAJECTORIES
   INVENTORY_SECTIONS: INVENTORY SECTIONS
-  xpediaRegionMapNote: The solid boxes are where the game may place a mission site. The dashed ones are the region's mission zones, which serve two purposes — a UFO trajectory steers by them, and missions may put their objectives in them. A flight path only means something in the region it is flown in, so the paths drawn here are the ones this region's missions use.
+  xpediaRegionMapNote: The solid boxes are the region's own outline, not a place anything is put. The game asks one question of them — is this point in this region — and uses the answer to price a base built there, to credit a UFO's activity to this region's graph, and to keep a landing inside the region the flight is in. The dashed boxes are the region's mission zones, which serve two purposes — a UFO trajectory steers by them, and missions may put their objectives in them. A region with no solid boxes is a technical one, used only to weight missions and hold zones. A flight path only means something in the region it is flown in, so the paths drawn here are the ones this region's missions use.
   xpediaTrajectories: Flight paths
-  xpediaTrajectoryRegion: Drawn against
-  xpediaTrajectoryRegions: regions can fly this path
-  xpediaTrajectoryRegionOne: region can fly this path
+  xpediaChooseRegion: Choose region
   xpediaTrajectoryMapNote: A waypoint names a mission zone, not a place, so this path is only one of the several the game can fly. Each zone is coloured and its boxes are shaded the same way, so "stop 1 is anywhere in the red box" can be read off the picture. The marker on a zone sits in the largest of its boxes — one spot the game can really pick, not the spot it will pick.
-  xpediaTrajectoryLegLabels: The numbers mark the stops, in the order the UFO visits them. The strip below the map repeats that order, with each move drawn in the colour of the line that flies it. Pointing at a stop or a move, there or on the map, makes it blink, so a line can be picked out even where several cross. Pointing at a stop also highlights every box of its zone — the whole area it may be anywhere in. Pressing keeps the highlight.
-  # A sentence on the map, so it opens with a capital and ends with a full stop.
-  # The table on the same page uses `xpediaLegLandsFor`, a mid-sentence fragment.
-  xpediaTrajectoryLandsFor: When it lands, it stays
+  xpediaTrajectoryLegLabels: The stops are numbered in the order the UFO visits them. Pointing at a stop or a move, in the strip and on the map alike, makes it blink, so a line can be picked out even where several cross. Pointing at a stop also highlights every box of its zone — the whole area it may be anywhere in. Pressing keeps the highlight.
   # Which alien missions can turn up in a region. The list leads with the
   # missions that are characteristic of the region and can be expanded to
   # everything that can reach it.
@@ -2809,9 +2804,7 @@ en-US:
   xpediaScriptMaxDifficulty: difficulty at most
   xpediaScriptLimitsNote: Rating and funds are not checked on the first month, because there is no previous month to score.
   xpediaScriptNoTable: The mission is kept off the region's mission table instead of being struck from it, so this script can run any number of times.
-  xpediaTrajectoryAnywhere: of this path's stops are not shown, because they name a zone the game fills with a random point anywhere in the world and so have no place to mark.
-  xpediaTrajectoryAnywhereOnly: Every stop of this path names a zone the game fills with a random point anywhere in the world, so there is nothing to draw. The UFO simply appears, waits and leaves.
-  xpediaTrajectoryOneZone: Every stop of this path is in the same zone, so there is no line to draw. The UFO appears, waits and leaves at one spot, which is marked above.
+  xpediaTrajectoryAnywhereMark: A stop inside a dotted ring is one the game puts anywhere on the globe, so it has no place of its own to show; it is drawn at the middle of the map.
   xpediaPathUnplaced: no place on the map
 #=================== Field labels ===================
 #Countries
@@ -2903,8 +2896,7 @@ en-US:
   xpediaLinesShow: Show the ruleset lines
   xpediaLinesHide: Hide the ruleset lines
   xpediaLinesNote: The declared `waypoints` of the ruleset, in its own order. This is the raw source the flight plan above is derived from, kept for comparing against a rul file; it is not what the engine flies.
-  xpediaLegFrom: From
-  xpediaLegTo: To
+  xpediaLegZone: Zone
   xpediaLegAltitude: Altitude
   xpediaLegSpeed: Speed, %
   xpediaLegLands: lands
@@ -2914,17 +2906,17 @@ en-US:
   xpediaLegRepeats: waits, then the same zone again
   xpediaLegNeverLands: This path never lands a UFO, so nothing it carries can be found on the ground.
   xpediaLegLandsFor: lands for
-  xpediaLegSpawnsGrounded: The UFO starts on the ground and only takes off afterwards.
   xpediaLegTooShort: This path has a single line, which the game rejects with "Missing second waypoint!", so no UFO can fly it.
-  xpediaLegNote: A line of a trajectory is a destination, not a stop, and the game re-targets the second line once, so a path of N lines is flown as N legs and the second zone is visited twice. A leg flies at the altitude and speed of the line before it, because those are what the UFO adopted on the way.
+  xpediaLegNote: A line of a trajectory is not a stop, and the second line is both an arrival and a departure, so a path of N lines is flown as N legs and the second zone is visited twice. A line's own altitude and speed are those of the leg flying away from it, not the one arriving.
   # The flight plan: the stops in order, with the move between each pair
-  xpediaFlightPlan: Flight plan
-  xpediaStop: Stop
-  xpediaPlanDetail: Where and how it flies
+  xpediaStopNumber: Stop
   xpediaStopSpawns: appears here
   xpediaStopSpawnsGrounded: starts on the ground here
   xpediaStopArrives: arrives here
   xpediaStopLands: lands here
+  # A landing with a known duration reads as one phrase, "lands here for 13 h",
+  # rather than two sentences beginning with the same verb
+  xpediaStopLandsFor: lands here for
   xpediaStopMovesWithin: moves within this zone
   xpediaZoneOneOf: one of
   xpediaZoneCities: cities
@@ -2936,8 +2928,6 @@ en-US:
   xpediaTrajectoryDash: A dash is ten minutes of flying, so a faster leg has longer dashes.
   xpediaTrajectoryThickness: The higher the UFO flies, the thinner its line.
   xpediaTrajectoryMarkers: A circle is a stop in the air; a square is a landing, where a mission site can appear.
-  xpediaTrajectoryCraftSpeed: The craft flying this path has a top speed of
-  xpediaTrajectoryCraftSpeeds: The crafts flying this path have top speeds between
   retaliation: Retaliation allowed?
   members: Members
   alienRank: Alien rank

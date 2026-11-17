@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import zlib from "zlib"
 import { defineConfig, UserConfig } from 'vite';
+import type { PluginContext } from "rollup";
 import topLevelAwait from "vite-plugin-top-level-await";
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from "vite-plugin-singlefile"
@@ -191,11 +192,17 @@ function examplePacks() {
       server.middlewares.use(prefix, (req: any, res: any, next: any) => {
         let name = decodeURIComponent(String(req.url ?? "").split("?")[0]).replace(/^\/+/, "");
 
+        // The examples are not part of the repository, so a fresh clone has no
+        // folder to list. That is not an error: the developer view simply has
+        // nothing to offer, and the file name can still be typed by hand once
+        // the folder is filled.
+        let present = fs.existsSync(root);
+
         // The bare prefix lists what is available, so the developer view can
         // offer the packs by name instead of making the file name be typed from
         // memory. Archives only: the folder also holds extracted copies.
         if (!name) {
-          let listing = (fs.readdirSync(root, { withFileTypes: true }) as any[])
+          let listing = !present ? [] : (fs.readdirSync(root, { withFileTypes: true }) as any[])
             .filter(entry => entry.isFile() && /\.(zip|rar)$/i.test(entry.name))
             .map(entry => ({
               name: entry.name,
@@ -207,6 +214,9 @@ function examplePacks() {
           res.end(JSON.stringify(listing));
           return;
         }
+
+        if (!present)
+          return next();
 
         // `misc/modpackExamples` is outside the dev server's root, so this route
         // is the only way to reach it — but it still must not serve anything
@@ -252,7 +262,7 @@ function builtinModsFolder() {
         return virtualId;
     },
 
-    load(id: string) {
+    load(this: PluginContext, id: string) {
       if (id != virtualId)
         return null;
 

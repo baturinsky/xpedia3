@@ -1,7 +1,7 @@
 //@ts-ignore
 import SearchApi from 'js-worker-search';
 import { addAllIfNew, capital, getFlagEmoji, gameRelativePath } from '../util';
-import * as util from "../util"
+import * as util from "../util";
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
@@ -11,19 +11,49 @@ import { emptyImg } from '../imgPlaceholders';
 export let rul!: Ruleset;
 export type SortFirstLastOptions = { first?: string[], last?: string[], exclude?: string[], sortBy?: Function }
 type StringValue = [string, any]
-export const defaultLanguage = "en-US"
+export const defaultLanguage = "en-US";
 
 export const obsTables: { [pck: string]: string } = { "BIGOBS.PCK": "big", "FLOOROB.PCK": "floor", "HANDOB.PCK": "hand", "BASEBITS.PCK": "base", "INTICON.PCK": "icon" };
 
+/**
+ * A language's strings: the id a string is looked up by, and the string itself.
+ *
+ * `addToLng` keeps whatever a language file states, so a value can in principle
+ * also be a number or an OXCE plural object; every reader in the pedia expects a
+ * string, and the two packs checked only use strings.
+ */
+export type LangMap = { [id: string]: string };
+
+/** Every language of a pack, keyed by language name; `icon` is the emoji map */
+export type Langs = { [langName: string]: LangMap };
+
+/** A mod's `metadata.yml`, with the fields the pedia reads named */
+export type ModMeta = {
+  id?: string, master?: string, isMaster?: boolean, active?: boolean,
+  name?: string, version?: string, [key: string]: any
+};
+
 export type Mod = {
-  lng: { [langName: string]: { [id: string]: string } }
-  meta: { id?: string, master?: string, isMaster?: boolean, active?: boolean, name?: string, version?: string, [key: string]: any }
+  lng: Langs
+  meta: ModMeta
   dir: string,
+  /** The parsed `rul` files of the mod, straight from YAML and not yet merged */
   rul: any[]
   /** The shared `common` folder: languages and resources used by every mod */
   common?: boolean
   /** Files that came from the builtin mods rather than from the uploaded pack */
   builtin?: boolean
+};
+
+/**
+ * The processed ruleset a `Ruleset` is built from: the shape the database
+ * stores and an exported page carries.
+ */
+export type ProcessedRuleset = {
+  mods?: Mod[],
+  langs?: Langs,
+  /** Relative resource path (lowercased) -> full archive path */
+  resources?: { [rel: string]: string },
 };
 
 /**
@@ -38,15 +68,15 @@ export type Mod = {
  * agree on the pack's name.
  */
 export function mainMod(mods: Mod[]): Mod | undefined {
-  let masters = mods.filter(m => m.meta?.isMaster)
+  let masters = mods.filter(m => m.meta?.isMaster);
   let chained = masters.filter(m =>
-    m.meta?.master && mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master))
-  let master = (chained.length ? chained : masters).slice(-1)[0]
+    m.meta?.master && mods.some(o => (o.meta?.id ?? o.dir) == m.meta!.master));
+  let master = (chained.length ? chained : masters).slice(-1)[0];
   if (master)
     return master;
 
   let own = mods.filter(m => !m.common && !/^mods[/\\]/i.test(m.dir) && m.meta?.name)
-    .sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0))
+    .sort((a, b) => (b.rul?.length ?? 0) - (a.rul?.length ?? 0));
   return own[0];
 }
 
@@ -80,11 +110,11 @@ export function sortFirstLast(item: { [key: string]: any }, options: SortFirstLa
   let misc: StringValue[] = Object.entries(item).filter(([k, v]) => !special.has(k));
   let sortBy = options.sortBy;
   if (sortBy) {
-    misc = misc.sort((a, b) => sortBy(a[1]) > sortBy(b[1]) ? 1 : -1)
+    misc = misc.sort((a, b) => sortBy(a[1]) > sortBy(b[1]) ? 1 : -1);
   } else {
-    misc = misc.sort((a, b) => comparator(a[0], b[0]))
+    misc = misc.sort((a, b) => comparator(a[0], b[0]));
   }
-  let all: StringValue[] = [...first, ...misc, ...last]
+  let all: StringValue[] = [...first, ...misc, ...last];
   return { first, misc, last, exclude, all };
 }
 
@@ -208,9 +238,10 @@ export default class Ruleset {
   itemFields = new Set<string>();
   unitFields = new Set<string>();
 
-  meta: any
-  lang: { [key: string]: string } = {};
-  langs: { [key: string]: { [key: string]: string } } = {};
+  /** Metadata of the mod the pack is about, see `mainMod` */
+  meta: ModMeta = {};
+  lang: LangMap = {};
+  langs: Langs = {};
   /** The mods of the loaded pack, in merge order */
   mods: Mod[] = [];
   langName: string | null = null;
@@ -218,10 +249,7 @@ export default class Ruleset {
   /** Language names already run through `convertLang` */
   convertedLangs: { [langName: string]: boolean } = {};
 
-  constructor(processed?: {
-    mods?: Mod[],
-    langs?: any
-  }) {
+  constructor(processed?: ProcessedRuleset) {
     rul = this;
     if (processed)
       this.loadProcessedMods(processed);
@@ -232,10 +260,9 @@ export default class Ruleset {
     if (str == null)
       return null;
 
-    //if(str == "STR_ELECTRO_FLARE")      debugger
 
     if (str in rul.lang) {
-      str = rul.lang[str]
+      str = rul.lang[str];
       str = stripPediaMarkup(str);
     } else if (typeof str == "string") {
       if (props?.icon && props?.icon != "none")
@@ -341,7 +368,7 @@ export default class Ruleset {
   /** Ids of the alien missions whose waves fly this trajectory */
   missionsFlying(trajectory: string) {
     let out: string[] = [];
-    for (let mission of Object.values(this.alienMissions ?? {}) as any[])
+    for (let mission of Object.values(this.alienMissions ?? {}))
       for (let wave of mission.waves ?? [])
         if (wave?.trajectory == trajectory) {
           out.push(mission.id);
@@ -353,7 +380,7 @@ export default class Ruleset {
   /** Ids of the mission scripts that can launch one of these missions */
   scriptsSelecting(missions: string[]) {
     let wanted = new Set(missions), out: string[] = [];
-    for (let script of Object.values(this.missionScripts ?? {}) as any[])
+    for (let script of Object.values(this.missionScripts ?? {}))
       for (let mission of regionNamesOf(script.missionWeights))
         if (wanted.has(mission)) {
           out.push(script.id);
@@ -493,60 +520,6 @@ export default class Ruleset {
     }
   }
 
-  mergeRuls(reversed = false) {
-
-    for (let categoryName in this.raw) {
-      // `merged` holds the ruleset blocks themselves, keyed by their id
-      let merged = {} as { [id: string]: any };
-      let deleted = {} as { [id: string]: boolean };
-
-      if (categoryName == "extraSprites")
-        continue;
-
-      let category = this.raw[categoryName];
-      if (!Array.isArray(category)) {
-        continue;
-      }
-
-      for (let data of category) {
-        let id =
-          data.type || data.id || data.name || data.delete || data.typeSingle;
-
-        if (!id || deleted[id]) continue;
-
-        if ("delete" in data) {
-          if (reversed) deleted[id] = true;
-          else delete merged[id];
-          continue;
-        }
-
-        if (id && id in merged) {
-          if (reversed) {
-            for (let k in data) {
-              if (!(k in merged[id])) merged[id][k] = data[k];
-            }
-          } else {
-            if (data.files) {
-              let files = { ...merged[id].files, ...data.files }
-              Object.assign(merged[id], data);
-              merged[id].files = files;
-            } else {
-              if (Array.isArray(data)) {
-                debugger;
-                merged[id] = merged[id].concat(data);
-              } else
-                Object.assign(merged[id], data);
-            }
-          }
-        } else {
-          merged[id] = data;
-        }
-      }
-
-      this.raw[categoryName] = Object.values(merged);
-    }
-  }
-
   convertLang(langName: string) {
     if (this.convertedLangs[langName])
       return false;
@@ -582,7 +555,7 @@ export default class Ruleset {
   parseType(type: string, klass?: new (raw: any, collection?: string) => Entry) {
     for (let data of Object.values(this.raw[type] ?? {}) as any[]) {
       // The constructor registers the entry on `rul`; the value itself is unused
-      new (klass || SimpleEntry)(data, type)
+      new (klass || SimpleEntry)(data, type);
     }
   }
 
@@ -612,7 +585,7 @@ export default class Ruleset {
 
   /** Merges every mod's ruleset blocks, keyed by category and then by entry id */
   combineModRuls(mods: Mod[]) {
-    let rul: { [category: string]: { [id: string]: any } } = {}
+    let rul: { [category: string]: { [id: string]: any } } = {};
     for (let mod of mods) {
       for (let file of mod.rul) {
         for (let categoryName in file) {
@@ -624,7 +597,7 @@ export default class Ruleset {
               let id = categoryId(categoryName, data);
               if (data.delete) {
                 delete category[id];
-                continue
+                continue;
               }
               let old = category[id];
               if (!old) {
@@ -635,7 +608,7 @@ export default class Ruleset {
                 if (Array.isArray(data)) {
                   category[id] = [...old, ...data];
                 } else {
-                  category[id] = { ...old, ...data }
+                  category[id] = { ...old, ...data };
                 };
               }
             }
@@ -645,14 +618,10 @@ export default class Ruleset {
         }
       }
     }
-    return rul
+    return rul;
   }
 
   parseRuls(mods: Mod[]) {
-
-    /*let reversed = false;
-    this.combineRuls(data, reversed);
-    this.mergeRuls(reversed);*/
 
     this.raw = this.combineModRuls(mods);
 
@@ -678,7 +647,7 @@ export default class Ruleset {
     // `extraSounds` is an object keyed by CAT file in every pack checked, not
     // an array. This used to test `.length`, which an object does not have, so
     // the whole table was skipped and no sound had a path.
-    this.sounds = {}
+    this.sounds = {};
     for (let mod of mods) {
       for (let file of mod.rul) {
         let extra = file?.extraSounds;
@@ -768,16 +737,16 @@ export default class Ruleset {
      * Item ids a set of alien-deployment blocks can drop: the `items` keys plus
      * whatever the `randomizedItems` groups offer.
      */
-    function blockItems(blocks: any) {
+    function blockItems(blocks: unknown) {
       if (blocks == null)
         return [];
-      blocks = Object.values(blocks || []);
-      if (blocks == null)
-        return [];
-      blocks = blocks.flat();
-      let x = blocks.map((b: any) => b.randomizedItems || []).flat()
-        .map((c: any) => c?.itemList || []).flat();
-      let y = blocks.map((b: any) => b.items ? Object.keys(b.items) : []).flat();
+      let flat = Object.values(blocks as object).flat() as {
+        randomizedItems?: { itemList?: string[] }[],
+        items?: { [item: string]: number }
+      }[];
+      let x = flat.map(b => b.randomizedItems || []).flat()
+        .map(c => c?.itemList || []).flat();
+      let y = flat.map(b => b.items ? Object.keys(b.items) : []).flat();
       return [...x, ...y];
     }
 
@@ -831,8 +800,9 @@ export default class Ruleset {
 
     // A wave's `ufo` may also name a deployment, and `dummy` exists in no table
     // at all; only the real UFOs get a link, the rest would become stub pages
-    crosslink(this.alienMissions, t => (t.waves ?? []).map((w: any) => w?.ufo)
-      .filter((id: any) => id && this.ufos[id]), this.ufos, "missions");
+    crosslink(this.alienMissions, t => ((t.waves ?? []) as { ufo?: string }[])
+      .map(w => w?.ufo)
+      .filter((id): id is string => !!id && !!this.ufos[id]), this.ufos, "missions");
     crosslink(this.alienMissions, "interruptResearch", this.research, "stopsMissions");
 
     crosslink(this.alienDeployments, "customUfo", this.ufos, "deployments");
@@ -858,7 +828,7 @@ export default class Ruleset {
       SoldierTypes: Object.keys(rul.soldiers),
       Vehicles: Object.keys(rul.units).filter(k => rul.items[k]?.battleType == 3),
       Craft: Object.keys(rul.crafts)
-    }
+    };
 
     for (let sc of Object.values(this.startingConditions)) {
       if (sc.forbiddenSoldierTypes?.length) {
@@ -877,7 +847,7 @@ export default class Ruleset {
       let armorsAllowedForSoldiers = new Set();
       for (let st of sc.allowedSoldierTypes)
         for (let a of (rul.soldiers[st].armors || [rul.soldiers[st].armor] || []))
-          armorsAllowedForSoldiers.add(a)
+          armorsAllowedForSoldiers.add(a);
 
       sc.allowedArmors = sc.allowedArmors.filter(a => armorsAllowedForSoldiers.has(a));
     }
@@ -891,7 +861,7 @@ export default class Ruleset {
     ) {
       for (let sc of Object.values(this.startingConditions)) {
         if (sc[`allowed${option[0]}`])
-          sc[`forbidden${option[0]}`] = all[option[0]].filter((e: string) => !sc[`allowed${option[0]}`].includes(e))
+          sc[`forbidden${option[0]}`] = all[option[0]].filter((e: string) => !sc[`allowed${option[0]}`].includes(e));
       }
       crosslink(this.startingConditions, `allowed${option[0]}`, option[1], "allowedIn");
       crosslink(this.startingConditions, `forbidden${option[0]}`, option[1], "forbiddenIn");
@@ -998,6 +968,28 @@ export default class Ruleset {
     return this.sortStringsAndNumbers(this.typeSectionsOrder.map(s => s.id)).map(id => this.sections[id]);
   }
 
+  /**
+   * The categories in the order the menus show them and `<`/`>` walks them.
+   *
+   * Only this list follows the `A-Z` toggle: the pedia's own sections keep the
+   * pack's declared order either way, because that order is authored (it groups
+   * related pages) while the categories are just the generated entry tables.
+   */
+  typeSectionOrder(alphabetical = false) {
+    return alphabetical ? this.sortedTypeSections() : this.typeSectionsOrder;
+  }
+
+  /**
+   * Every section, in the order the menus show it and `<`/`>` walks it.
+   *
+   * Everything that lists or steps through sections goes through here, so the
+   * navbar, the landing page and the arrows cannot disagree about what comes
+   * next. See `typeSectionOrder` for what the toggle affects.
+   */
+  sectionOrder(alphabetical = false) {
+    return [...this.sectionsOrder, ...this.typeSectionOrder(alphabetical)];
+  }
+
   parseArticles(data: Object) {
     if (!data)
       return;
@@ -1010,26 +1002,59 @@ export default class Ruleset {
     }
   }
 
-  /** Returns an article nearby in the same section */
-  findNearbyArticle(current: Article | undefined, delta: number, currentSection: Section | undefined, alphabetical = false) {
-    if (!current) return undefined;
-    if (!currentSection)
-      currentSection = current.sections[0];
-    if (current.id == currentSection.id) {
-      return currentSection.nearbySection(delta);
+  /**
+   * The article `<`/`>` goes to from `current`, staying inside `currentSection`.
+   *
+   * The order is the one the sidebar shows, so stepping through a section reads
+   * the same list top to bottom. Running off either end crosses into the
+   * neighbouring section *that has articles*: the last article of a section is
+   * followed by the next section's first, and its first is preceded by the
+   * previous section's last. Both ends wrap, so the pedia is a ring.
+   *
+   * The section comes back with the article because the caller has to keep
+   * browsing *there*: the article it lands on usually belongs to several
+   * sections, and guessing from `article.sections[0]` would drop the reader into
+   * whichever one happened to be declared first.
+   *
+   * A section's own page (`current.id == section.id`) is the header above the
+   * list rather than a row in it, so it steps to the neighbouring section's page,
+   * which is what the old pedia did.
+   */
+  nearbyArticle(current: Article | undefined, delta: number, currentSection: Section | undefined, alphabetical = false):
+    { article: Article, section: Section } | undefined {
+    if (!current)
+      return undefined;
+    let section = currentSection ?? current.sections[0];
+    if (!section)
+      return undefined;
+
+    if (current.id == section.id) {
+      let neighbour = section.adjacentSection(delta, alphabetical);
+      // `this` only when no section has an article at all
+      if (neighbour == section)
+        return undefined;
+      let page = this.article(neighbour.id);
+      return page && { article: page, section: neighbour };
     }
-    let list = currentSection ? currentSection.articles(alphabetical) : this.articlesOrder;
-    let index = list.findIndex((a) => a.id == current.id);
-    if (index != undefined) {
-      let nextIndex = index + delta;
-      let nextArticle = list[nextIndex];
-      if (nextIndex == -1) {
-        nextArticle = currentSection.nearbySection(-1).lastArticle(alphabetical);
-      } else if (nextIndex == list.length) {
-        nextArticle = currentSection.nearbySection(1).firstArticle(alphabetical);
-      }
-      return nextArticle;
-    }
+
+    let list = section.articles(alphabetical);
+    let index = list.findIndex(a => a.id == current.id);
+    // An article reached through a redirect can sit in a section that does not
+    // list it, so there is no row to step from and the page has to stay put
+    if (index == -1)
+      return undefined;
+
+    let nextIndex = index + delta;
+    if (nextIndex >= 0 && nextIndex < list.length)
+      return { article: list[nextIndex], section };
+
+    // Off an end: step into the next section and take the article at the end of
+    // its list that the walk is heading towards
+    let neighbour = section.adjacentSection(delta, alphabetical);
+    if (neighbour == section)
+      return undefined;
+    let neighbourList = neighbour.articles(alphabetical);
+    return { article: delta < 0 ? util.last(neighbourList) : neighbourList[0], section: neighbour };
   }
 
   sortArticlesByName(list: Article[]) {
@@ -1059,20 +1084,16 @@ export default class Ruleset {
     return onlyIfExists ? null : id;
   }
 
-  loadMods(mods: { [modName: string]: Mod }) {
-    this.loadProcessedMods(Ruleset.preprocessMods(mods))
-  }
-
   /**Orders mods and merges languages*/
   static preprocessMods(mods: { [modName: string]: Mod }) {
     let modOrder = Ruleset.activeMods(Object.values(mods));
 
-    let langs: { [langName: string]: { [id: string]: string } } = {}
+    let langs: { [langName: string]: { [id: string]: string } } = {};
 
     for (let mod of modOrder) {
       for (let lname in mod.lng) {
-        langs[lname] ||= {}
-        Object.assign(langs[lname], mod.lng[lname])
+        langs[lname] ||= {};
+        Object.assign(langs[lname], mod.lng[lname]);
       }
       // The language table has been merged into `langs`, so the per-mod copy is
       // dropped to keep a large pack from holding it twice
@@ -1084,10 +1105,10 @@ export default class Ruleset {
       // label, so `Tr` would draw that label next to the translated one.
       if (lname == "icon")
         continue;
-      langs[lname] = { ...langs[defaultLanguage], ...langs[lname] }
+      langs[lname] = { ...langs[defaultLanguage], ...langs[lname] };
     }
 
-    return { mods: modOrder, langs }
+    return { mods: modOrder, langs };
   }
 
   /**
@@ -1199,8 +1220,8 @@ export default class Ruleset {
     });
   }
 
-  loadProcessedMods(data: { mods?: Mod[], langs?: any, resources?: { [rel: string]: string } }) {
-    this.meta = mainMod(data.mods ?? [])?.meta ?? {}
+  loadProcessedMods(data: ProcessedRuleset) {
+    this.meta = mainMod(data.mods ?? [])?.meta ?? {};
     this.mods = data.mods ?? [];
     this.resourceMap = data.resources ?? {};
     this.langs = data.langs ?? {};
@@ -1217,7 +1238,7 @@ export default class Ruleset {
       return Object.keys(data.langs?.[name] ?? {}).length;
     }
 
-    // Language buttons are labelled with a country flag, see old `loadOld`
+    // Language buttons are labelled with a country flag
     for (let name of this.langNames) {
       if (!this.langs[defaultLanguage][name]) {
         let country = name.match(/([a-z]+)/i);
@@ -1231,54 +1252,18 @@ export default class Ruleset {
     this.selectLang(defaultLanguage);
   }
 
-  /** replaced with loadProcessedMods */
-  loadOld({ ruls, langs, mods }: {
-    ruls: any[],
-    langs: { [key: string]: { [key: string]: string } },
-    mods: Mod[]
-  }) {
-    this.mods = mods;
-    this.langs = langs;
-    let langWeight = Object.fromEntries(Object.keys(langs).map(n => [n, n == defaultLanguage ? 1e6 : Object.keys(langs[n]).length]));
-    this.langNames = Object.keys(langs).sort((a, b) => langWeight[b] - langWeight[a]);
-    if (this.langs.icon)
-      this.langNames.splice(this.langNames.indexOf("icon"));
-
-    for (let name of this.langNames) {
-      if (!this.langs[defaultLanguage][name]) {
-        let country = name.match(/([a-z]+)/i);
-        if (country?.length) {
-          let flag = getFlagEmoji(country[1]);
-          if (flag)
-            this.langs[defaultLanguage][name] = flag;
-        }
-      }
-    }
-
-    this.parseRuls(ruls);
-    this.convertLang(defaultLanguage);
-    let l = Object.keys(this.langs);
-    if (l.length == 3) {
-      let other = l.find(n => n != defaultLanguage && n != "icon");
-      if (other)
-        this.selectLang(other);
-    } else {
-      this.selectLang(defaultLanguage)
-    }
-  }
-
   selectLang(name: string) {
     if (!this.langs[name]) {
-      console.log("no language", name);
+      console.warn(`No ${name} in this pack, staying on ${this.langName ?? defaultLanguage}`);
       return false;
     }
 
-    this.langName = name
+    this.langName = name;
 
     if (name == defaultLanguage) {
       this.lang = this.langs[defaultLanguage];
     } else {
-      this.convertLang(name)
+      this.convertLang(name);
       this.lang = { ...this.langs[defaultLanguage], ...this.langs[name] };
     }
 
@@ -1294,16 +1279,6 @@ export default class Ruleset {
       return undefined;
     let search = this.search[this.langName];
     return search?.findArticles(query);
-  }
-
-  linksByType(type: string) {
-    switch (type) {
-      case "CONDITIONS":
-        return Object.keys(this.startingConditions).map(
-          (a) => "CONDITIONS_" + a
-        );
-    }
-    return [];
   }
 
   bodiesCompare(strs: string[]) {
@@ -1323,17 +1298,10 @@ export default class Ruleset {
 
   /** Sort strings by their translated values */
   sortStringsAndNumbers(s: string[]) {
-    let tl: [string, string][] = s.map(s => [s, this.tr(s) ?? s])
-    tl = tl.sort((a, b) => comparator(a[1], b[1]))
+    let tl: [string, string][] = s.map(s => [s, this.tr(s) ?? s]);
+    tl = tl.sort((a, b) => comparator(a[1], b[1]));
     return tl.map(a => a[0]);
   }
-
-  /** Compare strings by their translated values */
-  compareStrings(a: string, b: string) {
-    let [tra, trb] = [this.tr(a) ?? a, this.tr(b) ?? b]
-    return tra > trb ? -1 : tra < trb ? 1 : 0;
-  }
-
   /*sortIds(s: {id:string}[]) {
     return this.sortStrings(s.map(v=>v.id)).map(v=?);
   }*/
@@ -1408,7 +1376,7 @@ export const entryConstructors: {
   // name; the entry itself files into `inventorySections`, which is what items
   // crosslink their `supportedInventorySections` to
   invs: InventorySection,
-}
+};
 
 /**
  * Extensions the engine will look for next to a music track, from the order it
@@ -1526,7 +1494,7 @@ export function damageTypeIndex(value: any): number | null {
 }
 
 export const killStatuses = ["STATUS_DEAD", "STATUS_UNCONSCIOUS", "STATUS_PANICKED", "STATUS_TURNING"];
-export const killFactions = ["FACTION_HOSTILE", "FACTION_NEUTRAL", "FACTION_PLAYER"]
+export const killFactions = ["FACTION_HOSTILE", "FACTION_NEUTRAL", "FACTION_PLAYER"];
 
 export const battleTypes = [
   "ammo",
@@ -1539,7 +1507,7 @@ export const battleTypes = [
   "panic",
   "mindControl",
   "use",
-]
+];
 
 export const internalBattleTypes = [
   "BT_NONE",
@@ -1554,9 +1522,9 @@ export const internalBattleTypes = [
   "BT_PSIAMP",
   "BT_FLARE",
   "BT_CORPSE",
-]
+];
 
-export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"]
+export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"];
 
 
 /**
@@ -1596,16 +1564,16 @@ export function backLink(id: string, list: string[] | { [key: string]: any } | n
     for (let key of Object.keys(list)) {
       let back = to[key];
       if (back == null && collection != null) {
-        back = to[key] = new (entryConstructors[collection] || SimpleEntry)({ id: key }, collection)
+        back = to[key] = new (entryConstructors[collection] || SimpleEntry)({ id: key }, collection);
       }
       if (back == null)
         continue;
-      addFields(back, field, { [key]: list[key] })
+      addFields(back, field, { [key]: list[key] });
     }
 
   } else {
     if (!Array.isArray(list))
-      list = [list]
+      list = [list];
 
     for (let key of list as any[]) {
       // A missing key used to create an entry with an `undefined` id, which
@@ -1614,10 +1582,10 @@ export function backLink(id: string, list: string[] | { [key: string]: any } | n
         continue;
       let back = to[key];
       if (back == null && collection != null)
-        back = to[key] = new Entry(collection).from({ id: key })
+        back = to[key] = new Entry(collection).from({ id: key });
       if (back == null)
         continue;
-      addFields(back, field, [id])
+      addFields(back, field, [id]);
     }
   }
 }
@@ -1654,9 +1622,9 @@ function crosslink(
 
 export function stripPediaMarkup(t: string) {
   if (t != null && t.indexOf("{") != -1) {
-    t = t.replace(/\{NEWLINE\}/g, "\n")
-    t = t.replace(/^\s+/g, "")
-    t = t.replace(/\{[^}]+\}/g, " ")
+    t = t.replace(/\{NEWLINE\}/g, "\n");
+    t = t.replace(/^\s+/g, "");
+    t = t.replace(/\{[^}]+\}/g, " ");
   }
   return t;
 }

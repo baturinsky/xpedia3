@@ -1,6 +1,8 @@
+import { JSX } from "react";
 import { rul } from "../rul/Ruleset";
+import type { Commendation, ResolvedDeed } from "../rul/Entry";
 import { withoutKeys } from "../util";
-import MainTable from "./MainTable";
+import MainTable, { MainTableRenderer } from "./MainTable";
 import { RecoveryTable } from "./components";
 import { Tr, Val } from "./Val";
 
@@ -12,10 +14,11 @@ function deedLink(id?: string) {
   return <a href={"##" + id} className={rul.article(id) ? "" : "dead"}><Tr text={id} /></a>;
 }
 
-function deedDescription(deed: any) {
-  let parts: any[] = [
+function deedDescription(deed: ResolvedDeed) {
+  let parts: (JSX.Element | string)[] = [
     <Tr key="status" text={deed.status} />,
-    <Tr key="times" text={deed.times} />,
+    // The repeat count, e.g. "3"; `Tr` takes strings
+    <Tr key="times" text={String(deed.times)} />,
     deedLink(deed.race),
     deedLink(deed.unit),
     deedLink(deed.faction),
@@ -28,8 +31,17 @@ function deedDescription(deed: any) {
   )}</>;
 }
 
+/**
+ * One stage of a commendation, as this component draws it: the stage's soldier
+ * bonus fields with its criteria copied in.
+ *
+ * It is a plain copy rather than the `SoldierBonus` entry, because the criteria
+ * live on the commendation and are grafted on per stage.
+ */
+type StageBonus = { criteria: { [criterion: string]: unknown }, [field: string]: unknown };
+
 /** Bonus table for one commendation stage, follows old `SoldierBonuses.svelte` */
-export function SoldierBonusesComponent({ entry, title, subtitle }: { entry: any, title?: string, subtitle?: string }) {
+export function SoldierBonusesComponent({ entry, title, subtitle }: { entry: StageBonus, title?: string, subtitle?: string }) {
   return <MainTable
     of={entry}
     title={title ?? "soldierBonuses"}
@@ -41,12 +53,14 @@ export function SoldierBonusesComponent({ entry, title, subtitle }: { entry: any
 }
 
 /** Commendation article, follows old `Commendation.svelte` */
-export default function CommendationComponent({ entry }: { entry: any }) {
-  // Each stage is the soldier bonus of that stage with the criteria copied in
-  let bonuses: any[] = [];
+export default function CommendationComponent({ entry }: { entry: Commendation }) {
+  // Each stage is the soldier bonus of that stage with the criteria copied in.
+  // The list is indexed by stage number, so a stage with nothing to show leaves
+  // a hole rather than shifting the later stages down.
+  let bonuses: (StageBonus | undefined)[] = [];
   for (let i = 0; i < 10; i++) {
-    let bonusName = entry.soldierBonusTypes ? entry.soldierBonusTypes[i] : null;
-    let b: any = { ...(rul.soldierBonuses[bonusName] || {}), criteria: {} };
+    let bonusName = entry.soldierBonusTypes?.[i];
+    let b: StageBonus = { ...(bonusName ? rul.soldierBonuses[bonusName] : undefined), criteria: {} };
     for (let criteria in entry.criteria) {
       b.criteria[criteria] = entry.criteria[criteria][i];
     }
@@ -65,7 +79,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
       special={{
         killCriteria2: ({ val: prop }) => prop.length == 0
           ? <Val of="See stage descriptions" />
-          : <>{prop.map((deeds: any[], i: number) =>
+          : <>{prop.map((deeds: ResolvedDeed[], i: number) =>
             <span key={i}>
               {i != 0 && <> {rul.tr("or")}<br /></>}
               {deeds.map((deed, j) =>
@@ -89,7 +103,7 @@ export default function CommendationComponent({ entry }: { entry: any }) {
       }}
     />
     <div className="no-break-column">
-      {bonuses.map((bonus, i) =>
+      {bonuses.map((bonus, i) => bonus &&
         <SoldierBonusesComponent key={i} entry={bonus} title="Stage" subtitle={`${i + 1}`} />
       )}
     </div>

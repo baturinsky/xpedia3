@@ -134,20 +134,20 @@ export function LandingPage() {
     {state.devView && <CurrentAssets />}
     {state.imagePreview && <img src={state.imagePreview}></img>}
     <ExportDialog />
-  </>
+  </>;
 }
 
 /** Loaded mods and their versions, see old `App.svelte` */
 function ModsList() {
   // A mod is named by its metadata; `common` and other metadata-less folders are
   // not mods the user installed, so they are not listed
-  let mods = (rul?.mods ?? []).filter((mod: any) => mod?.meta?.id || mod?.meta?.name);
+  let mods = (rul?.mods ?? []).filter(mod => mod?.meta?.id || mod?.meta?.name);
   if (mods.length == 0)
     return null;
   // A builtin mod is XPedia's own: it loads with every pack, so it is dimmed to
   // show that it is not part of the uploaded modpack
   return <div className="mods-list">
-    {mods.map((mod: any, i: number) =>
+    {mods.map((mod, i) =>
       <Fragment key={mod.dir ?? mod.meta.id}>
         {i !== 0 && <Divider />}
         <span className={mod.builtin ? "builtin-mod" : undefined}
@@ -256,7 +256,7 @@ export function packTitle() {
   let title = rul?.meta?.name
     ? [rul?.meta?.name, rul?.meta?.version].filter(Boolean).join(" ")
     : state.packName ?? rul?.tr?.("XPedia") ?? "XPedia";
-  return title
+  return title;
 }
 
 /** Top-left navigation dropdown: pedia sections and type sections */
@@ -297,7 +297,7 @@ function NavDropdown() {
           )}
         </div>
         <div className="navbar-custom navbar-list">
-          {rul?.sortedTypeSections()?.map(s =>
+          {rul?.typeSectionOrder(state.alphabeticalSort)?.map(s =>
             <a key={s.id} href={"##" + s.id}
               className={s.id == current ? "active-section" : undefined}>
               <Tr text={s.id} />
@@ -394,7 +394,7 @@ export function NavTop() {
 
       <PackDropdown />
     </div>
-  </nav>
+  </nav>;
 }
 
 /**
@@ -487,14 +487,22 @@ function SearchBox() {
 function SectionsList() {
   if (!rul)
     return;
+  // The pedia's own sections keep the pack's order; only the categories follow
+  // the `A-Z` toggle, and `sectionOrder` is what both this list and the navbar
+  // use so neither can disagree with the arrows. See `Ruleset.sectionOrder`.
+  // The pedia's own sections keep the pack's order (it is authored, and groups
+  // related pages); only the categories follow the `A-Z` toggle. Both this list
+  // and the pedia sections one come from `Ruleset.sectionOrder`-style helpers,
+  // the same the arrows walk, so a category cannot be listed in one order and
+  // stepped through in another.
   return <div className="sections-list">
     <div>
       <h4><Tr text="Pedia sections" /></h4>
       <Val of={rul.sectionsOrder} /></div>
     <div>
       <h4><Tr text="Categories" /></h4>
-      <Val of={rul.typeSectionsOrder} /></div>
-  </div>
+      <Val of={rul.typeSectionOrder(state.alphabeticalSort)} /></div>
+  </div>;
 }
 
 export function NavSide() {
@@ -565,11 +573,11 @@ export function NavSide() {
       })}
     </div>
     <br />
-  </nav>
+  </nav>;
 }
 
 export function Clickable(props: { onClick: MouseEventHandler<HTMLDivElement>, className?: string, children: JSX.Element }) {
-  return <div onClick={props.onClick} className={"link " + (props.className ?? "")}>{props.children}</div>
+  return <div onClick={props.onClick} className={"link " + (props.className ?? "")}>{props.children}</div>;
 }
 
 /**
@@ -603,7 +611,7 @@ window.addEventListener("pointermove", async (e) => {
     }
   }
 
-  let tooltip = document.getElementById("xpediaTooltip")
+  let tooltip = document.getElementById("xpediaTooltip");
   if (tooltip) {
     let el = e.target as HTMLElement;
     while (el && !el.dataset?.tooltip)
@@ -631,7 +639,7 @@ window.addEventListener("pointermove", async (e) => {
 });
 
 function toggleTooltip(text: string | undefined) {
-  let tooltip = document.getElementById("xpediaTooltip")
+  let tooltip = document.getElementById("xpediaTooltip");
   if (!tooltip) {
     return;
   }

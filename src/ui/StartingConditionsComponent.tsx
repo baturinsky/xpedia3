@@ -1,9 +1,10 @@
+import type { StartingConditions } from "../rul/Entry";
 import MainTable from "./MainTable";
 
 /** Starting conditions table, follows old `StartingConditions.svelte` */
 export default function StartingConditionsComponent({
   entry, title = "Starting Conditions", subtitle = ""
-}: { entry: any, title?: string, subtitle?: string }) {
+}: { entry: StartingConditions, title?: string, subtitle?: string }) {
   // Old `StartingConditions.svelte` compared against a never-filled copy of the
   // entry, so `forbidden*` was hidden whenever `allowed*` had any entries.
   let exclude: string[] = [];

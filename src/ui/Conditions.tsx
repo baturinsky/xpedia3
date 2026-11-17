@@ -2,7 +2,7 @@ import { sortFirstLast } from "../rul/Ruleset";
 import { LinksPage } from "./components";
 
 /** Conditions article body, follows old `Conditions.svelte` */
-export default function Conditions({ conditions }: { conditions: any }) {
+export default function Conditions({ conditions }: { conditions: { [field: string]: any } }) {
   let sorted = sortFirstLast(conditions, { exclude: ["type"] });
   return <>
     {sorted.all.map(([key, prop]) =>

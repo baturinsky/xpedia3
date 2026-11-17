@@ -20,8 +20,8 @@ const longLists = [
 
 /** A wide field always draws its subheader, while the research table used to
  *  draw the block only when the entry had a non-empty list in that field */
-function hasContent(val: any) {
-  return val != null && (val.length ?? 0) > 0;
+function hasContent(val: unknown) {
+  return val != null && ((val as { length?: number }).length ?? 0) > 0;
 }
 
 /** Research table, follows old `Research.svelte` */

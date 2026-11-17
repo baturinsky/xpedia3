@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { rul } from "../rul/Ruleset";
 import type { UfoTrajectory } from "../rul/Entry";
 import MainTable from "./MainTable";
@@ -9,11 +10,11 @@ import { legColor, pathSpeeds, zoneColor } from "./mapOverlay";
 /**
  * A UFO flight path: a list of zones, altitudes and speeds.
  *
- * The ruleset form of this is close to unreadable, because a line is not a stop
- * but a destination: `[5, 4, 100]` means "be in zone 5, then fly to zone 0 at
- * very high altitude and full speed". Two further details make the raw table
- * actively misleading — the second line is re-targeted once, so N lines are N
- * legs, and a leg flies at the previous line's altitude rather than its own.
+ * The ruleset form is close to unreadable, because a line does not keep one
+ * meaning down the list. Numbering from 1: the stops are `z1, z2, z2, z3, … zN`,
+ * and leg *m* is flown at line *m*'s altitude and speed — except leg 1, which
+ * heads for line 2's zone. So line 1's zone is only ever the spawn point, line
+ * 2's is visited twice, and N lines fly N legs.
  *
  * This component draws the legs the engine really flies (`UfoTrajectory.legs`),
  * and keeps the declared lines underneath for anyone comparing against a rul
@@ -38,7 +39,7 @@ const altitudes = [
 ];
 
 /** The label for an altitude number, or the number itself when it is not one */
-export function altitudeName(value: any) {
+export function altitudeName(value: unknown) {
   let n = Number(value);
   return altitudes[n] ?? String(value ?? "");
 }
@@ -75,7 +76,7 @@ function zonePlace(trajectory: UfoTrajectory, index: number) {
     let zone = region.missionZones![index];
     // An unnamed area makes this a rectangle rather than a set of places, and a
     // rectangle only means something against the map
-    let names = (zone as any[]).map(area => area?.[5]).filter(name => name);
+    let names = zone.map(area => area?.[5]).filter(name => name);
     if (names.length != zone.length)
       return null;
     let places = [...new Set(names.map(String))].sort();
@@ -105,8 +106,10 @@ function zonePlace(trajectory: UfoTrajectory, index: number) {
  * reader wants on alternating rows — the places in order, and the move between
  * each pair — without the same fact appearing twice.
  *
- * The numbers are stop numbers, which are the numbers on the picture and the
- * numbers the zone colour chips use, so a row can be found on the map.
+ * The numbers are stop numbers, which are the numbers on the picture, so a row
+ * can be found on the map. The table has no header: its two columns are a number
+ * in a coloured swatch and a sentence about it, and "Stop" over the first of them
+ * only repeated what the numbers already say.
  */
 function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
   let steps = trajectory.flightSteps;
@@ -117,20 +120,24 @@ function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
   // A path can be flown by several craft, and a leg's speed is a percentage of
   // its craft's top speed. The knots are only printable when the craft is known.
   let speeds = pathSpeeds(trajectory);
+  // How long a stay on the ground lasts, in seconds. The engine counts
+  // `groundTimer` down five seconds at a time, which is why the field itself is
+  // never printed: see `UfoTrajectory.landingSeconds`.
+  let landing = trajectory.landingSeconds;
+  let last = steps[steps.length - 1];
 
   return <table className="main-table trajectory-plan">
-    <thead>
-      <tr className="table-header">
-        <td><Tr text="xpediaStop" /></td>
-        <td className="trajectory-plan-detail"><Tr text="xpediaPlanDetail" /></td>
-      </tr>
-    </thead>
     <tbody>
       {steps.map((step, i) => step.kind == "stop"
         ? <tr key={"s" + i} className="trajectory-plan-stop"
-          style={{ "--zone-color": zoneColor(step.stop.zone) } as any}>
+          style={{ "--zone-color": zoneColor(step.stop.zone) } as CSSProperties}>
           <td className="trajectory-plan-what">
-            <span className="trajectory-zone-swatch" />
+            {/* Shaped like the marker the map and the strip draw for the same
+                stop: a circle in the air, a square on the ground. The shape is a
+                second fact about the stop, so a reader who spots the square here
+                can find the landings by eye instead of reading every row. */}
+            <span className={"trajectory-zone-swatch"
+              + (step.stop.lands ? " trajectory-zone-swatch-land" : "")} />
             <span className="trajectory-plan-number"><Val of={step.stop.index + 1} /></span>
           </td>
           <td>
@@ -144,15 +151,25 @@ function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
               {step.stop.index == 0
                 ? <Tr text={step.stop.lands ? "xpediaStopSpawnsGrounded" : "xpediaStopSpawns"} />
                 : step.stop.lands
-                  ? <Tr text="xpediaStopLands" />
+                  ? landing != null
+                    // The stay is the landing's own fact, so it is said in the same
+                    // breath: "lands here for 13 h" rather than "lands here" and
+                    // then a second sentence beginning with the same verb.
+                    ? <><Tr text="xpediaStopLandsFor" />{" "}
+                      <span className="mission-delay">{formatSeconds(landing)}</span></>
+                    : <Tr text="xpediaStopLands" />
                   : step.stop.arrival?.from == step.stop.zone
                     ? <Tr text="xpediaStopMovesWithin" />
                     : <Tr text="xpediaStopArrives" />}
+              {/* Reaching the last line destroys the UFO, so that is where the
+                  flight ends — on the stop it reaches, not on the leg leaving the
+                  one before. */}
+              {step === last && <div className="mission-note"><Tr text="xpediaLegEnds" /></div>}
             </div>
           </td>
         </tr>
         : <tr key={"l" + i} className="trajectory-plan-leg"
-          style={{ "--zone-color": legColor(step.leg.index) } as any}>
+          style={{ "--zone-color": legColor(step.leg.index) } as CSSProperties}>
           {/* A leg carries no number: it is not a place, nothing else on the page
               refers to a leg by number, and the only number that would fit here
               is the stop it is flying to, which the row above already prints.
@@ -169,16 +186,21 @@ function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
             {speeds && <> ≈ <em className="num">
               {Math.round(speeds.min * step.leg.speed / 100)}–{Math.round(speeds.max * step.leg.speed / 100)}
             </em>{" "}<Tr text="xpediaKnots" /></>}
-            {step.leg.index == legs.length && <div className="mission-note">
-              <Tr text="xpediaLegEnds" />
-            </div>}
           </td>
         </tr>)}
     </tbody>
   </table>;
 }
 
-/** The declared `[zone, altitude, speed]` lines, in the ruleset's own order */
+/**
+ * The declared `[zone, altitude, speed]` lines, in the ruleset's own order.
+ *
+ * This table exists for comparing against a rul file, so it prints the fields as
+ * the file writes them. It deliberately does not try to label them as flight
+ * moves: a line's third field set belongs to the leg leaving it, its altitude
+ * lands the UFO one line earlier, and line 1 is a spawn state rather than a
+ * destination. `FlightPlan` above is the decoded answer; this is the source text.
+ */
 function LineTable({ trajectory }: { trajectory: UfoTrajectory }) {
   let lines = trajectory.waypoints ?? [];
   if (!lines.length)
@@ -187,7 +209,7 @@ function LineTable({ trajectory }: { trajectory: UfoTrajectory }) {
     <thead>
       <tr className="table-header">
         <td><Tr text="xpediaLine" /></td>
-        <td><Tr text="xpediaLegTo" /></td>
+        <td><Tr text="xpediaLegZone" /></td>
         <td><Tr text="xpediaLegAltitude" /></td>
         <td><Tr text="xpediaLegSpeed" /></td>
       </tr>
@@ -214,37 +236,23 @@ function LineTable({ trajectory }: { trajectory: UfoTrajectory }) {
 
 /** Ufo trajectory article: the legs the engine flies, and the lines it reads */
 export default function TrajectoryComponent({ entry }: { entry: UfoTrajectory }) {
-  let landing = entry.landingSeconds;
-  let groundedStart = Number(entry.waypoints?.[0]?.[1]) === 0;
-  // The declared lines are the ruleset's own text rather than the flight it
-  // describes: a line is a destination, not a stop, and the engine re-targets
-  // one of them, so reading them as a schedule misleads. They are kept, but
-  // behind a toggle, because the flight plan above is the answer to "what does
-  // this path do" and this is only useful to someone comparing against a rul file.
+  /**
+   * The declared lines are the ruleset's own text rather than the flight it
+   * describes: a line is a destination, except line 1, which is where the UFO
+   * appears, and the engine re-targets line 2. They are kept, but behind a
+   * toggle, because the flight plan above is the answer to "what does this path
+   * do" and this is only useful to someone comparing against a rul file.
+   */
   let [showLines, setShowLines] = useState(false);
 
   return <MainTable
     of={entry}
     title="UFO_TRAJECTORIES"
-    sort={{ last: ["waypoints"], exclude: ["id"] }}
+    sort={{ last: ["waypoints"], exclude: ["id", "groundTimer"] }}
     rows={{
-      // The landing time is the one number on this page a player plans around,
-      // and `groundTimer` is not it: the field is ticks of five seconds
-      groundTimer: () => <tr>
-        <td className="row-name"><Val of="groundTimer" capital={true} /></td>
-        <td>
-          {landing == null
-            ? <Tr text="xpediaLegNeverLands" />
-            : <>
-              <Tr text="xpediaLegLandsFor" />{" "}
-              <span className="mission-delay">{formatSeconds(landing)}</span>
-              <div className="mission-raw"><Val of={entry.groundTimer} /></div>
-              {groundedStart && <div className="mission-note"><Tr text="xpediaLegSpawnsGrounded" /></div>}
-            </>}
-        </td>
-      </tr>,
+      // The flight plan leads, because it is what the page is about; the
+      // declared lines and the raw timer fields follow it.
       waypoints: () => <>
-        <tr><td colSpan={2} className="table-subheader"><Val of="xpediaFlightPlan" /></td></tr>
         <tr><td colSpan={2}><FlightPlan trajectory={entry} /></td></tr>
         <tr><td colSpan={2}>
           <button type="button"

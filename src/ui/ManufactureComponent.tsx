@@ -1,16 +1,17 @@
 import { asSubTable } from "./ArticleComponent";
-import MainTable from "./MainTable";
+import type { Manufacture } from "../rul/Entry";
+import MainTable, { MainTableRenderer } from "./MainTable";
 import { Val } from "./Val";
 
 /** Manufacture table, follows old `Manufacture.svelte` */
-export default function ManufactureComponent({ entry }: { entry: any }) {
+export default function ManufactureComponent({ entry }: { entry: Manufacture }) {
   // The wide row from old `MainTable.svelte`: a subheader plus the chance table
-  let randomProducedItems = ({ val }: { val: any }) => val ? <>
+  let randomProducedItems: MainTableRenderer = ({ val }) => val ? <>
     <table className="number-table" style={{ width: "100%", margin: 0 }}>
       <tbody>
-        {entry.randomProducedItems.map((chance: [number, any], i: number) =>
+        {entry.randomProducedItems?.map((chance, i) =>
           <tr key={i}>
-            <td>{((chance[0] / entry.chanceSum) * 100).toFixed(2)}%</td>
+            <td>{((chance[0] / (entry.chanceSum ?? 0)) * 100).toFixed(2)}%</td>
             <td>
               {Object.keys(chance[1]).length == 0
                 ? <Val of="NOTHING" />

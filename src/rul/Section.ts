@@ -1,6 +1,5 @@
 import { rul } from './Ruleset';
 import { Article } from './Article';
-import { last } from '../util';
 
 export class Section {
   _articles: Article[] = [];
@@ -63,22 +62,31 @@ export class Section {
     if (!article.sections.includes(this)) article.sections.push(this);
   }
 
-  static all() {
-    return [...rul.sectionsOrder, ...rul.sortedTypeSections()]
+  static all(alphabetical = false) {
+    return rul.sectionOrder(alphabetical);
   }
 
-  nearbySection(delta: number) {
-    let as = Section.all();
+  /**
+   * The section `<`/`>` steps into when it runs off this one's article list.
+   *
+   * Sections with no articles are skipped, whether or not they have a page of
+   * their own: a pack can declare a type table and ship no entries, and an empty
+   * list is a dead end for the arrows. The walk wraps, so running off the last
+   * category lands on the first section with articles and the other way round.
+   * Returns `this` when no other section has an article, which the caller reads
+   * as "there is nowhere to go".
+   *
+   * `alphabetical` only decides the order of the *categories*; the pedia's own
+   * sections keep the pack's order either way. See `Ruleset.sectionOrder`.
+   */
+  adjacentSection(delta: number, alphabetical = false) {
+    let as = Section.all(alphabetical);
     let ind = as.indexOf(this);
-    let nextInd = (ind + delta + as.length) % as.length;
-    return as[nextInd]
-  }
-
-  lastArticle(alphabetical: boolean) {
-    return last(this.articles(alphabetical));
-  }
-
-  firstArticle(alphabetical: boolean) {
-    return this.articles(alphabetical)[0];
+    for (let step = 1; step <= as.length; step++) {
+      let next = as[(((ind + delta * step) % as.length) + as.length) % as.length];
+      if (next.articles(alphabetical).length)
+        return next;
+    }
+    return this;
   }
 }

@@ -1,7 +1,7 @@
 import * as fflate from "fflate";
 import * as unrar from "node-unrar-js";
 import JSYaml from "js-yaml";
-import Ruleset, { defaultLanguage, Mod } from "./rul/Ruleset";
+import Ruleset, { defaultLanguage, Mod, Langs, ProcessedRuleset } from "./rul/Ruleset";
 import { base64ToArrayBuffer, gameRelativePath as utilGameRelativePath } from "./util";
 
 /**
@@ -122,7 +122,7 @@ export function interpretPath(s: string): InterpretedPath | undefined {
     return {
       type: { nam: "nam", rul: "rul", gif: "img", png: "img" }[ext] as AssetType,
       mod, name, path, ext
-    }
+    };
   }
 
   // Only the globe's own folder: a pack's fonts and other DAT files are binary
@@ -171,33 +171,44 @@ export function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
     .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }));
 }
 
+/**
+ * Parses one YAML file of a modpack.
+ *
+ * There is no type to give the result: a `rul` file is arbitrary nested data
+ * that the merge in `Ruleset.combineRuls` copies through untouched, and the
+ * pedia only ever reads it field by field. Keeping it untyped here is what lets
+ * a pack add a table the pedia does not know about without failing to load.
+ */
 export function loadYaml(text: string): any {
-  text = text.replace(/!(add|info|remove)/g, '')
+  text = text.replace(/!(add|info|remove)/g, '');
   return JSYaml.load(text, {
     json: true,
     onWarning: (e) => {
       console.error(e.message);
     }
-  })
+  });
 }
 
 export function loadModsAndLng(files: { mod: string, path?: string, name?: string, ext?: string, text: string, type: string }[]) {
 
   let modName: string, mods = {} as { [name: string]: Mod };
 
-  function addToLng(lngName: string, words: { [name: string]: any }) {
+  function addToLng(lngName: string, words: { [name: string]: unknown }) {
     let lng = mods[modName].lng;
-    lng[lngName] ??= {}
+    lng[lngName] ??= {};
     // A language file can leave a key with no value at all. Storing that as
     // `null` makes the string resolve to nothing, and for a bare language code
     // it shows up as a blank entry in the language dropdown, so those keys are
-    // skipped. Any other value is kept as-is: translations may be numbers, and
+    // skipped. Any other value is kept as-is: a translation may be a number, and
     // OXCE plural forms (`STR_DAY: { one: ..., other: ... }`) are objects.
+    // `LangMap` calls them all strings because that is what every reader does
+    // with them — `Ruleset.tr` substitutes the value for the id and treats it as
+    // text — so the store is typed loosely and the cast is here.
     for (let key in words) {
       let value = words[key];
       if (value == null)
         continue;
-      lng[lngName][key] = value;
+      lng[lngName][key] = value as string;
     }
   }
 
@@ -206,11 +217,11 @@ export function loadModsAndLng(files: { mod: string, path?: string, name?: strin
     modName = f.mod;
 
     mods[modName] ??= {
-      dir: modName, lng: {}, rul: [], meta: {} as any,
+      dir: modName, lng: {}, rul: [], meta: {},
       // `common` is not a mod: it holds resources and language strings shared
       // by all of them, and OpenXcom always loads it next to the active mods
       common: /(^|\/)common$/i.test(modName)
-    }
+    };
 
     try {
       if (f.type == "lng") {
@@ -219,25 +230,25 @@ export function loadModsAndLng(files: { mod: string, path?: string, name?: strin
         if (typeof data == "object" && data != null) {
           // A language file normally declares one language at the top level, but
           // some packs repeat the key; every block is read so none is dropped.
-          let blocks = data as { [langName: string]: { [name: string]: any } };
+          let blocks = data as Langs;
           for (let lngName in blocks)
-            addToLng(lngName, blocks[lngName])
+            addToLng(lngName, blocks[lngName]);
         } else if (typeof data == "string") {
           // Non-yaml translations are named "STR_ID.<lang>.html"
           let [strName, lngName] = splitName(f.name ?? "");
           if (lngName)
-            addToLng(lngName, { [strName]: data })
+            addToLng(lngName, { [strName]: data });
         }
       }
       if (f.type == "rul") {
         let data = loadYaml(f.text);
-        mods[modName].rul.push(data)
+        mods[modName].rul.push(data);
       }
       if (f.type == "meta") {
-        mods[modName].meta = loadYaml(f.text)
+        mods[modName].meta = loadYaml(f.text);
       }
     } catch (e) {
-      console.error(`Error while parsing ${f.path}`, e)
+      console.error(`Error while parsing ${f.path}`, e);
     }
   }
 
@@ -411,7 +422,7 @@ function builtinIcons(mods: { [dir: string]: Mod }) {
  */
 export function mergeBuiltinMods(
   builtinFiles: { [name: string]: Uint8Array },
-  stored: { mods?: Mod[], langs?: any, resources?: any }) {
+  stored: ProcessedRuleset): ProcessedRuleset {
 
   let builtinParsed = loadModsAndLng(decodedYamlFiles(builtinFiles));
 
@@ -516,11 +527,11 @@ export async function unpackRar(
   const list = extractor.getFileList();
   const fileHeaders = [...list.fileHeaders]; // load the file headers
 
-  let rulHeaders = fileHeaders.map(f => f.name).filter(usefulFileName)
+  let rulHeaders = fileHeaders.map(f => f.name).filter(usefulFileName);
 
-  let extracted = extractor.extract({ files: rulHeaders })
+  let extracted = extractor.extract({ files: rulHeaders });
 
-  let files: unrar.ArcFile<Uint8Array<ArrayBufferLike>>[] = []
+  let files: unrar.ArcFile<Uint8Array<ArrayBufferLike>>[] = [];
 
   for (let f of extracted.files) {
     options.checkCancelled?.();

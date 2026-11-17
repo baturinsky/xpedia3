@@ -91,7 +91,6 @@ export class Article {
 
   addToSection(sectionId: string) {
     let section: Section;
-    //if(sectionId == "SOLDIER_BONUSES")      debugger
     if (sectionId in rul.sections) section = rul.sections[sectionId];
     else section = rul.sections[sectionId] = new Section(sectionId);
 

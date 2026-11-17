@@ -17,5 +17,5 @@ export default function UnitComponent({ entry }: { entry: Unit }) {
       }}
     />
     {entry.armor && rul.armors[entry.armor] && <ArmorComponent entry={rul.armors[entry.armor]} />}
-  </>
+  </>;
 }

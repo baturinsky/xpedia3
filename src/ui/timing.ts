@@ -47,7 +47,7 @@ export function formatSeconds(seconds: number): string {
  * integer division the engine does first is repeated here so the range matches
  * the game for a timer that is not a multiple of 30.
  */
-export function waveDelay(timer: any): { min: number, max: number } | undefined {
+export function waveDelay(timer: unknown): { min: number, max: number } | undefined {
   let declared = Number(timer);
   if (!Number.isFinite(declared) || declared < 0)
     return undefined;

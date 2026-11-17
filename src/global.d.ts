@@ -7,11 +7,11 @@ declare module "*.css"
  * a `const` here is only for the type checker: reading them at runtime gives the
  * value that was current when the copy was built, never the running machine's.
  */
-declare const __XPEDIA_VERSION__: string
+declare const __XPEDIA_VERSION__: string;
 /** The build number for a release build; empty on the dev server, see `xpediaVersion` */
-declare const __XPEDIA_BUILD__: string
+declare const __XPEDIA_BUILD__: string;
 /** `git describe` of the build, empty when the build had no git */
-declare const __XPEDIA_STAMP__: string
+declare const __XPEDIA_STAMP__: string;
 /**
  * Base URL of the dev server's example-modpack route, empty in a release build.
  *
@@ -19,7 +19,7 @@ declare const __XPEDIA_STAMP__: string
  * starting point: the page fetches whatever URL it is given, so this decides
  * nothing about where a pack may come from.
  */
-declare const __XPEDIA_DEV_PACKS__: string
+declare const __XPEDIA_DEV_PACKS__: string;
 
 /**
  * Properties the app hangs on `window` that the DOM lib does not know about.
@@ -27,6 +27,28 @@ declare const __XPEDIA_DEV_PACKS__: string
 interface Window {
   /** The loaded ruleset, so it can be inspected from the console */
   rul?: any;
+}
+
+/**
+ * The Storage Buckets API, which TypeScript's DOM lib does not describe yet.
+ *
+ * It is Chromium-only (Chrome/Edge 122+), so every use is optional: without it
+ * `navigator.storageBuckets` is simply `undefined` and the app falls back to the
+ * origin's default storage. Only the two calls `idb.ts` makes are declared.
+ */
+interface StorageBucket {
+  readonly indexedDB: IDBFactory;
+  /** Pushes the bucket's expiry forward; resolves to whether that worked */
+  setExpires?(date: Date): Promise<void>;
+}
+
+interface StorageBucketManager {
+  open(name: string): Promise<StorageBucket>;
+}
+
+interface Navigator {
+  /** Absent outside Chromium, see `StorageBucket` */
+  readonly storageBuckets?: StorageBucketManager;
 }
 
 /**

@@ -10,11 +10,13 @@ interface Entry {
   storeItem?: string;
   type?: string;
   users?: string[];
-  stats?: any;
-  armor?: any;
-  damageModifier?: any;
-  recovery?: any;
+  stats?: { [stat: string]: number };
+  armor?: { [key: string]: number | undefined };
+  damageModifier?: number[];
+  recovery?: { [stat: string]: { flatOne?: number, flatHundred?: number } };
   dollSprites: () => Promise<Record<string, string[]>>;
+  // The table walks an entry's fields by name, so anything else it reads is
+  // whatever the ruleset put there
   [key: string]: any;
 }
 
@@ -101,7 +103,7 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
           {["stats", "armor"].map(prop => !entry[prop] ? null :
             <div key={prop} className="armor-column">
               <header><Val of={prop} /></header>
-              {sortFirstLast(entry[prop]).all.map(([key, val]: [string, any], i) =>
+              {sortFirstLast(entry[prop]).all.map(([key, val], i) =>
                 <React.Fragment key={i}>
                   <div><Val of={key} icon="monospace" /></div>
                   <div>
@@ -118,11 +120,11 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
 };
 
 /** Damage modifiers as a grid of coloured percentages, one cell per type */
-const ResistGrid = ({ modifiers }: { modifiers: any }) =>
+const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) =>
   <div className="flex-horisontal" style={{ maxWidth: "95vw" }}>
     <div className="armor-column armor-column-resists">
       <header><Val of="damageModifier" /></header>
-      {sortFirstLast(modifiers).all.map(([key, val]: [string, any], i) =>
+      {sortFirstLast(modifiers).all.map(([key, val], i) =>
         <React.Fragment key={i}>
           <div><Val of={damageTypes[Number(key)]} icon="monospace" /></div>
           <div>

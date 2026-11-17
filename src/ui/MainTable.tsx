@@ -4,9 +4,17 @@ import { rul, sortFirstLast, SortFirstLastOptions } from "../rul/Ruleset";
 import { fromAnyRef } from "./components";
 import { isFlat } from "../util";
 
+/**
+ * Draws one row of a `MainTable`.
+ *
+ * `val` is whatever the ruleset put under that key: a number, a list of ids, or
+ * a whole nested node. A renderer is picked by field name, so it is matched to
+ * the value at runtime and cannot be typed by it.
+ */
 export type MainTableRenderer = (props: { key: string, val: any, row: number }) => ReactNode;
 
 interface MainTableProps {
+  /** The node to draw a row per field of; `Entry`, or a plain ruleset node */
   of?: any;
   /** Pre-ordered `[key, value]` rows, rendered instead of sorting `of`. Used
    *  when a caller inserts rows of its own between the fields. */
@@ -42,7 +50,7 @@ const MainTable = ({
   rows = {}
 }: MainTableProps) => {
   if (of == null && pairs == null) {
-    return undefined
+    return undefined;
     //return <div>No entry in main table</div>;
   }
 
@@ -63,7 +71,7 @@ const MainTable = ({
     return value != null && typeof value == "object" && !isFlat(value) && !isRef
       ? <MainTable of={value} />
       : <Val of={value} field={key} collection={of?.collection} />;
-  }
+  };
 
   return (
     <table className={"main-table"}>
@@ -84,7 +92,7 @@ const MainTable = ({
           if (key in rows) {
             let render = rows[key];
             if (typeof render !== "function") {
-              console.error(`Row renderer for '${key}' is not a function`)
+              console.error(`Row renderer for '${key}' is not a function`);
               return null;
             }
             return <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
@@ -102,27 +110,27 @@ const MainTable = ({
             let render = special[key];
             let content: JSX.Element;
             if (typeof render !== "function") {
-              content = subVal(key, value)
+              content = subVal(key, value);
             } else {
               content = <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
             }
             return <Fragment key={key}>
               <tr><td colSpan={2} className="table-subheader"><Val of={key} /></td></tr>
               <tr><td colSpan={2}>{content}</td></tr>
-            </Fragment>
+            </Fragment>;
           }
 
           // Special field - custom renderer for the value only
           if (key in special) {
             let render = special[key];
             if (typeof render !== "function") {
-              console.error(`Special table function for '${key}' is not a function`)
+              console.error(`Special table function for '${key}' is not a function`);
               return null;
             }
             return <tr key={key}>
               <td className="row-name"><Val of={key} capital={true} /></td>
               <td>{render({ key, val: value, row })}</td>
-            </tr>
+            </tr>;
           }
 
           // Default fields - only render if prop has value

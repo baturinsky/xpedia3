@@ -33,8 +33,40 @@ const objectives = [
   "xpediaObjective6",
 ];
 
+/**
+ * One wave of an alien mission, straight from the ruleset.
+ *
+ * A wave is a UFO, a count, a path and the gap before it; the flags below are
+ * how the wave carries out the mission once it arrives. All optional, since a
+ * pack states only what it needs and the engine fills in the rest.
+ */
+export type MissionWave = {
+  /** A UFO id, or an `alienDeployments` id for a wave that creates a site */
+  ufo?: string,
+  count?: number,
+  /** `ufoTrajectories` id */
+  trajectory?: string,
+  /** Minutes before this wave arrives, which the engine halves and rolls */
+  timer?: number,
+  /** This wave carries out the mission's objective */
+  objective?: boolean,
+  objectiveOnTheLandingSite?: boolean,
+  objectiveOnXcomBase?: boolean,
+  escort?: boolean,
+  hunterKillerPercentage?: number,
+  interruptPercentage?: number,
+};
+
+/**
+ * The wave fields of an alien mission.
+ *
+ * `waves` is a list of `MissionWave`s. The rest of the entry is whatever the
+ * ruleset states, so the index signature keeps the type honest.
+ */
+export type AlienMission = { waves?: MissionWave[], [field: string]: any };
+
 /** The label for an objective number, or nothing when the pack states none */
-export function objectiveName(value: any) {
+export function objectiveName(value: unknown) {
   if (value == null || value === "")
     return undefined;
   let n = Number(value);
@@ -47,7 +79,7 @@ export function objectiveName(value: any) {
  * A zero delay is the engine's "next tick", not a very short wait, so it reads
  * as "at once" rather than as a number.
  */
-function delayText(timer: any) {
+function delayText(timer: unknown) {
   let delay = waveDelay(timer);
   if (!delay)
     return null;
@@ -70,7 +102,7 @@ export function groundSeconds(path?: UfoTrajectory) {
  * ask for one built from the region's texture. Both look identical in the raw
  * table, and both are worth saying out loud.
  */
-function waveUfo(wave: any) {
+function waveUfo(wave: MissionWave) {
   let id = wave?.ufo;
   if (!id)
     return null;
@@ -94,7 +126,7 @@ function waveUfo(wave: any) {
  * mission's objective, whether the site follows the craft down, whether the
  * craft hunts, and the chance that shooting it down ends the whole mission.
  */
-function waveNotes(wave: any) {
+function waveNotes(wave: MissionWave) {
   let notes: { key: string, text?: string, percent?: number }[] = [];
   if (wave?.objective)
     notes.push({ key: "objective", text: "xpediaWaveObjective" });
@@ -118,7 +150,7 @@ function waveNotes(wave: any) {
  * about: the wave table reads as a schedule, so the delay belongs to the row it
  * delays rather than to the mission as a whole.
  */
-function WaveTable({ waves }: { waves: any[] }) {
+function WaveTable({ waves }: { waves: MissionWave[] }) {
   if (!waves.length)
     return null;
   return <table className="main-table mission-waves">
@@ -134,7 +166,7 @@ function WaveTable({ waves }: { waves: any[] }) {
     </thead>
     <tbody>
       {waves.map((wave, i) => {
-        let grounded = groundSeconds(rul.ufoTrajectories?.[wave?.trajectory]);
+        let grounded = wave?.trajectory ? groundSeconds(rul.ufoTrajectories?.[wave.trajectory]) : undefined;
         let notes = waveNotes(wave);
         return <tr key={i}>
           <td className="mission-wave-number"><Val of={i + 1} /></td>
@@ -169,8 +201,8 @@ function WaveTable({ waves }: { waves: any[] }) {
 const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
 
 /** Alien mission table: the fields, with the waves drawn as a schedule */
-export default function MissionComponent({ entry }: { entry: any }) {
-  let waves: any[] = entry.waves ?? [];
+export default function MissionComponent({ entry }: { entry: AlienMission }) {
+  let waves: MissionWave[] = entry.waves ?? [];
 
   return <MainTable
     of={entry}

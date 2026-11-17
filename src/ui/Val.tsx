@@ -1,4 +1,4 @@
-import { FC, Fragment } from "react";
+import { FC, Fragment, ReactNode } from "react";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { ValueRange } from "../rul/Entry";
@@ -10,7 +10,7 @@ import { MusicRef, SoundRef } from "./Audio";
 export type IconType = "monospace" | "simple" | "none" | null;
 
 /** Number as the tables print it: the mod's own locale, dot decimal separator */
-export function formatNumber(val: any) {
+export function formatNumber(val: unknown) {
   return Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".");
 }
 
@@ -113,7 +113,7 @@ export const Val = ({
   let id = fromAnyRef(val);
 
   function tr1(text: string) {
-    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} capital={capital} prefix={prefix} postfix={postfix} />
+    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} capital={capital} prefix={prefix} postfix={postfix} />;
   }
 
   if (id && rul.article(id)) {
@@ -140,7 +140,7 @@ export const Val = ({
   }
 
   return null;
-}
+};
 
 /**Translate text if possible add the emoji icon to it. For internal use by Val only */
 /** Compares two label strings ignoring markup, case and spacing */
@@ -182,15 +182,15 @@ export function Tr({
 
   valtr = `${prefix ?? ""}${valtr}${postfix ?? ""}`;
 
-  let element: any = valtr;
+  let element: ReactNode = valtr;
 
   if (iconText) {
     if (icon == "monospace")
-      element = <><div className='monospace-emoji-icon'>{iconText}</div>{element}</>
+      element = <><div className='monospace-emoji-icon'>{iconText}</div>{element}</>;
     else if (icon == "simple")
-      element = <>{iconText}{element}</>
+      element = <>{iconText}{element}</>;
     else if (icon != "none")
-      element = <><div className='emoji-icon'>{iconText}</div>{element}</>
+      element = <><div className='emoji-icon'>{iconText}</div>{element}</>;
   }
 
   // The icon and the label are one unit: `Tr` never splits across lines.
@@ -208,6 +208,11 @@ export function Tr({
 }
 
 interface LinksListProps {
+  /**
+   * A list or a map of ruleset values, of whatever shape the pack declared: an
+   * array, a set, or an object whose keys are the references. The value itself is
+   * inspected to decide how to draw it, so it has no type beyond "some JSON node".
+   */
   items: any;
   cols?: number;
   vertical?: boolean;
@@ -217,8 +222,6 @@ interface LinksListProps {
   table?: boolean;
   className?: string
 }
-
-const noSorter = (a: string[]) => a
 
 /** Renders lists and objects of references as links, follows old LinksList.svelte */
 const LinksList: FC<LinksListProps> = ({
@@ -241,21 +244,17 @@ const LinksList: FC<LinksListProps> = ({
 
   let items = initialItems instanceof Set ? [...initialItems] : initialItems;
   let isArray = Array.isArray(items);
-  let keys = isArray ? items : Object.keys(items);
+  let keys: any[] = isArray ? items : Object.keys(items);
 
-  
-  //if(initialSorted == null && !Array.isArray(items)) initialSorted = true;
-
-  let sorted = initialSorted ?? keys.length > 9;
-  if (sorted) {
-    keys = (a: string[]) => rul.sortStringsAndNumbers(a);
-  } else {
-    keys = noSorter(keys);
-  }
+  // Long lists are sorted unless the caller says otherwise. `keys` holds either
+  // the values themselves or an object's keys, and the sorter returns their order
+  // as a new list, so it replaces them rather than being called on each use.
+  if (initialSorted ?? keys.length > 9)
+    keys = rul.sortStringsAndNumbers(keys);
 
   if (cols) {
     return <div className={"cols " + className} style={{ columns: cols }}>
-      {keys.map((field: any) =>
+      {keys.map(field =>
         <div key={field}>
           {state.article && state.article.id === field
             ? <span className="self-ref"><Tr text={field} /></span>
@@ -281,7 +280,7 @@ const LinksList: FC<LinksListProps> = ({
   // Objects holding further objects need one block per key to stay readable
   if (!isArray && Object.values(items).some(a => typeof a == "object")) {
     return <>
-      {keys.map((subfield: any, j: number) =>
+      {keys.map((subfield, j) =>
         <div key={subfield} className={j > 0 ? "top-border" : undefined}>
           <Val of={subfield} depth={depth - 1} /> :
           <div className="sublist">
@@ -296,11 +295,11 @@ const LinksList: FC<LinksListProps> = ({
     return (
       <table className={"properties-table " + className}>
         <tbody>
-          {keys.map((field: any) => {
+          {keys.map(field => {
             let cells = isArray ? (Array.isArray(field) ? field : [field]) : [field, items[field]];
             return (
               <tr key={isArray ? String(field) : field}>
-                {cells.map((v: any, i: number) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
+                {cells.map((v, i) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
               </tr>
             );
           })}
@@ -312,7 +311,7 @@ const LinksList: FC<LinksListProps> = ({
   // Object of plain values: show the value, then the key as a reference
   if (!isArray && keys.length > 0 && !table) {
     return <span className={"links-list " + className}>
-      {keys.map((field: any, i: number) =>
+      {keys.map((field, i) =>
         <Fragment key={field}>
           {i !== 0 && <Divider vertical={vertical} />}
           <Val of={field} depth={depth - 1} /> <Val of={items[field]} field={field} depth={depth - 1} />
@@ -323,7 +322,7 @@ const LinksList: FC<LinksListProps> = ({
 
   return (
     <span className={"links-list " + className}>
-      {keys.map((item: any, i: number) =>
+      {keys.map((item, i) =>
         Array.isArray(item)
           ? <div key={i} className="sublist">
             <LinksList items={item} depth={depth - 1} />

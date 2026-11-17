@@ -1,4 +1,5 @@
 import { rul } from "../rul/Ruleset";
+import type { Craft } from "../rul/Entry";
 import { Img } from "./components";
 import MainTable from "./MainTable";
 import { Val } from "./Val";
@@ -7,7 +8,7 @@ import { Val } from "./Val";
 const includeMarkerInSprites = true;
 
 /** Craft table, follows old `Craft.svelte` */
-export default function CraftComponent({ entry }: { entry: any }) {
+export default function CraftComponent({ entry }: { entry: Craft }) {
   // The globe marker is drawn from its own sheet, which is a plain grid of
   // cells, so it is cropped by `Img` rather than sliced on a canvas
   let markerNum = entry.marker;

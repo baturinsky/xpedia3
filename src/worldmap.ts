@@ -235,7 +235,7 @@ export function readPolylines(): MapLine[] {
 /** Reads the nations, whose areas are plain rectangles rather than borders */
 export function readCountries(): WorldMap["countries"] {
   let countries: WorldMap["countries"] = [];
-  for (let entry of Object.values(rul?.countries ?? {}) as any[]) {
+  for (let entry of Object.values(rul?.countries ?? {})) {
     if (!entry?.id)
       continue;
     let areas: MapRectangle[] = [];
@@ -297,7 +297,7 @@ export async function loadWorldMap(): Promise<WorldMap | undefined> {
 }
 
 /** The inline replacement form, `[texture, lon, lat, ...]` */
-function readInlinePolygons(raw: any): MapPolygon[] | undefined {
+function readInlinePolygons(raw: unknown): MapPolygon[] | undefined {
   if (!Array.isArray(raw) || !raw.length)
     return;
   let polygons: MapPolygon[] = [];

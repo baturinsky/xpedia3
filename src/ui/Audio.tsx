@@ -54,7 +54,7 @@ export function showAudio(target: AudioTarget) {
 }
 
 /** The path of a sound slot, or null when the pack does not replace that slot */
-export function soundPath(slot: any, field: string, collection?: string) {
+export function soundPath(slot: unknown, field: string, collection?: string) {
   if (slot == null || slot === "" || String(slot) == "-1")
     return null;
   let cat = soundCat(field, collection);
@@ -68,8 +68,13 @@ const AudioLink = ({ target, children }: { target: AudioTarget, children: React.
     {children}
   </button>;
 
-/** One music track: the pack's name for it, or the derived file name */
-export const MusicRef = ({ entry }: { entry: any }) => {
+/**
+ * One music track: the pack's name for it, or the derived file name.
+ *
+ * A music field holds the id, though older data may hold the whole entry, so the
+ * prop takes either.
+ */
+export const MusicRef = ({ entry }: { entry: string | { id?: string } }) => {
   // A music field holds the id; older data may hold the whole entry
   let id = typeof entry == "string" ? entry : entry?.id;
   if (id == null)
@@ -98,7 +103,7 @@ export const MusicRef = ({ entry }: { entry: any }) => {
  * so those keep their number and say which CAT they belong to.
  */
 export const SoundRef = ({ value, field, collection }: {
-  value: any, field: string, collection?: string
+  value: unknown, field: string, collection?: string
 }) => {
   let slots = (Array.isArray(value) ? value : [value]).filter(s => s != null && s !== "");
   // The field name is a ruleset key such as `meleeHitSound`; the page shows the

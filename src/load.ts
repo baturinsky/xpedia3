@@ -1,13 +1,13 @@
 //@ts-ignore
-import wasmRaw from './unrar.wasm?base64'
+import wasmRaw from './unrar.wasm?base64';
 import { state, update, slowProcessCancelRequested, resetSlowProcessCancel, autoCloseStatus } from "./state";
 import { delay, base64ToArrayBuffer, asMB } from "./util";
 import { fileTypeFromBuffer, type FileTypeResult } from "file-type";
 import * as fflate from 'fflate';
 import Ruleset from "./rul/Ruleset";
-import type { Mod } from "./rul/Ruleset";
+import type { Mod, ProcessedRuleset } from "./rul/Ruleset";
 import { saveFile, saveImgs, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
-import builtinModsPayload from './builtinMods?builtinMods'
+import builtinModsPayload from './builtinMods?builtinMods';
 import {
   buildPackData, filterBuiltinMods, interpretPath,
   mergeBuiltinMods as mergeBuiltinData, unpackBuiltinMods, unpackRar as unpackRarFiles,
@@ -71,7 +71,7 @@ async function builtinModFiles(packName?: string) {
  * See `packBuild.mergeBuiltinMods`; only the builtin selection is the app's
  * business, and it depends on the pack's name.
  */
-export async function mergeBuiltinMods(stored: { mods?: Mod[], langs?: any, resources?: any }, packName?: string) {
+export async function mergeBuiltinMods(stored: ProcessedRuleset, packName?: string) {
   return mergeBuiltinData(await builtinModFiles(packName), stored);
 }
 
@@ -171,8 +171,8 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
     update({
       slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
       slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined
-    })
-    return null
+    });
+    return null;
   }
 
   throwIfCancelled();
@@ -236,7 +236,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     if (!Object.keys(files).length) {
       update({ slowProcessStatus: `Nothing usable found in ${packName}`,
-        slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined })
+        slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined });
       return;
     }
 
@@ -300,8 +300,8 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     // The archive is only kept in developer mode, so it only takes storage
     // there; in the normal mode the pedia consists of the images and ruleset
-    await saveStats(packName, state.devView ? data.byteLength : 0, assetsSize, compressedRul.length)
-    await saveRul(packName, compressedRul)
+    await saveStats(packName, state.devView ? data.byteLength : 0, assetsSize, compressedRul.length);
+    await saveRul(packName, compressedRul);
 
     let rul = new Ruleset(processed);
     applySavedLanguage(rul);
@@ -323,7 +323,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     // of stranding the user on the landing page
     window.dispatchEvent(new CustomEvent("xpedia:loaded"));
 
-    return files
+    return files;
   } catch (e) {
     // Cancellation has to reach `uploadUsersFiles`, which owns the archive
     // record and can remove it; only report real failures here
@@ -331,7 +331,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
       throw e;
     console.error(e);
     update({ slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined,
-      slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}` })
+      slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}` });
     throw e;
   }
 }
@@ -356,7 +356,7 @@ export async function uploadUsersFiles(fileList: FileList) {
     slowProcessStatus: `Uploading ${files.length} file(s)...`,
     slowProcessStage: "Uploading", slowProcessProgress: 0,
     slowProcessDone: false, slowProcessError: false, slowProcessCancellable: true
-  })
+  });
 
   /** Removes the half-installed pack so it can't be opened later */
   async function abandon(pack: string, reason: string) {

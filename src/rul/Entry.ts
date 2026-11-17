@@ -5,6 +5,18 @@ import {
   killFactions, killStatuses, rul, Service, statsList
 } from './Ruleset';
 
+/**
+ * A ruleset node exactly as a pack states it.
+ *
+ * There is no fixed shape to give this: `Entry.from` copies every field off the
+ * node onto the entry, and a pack may add fields the pedia knows nothing about
+ * without failing to load. The fields the pedia *reads* are declared on the
+ * entry class itself and filled in by `from`, so the node only has to be an
+ * object with an id; the index signature is what keeps an unknown field legal
+ * here rather than an error.
+ */
+export type RawEntry = { id?: string, [field: string]: any };
+
 /** Root class for all ruleset entries */
 export class Entry {
   id: string = "";
@@ -36,28 +48,41 @@ export class Entry {
     });
   }
 
-  from(raw: any) {
-    this.id = raw.id
+  from(raw: RawEntry) {
+    // A block may be named by `type` (items, units) or by `name` (research,
+    // terrains, manufacture) rather than `id`, and `from` relies on those setters
+    // to fill the id in while the fields are copied. `set name` only does that
+    // while the id is still unset, so seeding it with `""` blocked it and keyed
+    // the whole collection by one empty id: every research project, terrain and
+    // manufacture collapsed into a single entry, and the blank article those
+    // blocks created was what the pedia's arrows linked to.
+    this.id = raw.id as string;
     raw = JSON.parse(JSON.stringify(raw));
     for (let k in raw)
       this[k] = raw[k];
 
-    if ((rul as any)[this.collection] == null)
-      (rul as any)[this.collection] = {};
+    let tables = rul as unknown as { [collection: string]: { [id: string]: Entry } };
+    tables[this.collection] ??= {};
 
-    (rul as any)[this.collection][this.id] = this;
+    tables[this.collection][this.id] = this;
 
     this.addToSection(camelToUnderscore(this.collection).toUpperCase());
 
-    return this
+    return this;
   }
 
   addToSection(section: string) {
     Article.create(this.id, section);
   }
 
-  sortField(field: string, noTitle: any = false) {
-    if (field == "id" && !noTitle)
+  /**
+   * The value a column is sorted by.
+   *
+   * `filter` is either the value the table's filter selected, or `true` when a
+   * column wants its own unfiltered value rather than a yes/no answer.
+   */
+  sortField(field: string, filter?: string | boolean) {
+    if (field == "id" && !filter)
       return this.title;
     return this[field];
   }
@@ -66,11 +91,12 @@ export class Entry {
     return rul.tr(this.id);
   }
 
-  static reserve(raw: any, collection: string) {
-    let id = raw.id || raw.type || raw.name;
+  static reserve(raw: RawEntry, collection: string) {
+    let id = raw.id ?? raw.type ?? raw.name;
     // Entries are registered on `rul` under their collection name, and the
     // table is created on first use
-    let table: { [id: string]: Entry } = (rul as any)[collection];
+    let table: { [id: string]: Entry } | undefined =
+      (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
     if (table?.[id]) {
       return table[id];
     } else {
@@ -95,14 +121,12 @@ export class Entry {
     this.id = val;
   }
 
-  fillSimpleEntry(raw: any) {
-  }
 }
 
 export class SimpleEntry extends Entry {
-  constructor(raw: any, collection: string){
-    super(collection)
-    this.from(raw)
+  constructor(raw: RawEntry, collection: string){
+    super(collection);
+    this.from(raw);
   }
 }
 
@@ -110,16 +134,25 @@ export class MissionScript extends Entry {
   researchTriggers?: { [id: string]: boolean };
   researchNeeded?: string[];
   researchForbidden?: string[];
-  constructor(raw: any) {
-    super("missionScripts")
-    this.from(raw)
+  /**
+   * `missionWeights`, split into monthly chunks: either one map of mission type
+   * to weight, or one map per month, which is why the values have to be checked
+   * before being read as a map. Not declared here, so `from` fills it in.
+   */
+  missionWeights?: { [month: string]: number } | { [month: string]: { [mission: string]: number } };
+  constructor(raw: RawEntry) {
+    super("missionScripts");
+    this.from(raw);
     if (this.researchTriggers) {
       let triggers = this.researchTriggers;
       this.researchNeeded = Object.keys(triggers).filter(k => triggers[k]);
       this.researchForbidden = Object.keys(triggers).filter(k => !triggers[k]);
     }
     if (this.missionWeights) {
-      let weights: { [key: string]: any }[] = Object.values(this.missionWeights);
+      // A weight may be a bare number rather than a block, so the values are
+      // filtered to the blocks before their keys are read
+      let weights = Object.values(this.missionWeights)
+        .filter((m): m is { [mission: string]: number } => m != null && typeof m == "object");
       this._missions = unique(weights.map(m => Object.keys(m)).flat());
     }
   }
@@ -128,9 +161,9 @@ export class MissionScript extends Entry {
 export class Soldiers extends Entry {
   statCaps?: { [id: string]: number }
 
-  constructor(raw: any) {
-    super("soldiers")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("soldiers");
+    this.from(raw);
   }
 
   sortField(n: string) {
@@ -140,9 +173,9 @@ export class Soldiers extends Entry {
 
 export class EventEntry extends Entry {
 
-  constructor(raw: any) {
-    super("events")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("events");
+    this.from(raw);
   }
 
   relatedScripts: string[] = [];
@@ -159,9 +192,9 @@ export class EventScript extends Entry {
   _xcomBaseInCountryTrue: string[] = [];
   _xcomBaseInCountryFalse: string[] = [];
 
-  constructor(raw: any) {
-    super("eventScripts")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("eventScripts");
+    this.from(raw);
     let relatedEvents = new Set<string>([
       ...Object.values(this.eventWeights || []).map(w => Object.keys(w)).flat(),
       ...Object.keys(this.oneTimeRandomEvents || {})
@@ -170,8 +203,8 @@ export class EventScript extends Entry {
     this._relatedResearch = [...new Set<string>(Object.keys(this.researchTriggers || {}))];
     if (this.xcomBaseInCountryTriggers) {
       let triggers = this.xcomBaseInCountryTriggers;
-      this._xcomBaseInCountryTrue = Object.keys(triggers).filter(k => triggers[k] == true)
-      this._xcomBaseInCountryFalse = Object.keys(triggers).filter(k => triggers[k] == false)
+      this._xcomBaseInCountryTrue = Object.keys(triggers).filter(k => triggers[k] == true);
+      this._xcomBaseInCountryFalse = Object.keys(triggers).filter(k => triggers[k] == false);
     }
   }
 }
@@ -203,9 +236,9 @@ export class Manufacture extends Entry {
   chanceSum?: number;
   cost: number = 0;
 
-  constructor(raw: any) {
-    super("manufacture")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("manufacture");
+    this.from(raw);
 
     this.cost = this.cost || 0;
 
@@ -249,14 +282,17 @@ export class Manufacture extends Entry {
       this.totalProducedItems = this.producedItems;
     }
 
+    // A product with no `costSell` — or a name that resolves to nothing — makes
+    // the profit unknowable, and the table would print NaN. The page has no way
+    // to say "incomplete", so the number is left as it works out and the entry
+    // is named in the console for whoever is fixing the pack.
     this.profit = totalSellCost(this.producedItems) - totalSellCost(this.requiredItems) - this.cost;
-    if (isNaN(this.profit)) {
-      console.log(this.id, totalSellCost(this.producedItems), totalSellCost(this.requiredItems), this.cost);
-    }
+    if (isNaN(this.profit))
+      console.warn(`${this.id}: profit is NaN, one of its items has no sell cost`);
     this.profitPerHour = this.profit / this.time;
     this.sizeChange = totalSize(this.producedItems) - totalSize(this.requiredItems);
 
-    backLink(this.id, Object.keys(this.totalProducedItems), rul.items, "manufacture")
+    backLink(this.id, Object.keys(this.totalProducedItems), rul.items, "manufacture");
 
     Service.add("allowsManufacture", this.name, this.requiresBaseFunc);
   }
@@ -266,9 +302,9 @@ export class SoldierTransformation extends Entry {
   forbiddenPreviousTransformations?: string[];
   blocksTransformations?: string[];
 
-  constructor(raw: any) {
-    super("soldierTransformation")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("soldierTransformation");
+    this.from(raw);
   }
 }
 
@@ -289,9 +325,9 @@ export class SoldierBonus extends Entry {
   declare stats?: { [stat: string]: number };
   declare recovery?: { [stat: string]: { flatOne?: number, flatHundred?: number } };
 
-  constructor(raw: any) {
-    super("soldierBonuses")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("soldierBonuses");
+    this.from(raw);
   }
 }
 
@@ -299,11 +335,29 @@ export class DamageType extends Entry {
   items?: string[];
   commendations?: string[];
 
-  constructor(raw: any) {
-    super("damageTypes")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("damageTypes");
+    this.from(raw);
   }
 
+}
+
+/**
+ * One globe area with every number in it actually a number.
+ *
+ * Packs write coordinates as strings as readily as numbers — TFTD has
+ * `["-.4024658", 9.597534, …]`, which the engine accepts because it parses with
+ * `toDouble`. Kept as strings they make every sum a concatenation, and the map
+ * drew `NaN` where a string met a number, so the conversion happens once here
+ * rather than in each projection.
+ *
+ * Only the five leading fields are numeric: the optional sixth is a city id.
+ */
+function numberArea(area: MapArea): MapArea {
+  let result = area.slice() as MapArea;
+  for (let i = 0; i < 5 && i < result.length; i++)
+    result[i] = Number(result[i]);
+  return result;
 }
 
 /**
@@ -316,10 +370,10 @@ export class DamageType extends Entry {
  * have areas and most have a single zone — so the page has to cope with a region
  * that has no map data at all.
  *
- * The zones are kept as they come from the ruleset. A zone is a list of
- * `[lon1, lon2, lat1, lat2, textureId?, cityId?]`; a single point (a city) is
- * written with `lon1 == lon2`. Zone longitudes do **not** wrap: `lon2` is never
- * below `lon1` and may exceed 360, which is the opposite of `areas`.
+ * A zone is a list of `[lon1, lon2, lat1, lat2, textureId?, cityId?]`; a single
+ * point (a city) is written with `lon1 == lon2`. Zone longitudes do **not**
+ * wrap: `lon2` is never below `lon1` and may exceed 360, which is the opposite
+ * of `areas`.
  */
 export class Region extends Entry {  declare cost?: number;
   declare regionWeight?: number;
@@ -327,12 +381,19 @@ export class Region extends Entry {  declare cost?: number;
   declare missionZones?: MapArea[][];
   /** Texture ids this region's sites can use, from `globe: textures:` */
   declare textures?: number[];
-  declare missionWeights?: any;
+  /** Mission type -> weight, as `missionWeights` states it */
+  declare missionWeights?: { [mission: string]: number };
   declare typeString?: string;
 
-  constructor(raw: any) {
-    super("regions")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("regions");
+    this.from(raw);
+    // Assigned only when present: an own `undefined` would draw an empty row
+    // wherever the entry is rendered raw, the same reason `armors` is `declare`.
+    if (this.areas)
+      this.areas = this.areas.map(numberArea);
+    if (this.missionZones)
+      this.missionZones = this.missionZones.map(zone => zone.map(numberArea));
   }
 }
 
@@ -359,12 +420,12 @@ export class InventorySection extends Entry {
   declare costs?: { [section: string]: number };
   declare listOrder?: number;
 
-  constructor(raw: any) {
+  constructor(raw: RawEntry) {
     // The raw table is `invs`, and `camelToUnderscore` would make its section
     // `INVS`; the engine calls the collection `inventorySections`, and items
     // already list their allowed places in `supportedInventorySections`, which
     // is crosslinked to that same name.
-    super("inventorySections")
+    super("inventorySections");
     // `type` is taken out of the raw node so `from` cannot copy it over `id`
     // through `Entry`'s `set type`, and kept as `invType` instead.
     //
@@ -375,7 +436,7 @@ export class InventorySection extends Entry {
     // `type`, `x` or `y` at all, and they are hands because the stock ruleset
     // says so. Printing "INV_SLOT" there would be inventing data.
     let { type, ...rest } = raw ?? {};
-    this.from({ ...rest, invType: type == null ? undefined : Number(type) })
+    this.from({ ...rest, invType: type == null ? undefined : Number(type) });
   }
 }
 
@@ -455,12 +516,19 @@ export type FlightStep =
  */
 export class UfoTrajectory extends Entry {
   declare groundTimer?: number;
-  /** `[zone, altitude, speed]` triples, in flight order */
+  /**
+   * `[zone, altitude, speed]` triples, in flight order.
+   *
+   * A line does not mean one thing: read `legs` instead, which decodes them.
+   * Line 1 is the spawn state and the values for the first segment; line 2 is an
+   * arrival *and* a departure, so its zone is visited twice; line 3 onward are
+   * plain destinations.
+   */
   declare waypoints?: [number, number, number][];
 
-  constructor(raw: any) {
-    super("ufoTrajectories")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("ufoTrajectories");
+    this.from(raw);
   }
 
   /** The highest zone index the path visits, or -1 when it has no waypoints */
@@ -477,23 +545,33 @@ export class UfoTrajectory extends Entry {
   /**
    * The legs the engine flies, in order.
    *
-   * `AlienMission::spawnUfo` puts the UFO in line 0's zone and sends it to line
-   * 1's; `ufoReachedWaypoint` then advances the trajectory index *after*
-   * re-targeting, so the first arrival sends it to line 1's zone a second time.
-   * Hence the zone sequence is `0, 1, 1, 2, 3, …` and N lines give N legs.
+   * This is the sane form of the ruleset's lines, and the reason it has to exist
+   * is that a line's zone and a line's altitude/speed are read at different
+   * moments. Numbering the lines and legs from 1, there are two rules:
    *
-   * Two consequences are easy to get wrong and are handled here:
+   * - the stops are `z1, z2, z2, z3, … zN`: line 1's zone is only ever the spawn
+   *   point, every later line's zone is a destination, and line 2's is visited
+   *   twice because `ufoReachedWaypoint` advances the index only *after*
+   *   re-targeting;
+   * - leg *m* is flown at line *m*'s altitude and speed, and heads for line *m*'s
+   *   zone — except leg 1, which heads for line 2's zone (`spawnUfo` sets the
+   *   destination to index 1 while the altitude and speed are still index 0's).
    *
-   * - the altitude and speed of a leg are the *previous* line's, since that is
-   *   what the UFO adopted on the way to its current destination;
+   * So N lines make N legs. Two consequences are easy to get wrong and are
+   * handled here:
+   *
    * - a landing leaves the UFO on the ground, and taking off again always
    *   happens at very low altitude (`ufoLifting`), so the leg after a landing is
-   *   not flown at the ground line's altitude.
-   *
-   * A landing is decided by the altitude the UFO *arrives* at, which is the
-   * destination line's. The last line is never applied to an arrival — the UFO
-   * is destroyed on reaching it — so a ground line at the very end does not land
-   * anything.
+   *   not flown at the ground line's altitude;
+   * - a landing is decided by the altitude of the line *after* the one a leg
+   *   flies to, because that is the line whose altitude the UFO adopts on
+   *   arrival: leg m lands iff line m+1 is on the ground. Where it lands is
+   *   wherever that leg was already heading, so a ground line 2 lands in line 2's
+   *   own zone (leg 1 heads there) while a later ground line lands in the zone of
+   *   the line before it. A ground line 1 instead means the UFO spawns landed and
+   *   waits out `groundTimer` before leaving. A ground *last* line lands nothing
+   *   extra — the UFO is destroyed on reaching it — but it does make line N-1's
+   *   zone a landing.
    *
    * Fewer than two lines is not flyable: the engine throws "Missing second
    * waypoint!", because the spawn point and the first destination are separate
@@ -618,7 +696,7 @@ export class Music {
   catPos?: number;
   normalization?: number;
 
-  constructor(id: string, raw: any) {
+  constructor(id: string, raw: { name?: string, catPos?: number | string, normalization?: number | string }) {
     this.id = id;
     let name = raw?.name || id;
     this.fileName = String(name);
@@ -629,9 +707,14 @@ export class Music {
   }
 }
 
-/** A value that differs between stages, shown in a table as `first..last` */
+/**
+ * A value that differs between stages, shown in a table as `first..last`.
+ *
+ * Only produced by `Commendation.range`, which refuses anything that is not a
+ * number, so the two ends are numbers.
+ */
 export class ValueRange {
-  constructor(public first: any, public last: any) { }
+  constructor(public first: number, public last: number) { }
 }
 
 /**
@@ -654,21 +737,52 @@ function stageValue(bonus: Entry, n: string) {
   return bonus[n];
 }
 
+/**
+ * One deed of a `killCriteria` list, as a pack writes it: how many such kills it
+ * takes, and the conditions that describe the kill.
+ *
+ * The conditions are engine tokens (`STATUS_DEAD`, `FACTION_HOSTILE`, a race or
+ * an item id) whose meaning depends on which list they belong to, so they stay
+ * strings until `parseKillCriteria` resolves them.
+ */
+export type KillCriteriaDeed = [times: number, conditions: string[]];
+
+/**
+ * A deed after `parseKillCriteria` resolved its conditions: a repeat count plus
+ * whichever of the kill's fields the conditions named. A condition that matched
+ * no known list is kept as a field of its own, hence the index signature.
+ */
+export type ResolvedDeed = {
+  times: number,
+  element?: string,
+  type?: string,
+  status?: string,
+  faction?: string,
+  race?: string,
+  unit?: string,
+  item?: string,
+  [field: string]: any,
+};
+
 export class Commendation extends Entry {
-  soldierBonusTypes?: any[];
-  criteria?:any;
-  killCriteria?:any[];
+  /** Soldier bonus granted by each stage, in stage order */
+  soldierBonusTypes?: string[];
+  /** Criterion name -> the value it needs for each of the ten stages */
+  criteria?: { [criterion: string]: number[] };
+  /** Why a kill counts, as `killCriteria` states it */
+  killCriteria?: KillCriteriaDeed[][];
   finalBonus?: Entry;
   damageTypes: string[] = [];
   battleTypes: string[] = [];
   items: string[] = [];
-  kcd: any[] = [];
+  /** Every resolved deed of every stage, flat */
+  kcd: ResolvedDeed[] = [];
   /** `killCriteria` after parsing: one list of resolved deeds per stage */
-  killCriteria2: any[][] = []
+  killCriteria2: ResolvedDeed[][] = [];
 
-  constructor(raw: any) {
-    super("commendations")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("commendations");
+    this.from(raw);
     this.finalBonus = this.soldierBonusTypes && rul.soldierBonuses[this.soldierBonusTypes[this.soldierBonusTypes.length - 1]];
   }
 
@@ -735,57 +849,61 @@ export class Commendation extends Entry {
   }
 
   parseKillCriteria() {
-    //if(this.id == "STR_MEDAL_SLASHER_NAME") debugger;
 
     if (this.killCriteria) {
       for (let deeds of this.killCriteria) {
-        let group = [];
+        let group: ResolvedDeed[] = [];
         for (let deedList of deeds) {
-          let deed = { times: deedList[0] } as any;
+          let deed: ResolvedDeed = { times: deedList[0] };
 
-          for (let [i, k] of Object.entries(deedList[1]) as [string, string][]) {
+          if (deedList[1]) {
+            for (let i = 0; i < deedList[1].length; i++) {
+              let k = deedList[1][i];
 
-            let idt = internalDamageTypes.indexOf(k);
-            if (idt != -1) {
-              deed.element = damageTypes[idt];
-              deedList[1][i] = damageTypes[idt];
-              this.damageTypes.push(damageTypes[idt]);
-              backLink(this.id, [deed.element], rul.damageTypes, "commendations");
-              continue;
-            }
+              let idt = internalDamageTypes.indexOf(k);
+              if (idt != -1) {
+                deed.element = damageTypes[idt];
+                // The condition list is rewritten so the page shows the resolved
+                // damage type rather than the engine's internal name
+                deedList[1][i] = damageTypes[idt];
+                this.damageTypes.push(damageTypes[idt]);
+                backLink(this.id, [deed.element], rul.damageTypes, "commendations");
+                continue;
+              }
 
-            let ibt = internalBattleTypes.indexOf(k);
-            if (ibt != -1) {
-              deed.type = k;
-              this.battleTypes.push(k);
-              backLink(this.id, [k], rul.battleTypes, "commendations");
-            }
+              let ibt = internalBattleTypes.indexOf(k);
+              if (ibt != -1) {
+                deed.type = k;
+                this.battleTypes.push(k);
+                backLink(this.id, [k], rul.battleTypes, "commendations");
+              }
 
-            else if (killStatuses.includes(k)) {
-              deed.status = k;
-            } else if (killFactions.includes(k)) {
-              deed.faction = k;
-            } else if (rul.alienRaces[k]) {
-              deed.race = k
-              backLink(this.id, [k], rul.alienRaces, "commendations");
-            } else if (rul.units[k]) {
-              deed.unit = k
-              backLink(this.id, [k], rul.units, "commendations");
-            } else if (rul.items[k]) {
-              deed.item = k
-              backLink(this.id, [k], rul.items, "commendations");
-            } else {
-              deed[k] = true;
+              else if (killStatuses.includes(k)) {
+                deed.status = k;
+              } else if (killFactions.includes(k)) {
+                deed.faction = k;
+              } else if (rul.alienRaces[k]) {
+                deed.race = k;
+                backLink(this.id, [k], rul.alienRaces, "commendations");
+              } else if (rul.units[k]) {
+                deed.unit = k;
+                backLink(this.id, [k], rul.units, "commendations");
+              } else if (rul.items[k]) {
+                deed.item = k;
+                backLink(this.id, [k], rul.items, "commendations");
+              } else {
+                deed[k] = true;
+              }
             }
           }
 
           if (deed.type || deed.element) {
             if (!deed.type) {
-              backLink2(this, rul.damageTypes[deed.element].items ?? [], rul.items, "commendations", "items");
+              backLink2(this, rul.damageTypes[deed.element!].items ?? [], rul.items, "commendations", "items");
             } else if (!deed.element) {
               backLink2(this, rul.battleTypes[deed.type]["items"] ?? [], rul.items, "commendations", "items");
             } else {
-              let items = (rul.damageTypes[deed.element].items ?? []).filter(id => rul.items[id]?.internalBattleType == deed.type)
+              let items = (rul.damageTypes[deed.element!].items ?? []).filter(id => rul.items[id]?.internalBattleType == deed.type);
               backLink2(this, items, rul.items, "commendations", "items");
             }
           }
@@ -796,22 +914,6 @@ export class Commendation extends Entry {
         this.killCriteria2.push(group);
       }
     }
-  }
-
-  matchesItem(item: Item) {
-    let id = item.id;
-    for (let deed of this.kcd) {
-      if (deed.item == id)
-        return true;
-      if (deed.element == null && deed.type == null)
-        continue;
-      if (deed.element != null && !item.damageTypes?.includes(deed.element))
-        continue;
-      if (deed.type != null && item.battleType != deed.type)
-        continue;
-      return true;
-    }
-    return false;
   }
 
   sortField(n: string) {
@@ -856,10 +958,9 @@ export class Research extends Entry {
   allowsBuying?: string[];
   spawnedItem?: string;
 
-  constructor(raw: any) {
-    //if (raw.getOneFree) debugger
+  constructor(raw: RawEntry) {
     super("research");
-    this.from(raw)
+    this.from(raw);
     Service.add("allowsResearching", this.name, this.requiresBaseFunc);
   }
 }
@@ -870,15 +971,15 @@ export class AlienDeployment extends Entry {
   data?: any[];
   loot: string[];
 
-  constructor(raw: any) {
+  constructor(raw: RawEntry) {
     super("alienDeployments");
-    this.from(raw)
+    this.from(raw);
     let allItems = new Set<string>();
     for (let d of this.data || []) {
       if (Array.isArray(d.itemSets)) {
         let items = d.itemSets.flat() as string[];
         for (let item of items)
-          allItems.add(item)
+          allItems.add(item);
       }
     }
     this.loot = [...allItems];
@@ -889,12 +990,12 @@ export class CraftWeapon extends Entry {
   weaponType: string = "";
   requiresBuyBaseFunc?: string[];
 
-  constructor(raw: any) {
+  constructor(raw: RawEntry) {
     super("craftWeapons");
-    this.from(raw)
+    this.from(raw);
     Service.add("canBuy", this.type, this.requiresBuyBaseFunc);
     //if(Number.isInteger(this.weaponType))
-    this.weaponType = "weaponType" + (this.weaponType || 0)
+    this.weaponType = "weaponType" + (this.weaponType || 0);
     Entry.reserve({ id: this.weaponType }, "weaponTypes");
   }
 
@@ -906,9 +1007,9 @@ export class Craft extends Entry {
   allWeaponTypes?: string[];
   sprite?: number;
 
-  constructor(raw: any) {
+  constructor(raw: RawEntry) {
     super("crafts");
-    this.from(raw)
+    this.from(raw);
     this.allWeaponTypes = this.allWeaponTypes || [];
     if (this.weaponTypes) {
       let weaponTypes = this.weaponTypes as unknown as { [slot: string]: any };
@@ -920,7 +1021,7 @@ export class Craft extends Entry {
           Entry.reserve({ id }, "weaponTypes");
           this.allWeaponTypes!.push(id);
           return id;
-        })
+        });
       }
       this.allWeaponTypes = [...new Set(this.allWeaponTypes)];
     }
@@ -936,9 +1037,9 @@ export class Facility extends Entry {
   forbiddenBaseFunc?: string[];
   buildCostItems?: { [key: string]: { [key: string]: number } };
 
-  constructor(raw: any) {
-    super("facilities")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("facilities");
+    this.from(raw);
 
     Service.add("providedBy", this.type, this.provideBaseFunc);
     Service.add("allowsBuilding", this.type, this.requiresBaseFunc);
@@ -970,9 +1071,9 @@ export class StartingConditions extends Entry {
   allowedVehicles?: string[];
   deployments?: string[];
 
-  constructor(raw: any) {
-    super("startingConditions")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("startingConditions");
+    this.from(raw);
   }
 }
 
@@ -1004,9 +1105,9 @@ export class Unit extends Entry {
   race?: string;
   builtInWeaponSets?: string[][];
 
-  constructor(raw: any) {
-    super("units")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("units");
+    this.from(raw);
     for (let k in { ...raw }) {
       if (typeof raw[k] == "string" || typeof raw[k] == "number") {
         rul.unitFields.add(k);
@@ -1024,7 +1125,7 @@ export class Unit extends Entry {
         let item = rul.items[w];
         if (item) {
           item.heldBy = item.heldBy || new Set<string>();
-          item.heldBy.add(this.type)
+          item.heldBy.add(this.type);
         }
       }
     }
@@ -1033,7 +1134,7 @@ export class Unit extends Entry {
   sortField(n: string) {
     if (statsList.includes(n))
       return this.stats ? this.stats[n] || 0 : 0;
-    return this[n]
+    return this[n];
   }
 
 }
@@ -1045,11 +1146,11 @@ export class Attack {
   cost?: { time: number; energy: number };
   flatTime = false;
   damage?: number;
-  damageBonus?: { [key: string]: number };
+  damageBonus?: BonusMap;
   damageType?: number;
   accuracy?: number;
-  accuracyMultiplier?: { [key: string]: number };
-  alter?: { [key: string]: any };
+  accuracyMultiplier?: BonusMap;
+  alter?: AlterMap;
   shots: number = 1;
   range?: number;
   pellets: number = 1;
@@ -1111,7 +1212,7 @@ export class Attack {
       // entry with an undefined id ends up in the ruleset
       let dType = damageTypeIndex(this.alter.ResistType);
       if (dType == null) {
-        console.error(this.item.id + " attack has unknown damage type " + this.alter.ResistType)
+        console.error(this.item.id + " attack has unknown damage type " + this.alter.ResistType);
       } else {
         this.damageType = dType;
         item.addDamageType(this.damageType);
@@ -1227,7 +1328,7 @@ export class Attack {
     }
 
     if (n?.substring(0, 4) == "acc*" && this.accuracyMultiplier) {
-      return this.accuracyMultiplier[n.substring(4)]
+      return this.accuracyMultiplier[n.substring(4)];
     }
 
     // Columns are looked up by name, so a column the class does not declare
@@ -1243,7 +1344,8 @@ export class Armor extends Entry {
   users?: string[];
   startingConditions: string[] = [];
   size = 1;
-  layersDefinition?: { [x: string]: any; };
+  /** Body name -> layer -> sprite name, see `dollSprites` */
+  layersDefinition?: { [body: string]: { [layer: string]: string } };
   layersDefaultPrefix?: string;
   spriteInv?: string;
   storeItem?: string;
@@ -1257,9 +1359,9 @@ export class Armor extends Entry {
   /** Free-form pack tags (`ARMOR_ENERGY_SHIELD_CAPACITY` and the like) */
   tags?: { [tag: string]: number | string };
 
-  constructor(raw: any) {
-    super("armors")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("armors");
+    this.from(raw);
     if (!this.size)
       this.size = 1;
 
@@ -1336,7 +1438,7 @@ export class Armor extends Entry {
     return ds;
   }
 
-  sortField(n: string, v:any) {
+  sortField(n: string, v?: string | boolean) {
     if (statsList.includes(n))
       return this.stats ? this.stats[n] || 0 : 0;
     if (damageTypes.includes(n) && this.damageModifier)
@@ -1346,22 +1448,42 @@ export class Armor extends Entry {
 
     if (n == "armorUsers") {
       if (v == "enemies")
-        return Object.values(this.units || {}).length == 0
+        return Object.values(this.units || {}).length == 0;
       if (v == "allies")
-        return Object.values(this.units || {}).length > 0
-      if (rul.soldiers[v]) {
+        return Object.values(this.units || {}).length > 0;
+      if (typeof v == "string" && rul.soldiers[v]) {
         return this.units?.includes(v);
       }
     }
 
     if (n == "allowedIn") {
-      return this.allowedIn?.includes(v);
+      return this.allowedIn?.includes(v as string);
     }
 
     return this[n];
   }
 
 }
+
+/** A formula term: a weight, or the coefficients of a polynomial in the stat */
+export type BonusValue = number | number[];
+
+/**
+ * Stat name -> weight, as `damageBonus`, `meleeMultiplier` and friends state it.
+ *
+ * A plain weight (`{ strength: 1 }`) or a polynomial written as a list of
+ * coefficients; `SpecialBonus` draws both, a list as a sum of powers.
+ */
+export type BonusMap = { [stat: string]: BonusValue };
+
+/**
+ * An attack's damage parameters, straight from the ruleset (`damageAlter`,
+ * `meleeAlter`): multipliers, armor effectiveness, blast radius and so on.
+ *
+ * The field names are the engine's and a pack picks which of them it sets, so
+ * this stays a plain map; `AlterList` prints whatever it finds.
+ */
+export type AlterMap = { [field: string]: any };
 
 export class Item extends Entry {
   //sprite: string;
@@ -1375,22 +1497,22 @@ export class Item extends Entry {
   componentOf?: { [key: string]: number };
   bigSprite?: string;
   meleePower?: number;
-  meleeBonus: any;
+  meleeBonus?: BonusMap;
   meleeType?: number;
   power?: number;
-  damageBonus: any;
+  damageBonus?: BonusMap;
   damageType?: number;
   shotgunPellets?: number;
-  meleeAlter: any;
-  damageAlter: any;
+  meleeAlter?: AlterMap;
+  damageAlter?: AlterMap;
   compatibleAmmo?: string[];
   ammo?: { compatibleAmmo: string[] }[];
   autoShots?: number;
   flatRate?: boolean;
-  meleeMultiplier: any;
-  throwMultiplier: any;
-  accuracyMultiplier: any;
-  compatibleWeapons: any;
+  meleeMultiplier?: BonusMap;
+  throwMultiplier?: BonusMap;
+  accuracyMultiplier?: BonusMap;
+  compatibleWeapons?: string[];
   liveAlien?: boolean;
   recover?: boolean;
   prisonType?: number;
@@ -1411,7 +1533,7 @@ export class Item extends Entry {
   }
 
   get internalBattleType() {
-    let t = internalBattleTypes[this.battleType || 0]
+    let t = internalBattleTypes[this.battleType || 0];
     return t;
   }
 
@@ -1427,9 +1549,9 @@ export class Item extends Entry {
     backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
   }
 
-  constructor(raw: any) {
-    super("items")
-    this.from(raw)
+  constructor(raw: RawEntry) {
+    super("items");
+    this.from(raw);
     for (let k in { ...raw, ...(raw.damageAlter || {}) }) {
       if (typeof raw[k] == "string" || typeof raw[k] == "number" || raw.damageAlter && raw.damageAlter[k] != null) {
         rul.itemFields.add(k);
@@ -1439,7 +1561,7 @@ export class Item extends Entry {
     //this.addToSection(this.internalBattleType);
 
     if (this.damageType)
-      this.addDamageType(this.damageType)
+      this.addDamageType(this.damageType);
 
     let t = this as any;
 
@@ -1455,14 +1577,14 @@ export class Item extends Entry {
     }
 
     if (this.liveAlien && this.recover && !this.prisonType)
-      this.prisonType = 1
+      this.prisonType = 1;
 
     if (this.ammo) {
-      this.compatibleAmmo = [...(this.compatibleAmmo || []), ...Object.values(this.ammo).map(a => a.compatibleAmmo).flat()]
+      this.compatibleAmmo = [...(this.compatibleAmmo || []), ...Object.values(this.ammo).map(a => a.compatibleAmmo).flat()];
     }
 
-    for (let k in this.damageBonus || []) {
-      let b = this.damageBonus[k];
+    for (let k in this.damageBonus ?? {}) {
+      let b = this.damageBonus![k];
       if (b != 0)
         backLink(this.id, [k], "stats", "weaponDamage");
       if (Array.isArray(b)) {
@@ -1512,21 +1634,21 @@ export class Item extends Entry {
   }
 
 
-  sortField(n: string, v: any) {
+  sortField(n: string, v?: string | boolean) {
     if (n === "category" && this.categories)
-      return this.categories.includes(v) ? v : null;
+      return this.categories.includes(v as string) ? v : null;
 
     if (n === "damageTypes") {
       if (v !== true) {
-        let i = damageTypes.indexOf(v)
+        let i = damageTypes.indexOf(v as string);
         return this.damageTypes?.includes(i);
       } else {
-        return this.damageTypes?.map(d => damageTypes[d])
+        return this.damageTypes?.map(d => damageTypes[d]);
       }
     }
 
     if (n === "damageType" && this.damageTypes) {
-      return this.damageTypes.map(n => damageTypes[n])
+      return this.damageTypes.map(n => damageTypes[n]);
     }
 
     if (this.damageAlter && this.damageAlter[n] != null)

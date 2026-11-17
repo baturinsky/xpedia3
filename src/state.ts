@@ -73,7 +73,11 @@ export let state = {
   rul: undefined as Ruleset | undefined,
   assets: new Set<string>(),
   imagePreview: "",
-  images: {} as { [id: string]: any },
+  /**
+   * Loaded images: archive path -> a url that paints, or `null` for a path that
+   * failed to load. Written in batches by `cacheImage`, see `ui/components.tsx`.
+   */
+  images: {} as { [id: string]: string | null },
   count: 0,
   fontSize: 10,
   anal: false,
@@ -169,7 +173,7 @@ export let savedFields = [
   "devView",
   "devUnlocked",
   "selection",
-];
+] as const;
 
 export type StoreType = typeof state
 
@@ -209,16 +213,21 @@ export function rememberSelection<K extends SelectionKey>(key: K, value: Selecti
  * simply forgotten — which is exactly the unset state, so the picker falls back
  * to its default and the reader can choose again.
  */
-function readSelection(raw: any): Selections {
+function readSelection(raw: unknown): Selections {
   let out: Selections = {};
   if (raw == null || typeof raw != "object" || Array.isArray(raw))
     return out;
+  // A stored blob is plain JSON data with no declared shape, so it is read as a
+  // loose record here; each field is then checked against its own type below
+  let stored = raw as { [key: string]: unknown };
   for (let key of ["region", "pose"] as const)
-    if (typeof raw[key] == "string" && raw[key])
-      out[key] = raw[key];
-  for (let key of ["direction", "turretDirection", "frame"] as const)
-    if (typeof raw[key] == "number" && Number.isInteger(raw[key]) && raw[key] >= 0)
-      out[key] = raw[key];
+    if (typeof stored[key] == "string" && stored[key])
+      out[key] = stored[key] as string;
+  for (let key of ["direction", "turretDirection", "frame"] as const) {
+    let value = stored[key];
+    if (typeof value == "number" && Number.isInteger(value) && value >= 0)
+      out[key] = value;
+  }
   return out;
 }
 
@@ -245,9 +254,9 @@ let savedJson: string | null = null;
 function save() {
   // Writing on every update (including image cache fills) is wasteful, so only
   // persist when one of the saved fields actually changed.
-  let data: any = {};
+  let data: { [key: string]: unknown } = {};
   for (let key of savedFields)
-    data[key] = (state as any)[key];
+    data[key] = state[key];
   let json = JSON.stringify(data);
   if (json == savedJson)
     return;
@@ -255,15 +264,24 @@ function save() {
   localStorage.xpedia3 = json;
 }
 
-function load() {
-  let data: any;
+/**
+ * Stored settings, before they are matched to `state`.
+ *
+ * The blob is plain JSON written by this module in an older shape each time the
+ * fields were renamed, so it is read as a bag of unknown values and then migrated
+ * key by key.
+ */
+type StoredSettings = { [key: string]: unknown };
+
+function load(): StoredSettings {
+  let data: StoredSettings;
   try {
     data = JSON.parse(localStorage.xpedia3 ?? "{}");
   } catch (e) {
     console.warn("Can't parse saved settings", e);
     data = {};
   }
-  if (data == null || typeof data != "object")
+  if (data == null || typeof data != "object" || Array.isArray(data))
     data = {};
 
   // The three old sort flags are now one. Turn the new flag on if the user had
@@ -287,8 +305,8 @@ function load() {
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.
   try {
-    let legacy = JSON.parse(localStorage[legacySettingsKey] ?? "null");
-    if (legacy && typeof legacy == "object") {
+    let legacy: StoredSettings = JSON.parse(localStorage[legacySettingsKey] ?? "null");
+    if (legacy && typeof legacy == "object" && !Array.isArray(legacy)) {
       for (let key of legacyFields) {
         if (data[key] === undefined && legacy[key] !== undefined)
           data[key] = legacy[key];
@@ -306,14 +324,14 @@ function load() {
 export const externalStore = {
   subscribe: (callback: () => void) => {
     onUpdate.add(() => {
-      callback()
+      callback();
     });
     return () => {
       onUpdate.delete(callback);
     };
   },
   getSnapshot: () => storeSnapshot
-}
+};
 
 
 export function update(a?: Partial<StoreType>) {
@@ -323,8 +341,8 @@ export function update(a?: Partial<StoreType>) {
   storeSnapshot = { ...state };
   article = state.article;
   section = state.section;
-  save()
-  onUpdate.forEach(f => f())
+  save();
+  onUpdate.forEach(f => f());
 }
 
 /** Toggle/replace the "revealed" (raw language keys) mode */

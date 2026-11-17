@@ -36,7 +36,7 @@ export async function loadPackFromUrl(url: string) {
   let response: Response;
   try {
     response = await fetch(url);
-  } catch (e: any) {
+  } catch (e) {
     throw new Error(`Could not fetch ${url}: ${e?.message ?? e}`);
   }
   if (!response.ok)
@@ -76,7 +76,7 @@ export async function loadPackFromLocation() {
     return;
   try {
     await loadPackFromUrl(url);
-  } catch (e: any) {
+  } catch (e) {
     console.error(`Could not load the modpack at ${url}`, e);
   }
 }

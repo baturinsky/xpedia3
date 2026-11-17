@@ -20,6 +20,23 @@
  */
 
 /**
+ * The mission script fields the timing functions read.
+ *
+ * A structural type rather than `MissionScript`: these are pure functions of a
+ * handful of fields, and stating them here means the answers can still be
+ * checked outside the UI, with no entry or ruleset involved. Every field is
+ * optional because the ruleset does not require any of them.
+ */
+export type MissionScriptTiming = {
+  firstMonth?: number,
+  lastMonth?: number,
+  startDelay?: number,
+  randomDelay?: number,
+  maxRuns?: number,
+  researchTriggers?: { [topic: string]: boolean },
+};
+
+/**
  * The months a script can run in.
  *
  * `first` and `last` are month indices, with two values that are not numbers of
@@ -37,7 +54,7 @@ export type MonthWindow = {
   open: boolean
 }
 
-export function monthWindow(entry: any): MonthWindow {
+export function monthWindow(entry: MissionScriptTiming): MonthWindow {
   let first = Number(entry?.firstMonth ?? 0);
   let last = entry?.lastMonth == null ? -1 : Number(entry.lastMonth);
   if (!Number.isFinite(first))
@@ -62,7 +79,7 @@ export type ScriptDelay = {
   delegates: boolean
 }
 
-export function scriptDelay(entry: any): ScriptDelay {
+export function scriptDelay(entry: MissionScriptTiming): ScriptDelay {
   let base = Math.max(0, Number(entry?.startDelay ?? 0) || 0);
   let extra = Math.max(0, Number(entry?.randomDelay ?? 0) || 0);
   return { min: base, max: base + extra, delegates: base == 0 && extra == 0 };
@@ -76,7 +93,7 @@ export function scriptDelay(entry: any): ScriptDelay {
  * the count of missions actually created, and the calendar is the stricter of the
  * two when both are set.
  */
-export function runLimit(entry: any): { maxRuns: number, limited: boolean } {
+export function runLimit(entry: MissionScriptTiming): { maxRuns: number, limited: boolean } {
   let maxRuns = entry?.maxRuns == null ? -1 : Number(entry.maxRuns);
   if (!Number.isFinite(maxRuns))
     maxRuns = -1;
@@ -96,7 +113,7 @@ export type ResearchGate = {
   forbidden: string[]
 }
 
-export function researchGate(entry: any): ResearchGate | undefined {
+export function researchGate(entry: MissionScriptTiming): ResearchGate | undefined {
   let triggers = entry?.researchTriggers;
   if (triggers == null || typeof triggers != "object")
     return undefined;

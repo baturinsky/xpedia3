@@ -417,42 +417,49 @@ Each waypoint is `[zone, altitude, speed]`:
   (`Ufo::ALTITUDE_STRING`)
 - **speed** = percentage of the UFO's `speedMax`
 
-The operational reading, straight from the code. A line is a **destination**: a
-zone to fly to, plus the altitude and speed to adopt on the way there. Line 0
-doubles as the UFO's spawn state, which is why a trajectory needs at least two
-lines (fewer throws *"Missing second waypoint!"*).
+The operational reading, straight from the code and the official reference's own
+`[A,B,C] … [M,N,P]` example. The whole thing collapses to two rules if the lines
+are numbered from 1:
 
-There is one quirk that makes the counting non-obvious. At spawn the UFO is
-already given a destination in **line 1's zone**; when it arrives, the first
-arrival *also* targets line 1's zone (the trajectory index only advances
-afterwards). So line 1 is visited twice, and the sequence of zones is
+1. **the stop sequence is `z1, z2, z2, z3, …, zN`** — line 1's zone is the spawn
+   point, and every later line's zone is a destination, with line 2's visited
+   twice;
+2. **leg *m* is flown at line *m*'s altitude and speed.**
 
-```
-line 0, line 1, line 1, line 2, line 3, ... line N-1
-```
-
-which means **N lines produce N legs of flight**, not N−1. That is exactly what
-the official reference means by *"X flight segments and X+1 waypoints"*: the
-extra waypoint is the duplicated line 1. Vanilla `P0` (altitude/speed shown are
-the ones in force *during* that leg):
+So a line's zone and its altitude/speed are read at different moments, and line 1
+is the asymmetric one: its zone is only ever *where the UFO appears* (never
+anywhere it arrives), yet its altitude and speed are what leg 1 is flown at. The
+reference's example is exactly this table:
 
 | Leg | Flight | Altitude / speed |
 | --- | --- | --- |
-| 1 | spawn in zone 5 → zone 0 (line 1's zone) | very high, 100% (line 0's) |
-| 2 | zone 0 → zone 0 again | high, 74% (line 1's) |
-| 3 | zone 0 → zone 0 | very low, 28% |
-| 4 | zone 0 → zone 1 | very low, 47% |
-| 5 | zone 1 → zone 5, then the UFO vanishes | low, 100% |
+| 1 | A → D | B, C (line 1's) |
+| 2 | D → D | E, F (line 2's) |
+| 3 | D → G | H, I (line 3's) |
+| 4 | G → J | K, L (line 4's) |
+| 5 | J → M | N, P (line 5's) |
 
-Five legs from five lines, and zone 0 is visited three times. Note leg 1 still
-flies at line 0's altitude and speed — line 1's values only take over once the
-UFO has arrived. A one-line trajectory throws *"Missing second waypoint!"*, so
-two lines is the minimum: "appear here, go there once".
+`ufoReachedWaypoint` advances the trajectory index only *after* re-targeting, so
+line 2's zone is targeted twice: once at spawn and again on the first arrival.
+That is the reference's "the second line, where zone D is targeted AGAIN, this
+happens automatically/internally and always on the second line."
 
-Altitude and speed are per-line: the values in force while flying to a line's zone
-are that line's own. Line 0's are the exception — they are used for the spawn
-leg, which already heads for line 1's zone. Because line 1 is visited twice, you
-effectively get "line 0's values there, line 1's values back".
+**N lines therefore produce N legs of flight**, not N−1, and N+1 waypoints: the
+extra waypoint is the duplicated line 2. Vanilla `P0` (five lines, values shown
+are those in force *during* each leg):
+
+| Leg | Flight | Altitude / speed |
+| --- | --- | --- |
+| 1 | spawn in zone 5 → zone 0 | very high, 100% (line 1's) |
+| 2 | zone 0 → zone 0 again | high, 74% (line 2's) |
+| 3 | zone 0 → zone 0 | very low, 28% (line 3's) |
+| 4 | zone 0 → zone 1 | very low, 47% (line 4's) |
+| 5 | zone 1 → zone 5, then the UFO vanishes | low, 100% (line 5's) |
+
+Five legs from five lines, and zone 0 is visited three times. A one-line
+trajectory throws *"Missing second waypoint!"*, so two lines is the minimum:
+"appear here, go there once". Because line 2 is visited twice, you effectively
+get "line 1's values there, line 2's values back".
 
 Arriving at the **last** line ends the trajectory: the UFO is marked destroyed
 and disappears (this is why vanilla `P0`'s final line returns it to zone 5, "back
@@ -466,10 +473,24 @@ override the destination to the alien base; see §5 `5`.)
 
 ### 4.2 Landing
 
-A line with **altitude 0** (`STR_GROUND`) is what makes a UFO land. When the
-UFO arrives at such a waypoint it becomes `LANDED` and gets
-`groundTimer * 5` **seconds** on the ground (`ufo.setSecondsRemaining(...)`; the
-timer ticks down 5 seconds at a time). So vanilla `groundTimer: 3000` is
+A line with **altitude 0** (`STR_GROUND`) makes the leg *before* it land — leg
+*m−1*, for a ground line *m*. Where it lands is where that leg was already
+heading, so it is line *m*'s zone for a ground line 2 (leg 1 heads there) and
+line *m−1*'s zone for every later ground line. The ground line's own zone is
+therefore where a landing happens only for line 2, and the general rule is to
+read the landing off the leg, not off the line.
+
+Line 1 is the other exception: there is no leg before it, so its ground altitude
+means the UFO **spawns landed** and waits out `groundTimer` before taking off.
+Either way it takes off at very low altitude (`ufoLifting` sets `STR_VERY_LOW`),
+not at the ground line's 0.
+
+So a ground line at the very end lands the UFO at the next-to-last stop, and then
+the final leg still flies on to the last line's zone and vanishes there. Landings
+are easy to misplace because of this: read the `legs` table, not the line numbers.
+
+The stay itself is `groundTimer * 5` **seconds** (`ufo.setSecondsRemaining(...)`;
+the timer ticks down 5 seconds at a time). So vanilla `groundTimer: 3000` is
 15 000 s ≈ **4 h 10 m**, `P9`'s 2000 is ≈ 2 h 45 m, and the retaliation assault
 run's 1000 is ≈ 1 h 23 m. The wave's `timer` has nothing to do with this.
 
@@ -519,12 +540,31 @@ crossing 0° is written `[350, 368, ...]` (i.e. 8° + 360). `areas` has no such
 rule and may be written with `lon2 < lon1`. `insideRegion()` handles both, but
 `getRandomPoint()` needs the `>=` form to pick a sane longitude.
 
+A zone whose boxes reach from pole to pole (X-Piratez writes
+`[[1, 1, -89, -89, -300], [1, 1, 89, 89, -300]]` for its orbital regions) is
+the pack's way of saying "anywhere": the game picks a box and then a point in
+it, so no single spot on the globe describes where the UFO will be. The pedia
+draws such a stop in the middle of the map, ringed, rather than dropping it —
+the flight really does visit it.
+
 `missionRegion` substitutes another region when the mission is placed here —
 used by vanilla for the Arctic/Antarctica, which have no land to spawn on.
 
 Region selection uses `regionWeight` (the classic `AlienStrategy` table), so
 `regionWeight: 0` plus a `missionWeights` entry is how "this mission only, that
 region" missions are built in XFiles.
+
+**Where the two lists are drawn.** The region page draws both: `areas` solid,
+`missionZones` dashed. The trajectory page draws only the zones — `areas` is the
+region's answer to "is this point in me" (base price, activity credit, a landing
+staying inside its region), and the trajectory page already names its region in
+the radio list, so those boxes were scenery laid over the stops. The switch is
+`REGION_OUTLINE` in `TrajectoryMapArticle`; `regionOverlay` takes it as
+`{ outline }` and the region page leaves it at its default. Two caveats if it is
+ever turned back on: the trajectory page has no note describing `areas` (the
+region page's `xpediaRegionMapNote` does), and tftd's land regions have no
+`areas` at all, so it would only show up for ocean regions and for XFiles /
+X-Piratez.
 
 ---
 

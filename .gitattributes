@@ -1,0 +1,19 @@
+# Text files are stored and checked out with LF only.
+#
+# `core.autocrlf=input` still leaves a checkout with whatever line endings the
+# file happens to have on disk, so a file edited by an editor that writes CRLF
+# would come back as CRLF for everyone and show up as a whole-file diff. This
+# pins the convention instead of relying on each machine's git config.
+* text=auto eol=lf
+
+# Archives and pictures are bytes, not text: never normalise them.
+*.png binary
+*.jpg binary
+*.ico binary
+*.gif binary
+*.wasm binary
+*.zip binary
+*.rar binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

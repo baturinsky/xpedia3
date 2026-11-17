@@ -149,7 +149,7 @@ export function readDeclaredColors() {
   }
 }
 
-function addDeclared(table: any) {
+function addDeclared(table: unknown) {
   if (!table || typeof table != "object")
     return;
   for (let [name, color] of Object.entries(table))

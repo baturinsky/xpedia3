@@ -2,6 +2,7 @@ import * as fflate from "fflate";
 import { state } from "./state";
 import { readImgData, readImgSizes, readRulData } from "./idb";
 import { isPermanentPack } from "./packSource";
+import type { Langs, ProcessedRuleset } from "./rul/Ruleset";
 import {
   base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, exportedPackName,
   gzipText, languagePackPath, onlyTranslated, prepareRul, referencedPaths, renderPage,
@@ -162,7 +163,7 @@ export type ExportEstimate = {
    */
   languageBytes: { [name: string]: number },
   /** Live language maps the on-demand sizes are cut from */
-  langs: { [name: string]: any },
+  langs: Langs,
   /**
    * Bytes of the images the archive format would bundle, also measured on demand.
    *
@@ -316,7 +317,7 @@ export async function measureLanguages(estimate: ExportEstimate, names: string[]
 }
 
 /** The ruleset as it looks with no language selected */
-function englishOnly(processed: any) {
+function englishOnly(processed: ProcessedRuleset) {
   return prepareRul(processed, []);
 }
 

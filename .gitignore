@@ -6,3 +6,5 @@
 /build
 AGENTS.md
 build-number.txt
+# Bundled test modules, rebuilt by `npm test`
+/test/.gen

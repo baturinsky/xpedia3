@@ -2,6 +2,7 @@ import * as fflate from "fflate";
 import { state, update } from "./state";
 import * as idb from "./idb";
 import Ruleset, { defaultLanguage } from "./rul/Ruleset";
+import type { ProcessedRuleset } from "./rul/Ruleset";
 import { base64ToArrayBuffer, gameRelativePath } from "./util";
 
 /**
@@ -40,7 +41,7 @@ export interface PackSource {
   /** Row for the modpack list */
   stats(): Promise<PackStat>;
   /** The processed ruleset, exactly what `Ruleset` is built from */
-  rulData(): Promise<any>;
+  rulData(): Promise<ProcessedRuleset | undefined>;
   /** Image bytes, for packs whose images live in the database */
   imgData(path: string): Promise<Uint8Array | undefined>;
   /** Image location relative to the page, for packs whose images live outside */

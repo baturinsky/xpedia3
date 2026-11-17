@@ -33,7 +33,7 @@ export function goToArticle(href?: AnyRef) {
       // what gives it a sidebar and a highlighted menu entry.
       update({ article, section: article.sections[0] });
     } else {
-      update({ article })
+      update({ article });
     }
     if ("##" + ref != location.hash)
       location.hash = "##" + ref;
@@ -117,7 +117,7 @@ async function init() {
 
   initUI();
 
-  makeDropzone(document.body, uploadUsersFiles)
+  makeDropzone(document.body, uploadUsersFiles);
 
   onhashchange = goToHash;
   // A fresh ruleset always lands on the landing page: whatever the URL named
@@ -135,11 +135,11 @@ async function init() {
   // window, and the builtin pedia stays browsable while it runs.
   loadPackFromLocation();
 
-  goToHash()
+  goToHash();
 
 }
 
-init()
+init();
 
 /** Elements that consume their own keystrokes: typing in these must not navigate */
 function isEditable(target: EventTarget | null) {
@@ -151,7 +151,7 @@ function isEditable(target: EventTarget | null) {
     || target.tagName == "SELECT";
 }
 
-const upAndDownKeysEnabled = false
+const upAndDownKeysEnabled = false;
 
 addEventListener("keydown", e => {
   // The load status window is modal, so navigation must wait for it
@@ -174,15 +174,23 @@ addEventListener("keydown", e => {
     if (upAndDownKeysEnabled && (pageSwitch == "up")) {
       if (section) {
         if (section.id == article?.id)
-          goToLanding()
+          goToLanding();
         else
-          goToArticle(section)
+          goToArticle(section);
       }
     } else if (upAndDownKeysEnabled && (pageSwitch == "down")) {
       history.go(-1);
     } else if(pageSwitch==1 || pageSwitch==-1){
-      if (article && section)
-        goToArticle(rul.findNearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort))
+      if (article && section) {
+        // The step may cross into a neighbouring section, and the reader carries
+        // on browsing there: going to the article alone would leave the sidebar
+        // and the next step in the section they just left. See `nearbyArticle`.
+        let nearby = rul.nearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort);
+        if (nearby) {
+          update({ section: nearby.section });
+          goToArticle(nearby.article);
+        }
+      }
     }
   }
-})
+});

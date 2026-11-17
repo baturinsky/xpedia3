@@ -1,8 +1,9 @@
-import { CSSProperties, JSX, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { CSSProperties, JSX, ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { state, update } from "../state";
 
 import { resolveImage } from "../packSource";
 import { rul, sortFirstLast } from "../rul/Ruleset";
+import type { AlterMap, BonusMap } from "../rul/Entry";
 import { Tr, Val } from "./Val";
 import React from "react";
 import { imageDataToUrl, allFieldValuesOf } from "../util";
@@ -12,7 +13,7 @@ export async function viewImage(path: string) {
   let img = await resolveImage(path);
   if (!img)
     return;
-  update({ imagePreview: img.url ?? imageDataToUrl(img.data) })
+  update({ imagePreview: img.url ?? imageDataToUrl(img.data) });
 }
 
 /**
@@ -260,7 +261,9 @@ export function Img(props: {
   let img = images[path];
   let broken = brokenPath === path;
   let hasRealData = !broken && (path.startsWith("data:") || !!img);
-  let dataImage = hasRealData ? (path.startsWith("data:") ? path : img) : emptyImg;
+  // `hasRealData` already requires a non-empty `img`, so the fallback is only a
+  // type guard; nothing renders it
+  let dataImage = (hasRealData ? (path.startsWith("data:") ? path : img) : emptyImg) ?? emptyImg;
   // Old CanvasImage measured the loaded bitmap and scaled it by `zoom`
   let baseFactor = props.zoom ?? props.scale ?? 1;
   let factor = spriteScale(baseFactor, pixelRatio);
@@ -326,23 +329,26 @@ export function Img(props: {
 
 export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
 
-  let [getter, setter] = useState(initialValue)
+  let [getter, setter] = useState(initialValue);
 
   useEffect(() => {
     p.then(a => {
       setter(a);
-    })
-  }, [state.count])
+    });
+  }, [state.count]);
 
   return getter;
 }
 
-export function MyTable<T extends { key: any }>(props: {
+/** One row of `MyTable`: the store key plus whatever the columns read */
+export type MyTableRow = { key: string, [field: string]: unknown };
+
+export function MyTable<T extends MyTableRow>(props: {
   className?: string,
   style?: CSSProperties,
   columns: {
     key: string, name?: string, cellClass?: string,
-    renderCell?: (data: { row: T, column: any }) => any, maxWidth?: number, minWidth?: number
+    renderCell?: (data: { row: T, column: any }) => ReactNode, maxWidth?: number, minWidth?: number
   }[],
   rows: T[],
   rowClass?: (row: T) => string
@@ -350,15 +356,15 @@ export function MyTable<T extends { key: any }>(props: {
   return <table className={props.className} style={props.style}>
     <thead><tr>{props.columns.map(col => <td key={col.name}>{col.name}</td>)}</tr></thead>
     <tbody>
-      {props.rows.map((row: any) => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
+      {props.rows.map(row => <tr key={row.key} className={props.rowClass ? props.rowClass(row) : ""}>
         {props.columns.map(column =>
           <td key={column.key}>{
-            column.renderCell ? column.renderCell({ row, column }) : row[column.key]
+            column.renderCell ? column.renderCell({ row, column }) : row[column.key] as ReactNode
           }</td>
         )}
       </tr>)}
     </tbody>
-  </table>
+  </table>;
 }
 
 export type AnyRef = string | { type: string } | { id: string };
@@ -367,8 +373,11 @@ export type AnyRef = string | { type: string } | { id: string };
 export function fromAnyRef(href?: AnyRef) {
   if (href == null)
     return null;
-  if (typeof href == "object")
-    return (href as any).type ?? (href as any).id ?? null;
+  if (typeof href == "object") {
+    let type = "type" in href ? href.type : undefined;
+    let id = "id" in href ? href.id : undefined;
+    return type ?? id ?? null;
+  }
   return href === "" ? null : href;
 }
 
@@ -399,8 +408,8 @@ export const CogAnimation = (props: { size?: number }) => {
         />
       </g>
     </g>
-  </svg>
-}
+  </svg>;
+};
 
 export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
   return <table className="main-table base-service-table">
@@ -411,7 +420,7 @@ export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
           <td><Val of={prop[1]} /></td></tr>
       ))}
     </tbody>
-  </table>
+  </table>;
 
 }
 
@@ -423,11 +432,11 @@ export function BaseServiceList({ items = null as string[] | null, vertical = fa
       {i == 0 ? "" : (vertical ? <br /> : ", ")}
       <Val of={item} />
     </React.Fragment>)}
-  </>
+  </>;
 }
 
-export function Nobr(props: any) {
-  return <span className="nobr">{props.children}</span>
+export function Nobr(props: { children?: ReactNode }) {
+  return <span className="nobr">{props.children}</span>;
 }
 
 
@@ -437,11 +446,11 @@ export function Subheader(props: { text: string }) {
     <td colSpan={2} className="table-subheader">
       <Val of={props.text} />
     </td>
-  </tr>
+  </tr>;
 }
 
 /** Rows of `SpecialBonus` values, follows old `RecoveryTable.svelte` */
-export function RecoveryTable(props: { recovery: any }) {
+export function RecoveryTable(props: { recovery?: { [stat: string]: BonusMap } }) {
   if (!props?.recovery)
     return null;
 
@@ -466,11 +475,11 @@ export function SecondaryTable(props: { text: string, children: JSX.Element }) {
         {props.children}
       </td>
     </tr>
-  </>
+  </>;
 }
 
 
-export function AlterList(props: { items: { [id: string]: string } }) {
+export function AlterList(props: { items: AlterMap }) {
   return (
     <tr>
       <td colSpan={4} className="attacks-alter">
@@ -503,22 +512,27 @@ export function AlterList(props: { items: { [id: string]: string } }) {
 };
 
 
-export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boolean }) => {
+/** One printed term: stat, weight, the kind of term, and its power when it is a polynomial coefficient */
+type BonusTerm = [type: string, value: number, kind: string, power?: number];
+
+export const SpecialBonus = ({ bonus, plus = false }: { bonus?: BonusMap, plus?: boolean }) => {
   const flat = useMemo(() => {
     if (!bonus) return [];
 
-    let flat: [string, number, string][] = [];
+    let flat: BonusTerm[] = [];
     for (let type of Object.keys(bonus)) {
-      if (bonus[type].length) {
-
-        for (let power = 0; power < bonus[type].length; power++) {
-          let b = bonus[type][power];
+      let value = bonus[type];
+      // A polynomial is a list of coefficients, printed as a sum of powers; a
+      // plain weight is one term
+      if (Array.isArray(value)) {
+        for (let power = 0; power < value.length; power++) {
+          let b = value[power];
           if (b !== 0) {
-            flat.push([type, b, type, power + 1] as any);
+            flat.push([type, b, type, power + 1]);
           }
         }
       } else {
-        if (bonus[type] !== 0) flat.push([type, bonus[type], type]);
+        if (value !== 0) flat.push([type, value, type]);
       }
     }
     flat = flat.sort((a, b) => (a[0] === "flatHundred" || a[0] === "flatOne" || a[0] < b[0] ? -1 : 1));
@@ -529,7 +543,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
     <>
       {flat.length > 0 && plus && "+"}
       {flat.map((b, i) => {
-        let [type, value, kind, power = 1] = b as any;
+        let [type, value, kind, power = 1] = b;
         return (
           <span className="num" key={i}>
             {i !== 0 && " +"}
@@ -553,13 +567,13 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus: any, plus?: boole
 
 
 /** Splits long lists into pages, following old PaginatedList.svelte */
-export function PaginatedList(props: {
-  items: any[],
+export function PaginatedList<T>(props: {
+  items: T[] | Set<T>,
   pageSize?: number,
   onePageMax?: number,
   /** Extra class on the wrapper; a table needs a block wrapper to scroll */
   className?: string,
-  children: (items: any[]) => any
+  children: (items: T[]) => ReactNode
 }) {
   let items = props.items instanceof Set ? [...props.items] : props.items ?? [];
   let pageSize = props.pageSize ?? 40;
@@ -612,18 +626,18 @@ export function PaginatedList(props: {
  * actually scrolls without having to guess it. `scroll` does not bubble, so
  * capturing is what makes one document-level listener enough.
  */
-export function IncrementalList(props: {
-  items: any[],
+export function IncrementalList<T>(props: {
+  items: T[],
   /** Rows drawn at once, and the number shown before the first scroll */
   batchSize?: number,
   /**
    * Restarts the list when it changes. A new sort order or filter is a
    * different list, so it must not inherit how far the old one was scrolled.
    */
-  resetKey?: any,
+  resetKey?: unknown,
   /** Extra class on the wrapper; a table needs a block wrapper to scroll */
   className?: string,
-  children: (items: any[]) => any
+  children: (items: T[]) => ReactNode
 }) {
   let items = props.items ?? [];
   let batchSize = props.batchSize ?? 100;
@@ -690,7 +704,8 @@ export function IncrementalList(props: {
 export function LinksPage(props: {
   links?: AnyRef[],
   cols?: number | false,
-  title?: any,
+  /** Heading of the page, a language key drawn through `Val` */
+  title?: unknown,
   /**
    * The links are already in the order `<`/`>` navigation walks, so they must
    * not be sorted again. A section page passes its cached list; sorting it a
@@ -750,13 +765,26 @@ export function LinksPage(props: {
   </>;
 }
 
+/**
+ * A row of `SectionTable`: an entry, or an attack, which are sorted and filtered
+ * through the same `sortField` protocol.
+ */
+export type SectionRow = {
+  sortField(field: string, filter?: string | boolean): unknown
+  /** A commendation's value as a stage range, see `Entry.range` */
+  cellValue?(field: string): unknown
+  /** Columns are read by name, whichever the ruleset declared */
+  [field: string]: any
+};
+
 export interface SectionTableProps {
   /** Id of the article that shows this table, used to persist column layout */
   aId?: string,
-  entries: any[],
+  entries: SectionRow[],
   fields: string[],
   extraFields?: string[],
-  filters?: { [key: string]: any[] },
+  /** Field name -> options the reader can pick; `"auto"` is filled in from the rows */
+  filters?: { [key: string]: string[] },
 }
 
 /** Table of entries with selectable/sortable columns, follows old SectionTable.svelte */
@@ -766,16 +794,19 @@ export function SectionTable(props: SectionTableProps) {
   let fields = [...(props.fields ?? [])];
   let extraFields = (props.extraFields ?? []).filter(f => !fields.includes(f));
 
-  let saved: any = {};
+  // The layout is stored as plain JSON written by this component itself, so it
+  // is read back as a bag of unknown values and checked as each one is used
+  let saved: { [key: string]: unknown } = {};
   try {
     saved = JSON.parse(localStorage[storageKey] ?? "null") ?? {};
   } catch { saved = {}; }
 
-  let allFields: string[] = saved.allFields ?? ["id", ...fields];
+  let allFields = (saved.allFields as string[] | undefined) ?? ["id", ...fields];
   let [shownFields, setShownFields] = useState<string[]>(allFields);
-  let [filtersSelected, setFiltersSelected] = useState<{ [key: string]: string }>(saved.filtersSelected ?? {});
-  let [sortField, setSortField] = useState<string | undefined>(saved.sortField);
-  let [sortDescending, setSortDescending] = useState<boolean>(saved.sortDescending ?? false);
+  let [filtersSelected, setFiltersSelected] = useState<{ [key: string]: string }>(
+    (saved.filtersSelected as { [key: string]: string } | undefined) ?? {});
+  let [sortField, setSortField] = useState<string | undefined>(saved.sortField as string | undefined);
+  let [sortDescending, setSortDescending] = useState<boolean>((saved.sortDescending as boolean | undefined) ?? false);
   let [filterId, setFilterId] = useState("");
 
   // "auto" filter options are filled in from the entries themselves
@@ -784,9 +815,11 @@ export function SectionTable(props: SectionTableProps) {
     filters[key] = [...options];
     let autoAt = filters[key].indexOf("auto");
     if (autoAt != -1) {
-      let values = allFieldValuesOf(entries, key);
+      // The values are printed as options and compared with the selection, so a
+      // number from the ruleset (an inventory size) is used as its text
+      let values = allFieldValuesOf(entries, key).map(v => String(v)).sort();
       if (values.length > 0)
-        filters[key].splice(autoAt, 1, ...values.sort());
+        filters[key].splice(autoAt, 1, ...values);
     }
   }
 
@@ -901,7 +934,7 @@ export function SectionTable(props: SectionTableProps) {
                   draggable="true"
                   onDragStart={e => e.dataTransfer.setData("field", field)}
                   onDrop={e => moveField(shownFields, field, e.dataTransfer.getData("field"), setShownFields)}
-                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move" }}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
                   onClick={() => sortBy(field)}>
                   {/* Keeps the label centred whether or not an arrow shows, the
                       same placeholder the old `SectionTable` used */}
@@ -915,11 +948,11 @@ export function SectionTable(props: SectionTableProps) {
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((entry: any, i: number) =>
+            {visibleRows.map((entry, i) =>
               <tr key={entry.id ?? i}>
                 {shownFields.map(field =>
                   <td key={field} className={"st-" + field}>
-                    <Val of={entry.sortField ? (entry.cellValue?.(field) ?? entry.sortField(field, true)) : entry[field]}
+                    <Val of={entry.cellValue?.(field) ?? entry.sortField(field, true)}
                       nobr={20} field={field} />
                   </td>
                 )}

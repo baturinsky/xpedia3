@@ -1,6 +1,7 @@
 import * as fflate from "fflate";
 import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
-import { mainMod } from "./rul/Ruleset";
+import { mainMod, type LangMap, type Langs, type ProcessedRuleset } from "./rul/Ruleset";
+import type Ruleset from "./rul/Ruleset";
 import { WORLD_DAT, gameRelativePath } from "./packBuild";
 
 /**
@@ -63,7 +64,7 @@ export function languagePackPath(lang: string) {
  * English. The result is a plain object literal, so a translator can open the
  * file and read it.
  */
-export function buildLanguagePack(processed: any, lang: string) {
+export function buildLanguagePack(processed: ProcessedRuleset, lang: string) {
   let english = processed.langs?.["en-US"] ?? {};
   let translated = onlyTranslated(english, processed.langs?.[lang] ?? {});
   // JSON is valid JavaScript once the characters that could end the script or
@@ -104,8 +105,8 @@ export async function gzipText(text: string) {
  * Values are compared with `!==`, so a string is only dropped when it is
  * literally the same one; anything else (numbers, OXCE plural objects) stays.
  */
-export function onlyTranslated(english: any, lang: any) {
-  let translated: { [key: string]: any } = {};
+export function onlyTranslated(english: LangMap, lang: LangMap) {
+  let translated: LangMap = {};
   for (let key of Object.keys(lang))
     if (english[key] !== lang[key])
       translated[key] = lang[key];
@@ -121,20 +122,21 @@ export function onlyTranslated(english: any, lang: any) {
  * in this file, which only happens in a split export: the selector offers every
  * exported language, while the page carries just one of them.
  */
-export function prepareRul(processed: any, languages: string[], labelLanguages: string[] = []) {
+export function prepareRul(processed: ProcessedRuleset, languages: string[], labelLanguages: string[] = []) {
   // `icon` is the emoji label map, not a language the user can pick, and the
   // page is unreadable without it
   let keep = new Set(["en-US", "icon", ...languages]);
-  let english = processed.langs?.["en-US"] ?? {};
-  let langs: { [name: string]: any } = {};
-  for (let name of Object.keys(processed.langs ?? {})) {
+  let source: Langs = processed.langs ?? {};
+  let english = source["en-US"] ?? {};
+  let langs: Langs = {};
+  for (let name of Object.keys(source)) {
     if (!keep.has(name))
       continue;
     // English and the emoji map are the reference the others are merged onto,
     // so they have to stay complete
     langs[name] = name == "en-US" || name == "icon"
-      ? processed.langs[name]
-      : onlyTranslated(english, processed.langs[name]);
+      ? source[name]
+      : onlyTranslated(english, source[name]);
   }
 
   // A language gets its flag label from `Ruleset.loadProcessedMods`, which only
@@ -158,7 +160,7 @@ export function prepareRul(processed: any, languages: string[], labelLanguages: 
  * obs tables are the indexed sprite sheets (`BIGOBS.PCK` and friends); the
  * globe's DAT file is needed to draw the world map.
  */
-export function referencedPaths(rul: any) {
+export function referencedPaths(rul: Ruleset | undefined) {
   let paths = new Set<string>();
   if (!rul)
     return paths;
@@ -169,18 +171,18 @@ export function referencedPaths(rul: any) {
       paths.add(path);
   };
 
-  for (let id of Object.keys(rul.sprites ?? {}))
-    add(rul.sprites[id]?.path);
-  for (let table of Object.values(rul.obs ?? {}) as any[])
+  for (let sprite of Object.values(rul.sprites))
+    add(sprite?.path);
+  for (let table of Object.values(rul.obs))
     for (let sprite of table)
       add(sprite?.path);
 
   // An article illustration is either a sprite id or an asset path
-  for (let article of Object.values(rul.articles ?? {}) as any[]) {
+  for (let article of Object.values(rul.articles)) {
     let id = article?.image_id;
     if (!id)
       continue;
-    let sprite = rul.sprites?.[id];
+    let sprite = rul.sprites[id];
     if (sprite)
       add(sprite.path);
     else if (/[\\/]/.test(id))
@@ -189,7 +191,7 @@ export function referencedPaths(rul: any) {
 
   // The world map reads the pack's globe data through the resource index. Only
   // the file that index resolves to is needed, not every DAT the pack ships.
-  let dat = rul.resourceMap?.[WORLD_DAT]
+  let dat = rul.resourceMap?.[WORLD_DAT];
   if (dat)
     add(dat);
 
@@ -201,9 +203,26 @@ function escapeHtml(text: string) {
 }
 
 /** JSON that can sit safely inside a `<script>` element */
-function scriptJson(value: any) {
+function scriptJson(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
+
+/**
+ * The payload an exported page carries in `window.xpedia`.
+ *
+ * `packSource.ts` reads the same shape back on load; the type lives here because
+ * this module writes it and the CLI builds pages without a browser.
+ */
+export type PagePayload = {
+  /** Pack name shown in the modpack list, ending in `.inline` */
+  pack: string,
+  /** Base64 of the gzip-compressed processed ruleset */
+  rul: string,
+  /** The language the page opens in, when that is not English */
+  lang?: string,
+  /** Language name -> script carrying its strings, for a split export */
+  packs?: { [name: string]: string },
+};
 
 /**
  * The page text around a ruleset payload.
@@ -213,12 +232,12 @@ function scriptJson(value: any) {
  */
 export async function renderPage(
   pack: string,
-  processed: any,
+  processed: ProcessedRuleset,
   rulesetBase64: string,
   shell: AppShell,
   page?: PageLanguage
 ) {
-  let payload: any = {
+  let payload: PagePayload = {
     pack: exportedPackName(pack),
     rul: rulesetBase64
   };
@@ -265,7 +284,7 @@ export async function renderPage(
 
 export type BuildPageOptions = {
   pack: string,
-  processed: any,
+  processed: ProcessedRuleset,
   /** Language names to keep besides `en-US`, which is always kept */
   languages: string[],
   shell: AppShell,
@@ -302,7 +321,7 @@ export async function buildAssetFiles(options: {
   /** Where the page goes inside the export */
   page: string,
   html: string,
-  rul: any,
+  rul: Ruleset | undefined,
   readImage: (path: string) => Promise<Uint8Array | undefined>,
   onProgress?: (done: number, total: number) => void,
 }): Promise<ExportFile[]> {

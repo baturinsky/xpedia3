@@ -1,15 +1,16 @@
-import { createElement, RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { rul, battleStats, damageTypes, internalBattleTypes, statsList } from "../rul/Ruleset";
-import { article, section, state } from "../state";
+import { createElement, ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { rul, battleStats, damageTypes, internalBattleTypes, statsList, SortFirstLastOptions } from "../rul/Ruleset";
+import type { Entry } from "../rul/Entry";
+import { article, section, state, update } from "../state";
 import ArmorComponent from "./ArmorComponent";
-import { BaseService, Img, LinksPage, SectionTable } from "./components";
+import { BaseService, Img, LinksPage, SectionTable, SectionRow } from "./components";
 import CommendationComponent, { SoldierBonusesComponent } from "./CommendationComponent";
 import Conditions from "./Conditions";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
-import MainTable from "./MainTable";
+import MainTable, { MainTableRenderer } from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import MissionComponent from "./MissionComponent";
 import MissionScriptComponent from "./MissionScriptComponent";
@@ -21,9 +22,11 @@ import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 import { xpediaVersion, xpediaBuildStamp } from "../util";
 import { WorldMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
+import type { Article } from "../rul/Article";
+import type { Section } from "../rul/Section";
 
 export function ArticleTitle() {
-  let [left, right] = [-1, 1].map(delta => article ? rul.findNearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
+  let [left, right] = [-1, 1].map(delta => article ? rul.nearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
   // Old `Article.svelte` filtered out the article's own section from the list
   let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
   if (onLandingPage()) {
@@ -39,15 +42,31 @@ export function ArticleTitle() {
         </div>
       </div>
       <PackMeta />
-    </>
+    </>;
   } else {
     return <div className="article-title">
-      <div className="left">{left && <Val of={left} prefix={"<"} />}</div>
+      <div className="left">{left && <NearbyLink target={left} prefix={"<"} />}</div>
       <div className="central"><Tr text={article?.id} nobr={100} /></div>
       <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
-      <div className="right">{right && <Val of={right} postfix={">"} />}</div>
-    </div>
+      <div className="right">{right && <NearbyLink target={right} postfix={">"} />}</div>
+    </div>;
   }
+}
+
+/**
+ * A `<`/`>` link, which has to say which section it lands in.
+ *
+ * `goToArticle` keeps the section being browsed only while the article belongs
+ * to it, and an article often belongs to several. Arriving here by arrow means
+ * the reader wants to stay in the list they were reading, so the target section
+ * is put in `state` before the hash changes — the click runs ahead of
+ * `hashchange`, so `goToArticle` then finds the section already set.
+ */
+function NearbyLink(props: { target: { article: Article, section: Section }, prefix?: string, postfix?: string }) {
+  let { article: target, section: targetSection } = props.target;
+  return <a href={"##" + target.id} onClick={() => update({ section: targetSection })}>
+    <Tr text={target.id} prefix={props.prefix} postfix={props.postfix} />
+  </a>;
 }
 
 /**
@@ -66,14 +85,44 @@ function PackMeta() {
   </div>;
 }
 
-export const asSubTable = (props: any) => <MainTable of={props.val} />,
-  asJson = (props: any) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>
+export const asSubTable: MainTableRenderer = (props) => <MainTable of={props.val} />,
+  asJson: MainTableRenderer = (props) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>;
 
 /*Which renderer to use for each article type */
-const renderers = {
+
+/**
+ * A `MainTable` configuration for a collection's articles: field to renderer,
+ * ordering, title. Collections that need no special drawing state an empty one.
+ */
+interface TableConfig {
+  title?: string,
+  sort?: SortFirstLastOptions,
+  special?: { [field: string]: MainTableRenderer },
+  rows?: { [field: string]: MainTableRenderer },
+}
+
+/**
+ * A component that draws a whole article for one collection.
+ *
+ * `entry` is untyped here because each collection's component takes its own
+ * entry class, and the table is keyed by collection name — the component and the
+ * entry it is given are matched at runtime, not by the type.
+ */
+type ArticleComponentRenderer = (props: { entry: any, text?: string }) => ReactNode;
+
+/**
+ * The entry an article draws, looked up in the collection its renderer is keyed
+ * by. The collection names are `Ruleset` fields, but the lookup is by string, so
+ * it goes through an index signature rather than a key of the class.
+ */
+function collectionEntry(collection: string, id: string): Entry | undefined {
+  let table = (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
+  return table?.[id];
+}
+
+const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig } = {
   alienMissions: MissionComponent,
   missionScripts: MissionScriptComponent,
-  ufoTrajectories: TrajectoryComponent,
   units: UnitComponent,
   armors: ArmorComponent,
   battleTypes: {},
@@ -125,7 +174,7 @@ const renderers = {
     // states nothing: `special` renderers always emit a row, which would leave
     // an empty "Slots" line on every hand.
     rows: {
-      invType: ({ val }: { val: any }) => {
+      invType: ({ val }) => {
         // A kind the pack leaves to the game's own ruleset has no number to
         // print, so the row is absent rather than reading "undefined"
         let name = invTypeName(val);
@@ -134,7 +183,7 @@ const renderers = {
           <td><Val of={name} /></td>
         </tr>;
       },
-      slots: ({ val }: { val: any }) => {
+      slots: ({ val }) => {
         if (!val?.length)
           return null;
         let width = Math.max(...val.map((s: [number, number]) => s[0])) + 1;
@@ -146,7 +195,7 @@ const renderers = {
       },
       // `costs` maps every other section to the time a move into it takes, which
       // is a table of its own rather than one long row
-      costs: ({ val }: { val: any }) => val == null ? null : <>
+      costs: ({ val }) => val == null ? null : <>
         <tr><td colSpan={2} className="table-subheader"><Val of="costs" /></td></tr>
         <tr><td colSpan={2}><MainTable of={val} /></td></tr>
       </>,
@@ -170,7 +219,7 @@ const inventoryTypes = ["invSlot", "invHand", "invGround"];
  * game's `standard` ruleset, which the pedia does not read, so a missing `type`
  * must not be turned into the engine's default.
  */
-function invTypeName(val: any) {
+function invTypeName(val: unknown) {
   if (val == null || Number.isNaN(Number(val)))
     return undefined;
   return inventoryTypes[Number(val)];
@@ -181,7 +230,7 @@ function sectionTable() {
   let id = article?.id;
   if (!id || !rul)
     return null;
-  let table = (entries: any[], fields: string[], extraFields?: string[], filters?: any) =>
+  let table = (entries: SectionRow[], fields: string[], extraFields?: string[], filters?: { [key: string]: string[] }) =>
     <SectionTable key={id} aId={id} entries={entries} fields={fields}
       extraFields={extraFields} filters={filters} />;
 
@@ -430,7 +479,7 @@ function ServicesTable({ query = null as string | null }) {
     </thead>
     <tbody>
       {names.map(name => {
-        let items: any = rul.baseServices[name];
+        let items = rul.baseServices[name];
         return <tr key={name} className={name == query ? "highlight" : ""}>
           <td><a className="services" href={"##" + name}><Tr text={name} /></a></td>
           <td><Val of={items.providedBy} /></td>
@@ -446,7 +495,7 @@ function SearchResults() {
   let found = state.found;
   let matches = (a: string) => (rul.tr(a) ?? "").toLowerCase().includes(query);
 
-  let searchingFor = <><Tr text="Searching for" /> "<em>{state.searchQuery}</em>"</>
+  let searchingFor = <><Tr text="Searching for" /> "<em>{state.searchQuery}</em>"</>;
 
   if (!found)
     return <div> {searchingFor}<br />
@@ -493,6 +542,15 @@ export function ArticleComponent() {
   let id = article.id;
   let table = sectionTable();
   let item = rul?.items?.[id];
+
+  // A flight path is described by its own table of stops and the picture of
+  // where it happens. Both are wide, so both belong above the two-column body,
+  // and the table comes first: it is the answer to "what does this path do",
+  // which is what the page is asked, and the map is where it does it.
+  //
+  // Keyed by the collection rather than by `article.section`, because a page can
+  // be reachable from more than one section and only its first would match.
+  let trajectory = !table ? rul.ufoTrajectories?.[article.id] : undefined;
 
   // A section page is the article whose id matches its own section; it lists
   // that section's articles below its own pedia text
@@ -542,9 +600,10 @@ export function ArticleComponent() {
         belongs in the same place: above the columns, full width */}
     {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
       <RegionMapArticle key={article.id} region={rul.regions[article.id]} />}
-    {article.section == "UFO_TRAJECTORIES" && article.id != "UFO_TRAJECTORIES" &&
-      rul.ufoTrajectories[article.id] &&
-      <TrajectoryMapArticle key={article.id} trajectory={rul.ufoTrajectories[article.id]} />}
+    {trajectory && <>
+      <TrajectoryComponent key={article.id} entry={trajectory} />
+      <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />
+    </>}
     {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
       <LinksPage links={rul.categories[article.id]} />}
     {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
@@ -567,20 +626,20 @@ export function ArticleComponent() {
       style={oneColumn ? { columns: 1 } : undefined}>
       {!table && specialArticleBody()}
       {!table && Object.entries(renderers).filter(([key]) => {
-        return (rul as any)[key] ? (rul as any)[key][id] : ""
+        return collectionEntry(key, id) != null;
       }
       ).map(([key, ren]) => {
         if (typeof ren == "function") {
           // Render as an element so hooks inside the renderer work
-          return createElement(ren as any, { key, entry: (rul as any)[key][id], text: article?.text });
+          return createElement(ren, { key, entry: collectionEntry(key, id), text: article?.text });
         } else {
-          let { title } = ren as any;
+          let { title } = ren;
           return <MainTable
             {...ren}
             key={key}
-            of={(rul as any)[key][id]}
+            of={collectionEntry(key, id)}
             title={title != null ? title : key}
-          />
+          />;
         }
       })}
       {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
@@ -592,5 +651,5 @@ export function ArticleComponent() {
 
   return <div className={"article"}>
     {main}
-  </div>
+  </div>;
 }

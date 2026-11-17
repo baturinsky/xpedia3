@@ -1,5 +1,6 @@
 import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
+import { ORIGIN } from "../worldmap";
 import type { Overlay, OverlayPath } from "./WorldMapArticle";
 /**
  * Region and trajectory data as the world map draws it.
@@ -53,6 +54,15 @@ function boxCenter(area: MapArea) {
 }
 
 /**
+ * The middle of the picture, for a stop the pack puts anywhere on the globe.
+ *
+ * The map is cut a turn away from Greenwich, so the middle column is half a turn
+ * from `ORIGIN` rather than longitude 0. Using the projection's own centre keeps
+ * the marker in the middle of what is drawn, whichever cut a future change makes.
+ */
+const anywhereCenter = { lon: ORIGIN + 180, lat: 0, anywhere: true };
+
+/**
  * Where to put a stop's marker, or nothing when no honest answer exists.
  *
  * A zone is a set of boxes, and the game picks one of them at random before
@@ -69,15 +79,20 @@ function boxCenter(area: MapArea) {
  * nearest the middle of that list is used so the marker does not depend on the
  * order the pack happened to write them in.
  *
- * A zone that reaches from pole to pole is refused: it is the "anywhere" zone,
- * so a marker inside one arbitrary box of it would read as a real patrol route.
+ * A zone that reaches from pole to pole is the "anywhere" zone — the pack's way
+ * of saying the game may put this stop anywhere on the globe. It is drawn at the
+ * middle of the map instead of being left out: the stop does happen, and a path
+ * that silently lost a third of its stops is worse than one that says "no place
+ * in particular" at the one spot which means exactly that. The page tells such a
+ * marker apart by `anywhere`, since its position is the same for every one of
+ * them.
  */
-export function zoneCenter(zone: MapArea[]): { lon: number, lat: number } | undefined {
+export function zoneCenter(zone: MapArea[]): { lon: number, lat: number, anywhere?: boolean } | undefined {
   let boxes = zone.filter(area => area && area.length >= 4);
   if (!boxes.length)
     return;
   if (latSpanOf(boxes) >= 170)
-    return;
+    return anywhereCenter;
 
   let largest = -1, largestArea = -Infinity;
   boxes.forEach((area, i) => {
@@ -136,20 +151,24 @@ export type PathStop = {
   altitude?: number;
   /** Percentage of the craft's top speed the arriving leg is flown at */
   speed?: number;
+  /**
+   * Whether the zone is the "anywhere" one, so this marker only means "no place
+   * in particular". The point is the same for every such stop, so the picture
+   * has to say so rather than let several markers pile up on one another.
+   */
+  anywhere?: boolean;
 };
 
 /**
  * What a trajectory looks like drawn in one region.
  *
- * `dropped` counts the stops that could not be placed, which happens when a
- * zone is one the game fills with a random point anywhere in the world: it has
- * no centre, so the line skips it instead of inventing a spot. A page says so
- * rather than showing a path that silently lost stops.
+ * `missing` counts the stops whose zone index the region does not have at all.
+ * Every other stop is placed, including the ones in an "anywhere" zone, which sit
+ * at the middle of the map: the flight really does visit them, so a picture that
+ * dropped them would be about a different flight.
  */
 export type PathShape = {
   stops: PathStop[];
-  /** Stops that name a zone with no meaningful centre */
-  dropped: number;
   /** Stops whose zone index the region does not have at all */
   missing: number;
 };
@@ -160,16 +179,6 @@ export function samePlace(a: PathStop, b: PathStop) {
 }
 
 /**
- * How many stops of a shape are at a place other than the one before them.
- *
- * This is what the picture can actually draw, since a leg between two stops in
- * the same zone is the UFO waiting rather than moving.
- */
-export function drawnLegs(shape: PathShape) {
-  return shape.stops.filter((stop, i) => i > 0 && !samePlace(shape.stops[i - 1], stop)).length;
-}
-
-/**
  * The stops of a path in one region.
  *
  * The stop sequence is `UfoTrajectory.flightStops`, which is the engine's own:
@@ -177,12 +186,14 @@ export function drawnLegs(shape: PathShape) {
  * appearing twice because the engine re-targets it. Zone centres are used for
  * the positions, since a zone is a box the game picks a random point in.
  *
- * A stop whose zone has no place on the globe is dropped rather than invented,
- * so the surviving stops keep the leg numbers they had: a page numbers them by
- * `leg`, not by position in this list.
+ * A stop whose zone index this region does not have is left out: there is no
+ * zone to place it in, and the leg numbers the page prints come from the stop
+ * itself, so the survivors still carry the right ones. A stop in an "anywhere"
+ * zone is not left out — it is placed at the middle of the map, where the marker
+ * can say "no place in particular" instead of the picture silently losing it.
  */
 export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape {
-  let shape: PathShape = { stops: [], dropped: 0, missing: 0 };
+  let shape: PathShape = { stops: [], missing: 0 };
   // A path the engine refuses to fly has no shape worth drawing; the article
   // says why rather than showing a single dot
   if (!trajectory.legs.length)
@@ -197,7 +208,7 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
     }
     let center = zoneCenter(zone);
     if (!center) {
-      shape.dropped++;
+      shape.missing++;
       continue;
     }
     shape.stops.push({
@@ -207,6 +218,7 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
       lands: stop.lands,
       altitude: stop.arrival?.altitude,
       speed: stop.arrival?.speed,
+      anywhere: center.anywhere,
     });
   }
   return shape;
@@ -228,27 +240,31 @@ export function trajectoryPath(trajectory: UfoTrajectory, region: Region): Overl
   return {
     id: trajectory.id,
     stops: shape.stops,
-    dropped: shape.dropped,
     // A leg's speed is a percentage of the craft's top speed, and a path may be
-    // flown by several craft. The mean is what the drawing can show in one line;
-    // the range is kept alongside so the article can say so in words.
+    // flown by several craft. The mean is what the drawing can show in one line.
     craftKnots: speeds ? (speeds.min + speeds.max) / 2 : undefined,
-    craftSpeeds: speeds,
   };
 }
 
 /**
- * A region's overlay: its site boxes, its zone boxes, and the given paths.
+ * A region's overlay: its outline, its zone boxes, and the given paths.
  *
  * `paths` is passed in rather than derived, because which flights to draw is a
  * presentation choice: a region page wants the flights of its missions, a
  * trajectory page wants just the one.
+ *
+ * `outline` is that same kind of choice. The region's own `areas` boxes answer
+ * "is this point in this region", which is what a region page is about; on a
+ * trajectory page they are scenery around a flight that already names its region
+ * in the radio list above, so they are left out. The zone boxes stay either way:
+ * they are what the waypoints actually index.
  */
-export function regionOverlay(region: Region, paths: UfoTrajectory[] = []): Overlay {
+export function regionOverlay(region: Region, paths: UfoTrajectory[] = [],
+  { outline = true }: { outline?: boolean } = {}): Overlay {
   return {
     id: region.id,
     color: regionColor(region.id),
-    areas: region.areas,
+    areas: outline ? region.areas : undefined,
     zones: region.missionZones,
     paths: paths
       .map(path => trajectoryPath(path, region))

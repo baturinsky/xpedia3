@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { wipeAssets, eraseArchiveFile, unpackArchiveFile, viewAssets, updateFileStats, storageInfo } from "../idb";
 import { isPermanentPack, loadPackRul } from "../packSource";
 import { loadBuiltinOnlyPack, uploadUsersFiles } from "../load";
+import type { ProcessedRuleset } from "../rul/Ruleset";
 import { examplePacksBase, loadPackFromUrl } from "../packUrl";
 import { CogAnimation, MyTable, viewImage } from "./components";
 import { state, update, requestCancelSlowProcess, closeStatus, askConfirm, acceptConfirm, cancelConfirm } from "../state";
@@ -39,7 +40,7 @@ export async function selectPack(pack: string) {
     slowProcessStage: "", slowProcessProgress: undefined,
     slowProcessDone: false, slowProcessError: false, slowProcessCancellable: false
   });
-  let loaded: string | undefined;
+  let loaded: ProcessedRuleset | undefined;
   try {
     // The article and the cached images belong to the previous ruleset
     update({ article: undefined, section: undefined, images: {} });
@@ -85,7 +86,7 @@ async function erasePack(pack: string) {
   try {
     await wipeAssets(pack);
     await eraseArchiveFile(pack);
-  } catch (e:any) {
+  } catch (e) {
     update({
       slowProcessDone: true, slowProcessError: true,
       slowProcessStatus: `Could not delete ${pack}: ${e?.message ?? e}`
@@ -136,7 +137,7 @@ async function deselectPack() {
   update({ article: undefined, section: undefined, images: {}, packName: undefined });
   try {
     await loadBuiltinOnlyPack();
-  } catch (e:any) {
+  } catch (e) {
     update({
       slowProcessDone: true, slowProcessError: true,
       slowProcessStatus: `Could not unload ${previous}: ${e?.message ?? e}`
@@ -158,7 +159,7 @@ async function deselectPack() {
 export function ArchiveFiles() {
   let packs = state.packs;
   if(!packs)
-    return
+    return;
   return <>
     {state.devView ? <ModpackTable /> : <ModpackList />}
     {/* The switch itself stays hidden until the keyword unlocks it, so a
@@ -216,7 +217,7 @@ function ModpackList() {
           the same shape says "another one belongs here". */}
       <UploadTile />
     </div>
-  </>
+  </>;
 }
 
 /**
@@ -364,7 +365,7 @@ function UrlPackLoader() {
     setError(undefined);
     try {
       await loadPackFromUrl(url.trim());
-    } catch (e: any) {
+    } catch (e) {
       // The import reports its own failures in the status window; this only
       // covers a URL that could not be fetched at all
       setError(e?.message ?? String(e));
@@ -428,7 +429,7 @@ function ModpackTable() {
             <button onClick={e => viewAssets(pack)}>assets</button>
             <button className={pack == state.packName ? "current-file" : ""}
               onClick={e => selectPack(pack)}>rul</button>
-          </div>
+          </div>;
         }
       }
     ]}
@@ -439,7 +440,7 @@ function ModpackTable() {
         name: s.pack,
         ruls: asMB(s?.ruls),
         assets: s.assets ? asMB(s?.assets) : "inlined"
-      }
+      };
     })} />;
 }
 
@@ -449,7 +450,7 @@ export function CurrentAssets() {
     <DataGrid rowHeight={50}
       className="file-assets"
       onCellClick={e => {
-        viewImage(e.row.name)
+        viewImage(e.row.name);
       }}
       columns={[
         { key: 'name', name: 'name' },
@@ -457,7 +458,7 @@ export function CurrentAssets() {
       rows={[...state.assets].map(asset => ({ name: asset, maxWidth: 200 }))}
       enableVirtualization={true}
     />
-  </div>
+  </div>;
 }
 
 
@@ -535,5 +536,5 @@ export function SlowProcessStatus() {
           onClick={requestCancelSlowProcess}>Cancel</button>}
       {done && <button className="slow-process-close" title="Dismiss" onClick={closeStatus}>OK</button>}
     </div>
-  </div>
+  </div>;
 }

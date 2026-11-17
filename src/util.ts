@@ -18,7 +18,7 @@ export function camelToUnderscore(key:string) {
 }
 
 export function getFlagEmoji(countryCode: string) {
-  return countryCode.toUpperCase()
+  return countryCode.toUpperCase();
   //return String.fromCodePoint(...[...countryCode.toUpperCase()].map(x=>0x1f1a5+x.charCodeAt()));
 }
 
@@ -123,12 +123,12 @@ export function addIfNew<T>(arr: T[], item: T) {
 
 export function addAllIfNew<T>(arr: T[], items: T[] | T) {
   if (!Array.isArray(items)) {
-    addIfNew(arr, items)
+    addIfNew(arr, items);
     return;
   }
   if (items.length < 3) {
     for (let it of items)
-      addIfNew(arr, it)
+      addIfNew(arr, it);
   } else {
     let set = new Set(arr);
     for (let it of items)
@@ -155,7 +155,7 @@ export function capital(str: string | null) {
     return;
   // Only the first letter changes: labels legitimately hold capitals after it,
   // such as "TU", "CQC" and "VIP?"
-  return str.substr(0, 1).toUpperCase() + str.substr(1)
+  return str.substr(0, 1).toUpperCase() + str.substr(1);
 }
 export function cullDoubles<T>(list: T[]) {
   return [...new Set(list)] as T[];
@@ -165,12 +165,12 @@ export function clamp(min: number, val: number, max: number) {
   return val < min ? min : val > max ? max : val;
 }
 
-export function unique(a: any[]) {
+export function unique<T>(a: T[]) {
   return [...new Set(a)];
 }
 
 
-export function withoutKeys(o: { [key: string]: any }, keys: string[]) {
+export function withoutKeys<T extends { [key: string]: any }>(o: T, keys: string[]) {
   let copy = { ...o };
   for (let k of keys) {
     delete copy[k];
@@ -179,7 +179,7 @@ export function withoutKeys(o: { [key: string]: any }, keys: string[]) {
 }
 
 export function allFieldValuesOf(objects: { [key: string]: any }[], field: string) {
-  let s = new Set<any>();
+  let s = new Set<unknown>();
 
   for (let o of objects) {
     if (o[field] != undefined)
@@ -190,7 +190,7 @@ export function allFieldValuesOf(objects: { [key: string]: any }[], field: strin
 
 export function exclude<T>(a: T[], b: T[]) {
   let s = new Set(b);
-  return a.filter(v => !s.has(v))
+  return a.filter(v => !s.has(v));
 }
 
 /**
@@ -201,7 +201,7 @@ export function exclude<T>(a: T[], b: T[]) {
  * a plain value, since it has nothing to nest, but the value itself has to be an
  * array or object to qualify.
  */
-export function isFlat(value: any) {
+export function isFlat(value: unknown) {
   if (value == null || typeof value != "object")
     return false;
   let children = Array.isArray(value) ? value : Object.values(value);
@@ -217,7 +217,9 @@ export function bytesToBase64(data: Uint8Array | number[]) {
   let bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
   let chunk = 0x8000, parts: string[] = [];
   for (let i = 0; i < bytes.length; i += chunk) {
-    parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as any));
+    // `apply` takes any array-like, and a typed array is one; the DOM lib's
+    // signature only admits `number[]`
+    parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[]));
   }
   return btoa(parts.join(""));
 }
@@ -233,10 +235,10 @@ export function localeFixed2(n: number, digits = 4) {
 }
 
 export function asMB(n: number) {
-  return n != null ? `${localeFixed2(n / 1e6, 2)} MB` : "-"
+  return n != null ? `${localeFixed2(n / 1e6, 2)} MB` : "-";
 }
 
-export const pngDataPrefix = "data:image/png;base64,"
+export const pngDataPrefix = "data:image/png;base64,";
 
 /**
  * The version and build number XPedia prints, such as `3.0.0-alpha.6 #42`.
@@ -334,7 +336,8 @@ export function clearHash() {
     history.replaceState(history.state, "", location.pathname + location.search);
 }
 
-export const last = (list: any[]) => list[list.length - 1];
+/** The last element of a list, `undefined` when it is empty */
+export const last = <T>(list: T[]) => list[list.length - 1];
 
 /**
  * Image bytes for a sprite, when the host application provides them.

@@ -7,7 +7,7 @@ import {
 } from "../rul/Ruleset";
 import { Val } from "./Val";
 import { SoundRef } from "./Audio";
-import { Attack, Entry } from '../rul/Entry';
+import { Attack, Entry, Item } from '../rul/Entry';
 import { Img, Nobr, SecondaryTable, AlterList, SpecialBonus } from './components';
 import { state, update } from '../state';
 import MainTable, { MainTableRenderer } from './MainTable';
@@ -27,7 +27,7 @@ const Damage = ({ attack }: { attack: Attack }) =>
         <Val of={damageTypes[attack.damageType]} />
       )}
     </>
-  )
+  );
 
 /** Fields shown before the "See details" button, in the order old `Item.svelte`
  *  listed them */
@@ -101,7 +101,7 @@ const bonusFields = [
 ];
 
 /** Header of the item table: weight, size, shots and battle type */
-const ItemHeader = ({ entry }: { entry: any }) => <>
+const ItemHeader = ({ entry }: { entry: Item }) => <>
   {entry.weight ? entry.weight + rul.tr("kg") : ""}&nbsp;
   {entry.invSize}&nbsp;
   {entry.clipSize > 0 ? entry.clipSize + rul.tr("-shot") : ""}&nbsp;
@@ -110,7 +110,7 @@ const ItemHeader = ({ entry }: { entry: any }) => <>
 </>;
 
 /** One process that uses the item as a component, as two rows plus a divider */
-const ManufactureRows = ({ entry, man }: { entry: any, man: string }) => {
+const ManufactureRows = ({ entry, man }: { entry: Item, man: string }) => {
   let m = rul.manufacture[man];
   return <>
     <tr>
@@ -136,7 +136,7 @@ const ManufactureRows = ({ entry, man }: { entry: any, man: string }) => {
 
 /** The item's attack modes, with accuracy, cost and damage per mode */
 const AttacksTable = ({ entry, attacks, hand1bonus }: {
-  entry: any, attacks: Attack[], hand1bonus: React.ReactNode
+  entry: Item, attacks: Attack[], hand1bonus: React.ReactNode
 }) => <table className="attacks-table">
   <thead>
     <tr>
@@ -229,7 +229,7 @@ const AttacksTable = ({ entry, attacks, hand1bonus }: {
   </tbody>
 </table>;
 
-const ItemComponent = ({ entry }: { entry: Entry }) => {
+const ItemComponent = ({ entry }: { entry: Item }) => {
   const attacks = entry.attacks().slice();
   const ohpen = entry.oneHandedPenalty || entry.battleType == 3 ? 67 : 50;
 
@@ -266,7 +266,7 @@ const ItemComponent = ({ entry }: { entry: Entry }) => {
   // each with its icon, instead of the bare numbers
   special.damageTypes = ({ val }) =>
     <Val of={(Array.isArray(val) ? val : [val])
-      .map((i: any) => damageTypes[Number(i)])
+      .map((i: unknown) => damageTypes[Number(i)])
       .filter(Boolean)} />;
 
   special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val])}`;
@@ -291,7 +291,7 @@ const ItemComponent = ({ entry }: { entry: Entry }) => {
       ? <Val of={val} />
       : <table className="item-manufacture">
         <tbody>
-          {val.map((man: any, i: number) => <ManufactureRows key={i} entry={entry} man={man} />)}
+          {val.map((man: string, i: number) => <ManufactureRows key={i} entry={entry} man={man} />)}
         </tbody>
       </table>}
   </SecondaryTable>;
@@ -313,7 +313,7 @@ const ItemComponent = ({ entry }: { entry: Entry }) => {
     ? sorted.first
     : [
       ...sorted.first,
-      ["_details", null] as [string, any],
+      ["_details", null],
       ...(state.anal ? hidden : []),
     ];
 
@@ -355,7 +355,7 @@ const ItemComponent = ({ entry }: { entry: Entry }) => {
 
 export default ItemComponent;
 
-export const UseCost = ({ cost, flatTime }: any) => {
+export const UseCost = ({ cost, flatTime }: { cost?: { time: number, [resource: string]: number }, flatTime?: boolean }) => {
   if (!cost) {
     return null;
   }

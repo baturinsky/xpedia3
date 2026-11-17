@@ -2529,6 +2529,25 @@ a.services {
   stroke-width: 2.5;
 }
 
+/* An "anywhere" stop: the game puts it at a random point on the globe, so the
+   marker sits in the middle of the sea and is ringed. Without the ring it would
+   read as a real place off the coast of Africa, which is the one thing it is not;
+   the ring is a hole around it instead of another colour, because the fill already
+   means "which zone". The marker itself stays solid — a dashed marker inside a
+   dashed ring is two rings and reads as neither. */
+.region-path .region-stop-anywhere .region-stop {
+  fill-opacity: .55;
+}
+
+.region-stop-ring {
+  fill: none;
+  stroke: var(--zone-color, var(--region-color, #ffd24a));
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 /* The stop number. Plain SVG text, so it cannot go through `Tr`. Sized in map
    units like the markers, so a label keeps its relation to the stop it belongs to
    when the map is magnified. */
@@ -2625,11 +2644,6 @@ a.services {
   cursor: pointer;
 }
 
-.trajectory-region-count {
-  opacity: .7;
-  font-size: 90%;
-}
-
 /* The flight as a strip: stop, leg, stop, leg, … in flight order.
    A chip-per-zone row said which zones existed; this says what the UFO did, which
    is what the picture above it says too. It scrolls sideways rather than wrapping,
@@ -2645,6 +2659,35 @@ a.services {
   /* The row is wider than the column on a long path, and a scrollbar under a
      short strip reads as a broken layout, so it is only reserved when needed */
   scrollbar-width: thin;
+}
+
+/* The strip and the mark that says "read the note below". The strip is the wide
+   part and scrolls on its own, so the mark keeps its place at the end of the row
+   however far the strip has been scrolled. */
+.trajectory-flight-foot {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+}
+
+.trajectory-flight-foot .trajectory-flight {
+  /* Without this the strip's long row would push the mark off the page instead
+     of scrolling inside its own box */
+  min-width: 0;
+}
+
+.trajectory-footnote-mark {
+  flex: none;
+  opacity: .7;
+  font-size: 85%;
+}
+
+/* The notes under the picture, which read as footnotes to it rather than as
+   paragraphs of their own */
+.trajectory-notes {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
 }
 
 /* A button, because pressing a stop pins its zone on the map: a touch screen has
@@ -2746,13 +2789,20 @@ a.services {
   }
 }
 
-/* A zone colour sample, matching the boxes drawn on the map */
+/* A zone colour sample, matching the boxes drawn on the map. Round by default
+   because the shape carries a second fact, the same one the map's markers carry:
+   a circle is a stop in the air, a square is a landing. */
 .trajectory-zone-swatch {
   display: inline-block;
   width: .9rem;
   height: .9rem;
   border: solid 1px var(--border);
+  border-radius: 50%;
   background: var(--zone-color, #ffd24a);
+}
+
+.trajectory-zone-swatch-land {
+  border-radius: 0;
 }
 
 /* What the line drawing means. The samples are the real drawing functions, so the
@@ -2790,10 +2840,13 @@ a.services {
   stroke: none;
 }
 
-.trajectory-legend-note {
-  flex-basis: 100%;
-  margin: 0;
-  opacity: .9;
+/* An "anywhere" stop in the legend: the same dotted ring the map draws, so the
+   legend and the picture are one convention rather than two */
+.trajectory-legend-sample .trajectory-legend-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
 }
 
 /* A checkbox that changes what the map above it draws. It reads as a caption

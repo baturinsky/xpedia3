@@ -1,3 +1,4 @@
+import type { MissionScript } from "../rul/Entry";
 import MainTable, { MainTableRenderer } from "./MainTable";
 import { Tr, Val } from "./Val";
 import { formatDelay, formatMinutes } from "./timing";
@@ -17,7 +18,7 @@ import { calendarMonth, monthWindow, researchGate, runLimit, scriptDelay } from 
  */
 
 /** The month window as a sentence, or nothing when the script never stops */
-function MonthRow({ entry }: { entry: any }) {
+function MonthRow({ entry }: { entry: MissionScript }) {
   let window = monthWindow(entry);
   let first = calendarMonth(window.first);
   let last = calendarMonth(window.last);
@@ -72,7 +73,7 @@ function MonthRow({ entry }: { entry: any }) {
 }
 
 /** The delay before the first wave, and what a delay of zero really means */
-function DelayRow({ entry }: { entry: any }) {
+function DelayRow({ entry }: { entry: MissionScript }) {
   let delay = scriptDelay(entry);
   if (entry?.startDelay == null && entry?.randomDelay == null)
     return null;
@@ -106,7 +107,7 @@ function DelayRow({ entry }: { entry: any }) {
 }
 
 /** How often the script is even offered the chance to run */
-function OddsRow({ entry }: { entry: any }) {
+function OddsRow({ entry }: { entry: MissionScript }) {
   if (entry?.executionOdds == null || Number(entry.executionOdds) == 100)
     return null;
   return <tr>
@@ -119,7 +120,7 @@ function OddsRow({ entry }: { entry: any }) {
 }
 
 /** The run cap, which counts created missions rather than months */
-function RunsRow({ entry }: { entry: any }) {
+function RunsRow({ entry }: { entry: MissionScript }) {
   let limit = runLimit(entry);
   if (!limit.limited)
     return null;
@@ -139,7 +140,7 @@ function RunsRow({ entry }: { entry: any }) {
  * be, and it is the half a reader is most likely to miss, so the two are listed
  * separately rather than merged into one list of ids.
  */
-function ResearchRow({ entry }: { entry: any }) {
+function ResearchRow({ entry }: { entry: MissionScript }) {
   let gate = researchGate(entry);
   if (!gate)
     return null;
@@ -170,7 +171,7 @@ function ResearchRow({ entry }: { entry: any }) {
  * look like this", so their wording belongs together: a pack that lists three of
  * them would otherwise produce three near-identical notes.
  */
-function TriggerRows({ entry }: { entry: any }) {
+function TriggerRows({ entry }: { entry: MissionScript }) {
   let groups: { key: string, field: string }[] = [
     { key: "xpediaScriptItems", field: "itemTriggers" },
     { key: "xpediaScriptFacilities", field: "facilityTriggers" },
@@ -206,7 +207,7 @@ function TriggerRows({ entry }: { entry: any }) {
 }
 
 /** The score, funds and difficulty windows the script is limited by */
-function LimitsRow({ entry }: { entry: any }) {
+function LimitsRow({ entry }: { entry: MissionScript }) {
   let parts: { key: string, field: string, format: (v: any) => any }[] = [
     { key: "xpediaScriptMinScore", field: "minScore", format: v => v },
     { key: "xpediaScriptMaxScore", field: "maxScore", format: v => v },
@@ -235,7 +236,7 @@ function LimitsRow({ entry }: { entry: any }) {
  * The mission table row: `useTable` decides whether a mission this script creates
  * is struck off the region's table until every region has been drained.
  */
-function TableRow({ entry }: { entry: any }) {
+function TableRow({ entry }: { entry: MissionScript }) {
   if (entry?.useTable !== false)
     return null;
   return <tr>
@@ -253,7 +254,7 @@ function TableRow({ entry }: { entry: any }) {
 const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
 
 /** Mission script table: the schedule, with the timing fields spelled out */
-export default function MissionScriptComponent({ entry }: { entry: any }) {
+export default function MissionScriptComponent({ entry }: { entry: MissionScript }) {
   return <MainTable
     of={entry}
     title="MISSION_SCRIPTS"

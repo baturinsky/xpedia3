@@ -1,0 +1,14 @@
+{
+  "//": "Type-checks the files that live outside src/: the Vite config and the build scripts. They are plain .mjs/.ts, so nothing here is compiled, only checked.",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts", "scripts/version.mjs"]
+}

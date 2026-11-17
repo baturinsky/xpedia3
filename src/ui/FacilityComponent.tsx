@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from "react";
 import { rul } from "../rul/Ruleset";
-import MainTable from "./MainTable";
+import type { Facility } from "../rul/Entry";
+import MainTable, { MainTableRenderer } from "./MainTable";
 import { Img, spriteScale, usePixelRatio } from "./components";
 import { Val } from "./Val";
 import { emptyImg } from "../imgPlaceholders";
@@ -48,11 +49,13 @@ function FacilitySprite(props: { size: number, prop: number, bottom?: boolean })
   </div>;
 }
 
-export default function FacilityComponent({ entry }: { entry: any }) {
+export default function FacilityComponent({ entry }: { entry: Facility }) {
   let [seeStorageTiles, setSeeStorageTiles] = useState(false);
   let size = entry.size || 1;
 
-  let buildCostItems = ({ val: prop }: { val: any }) =>
+  // `MainTableRenderer` hands every renderer its value as `any`, so the shape of
+  // a ruleset node is the renderer's own business
+  let buildCostItems: MainTableRenderer = ({ val: prop }) =>
     !prop ? null : Object.keys(prop).sort().map((field, i) =>
       <span key={field}>
         {i != 0 && <br />}
@@ -60,7 +63,7 @@ export default function FacilityComponent({ entry }: { entry: any }) {
       </span>
     );
 
-  let storageTiles = ({ val: prop }: { val: any }) =>
+  let storageTiles: MainTableRenderer = ({ val: prop }) =>
     !prop ? null : <div>
       <div>
         <button className="button" onClick={() => setSeeStorageTiles(!seeStorageTiles)}>
@@ -76,7 +79,7 @@ export default function FacilityComponent({ entry }: { entry: any }) {
       </div>
     </div>;
 
-  let sprites = ({ val: prop }: { val: any }) =>
+  let sprites: MainTableRenderer = ({ val: prop }) =>
     prop == null ? null
       : entry.spriteFacility
         ? <>
