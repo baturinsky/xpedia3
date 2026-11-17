@@ -1093,8 +1093,8 @@ export function RegionMapArticle({ region }: { region: Region }) {
   // have nothing to draw — its zones may be missing here, or empty — so the
   // ones the map leaves out are marked rather than leaving a gap in the picture
   // unexplained.
-  let shapes = useMemo(() => new Map(paths.map(path => [path.id, pathShape(path, region)])), [paths, region]);
-  let undrawn = paths.filter(path => shapes.get(path.id)!.stops.length == 0);
+  let shapes = useMemo(() => new Map(paths.map(path => [path.uid, pathShape(path, region)])), [paths, region]);
+  let undrawn = paths.filter(path => shapes.get(path.uid)!.stops.length == 0);
 
   // A region can host hundreds of missions and most of them are background: in
   // XFiles every weighted region is a candidate for any script that names no
@@ -1120,9 +1120,9 @@ export function RegionMapArticle({ region }: { region: Region }) {
     {paths.length > 0 && <div className="region-paths">
       <div className="world-map-legend-title"><Tr text="xpediaTrajectories" /></div>
       <ul>
-        {paths.map(path => <li key={path.id} onPointerEnter={() => setHighlight(path.id)}
-          onPointerLeave={() => setHighlight(current => current == path.id ? undefined : current)}>
-          <a href={pageFor(path.id) ?? undefined}>{path.id}</a>
+        {paths.map(path => <li key={path.uid} onPointerEnter={() => setHighlight(path.uid)}
+          onPointerLeave={() => setHighlight(current => current == path.uid ? undefined : current)}>
+          <a href={pageFor(path.uid) ?? undefined}>{path.uid}</a>
           <span className="world-map-count">{(path.waypoints ?? []).length}</span>
           {undrawn.includes(path) && <span className="world-map-unplaced-mark">
             <Tr text="xpediaPathUnplaced" />
@@ -1326,7 +1326,7 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
   // flight can be flown in it, the first region offered otherwise, and never
   // write the memory back, so a flight with a narrow choice of regions does not
   // erase the broader choice made on another one.
-  let region = remembered(regions, r => r.id == state.selection.region, regions[0]);
+  let region = remembered(regions, r => r.uid == state.selection.region, regions[0]);
 
   // The region's own outline (`areas`) is not drawn here. It answers "is this
   // point in this region", which the region page is about and this one is not:
@@ -1385,11 +1385,11 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
         hides how many there are */}
     <fieldset className="trajectory-region">
       <legend><Tr text="xpediaChooseRegion" /></legend>
-      {regions.map(r => <label key={r.id} className="trajectory-region-choice">
-        <input type="radio" name="trajectory-region" value={r.id}
-          checked={r.id == region.id}
-          onChange={() => rememberSelection("region", r.id)} />
-        {rul.tr(r.id)}
+      {regions.map(r => <label key={r.uid} className="trajectory-region-choice">
+        <input type="radio" name="trajectory-region" value={r.uid}
+          checked={r.uid == region.uid}
+          onChange={() => rememberSelection("region", r.uid)} />
+        {rul.tr(r.uid)}
       </label>)}
     </fieldset>
     {/* The flight in order, with the move between each pair of stops drawn in the

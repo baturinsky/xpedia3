@@ -238,7 +238,7 @@ export function trajectoryPath(trajectory: UfoTrajectory, region: Region): Overl
     return;
   let speeds = pathSpeeds(trajectory);
   return {
-    id: trajectory.id,
+    id: trajectory.uid,
     stops: shape.stops,
     // A leg's speed is a percentage of the craft's top speed, and a path may be
     // flown by several craft. The mean is what the drawing can show in one line.
@@ -262,8 +262,8 @@ export function trajectoryPath(trajectory: UfoTrajectory, region: Region): Overl
 export function regionOverlay(region: Region, paths: UfoTrajectory[] = [],
   { outline = true }: { outline?: boolean } = {}): Overlay {
   return {
-    id: region.id,
-    color: regionColor(region.id),
+    id: region.uid,
+    color: regionColor(region.uid),
     areas: outline ? region.areas : undefined,
     zones: region.missionZones,
     paths: paths
@@ -427,9 +427,9 @@ export function legColor(index: number) {
  */
 export function pathSpeeds(trajectory: UfoTrajectory): { min: number, max: number } | undefined {
   let values: number[] = [];
-  for (let mission of rul.missionsFlying(trajectory.id))
+  for (let mission of rul.missionsFlying(trajectory.uid))
     for (let wave of rul.alienMissions?.[mission]?.waves ?? []) {
-      if (wave?.trajectory != trajectory.id)
+      if (wave?.trajectory != trajectory.uid)
         continue;
       let speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
       // A `speedMax` of 0 is a craft that does not move, and packs do carry

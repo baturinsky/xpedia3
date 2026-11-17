@@ -5,7 +5,7 @@ import * as util from "../util";
 import { Section } from './Section';
 import { Sprite } from './Sprite';
 import { Article } from './Article';
-import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, Music, MissionScript, Research, Soldiers, SoldierBonus, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry, Region, UfoTrajectory, InventorySection } from './Entry';
+import { EventEntry, Commendation, DamageType, Entry, EventScript, Manufacture, Music, MissionScript, Research, Soldiers, SoldierBonus, SoldierTransformation, AlienDeployment, Armor, Attack, Craft, CraftWeapon, Facility, Item, StartingConditions, Unit, SimpleEntry, Region, UfoTrajectory, InventorySection, entryKey, stampUid } from './Entry';
 import { emptyImg } from '../imgPlaceholders';
 
 export let rul!: Ruleset;
@@ -335,7 +335,7 @@ export default class Ruleset {
       return [];
 
     let chosen = new Set<string>();
-    for (let mission of this.missionsFlying(path.id))
+    for (let mission of this.missionsFlying(path.uid))
       for (let script of this.scriptsSelecting([mission])) {
         let weights = this.missionScripts?.[script]?.regionWeights;
         let names = regionNamesOf(weights);
@@ -355,14 +355,14 @@ export default class Ruleset {
     return [...chosen]
       .map(id => this.regions?.[id])
       .filter(region => path.fits(region))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      .sort((a, b) => a.uid.localeCompare(b.uid));
   }
 
   /** Regions the strategy may pick a mission in: the ones with a weight */
   weightedRegions() {
     return Object.values(this.regions ?? {})
       .filter(region => region.regionWeight != null && region.regionWeight > 0)
-      .map(region => region.id);
+      .map(region => region.uid);
   }
 
   /** Ids of the alien missions whose waves fly this trajectory */
@@ -371,7 +371,7 @@ export default class Ruleset {
     for (let mission of Object.values(this.alienMissions ?? {}))
       for (let wave of mission.waves ?? [])
         if (wave?.trajectory == trajectory) {
-          out.push(mission.id);
+          out.push(mission.uid);
           break;
         }
     return out;
@@ -383,7 +383,7 @@ export default class Ruleset {
     for (let script of Object.values(this.missionScripts ?? {}))
       for (let mission of regionNamesOf(script.missionWeights))
         if (wanted.has(mission)) {
-          out.push(script.id);
+          out.push(script.uid);
           break;
         }
     return out;
@@ -396,7 +396,7 @@ export default class Ruleset {
       return [];
     return Object.values(this.ufoTrajectories ?? {})
       .filter(path => path.fits(target))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      .sort((a, b) => a.uid.localeCompare(b.uid));
   }
 
   /**
@@ -418,8 +418,8 @@ export default class Ruleset {
     let weighted = region.regionWeight != null && region.regionWeight > 0;
     let out: MissionScript[] = [];
     for (let script of Object.values(this.missionScripts ?? {})) {
-      let names = regionNamesOf(script.regionWeights);
-      if (names.has(region.id) || (weighted && !names.size))
+        let names = regionNamesOf(script.regionWeights);
+      if (names.has(region.uid) || (weighted && !names.size))
         out.push(script);
     }
     return out;
@@ -451,7 +451,7 @@ export default class Ruleset {
         counts.set(id, (counts.get(id) ?? 0) + 1);
 
     let out: { mission: string, regionCount: number }[] = [];
-    for (let id of reach.get(target.id) ?? [])
+    for (let id of reach.get(target.uid) ?? [])
       out.push({ mission: id, regionCount: counts.get(id) ?? 1 });
     // Rarest first, so the missions that distinguish the region lead; ties keep
     // a stable, predictable order rather than the pack's own
@@ -467,7 +467,7 @@ export default class Ruleset {
         for (let script of this.missionScriptsFor(region))
           for (let mission of regionNamesOf(script.missionWeights))
             missions.add(mission);
-        reach.set(region.id, missions);
+        reach.set(region.uid, missions);
       }
       this._missionReach = reach;
     }
@@ -594,7 +594,15 @@ export default class Ruleset {
           let rawCategory = file[categoryName];
           if (Array.isArray(rawCategory)) {
             for (let data of rawCategory) {
-              let id = categoryId(categoryName, data);
+              // Stamped here, before the block is merged or filed, so the guess
+              // is made once and the merge key, the entry id and the `uid` the
+              // block carries are one value
+              let id = stampUid(categoryName, data);
+              // A block that names nothing cannot be merged into the table: it
+              // would land under an empty key and the next such block would
+              // overwrite it
+              if (!id)
+                continue;
               if (data.delete) {
                 delete category[id];
                 continue;
@@ -613,6 +621,16 @@ export default class Ruleset {
               }
             }
           } else {
+            // The object form is keyed by id already, so the key is the uid. Only
+            // real entry tables are stamped: `ufopaedia`, `globe` and the other
+            // object-form singletons are not table rows and have no addressable
+            // identity to carry.
+            if (categoryName in entryConstructors)
+              for (let id in rawCategory) {
+                let block = rawCategory[id];
+                if (block != null && typeof block == "object" && !Array.isArray(block) && !block.uid)
+                  stampUid(categoryName, Object.assign(block, { uid: id }));
+              }
             Object.assign(category, rawCategory);
           }
         }
@@ -824,7 +842,7 @@ export default class Ruleset {
       new Section("ATTACKS", true);
 
     let all: { [option: string]: string[] } = {
-      Armors: Object.values(this.armors).filter(a => a.units).map(a => a.id),
+      Armors: Object.values(this.armors).filter(a => a.units).map(a => a.uid),
       SoldierTypes: Object.keys(rul.soldiers),
       Vehicles: Object.keys(rul.units).filter(k => rul.items[k]?.battleType == 3),
       Craft: Object.keys(rul.crafts)
@@ -1527,26 +1545,10 @@ export const internalBattleTypes = [
 export const battleStats = ["time", "energy", "morale", "health", "stun", "mana"];
 
 
-/**
- * The name that identifies one entry of a ruleset table.
- *
- * The format uses `type` for the id in most tables (a `ufos:` entry is
- * `{ type: STR_UFO }`) and `id` in others, so both are tried. `type` comes
- * first, which is the order the game itself reads them in.
- *
- * `invs` is the exception: an inventory section has a string `id` and a
- * *numeric* `type` (the engine's `InventoryType`, 0/1/2), so keying it by
- * `type` would collapse every section of the same kind into one entry. There the
- * two fields mean different things, and `id` is the name.
- */
-export function categoryId(category: string, data: any) {
-  if (category == "invs")
-    return data.id || data.type || data.name || data.delete || data.typeSingle;
-  return data.type || data.id || data.name || data.delete || data.typeSingle;
-}
+export { entryKey, rawId, stampUid, unknownIdFields } from './Entry';
 
 export function backLink2(entry: Entry, list: string[] | { [key: string]: any }, to: any, field: string, field2: string) {
-  backLink(entry.id, list, to, field);
+  backLink(entry.uid, list, to, field);
   addAllIfNew(entry[field2], list as any);
 }
 
@@ -1614,8 +1616,8 @@ function crosslink(
   prop2: string,
   prefix?: string) {
   let f = typeof prop1 === "function" ? prop1 : (t: any) => t[prop1];
-  for (let t of [...Object.values(collection1)] as { id: string }[]) {
-    backLink(t.id, f(t), collection2, prop2, prefix);
+  for (let t of [...Object.values(collection1)] as Entry[]) {
+    backLink(t.uid, f(t), collection2, prop2, prefix);
   }
 }
 

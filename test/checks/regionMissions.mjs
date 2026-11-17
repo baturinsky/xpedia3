@@ -49,13 +49,13 @@ function expectedMissions(rul) {
       let named = idsIn(script.regionWeights);
       // No script-level choice means the strategy's weighted table, so every
       // weighted region is a candidate
-      let reaches = named.size ? named.has(region.id) : weighted;
+      let reaches = named.size ? named.has(region.uid) : weighted;
       if (!reaches)
         continue;
       for (let mission of idsIn(script.missionWeights))
         missions.add(mission);
     }
-    expected.set(region.id, missions);
+    expected.set(region.uid, missions);
   }
   return expected;
 }

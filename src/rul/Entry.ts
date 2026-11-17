@@ -17,9 +17,196 @@ import {
  */
 export type RawEntry = { id?: string, [field: string]: any };
 
+/**
+ * The field a collection names its blocks with, for the collections that do not
+ * use `type`.
+ *
+ * Extracted from `Mod::loadFile` in the engine (`OpenXcomExMore-oxce-plus-more`,
+ * `src/Mod/Mod.cpp`), which calls `iterateRules` once per table with the field
+ * that names its blocks: `iterateRules("items", "type")`,
+ * `iterateRules("research", "name")`, `iterateRules("invs", "id")` and so on.
+ * Everything not listed here is named by `type`, which is the engine's default
+ * too. Keeping the engine's own list means the pedia files a block where the
+ * game does, rather than by a precedence that only happens to agree with it.
+ */
+const idField: { [collection: string]: "id" | "name" | "type" } = {
+  invs: "id",
+  ufoTrajectories: "id",
+  alienRaces: "id",
+  research: "name",
+  terrains: "name",
+  manufacture: "name",
+  manufactureShortcut: "name",
+  soldierBonuses: "name",
+  soldierTransformation: "name",
+  startingBaseSets: "name",
+  events: "name",
+};
+
+const identityFieldName = /^(uid|id|ident|identifier|key)$/i;
+
+/**
+ * Whether a field name ends in a word that means "identity".
+ *
+ * Only used for a collection the id-field table above does not know, which means
+ * a pack or a newer engine named a table's blocks with a field this pedia has
+ * never seen.
+ *
+ * Written as cases rather than one expression because the spellings a ruleset
+ * uses are not interchangeable with ordinary words: `objId` and `object_id` both
+ * mean identity, while `valid` and `grid` merely end in the same two letters.
+ * The difference is a word boundary — a capital, an underscore or the whole
+ * name — not the letters themselves.
+ */
+function namesIdentity(field: string) {
+  if (identityFieldName.test(field))
+    return true;
+  // `objId`, `unitID`: a capital `I` marks the start of the word
+  if (/[a-z]I[dD]$/.test(field))
+    return true;
+  // `object_id`, `object_ID`: an underscore separates it
+  if (/_id$/i.test(field))
+    return true;
+  // `idString`-style prefix, which some engine fields use
+  return /^id[A-Z_]/.test(field);
+}
+
+/** Fields that never name a block, whatever their spelling */
+const neverIdentity = new Set(["delete", "typeSingle", "modDir", "fileSingle", "path", "dir"]);
+
+/**
+ * Fields a block's identity was guessed from, keyed by `collection.field`.
+ *
+ * A guess is a pack the pedia only half understands, so it is remembered rather
+ * than silently applied: `unknownIdFields()` reports what was guessed at, which
+ * is how a genuinely new naming field in a future ruleset gets noticed instead
+ * of quietly filing entries under the wrong name.
+ */
+const guessedIdFields = new Map<string, string>();
+
+/** The `collection.field` pairs the id was guessed from, e.g. `items.objId` */
+export function unknownIdFields(): string[] {
+  return [...guessedIdFields.keys()].sort();
+}
+
+/**
+ * The one field of an unknown collection that plausibly names the block.
+ *
+ * Returns `undefined` when nothing qualifies or when more than one does, since
+ * picking between several candidates would be inventing an identity rather than
+ * reading one.
+ */
+function guessIdentityField(raw: RawEntry): string | undefined {
+  let candidates = Object.keys(raw ?? {}).filter(field => {
+    if (neverIdentity.has(field))
+      return false;
+    if (!namesIdentity(field))
+      return false;
+    let value = raw[field];
+    return typeof value == "string" && value !== "";
+  });
+  return candidates.length == 1 ? candidates[0] : undefined;
+}
+
+
+/**
+ * The identifier exactly as the file writes it.
+ *
+ * This reads the one field the collection declares and nothing else, so it
+ * answers "what did the author call this block" rather than "what is this entry
+ * keyed by". The two differ: a pack may put `{ name: ... }` in a `type`
+ * collection, which the game does not accept, and `entryKey` then resolves a key
+ * the file never states. Anything that reports on the pack — a warning about a
+ * block the game would ignore — wants this value, because inventing a key would
+ * describe a pack that is not the one on disk.
+ *
+ * Returns `undefined` when the declared field is absent, which is the honest
+ * answer for a block that names itself with a spelling its collection does not
+ * read.
+ */
+export function rawId(collection: string, raw: RawEntry): string | undefined {
+  let field = idField[collection] ?? "type";
+  let value = raw?.[field];
+  return value == null ? undefined : value as string;
+}
+
+/**
+ * The key an entry is filed and merged under.
+ *
+ * This is the pedia's identification value: it is resolved from whichever
+ * spelling the block used, so a `{ name: ... }` block in a `type` collection
+ * still gets a key.
+ *
+ * This runs once per block, while the mod rules are merged, and the winner is
+ * stamped onto the block as `uid`. Everything after that point reads `uid`
+ * instead of resolving again, so the key an entry is merged under, the key it is
+ * filed under, and the identity it carries are the same value by construction
+ * rather than by three pieces of code agreeing.
+ *
+ * Order: the field the collection declares (`rawId`), then the common spellings
+ * as a tolerance for packs that mix them, then a last-resort guess for a
+ * collection this build does not know. `delete` is near the end: a
+ * `- delete: STR_X` block has no identity of its own, and the name it carries is
+ * the block it removes.
+ */
+export function entryKey(collection: string, raw: RawEntry): string {
+  // Already resolved, e.g. when a block is merged more than once
+  let stamped = raw?.uid;
+  if (typeof stamped == "string" && stamped !== "")
+    return stamped;
+
+  let written = rawId(collection, raw);
+  if (written != null)
+    return written;
+
+  let aliases = ["id", "type", "name", "delete", "typeSingle"];
+  for (let field of aliases) {
+    let value = raw?.[field];
+    if (value != null)
+      return value as string;
+  }
+
+  // A collection this build has no rule for: guess from the field names, and
+  // record it so `unknownIdFields()` can report what was assumed
+  let guessed = guessIdentityField(raw);
+  if (guessed != null) {
+    guessedIdFields.set(`${collection}.${guessed}`, guessed);
+    return raw[guessed] as string;
+  }
+
+  // Nothing names this block. An entry without a key is not a table row: the
+  // callers drop it rather than filing it under `undefined`
+  return "";
+}
+
+/**
+ * Resolves a block's key and records it on the block as `uid`.
+ *
+ * Called while the mod rules are merged, before anything reads an id, which is
+ * what makes the guess happen once. A block with no key is left unstamped: the
+ * caller drops it rather than filing it under `""`.
+ */
+export function stampUid(collection: string, raw: RawEntry): string {
+  let uid = entryKey(collection, raw);
+  if (raw != null && typeof raw == "object" && uid !== "")
+    raw.uid = uid;
+  return uid;
+}
+
 /** Root class for all ruleset entries */
 export class Entry {
-  id: string = "";
+  /**
+   * The identifier the block wrote, left as it was in the file.
+   *
+   * Only present when the pack actually stated one: a `name`-keyed block has no
+   * `id` at all, which is the honest answer rather than a copy of the uid. The
+   * uid is the key to file and look up by; this is evidence, not identity.
+   *
+   * Nothing reads this to answer "which entry is this" any more — `uid` does
+   * that. It survives because it is the one remaining record of what the file
+   * actually said, which is what a diagnostic or an exporter needs.
+   */
+  declare id: string;
   /**
    * Armor types that list this entry in their `units`.
    *
@@ -37,6 +224,24 @@ export class Entry {
    * entry that is rendered raw, e.g. the "Final bonus" row of a commendation.
    */
   collection!: string;
+  /**
+   * The identity stamped on the block while the mod rules were merged.
+   *
+   * Unique **within this entry's table only**, which is the same guarantee the
+   * engine gives: `Mod::loadFile` files each table separately, so one name can
+   * be a craft weapon and a research project at once. XPiratez has 5083 names
+   * that repeat across its tables.
+   *
+   * Kept as a real field so the entry and the block it came from agree, and so
+   * anything holding a raw node can still ask it what it is.
+   *
+   * This is deliberately *not* the same value as `id`: `id` is what the file
+   * wrote, `uid` is what the pedia filed. Where the two differ, the uid is the
+   * one to build on.
+   *
+   * For a value that is unique across the whole pack, use `globalId`.
+   */
+  declare uid: string;
   [id: string]: any;
 
   constructor(collection: string) {
@@ -46,25 +251,43 @@ export class Entry {
       writable: true,
       configurable: true,
     });
+    // Same reasoning as `collection`: a row of every entry drawn raw would be
+    // noise, and the table's identity column already says what this is
+    Object.defineProperty(this, "uid", {
+      value: "",
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
   }
 
   from(raw: RawEntry) {
-    // A block may be named by `type` (items, units) or by `name` (research,
-    // terrains, manufacture) rather than `id`, and `from` relies on those setters
-    // to fill the id in while the fields are copied. `set name` only does that
-    // while the id is still unset, so seeding it with `""` blocked it and keyed
-    // the whole collection by one empty id: every research project, terrain and
-    // manufacture collapsed into a single entry, and the blank article those
-    // blocks created was what the pedia's arrows linked to.
-    this.id = raw.id as string;
+    // The uid is the key the block was merged and filed under, resolved once
+    // while the mod rules were merged. It is settled before the copy because the
+    // copy must not be able to move it: several collections name their blocks
+    // `type`, and copying that field runs `set type`.
+    let uid = raw?.uid ?? entryKey(this.collection, raw);
     raw = JSON.parse(JSON.stringify(raw));
     for (let k in raw)
       this[k] = raw[k];
 
+    // `id` is left exactly as the file wrote it. It is what the block called
+    // itself, which is not always the uid: a `name`-keyed block has no `id` at
+    // all, and a block stating both `id` and `type` keeps its own `id` while the
+    // entry is filed under `type`. Writing the uid here would overwrite that
+    // evidence with the pedia's own conclusion.
+    this.uid = uid;
+
+    // A block that names itself with nothing is not a table row. Filing it under
+    // `""` is what used to collapse a whole table into one blank entry and
+    // create an article with no id to link to, so it is dropped instead.
+    if (!uid)
+      return this;
+
     let tables = rul as unknown as { [collection: string]: { [id: string]: Entry } };
     tables[this.collection] ??= {};
 
-    tables[this.collection][this.id] = this;
+    tables[this.collection][uid] = this;
 
     this.addToSection(camelToUnderscore(this.collection).toUpperCase());
 
@@ -72,7 +295,10 @@ export class Entry {
   }
 
   addToSection(section: string) {
-    Article.create(this.id, section);
+    // Keyed by `uid`, not by the as-written `id`: the article is the page that
+    // gathers every table's view of one thing, and a `name`-keyed block has no
+    // `id` at all
+    Article.create(this.uid, section);
   }
 
   /**
@@ -80,19 +306,40 @@ export class Entry {
    *
    * `filter` is either the value the table's filter selected, or `true` when a
    * column wants its own unfiltered value rather than a yes/no answer.
+   *
+   * `"id"` is the table's identity column: the header states no such field, it is
+   * always shown, and it names the row. It answers with the uid, not with the
+   * literal `id` the block wrote, because most blocks state no `id` at all and
+   * the column would then be empty.
    */
   sortField(field: string, filter?: string | boolean) {
     if (field == "id" && !filter)
       return this.title;
+    if (field == "id")
+      return this.uid;
     return this[field];
   }
 
   get title() {
-    return rul.tr(this.id);
+    return rul.tr(this.uid);
+  }
+
+  /**
+   * The entry's identity across the whole ruleset, as `collection:uid`.
+   *
+   * `uid` alone is only unique inside its own table: a pack routinely uses one
+   * name for several kinds of thing, so `STR_STINGRAY` can be both a craft
+   * weapon and a research project, and XPiratez does exactly that. The
+   * collection is what makes the pair globally unique, which is the form to use
+   * anywhere entries of different tables meet — a cross-collection map key, a
+   * log line, or a value shown to the reader.
+   */
+  get globalId() {
+    return `${this.collection}:${this.uid}`;
   }
 
   static reserve(raw: RawEntry, collection: string) {
-    let id = raw.id ?? raw.type ?? raw.name;
+    let id = entryKey(collection, raw);
     // Entries are registered on `rul` under their collection name, and the
     // table is created on first use
     let table: { [id: string]: Entry } | undefined =
@@ -104,21 +351,29 @@ export class Entry {
     }
   }
 
+  /**
+   * `name` and `type` are the pack's other spellings for the same thing `uid`
+   * carries, so they read and write the uid rather than the as-written `id`.
+   *
+   * The distinction matters because identity code uses these accessors: a
+   * backlink, a service index or an armor's user list wants the entry it was
+   * filed under, not the literal field the block happened to state.
+   */
   get name() {
-    return this.id;
+    return this.uid;
   }
 
   set name(val) {
-    if (this.id == null)
-      this.id = val;
+    if (this.uid == null)
+      this.uid = val;
   }
 
   get type() {
-    return this.id;
+    return this.uid;
   }
 
   set type(val) {
-    this.id = val;
+    this.uid = val;
   }
 
 }
@@ -243,7 +498,7 @@ export class Manufacture extends Entry {
     this.cost = this.cost || 0;
 
     if (this.category) {
-      rul.addCategory(this.category, this.id, rul.manufactureCategories);
+      rul.addCategory(this.category, this.uid, rul.manufactureCategories);
     }
 
     if (this.requires) {
@@ -256,7 +511,7 @@ export class Manufacture extends Entry {
     }
 
     if (!this.producedItems) {
-      this.producedItems = { [this.id]: 1 };
+      this.producedItems = { [this.uid]: 1 };
     }
 
     if (this.requiredItems) {
@@ -288,11 +543,11 @@ export class Manufacture extends Entry {
     // is named in the console for whoever is fixing the pack.
     this.profit = totalSellCost(this.producedItems) - totalSellCost(this.requiredItems) - this.cost;
     if (isNaN(this.profit))
-      console.warn(`${this.id}: profit is NaN, one of its items has no sell cost`);
+      console.warn(`${this.uid}: profit is NaN, one of its items has no sell cost`);
     this.profitPerHour = this.profit / this.time;
     this.sizeChange = totalSize(this.producedItems) - totalSize(this.requiredItems);
 
-    backLink(this.id, Object.keys(this.totalProducedItems), rul.items, "manufacture");
+    backLink(this.uid, Object.keys(this.totalProducedItems), rul.items, "manufacture");
 
     Service.add("allowsManufacture", this.name, this.requiresBaseFunc);
   }
@@ -867,7 +1122,7 @@ export class Commendation extends Entry {
                 // damage type rather than the engine's internal name
                 deedList[1][i] = damageTypes[idt];
                 this.damageTypes.push(damageTypes[idt]);
-                backLink(this.id, [deed.element], rul.damageTypes, "commendations");
+                backLink(this.uid, [deed.element], rul.damageTypes, "commendations");
                 continue;
               }
 
@@ -875,7 +1130,7 @@ export class Commendation extends Entry {
               if (ibt != -1) {
                 deed.type = k;
                 this.battleTypes.push(k);
-                backLink(this.id, [k], rul.battleTypes, "commendations");
+                backLink(this.uid, [k], rul.battleTypes, "commendations");
               }
 
               else if (killStatuses.includes(k)) {
@@ -884,13 +1139,13 @@ export class Commendation extends Entry {
                 deed.faction = k;
               } else if (rul.alienRaces[k]) {
                 deed.race = k;
-                backLink(this.id, [k], rul.alienRaces, "commendations");
+                backLink(this.uid, [k], rul.alienRaces, "commendations");
               } else if (rul.units[k]) {
                 deed.unit = k;
-                backLink(this.id, [k], rul.units, "commendations");
+                backLink(this.uid, [k], rul.units, "commendations");
               } else if (rul.items[k]) {
                 deed.item = k;
-                backLink(this.id, [k], rul.items, "commendations");
+                backLink(this.uid, [k], rul.items, "commendations");
               } else {
                 deed[k] = true;
               }
@@ -1212,7 +1467,7 @@ export class Attack {
       // entry with an undefined id ends up in the ruleset
       let dType = damageTypeIndex(this.alter.ResistType);
       if (dType == null) {
-        console.error(this.item.id + " attack has unknown damage type " + this.alter.ResistType);
+        console.error(this.item.uid + " attack has unknown damage type " + this.alter.ResistType);
       } else {
         this.damageType = dType;
         item.addDamageType(this.damageType);
@@ -1259,7 +1514,7 @@ export class Attack {
       }
 
       for (let k in this.accuracyMultiplier || [])
-        backLink(item.id, [k], "stats", "weaponDamage");
+        backLink(item.uid, [k], "stats", "weaponDamage");
 
     }
 
@@ -1313,10 +1568,10 @@ export class Attack {
         return this.damageType != null ? damageTypes[this.damageType] : undefined;
 
       case "item":
-        return this.item.id;
+        return this.item.uid;
 
       case "id":
-        return this.item.id;
+        return this.item.uid;
     }
 
     if (this.alter && this.alter[n]) {
@@ -1546,7 +1801,7 @@ export class Item extends Entry {
       return;
     this.damageTypes = this.damageTypes || [];
     addIfNew(this.damageTypes, idx);
-    backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
+    backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
   }
 
   constructor(raw: RawEntry) {
@@ -1586,27 +1841,27 @@ export class Item extends Entry {
     for (let k in this.damageBonus ?? {}) {
       let b = this.damageBonus![k];
       if (b != 0)
-        backLink(this.id, [k], "stats", "weaponDamage");
+        backLink(this.uid, [k], "stats", "weaponDamage");
       if (Array.isArray(b)) {
         for (let p in b)
           if (b[p] > 0)
-            backLink(this.id, [k], "stats", `weaponDamage${p != '0' ? `<sup>${+p + 1}</sup>` : ""}`);
+            backLink(this.uid, [k], "stats", `weaponDamage${p != '0' ? `<sup>${+p + 1}</sup>` : ""}`);
       }
     }
 
     for (let k in this.meleeMultiplier || [])
-      backLink(this.id, [k], "stats", "meleeAccuracy");
+      backLink(this.uid, [k], "stats", "meleeAccuracy");
 
     if (this.damageType != null) {
       let idx = damageTypeIndex(this.damageType);
       if (idx != null)
-        backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
+        backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
     }
 
     if (this.damageAlter?.ResistType != null) {
       let idx = damageTypeIndex(this.damageAlter.ResistType);
       if (idx != null)
-        backLink(this.id, [damageTypes[idx]], "damageTypes", "items");
+        backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
     }
 
     this.attacks();

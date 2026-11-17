@@ -236,7 +236,7 @@ export function readPolylines(): MapLine[] {
 export function readCountries(): WorldMap["countries"] {
   let countries: WorldMap["countries"] = [];
   for (let entry of Object.values(rul?.countries ?? {})) {
-    if (!entry?.id)
+    if (!entry?.uid)
       continue;
     let areas: MapRectangle[] = [];
     for (let area of entry.areas ?? []) {
@@ -246,7 +246,7 @@ export function readCountries(): WorldMap["countries"] {
       areas.push({ lonMin, lonMax, latMin: Math.min(latMin, latMax), latMax: Math.max(latMin, latMax) });
     }
     countries.push({
-      id: entry.id,
+      id: entry.uid,
       label: entry.labelLon != null ? { lon: Number(entry.labelLon), lat: Number(entry.labelLat) } : undefined,
       areas
     });

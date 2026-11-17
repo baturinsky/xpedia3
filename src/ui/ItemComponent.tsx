@@ -126,8 +126,8 @@ const ManufactureRows = ({ entry, man }: { entry: Item, man: string }) => {
       </td>
       <td>➔</td>
       <td style={{ textAlign: "left" }}>
-        <Val of={m?.totalProducedItems[entry.id]} />&nbsp;
-        <Val of={entry.id} />
+        <Val of={m?.totalProducedItems[entry.uid]} />&nbsp;
+        <Val of={entry.uid} />
       </td>
     </tr>
     <tr><td colSpan={3}><hr /></td></tr>

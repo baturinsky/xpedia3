@@ -7,7 +7,7 @@ export default function UnitComponent({ entry }: { entry: Unit }) {
 
   return <>
     <MainTable
-      key={entry.id}
+      key={entry.uid}
       of={entry}
       title="Unit"
       sort={{

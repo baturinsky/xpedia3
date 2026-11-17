@@ -949,7 +949,7 @@ export function SectionTable(props: SectionTableProps) {
           </thead>
           <tbody>
             {visibleRows.map((entry, i) =>
-              <tr key={entry.id ?? i}>
+              <tr key={String(entry.sortField("id", true) ?? i)}>
                 {shownFields.map(field =>
                   <td key={field} className={"st-" + field}>
                     <Val of={entry.cellValue?.(field) ?? entry.sortField(field, true)}
