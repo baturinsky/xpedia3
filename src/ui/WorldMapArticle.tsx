@@ -2,11 +2,14 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { loadWorldMap, ORIGIN, type MapRectangle, type WorldMap } from "../worldmap";
 import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
-import { MAX_DRAWN_PATHS, legColor, pathShape, regionOverlay, samePlace, zoneColor, type PathStop } from "./mapOverlay";
+import { boxArea, legColor, pathShape, regionOverlay, regionPalette, samePlace, zoneColor, type PathStop } from "./mapOverlay";
+import { HEIGHT, STOP_RADIUS, WIDTH, arrowAt, legDash, legWidth, stopMarker } from "./mapMarks";
 import { colorForCountry, colorForTerrain, readDeclaredColors, readDeclaredCountryColors } from "./mapColors";
 import { rul } from "../rul/Ruleset";
 import { state, remembered, rememberSelection, update } from "../state";
 import { Tr, Val } from "./Val";
+import { useTrajectoryFocus, type TrajectoryFocus } from "./trajectoryFocus";
+import { StopPlate } from "./StopPlate";
 
 /**
  * The pack's world map, drawn flat.
@@ -19,9 +22,6 @@ import { Tr, Val } from "./Val";
  * The drawing follows the game's own model: land is the polygon list, borders
  * are the polylines, and nation labels come from the country anchors.
  */
-
-const WIDTH = 2048;
-const HEIGHT = 1024;
 
 /**
  * A region drawn over the map: the boxes its sites spawn in, the zones its
@@ -41,6 +41,21 @@ export type Overlay = {
   paths?: OverlayPath[];
   /** Whether this overlay is the one under the pointer */
   hot?: boolean;
+};
+
+/**
+ * A boxed-off part of the globe with a name: a nation or a region.
+ *
+ * Both are the same thing to the picture — a list of boxes the game tests a point
+ * against, plus a name to write in the biggest of them — so they are drawn by the
+ * same code. `id` is what puts the boxes and the title together in one blink.
+ */
+export type TitledArea = {
+  id: string;
+  color: string;
+  label?: { x: number, y: number };
+  /** Screen quadrilaterals, one per ruleset box */
+  areas: [number, number][][];
 };
 
 /**
@@ -180,6 +195,125 @@ function projectMap(map: WorldMap, overlays?: Overlay[]) {
 }
 
 /**
+ * A region's boxes and its title, in screen coordinates.
+ *
+ * A region's `areas` are stated the way a nation's are — a list of
+ * `[lon1, lon2, lat1, lat2]` boxes — so the projection is the same one. The title
+ * goes in the middle of the largest box rather than at the mean of all of them,
+ * for the reason `zoneCenter` gives: the mean of disjoint patches lands in the
+ * sea between them. A region that states no `areas` has nothing to draw and is
+ * left out; those are the technical regions, which exist only to weight missions
+ * and hold zones.
+ */
+function projectRegions(regions: Region[]): TitledArea[] {
+  let drawable = regions.filter(region => (region.areas ?? []).some(area => area?.length >= 4));
+  // One colour per drawn region rather than `regionColor` per id: these are peers,
+  // and hashed hues collide when fourteen of them are on the screen at once
+  let palette = regionPalette(drawable.length);
+  let areas: TitledArea[] = [];
+  for (let [index, region] of drawable.entries()) {
+    let boxes = (region.areas ?? []).filter(area => area?.length >= 4);
+    let biggest = boxes.reduce((a, b) => boxArea(b) > boxArea(a) ? b : a);
+    let lonMin = Number(biggest[0]), lonMax = Number(biggest[1]);
+    // A box may cross the antimeridian, which is written as `lonMax < lonMin`
+    if (lonMax < lonMin)
+      lonMax += 360;
+    areas.push({
+      id: region.uid,
+      color: palette[index],
+      label: {
+        x: wrapColumn((lonMin + lonMax) / 2),
+        y: rowForLat((Number(biggest[2]) + Number(biggest[3])) / 2)
+      },
+      areas: boxes.map(area => globeBox(area))
+    });
+  }
+  return areas;
+}
+
+/**
+ * Titled areas as shapes, with the name written in each one.
+ *
+ * A title and its boxes are one thing: pointing at either makes the outline
+ * blink, which is how a name is tied to the rectangle it sits in. Both are links
+ * when the pack has a page for the id, so the picture is also a contents list.
+ *
+ * `onPick` turns the shapes from links into choices: the map of the regions uses
+ * it because a press there has to choose a region and light it up, not leave the
+ * page. The press is remembered by the caller as `pinned`, so its blink survives
+ * the pointer moving away; a second press on the same region lets it go.
+ */
+function AreaShapes({ areas, zoom = 1, hot, pinned, onHot = () => { }, onPick }: {
+  areas: TitledArea[],
+  zoom?: number,
+  hot?: string,
+  pinned?: string,
+  onHot?: (id?: string) => void,
+  onPick?: (id: string) => void
+}) {
+  let interactive = !onPick;
+  // Both are lit at once: the region under the pointer and the one pressed
+  // earlier are both answers to "which one am I looking at", and dropping the
+  // press because the pointer wandered would unpick what the press was for.
+  let lit = (id: string) => id == hot || id == pinned;
+  return <>
+    {areas.map(area => area.areas.map((points, i) => <Repeated key={area.id + i} points={points}
+      render={(serialized, shift) => {
+        let shape = <polygon className="area-contour" points={serialized}
+          style={{ "--area-color": area.color } as CSSProperties}
+          transform={shift ? `translate(${shift} 0)` : undefined} />;
+        let href = interactive ? pageFor(area.id) : undefined;
+        let className = lit(area.id) ? "area-hot" : undefined;
+        let handlers = {
+          onPointerEnter: () => onHot(area.id),
+          onPointerLeave: () => onHot(undefined),
+          onClick: onPick && (() => onPick(pinned == area.id ? "" : area.id))
+        };
+        return href
+          ? <a key={shift} href={href} className={className} {...handlers}>{shape}</a>
+          : <g key={shift} className={className} {...handlers}>{shape}</g>;
+      }} />))}
+    {/* Plain text only: an SVG `text` cannot contain HTML, so this cannot go
+        through `Tr`, which renders a `<span>`.
+
+        The titles are drawn before the region overlays so the overlay sits on
+        top: a name is orientation, while the boxes and paths are the subject of
+        the page, and a label crossing a flight line only gets in the way. */}
+    {areas.map(area => {
+      let label = area.label;
+      if (!label)
+        return null;
+      let href = interactive ? pageFor(area.id) : undefined;
+      let className = lit(area.id) ? "area-hot" : undefined;
+      let handlers = {
+        onPointerEnter: () => onHot(area.id),
+        onPointerLeave: () => onHot(undefined),
+        onClick: onPick && (() => onPick(pinned == area.id ? "" : area.id))
+      };
+      let name = rul?.tr(area.id) ?? area.id;
+      // The anchor is the middle of the area's largest box, which for an area at
+      // the edge of the map leaves half the name drawn off it. Nudging the anchor
+      // keeps the whole name in view; the shift is at most half a name, so the
+      // title still reads as belonging to the contour it sits in.
+      let at = fitLabel(label, name, 18 / zoom);
+      let text = <text x={at.x} y={at.y} textAnchor="middle"
+        style={{
+          "--area-color": area.color,
+          // Labels keep their reading size as the map is magnified, so the sizes
+          // in viewBox units are divided back out
+          fontSize: `${18 / zoom}px`,
+          strokeWidth: `${3 / zoom}px`
+        } as CSSProperties}>
+        {name}
+      </text>;
+      return href
+        ? <a key={area.id} href={href} className={className} {...handlers}>{text}</a>
+        : <g key={area.id} className={"area-label" + (className ? " " + className : "")} {...handlers}>{text}</g>;
+    })}
+  </>;
+}
+
+/**
  * A region's boxes and the paths drawn through them, in screen coordinates.
  *
  * `areas` are the region's own outline boxes, the ones `insideRegion` tests a
@@ -243,8 +377,27 @@ function countryRectangle(area: MapRectangle) {
 }
 
 /**
- * One shape, repeated either side of the map so the seam is filled.
+ * Moves a title back inside the picture if it would hang over the edge.
  *
+ * A region's title goes at the middle of its biggest box, and a box near the
+ * antimeridian has its middle near the edge of the map. `textAnchor="middle"`
+ * then draws half the name off the canvas, where the clip cuts it. Nudging the
+ * anchor by the overflow keeps the whole name readable; the shift is at most half
+ * the name's width, which is small enough that the title still reads as belonging
+ * to the contour it names.
+ *
+ * The width is estimated rather than measured, because the picture is projected
+ * before anything is laid out and there is no element to measure: 0.55 em per
+ * character is close for the font the map uses, and erring wide is the safe
+ * direction.
+ */
+function fitLabel(label: { x: number, y: number }, text: string, fontSize: number) {
+  let half = text.length * fontSize * 0.55 / 2;
+  return { x: Math.min(Math.max(label.x, half), WIDTH - half), y: label.y };
+}
+
+/**
+ * One shape, repeated either side of the map so the seam is filled.
  * Each copy is wrapped in a keyed fragment: the render callback usually returns
  * a bare element, and a bare element in a list has no key of its own, so React
  * cannot tell one copy from another when the map is redrawn. Some callers key
@@ -273,49 +426,6 @@ function placeRun(lons: number[]) {
   // Whole turns only: the shape keeps its own length and shape
   let turns = Math.floor((out[0] - ORIGIN) / 360);
   return out.map(v => v - turns * 360);
-}
-
-/**
- * The screen geometry of one leg's direction arrow.
- *
- * Each leg is its own element now, because a leg carries its own altitude and
- * speed, so an SVG `marker` cannot be used: it cannot take the colour of the
- * line that references it in a way that is reliable across browsers. A small
- * filled triangle is drawn directly instead.
- *
- * It sits a fifth of the way back from the end rather than at the midpoint. The
- * direction a reader wants is the direction *into* the stop, and on a long leg
- * the midpoint is far from the thing being asked about.
- *
- * The far end of the leg is covered by the stop marker, which is a fixed size on
- * screen, so the arrow has to stay outside that too: an arrow drawn 3 units from
- * the end of a 26-unit leg is entirely hidden under the marker. `keeps` is the
- * clear space to leave at the end, in map units. A leg with no room left between
- * its two markers gets no arrow at all — there is nothing on screen to put one on,
- * and the stops at either end already say where the leg goes.
- */
-function arrowAt(a: { x: number, y: number }, b: { x: number, y: number },
-  scale = 1, keeps = 0) {
-  let dx = b.x - a.x, dy = b.y - a.y;
-  let length = Math.hypot(dx, dy);
-  if (length < 1)
-    return undefined;
-  let ux = dx / length, uy = dy / length;
-  let size = 7 * scale, half = 4.2 * scale;
-  // Distance from the far end to the tip. Not near the end is preferred; not
-  // inside the marker is required.
-  let margin = 2 * scale + size;
-  let fromEnd = Math.max(length * 0.2, keeps + margin);
-  // Even the point of the arrow would be inside a marker, so there is no clear
-  // stretch of line to mark. A leg this short is two markers with a sliver
-  // between them; an arrow there would only be a smudge on a marker.
-  if (fromEnd > length / 2)
-    return undefined;
-  let cx = b.x - ux * fromEnd, cy = b.y - uy * fromEnd;
-  let tip = [cx + ux * size, cy + uy * size];
-  let backL = [cx - ux * size * 0.6 - uy * half, cy - uy * size * 0.6 + ux * half];
-  let backR = [cx - ux * size * 0.6 + uy * half, cy - uy * size * 0.6 - ux * half];
-  return [tip, backL, backR].map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
 }
 
 /**
@@ -394,82 +504,6 @@ function spreadLegs(legs: RawLeg[]): RawLeg[] {
 }
 
 /**
- * How far a leg's line is drawn per ten minutes of flying, in map units.
- *
- * The map is 2048 units wide for a full turn of 360 degrees, and a degree is 60
- * nautical miles, so one nautical mile is `WIDTH / 21600` units. A craft's speed
- * is knots, so ten minutes covers a sixth of it.
- *
- * The equator scale is used, which overstates distance at high latitude on an
- * equirectangular drawing. That is a property of the projection rather than of
- * this encoding, and the alternative — correcting per latitude — would make two
- * legs flown at the same speed carry dashes of different length depending on
- * where on the globe they happen to be.
- */
-const KNOTS_PER_TEN_MINUTES = (WIDTH / 21600) / 6;
-
-/** A leg's dash and gap, in map units, from its speed */
-function legDash(speedPercent?: number, craftKnots?: number) {
-  if (speedPercent == null || !craftKnots || craftKnots <= 0)
-    return undefined;
-  let knots = craftKnots * speedPercent / 100;
-  // A dash is ten minutes of flight, but a slow craft would produce a dash too
-  // short to see and a fast one a dash longer than the gap between two stops, so
-  // the length is kept within a readable band. The band is wide enough that the
-  // ordering by speed always survives.
-  let dash = Math.min(90, Math.max(5, knots * KNOTS_PER_TEN_MINUTES));
-  // The gap scales with the dash so a fast leg does not become a solid line
-  return `${dash.toFixed(1)} ${(dash * 0.34).toFixed(1)}`;
-}
-
-/**
- * A leg's line width, in map units, from its altitude.
- *
- * Higher is thinner, as the higher a craft flies the less it is on the map at
- * all. The engine's five levels run from ground to very high, and the widths are
- * chosen to reach from clearly present to barely there.
- */
-const altitudeWidths = [11, 8.5, 6.5, 4.5, 3];
-
-function legWidth(altitude?: number) {
-  let n = Math.round(Number(altitude));
-  return altitudeWidths[isFinite(n) ? Math.min(4, Math.max(0, n)) : 2];
-}
-
-/**
- * The radius of a stop marker, in screen units.
- *
- * Markers keep a constant size on screen, so on the map this is divided by the
- * magnification. The leg arrow has to keep clear of it, and the strip under the
- * map draws a marker of its own at this radius, so the number lives in one place.
- */
-const STOP_RADIUS = 14;
-
-/**
- * A stop of a flight: a circle when the UFO is in the air, a square when it is on
- * the ground.
- *
- * Shape carries the one fact about a stop that a player plans around, which is
- * whether the site appears here: a landing is where a mission site can be found,
- * and a UFO merely passing through is not. Shape is used rather than size or
- * fill because the fill already means "which zone", and a crowded picture needs
- * both to be readable at once.
- *
- * The same two shapes are used by the map and by the strip under it, so the
- * legend is a picture of the thing it explains rather than a second convention.
- */
-function stopMarker(at: { x: number, y: number }, size: number, lands: boolean, className: string) {
-  if (!lands)
-    return <circle className={className} cx={at.x} cy={at.y} r={size} />;
-  // A square is sized to cover about the same area as the circle it replaces,
-  // so a landing does not look bigger merely for being square
-  let half = size * 0.88;
-  let pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
-    .map(([sx, sy]) => `${(at.x + sx * half).toFixed(1)},${(at.y + sy * half).toFixed(1)}`);
-  return <polygon className={className + " region-stop-land"} points={pts.join(" ")} />;
-}
-
-/**
  * A region's map data: its boxes, its zone boxes, and any paths drawn in it.
  *
  * A waypoint names a zone, and the game picks a random point inside that zone,
@@ -513,8 +547,10 @@ function RegionOverlay({ overlay, zoom = 1, hotZone, onHotZone, onPinZone, hotLe
   // A zone is coloured by its index, so the same zone is the same colour on
   // every path drawn in this region, and on the zone box itself
   let zoneStyle = (index: number) => ({ "--zone-color": zoneColor(index) } as any);
-  // Stops are numbered only when one flight is drawn: a region page shows up to
-  // six overlapping paths, and six sets of numbers on one picture is noise
+  // Stops are numbered only when one flight is drawn: the number is a stop's
+  // place in that flight, so with several paths on one picture the numbers of
+  // different flights would be indistinguishable. Region pages draw none now, so
+  // in practice this is the trajectory page and the answer is always yes.
   let numbered = overlay.paths.length == 1;
 
   return <g className={"region-overlay" + (overlay.hot ? " region-hot" : "")} style={style}>
@@ -760,11 +796,30 @@ function pointInMap(svg: SVGSVGElement, clientX: number, clientY: number) {
  * drawn. The world map page wants them — telling the nations apart is what it
  * shows — while a region or trajectory page has its own subject on the same
  * picture, and the nation names and rectangles crowd it without adding much.
+ *
+ * `regions` swaps the subject from the nations to the regions: the boxes and
+ * titles drawn are then the pack's regions, and `hotRegion`/`onPickRegion` make
+ * them a chooser rather than links. That is the picture the REGIONS page leads
+ * with, and the nations are left off it — two sets of contours at once read as a
+ * tangle rather than as two layers.
  */
-function MapPicture({ map, overlays, showCountries = true, hotZone, onHotZone, onPinZone, hotLeg, onHotLeg, onPinLeg }:
-  { map: WorldMap, overlays?: Overlay[], showCountries?: boolean, hotZone?: number,
-    onHotZone?: (zone?: number) => void, onPinZone?: (zone: number) => void,
-    hotLeg?: number, onHotLeg?: (leg?: number) => void, onPinLeg?: (leg: number) => void }) {
+function MapPicture({ map, overlays, showCountries = true, regions, hotZone, onHotZone, onPinZone,
+  hotRegion, pinnedRegion, onHotRegion, onPickRegion, hotLeg, onHotLeg, onPinLeg }: {
+    map: WorldMap,
+    overlays?: Overlay[],
+    showCountries?: boolean,
+    regions?: TitledArea[],
+    hotZone?: number,
+    onHotZone?: (zone?: number) => void,
+    onPinZone?: (zone: number) => void,
+    hotRegion?: string,
+    pinnedRegion?: string,
+    onHotRegion?: (id?: string) => void,
+    onPickRegion?: (id: string) => void,
+    hotLeg?: number,
+    onHotLeg?: (leg?: number) => void,
+    onPinLeg?: (leg: number) => void
+  }) {
   let projected = useMemo(() => projectMap(map, overlays), [map, overlays]);
   let svgRef = useRef<SVGSVGElement>(null);
   let [view, setView] = useState<View>({ zoom: 1, x: 0, y: 0 });
@@ -890,65 +945,36 @@ function MapPicture({ map, overlays, showCountries = true, hotZone, onHotZone, o
       <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
         {projected.polygons.map((polygon, i) => <Repeated key={i} points={polygon.points}
           render={(points, shift) => {
-            // Every shape of one terrain links to the same page, so clicking a
-            // region is the same as clicking its legend entry
-            let shape = <polygon points={points} fill={polygon.color}
-              transform={shift ? `translate(${shift} 0)` : undefined} />;
-            let href = pageFor(polygon.terrain);
-            return href
-              ? <a key={shift} href={href}><title>{rul?.tr(polygon.terrain) ?? polygon.terrain}</title>{shape}</a>
-              : <Fragment key={shift}>{shape}</Fragment>;
+            // A polygon is a plain shape, not a link. Every shape of one terrain
+            // used to be an anchor to that terrain's page, which on a full-size
+            // map is over two and a half thousand tab stops before the reader
+            // reaches anything else on the page — a keyboard could not get past
+            // the picture. The legend below is the way in to the terrain pages,
+            // and it names the same terrain with the same colour.
+            //
+            // The tooltip stays: it is the only thing that says which terrain a
+            // shape is, and a `title` is neither focusable nor clickable, so it
+            // costs no tab stop.
+            return <Fragment key={shift}>
+              {polygon.terrain && <title>{rul?.tr(polygon.terrain) ?? polygon.terrain}</title>}
+              <polygon points={points} fill={polygon.color}
+                transform={shift ? `translate(${shift} 0)` : undefined} />
+            </Fragment>;
           }} />)}
         {projected.lines.map((line, i) => <Repeated key={i} points={line}
           render={(points, shift) => <polyline points={points} fill="none"
             transform={shift ? `translate(${shift} 0)` : undefined} />} />)}
         {/* A nation is a list of boxes rather than a border, so its outline is a
             rectangle per area. The colour is also used for its label, which is
-            how the game tells two nations apart on a plain map. */}
-        {showCountries && projected.countries.map(country => country.areas.map((area, i) => <Repeated key={country.id + i} points={area}
-          render={(points, shift) => {
-            let shape = <polygon className="country-contour" points={points}
-              style={{ "--country-color": country.color } as CSSProperties}
-              transform={shift ? `translate(${shift} 0)` : undefined} />;
-            let href = pageFor(country.id);
-            let hot = highlighted == country.id;
-            return href
-              ? <a key={shift} href={href} className={hot ? "country-hot" : undefined}>{shape}</a>
-              : <Fragment key={shift}>{shape}</Fragment>;
-          }} />))}
-        {/* Plain text only: an SVG `text` cannot contain HTML, so this cannot go
-            through `Tr`, which renders a `<span>`.
-
-            The labels are drawn before the region overlays so the overlay sits on
-            top: a name is orientation, while the boxes and paths are the subject
-            of the page, and a label crossing a flight line only gets in the way. */}
-        {showCountries && projected.countries.map((country, i) => {
-          if (!country.label)
-            return null;
-          let text = <text x={country.label.x} y={country.label.y} textAnchor="middle"
-            style={{
-              "--country-color": country.color,
-              // Labels keep their reading size as the map is magnified, so the
-              // sizes in viewBox units are divided back out
-              fontSize: `${18 / view.zoom}px`,
-              strokeWidth: `${3 / view.zoom}px`
-            } as CSSProperties}>
-            {rul?.tr(country.id) ?? country.id}
-          </text>;
-          let href = pageFor(country.id);
-          let hot = highlighted == country.id;
-          // Pointing at a title makes that nation's outline blink, which is how
-          // a name is tied to the box it sits in
-          let handlers = {
-            onPointerEnter: () => setHighlighted(country.id),
-            onPointerLeave: () => setHighlighted(current => current == country.id ? undefined : current)
-          };
-          return href
-            ? <a key={i} href={href} className={hot ? "country-hot" : undefined}
-              {...handlers}>{text}</a>
-            : <g key={i} className={"country-label" + (hot ? " country-hot" : "")} {...handlers}>{text}</g>;
-        })}
-        {/* Region overlays go above the nation labels: the boxes and the paths are
+            how the game tells two nations apart on a plain map. A page about the
+            regions draws the regions instead: same picture, other subject, and
+            two sets of contours at once would just be a tangle. */}
+        {regions
+          ? <AreaShapes areas={regions} zoom={view.zoom} pinned={pinnedRegion}
+            hot={hotRegion} onHot={onHotRegion} onPick={onPickRegion} />
+          : showCountries && <AreaShapes areas={projected.countries} zoom={view.zoom}
+            hot={highlighted} onHot={setHighlighted} />}
+        {/* Region overlays go above the titles: the boxes and the paths are
             what the page is about, and the labels are only orientation */}
         {projected.overlays.map(overlay =>
           <RegionOverlay key={overlay.id} overlay={overlay} zoom={view.zoom}
@@ -1029,6 +1055,11 @@ function useWorldMap() {
 
 /**
  * The map article.
+ *
+ * It used to be a page of its own with its own title and pedia text; it now
+ * closes the Countries page, below that page's table. The heading is kept so the
+ * picture is still labelled where it stands, since the page's own title names
+ * the countries rather than the map.
  */
 export function WorldMapArticle() {
   let { map, status } = useWorldMap();
@@ -1040,6 +1071,7 @@ export function WorldMapArticle() {
     return <div className="world-map-status"><Tr text="xpediaMapMissing" /></div>;
 
   return <div className="world-map-block">
+    <div className="world-map-title"><Tr text="xpediaWorldMap" /></div>
     <MapPicture map={map} />
     <MapLegend map={map} />
     {/* Land colour is chosen from the terrain name, not read from the game, so
@@ -1075,26 +1107,105 @@ function NoMap() {
 }
 
 /**
- * A region drawn on the world map, with the flights its missions send through it.
+ * The map of the regions, at the head of the REGIONS section page.
  *
- * Many regions have no `areas` at all: they exist to weight missions, and are
- * marked on the map only by their zone points. Drawing something is still much
- * more use than drawing nothing, so the zones are shown either way and the
- * missing site boxes are simply absent.
+ * It is the picture the section is named for: every region that states `areas`
+ * — the boxes the game tests "is this point in that region" against — drawn as
+ * its own contour with its name inside it. The drawing is the nations' drawing
+ * with a different subject, so the regions read the same way the nations do on
+ * the Countries page, down to the title blinking the outline it names.
+ *
+ * It is not a replacement for the section's list. Most regions in the packs
+ * checked state no `areas` at all — 39 of 54 in XFiles, 158 of 173 in X-Piratez —
+ * because they exist only to weight missions and hold zones, so a map of the
+ * areas alone would hide most of the pedia's region pages. The list stays, and
+ * the map is a second way in.
+ *
+ * Pressing a region here does not follow its page: the press chooses the region
+ * and pins its outline lit, so one region can be made out among the boxes that
+ * overlap it. Following it is what the title link under the map, and the list
+ * below, are for.
+ */
+export function RegionsMapArticle() {
+  let { map, status } = useWorldMap();
+  // The region under the pointer, which blinks while it is there
+  let [hovered, setHovered] = useState<string>();
+  // The region the reader pressed last, which keeps blinking after the pointer
+  // has moved off. It is a remembered choice, so it survives leaving the page.
+  let chosen = state.selection.regionsMap;
+
+  let regions = useMemo(() => projectRegions(Object.values(rul.regions ?? {})), [rul]);
+  let pick = (id: string) => {
+    setHovered(undefined);
+    // `""` is "let the pinned region go", which `AreaShapes` sends when the
+    // region already lit is pressed a second time
+    rememberSelection("regionsMap", id || undefined);
+  };
+
+  if (status == "loading")
+    return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
+  if (status == "missing" || !map)
+    return <NoMap />;
+
+  if (!regions.length)
+    return <p className="world-map-note"><Tr text="xpediaRegionsMapNone" /></p>;
+
+  let missing = Object.keys(rul.regions ?? {}).length - regions.length;
+
+  return <div className="world-map-block regions-map">
+    <MapPicture map={map} regions={regions} hotRegion={hovered} pinnedRegion={chosen}
+      onHotRegion={setHovered} onPickRegion={pick} />
+    {/* Every region the picture draws, as a link. The boxes are not links on this
+        page — a press chooses rather than follows — so this list is what makes
+        the drawn regions reachable without going through the section list below,
+        which mixes them with the technical regions that are not on the map. */}
+    <div className="world-map-legend">
+      <div className="world-map-legend-title"><Tr text="xpediaRegionsMapLegend" /></div>
+      <ul>
+        {regions.map(area => <li key={area.id}>
+          <span className="world-map-swatch" style={{ background: area.color }} />
+          <a href={pageFor(area.id) ?? undefined}>{rul.tr(area.id)}</a>
+        </li>)}
+      </ul>
+    </div>
+    {/* The regions with no `areas` are not on the picture and never can be: they
+        have no place. Naming the count here is what keeps the map from reading as
+        "these are all the regions there are". */}
+    {missing > 0 && <p className="world-map-note">
+      <Tr text="xpediaRegionsMapNote" />
+      {" "}<Val of={missing} />{" "}
+      <Tr text="xpediaRegionsMapNoAreas" />
+    </p>}
+  </div>;
+}
+
+/**
+ * A region drawn on the world map, with the flight paths its missions use.
+ *
+ * Only what is true of the region itself is drawn: its outline (`areas`) and its
+ * mission zones. Flights are *not* drawn here, and the reason is worth stating
+ * because a picture of them looks plausible and is not.
+ *
+ * A trajectory is a list of zone indices, so it can only be drawn against a
+ * region with enough zones for those indices to mean something. That test —
+ * `UfoTrajectory.fits` — is structural and says nothing about whether any mission
+ * flies the path there. In XFiles (XCF) forty-two paths pass it for North America
+ * while the region's missions fly sixteen different ones, none of them among the
+ * ones a picture would pick: `B0`-`B4` are alphabetically first, fit, and are
+ * flown by no mission in the pack at all. A map with room for six of forty-two
+ * was therefore drawing arbitrary lines and calling them this region's traffic.
+ *
+ * The paths are listed instead, as links to the pages that draw them, and those
+ * pages draw one flight each over a region the reader picks there.
  */
 export function RegionMapArticle({ region }: { region: Region }) {
   let { map, status } = useWorldMap();
-  let [highlight, setHighlight] = useState<string>();
   let [showAll, setShowAll] = useState(false);
 
-  let paths = useMemo(() => rul.trajectoriesFor(region).slice(0, MAX_DRAWN_PATHS), [region]);
-  let overlays = useMemo(() => [regionOverlay(region, paths)], [region, paths]);
-  // The list names every flight the region's missions send. A flight can still
-  // have nothing to draw — its zones may be missing here, or empty — so the
-  // ones the map leaves out are marked rather than leaving a gap in the picture
-  // unexplained.
-  let shapes = useMemo(() => new Map(paths.map(path => [path.uid, pathShape(path, region)])), [paths, region]);
-  let undrawn = paths.filter(path => shapes.get(path.uid)!.stops.length == 0);
+  let overlays = useMemo(() => [regionOverlay(region)], [region]);
+  // The flights the region's own missions send, rather than every path whose
+  // zone indices happen to fit. See the comment above.
+  let paths = useMemo(() => rul.flightsIn(region), [region]);
 
   // A region can host hundreds of missions and most of them are background: in
   // XFiles every weighted region is a candidate for any script that names no
@@ -1119,17 +1230,16 @@ export function RegionMapArticle({ region }: { region: Region }) {
     <p className="world-map-note"><Tr text="xpediaRegionMapNote" /></p>
     {paths.length > 0 && <div className="region-paths">
       <div className="world-map-legend-title"><Tr text="xpediaTrajectories" /></div>
+      {/* A list of links rather than a picture: each path has its own page, and
+          that page draws it where it can be drawn. The count beside a path is its
+          number of waypoints, which is the one thing about a flight that can be
+          said without choosing a region to read its zones against. */}
       <ul>
-        {paths.map(path => <li key={path.uid} onPointerEnter={() => setHighlight(path.uid)}
-          onPointerLeave={() => setHighlight(current => current == path.uid ? undefined : current)}>
+        {paths.map(path => <li key={path.uid}>
           <a href={pageFor(path.uid) ?? undefined}>{path.uid}</a>
           <span className="world-map-count">{(path.waypoints ?? []).length}</span>
-          {undrawn.includes(path) && <span className="world-map-unplaced-mark">
-            <Tr text="xpediaPathUnplaced" />
-          </span>}
         </li>)}
       </ul>
-      {highlight && <div className="region-paths-hot">{highlight}</div>}
     </div>}
 
     {missions.length > 0
@@ -1168,17 +1278,21 @@ export function RegionMapArticle({ region }: { region: Region }) {
  * the zone colours and need saying once in words. The sample lines are drawn
  * with the same functions the map uses, so the legend cannot drift away from the
  * picture it explains — including the fact that both are measured in map units.
+ *
+ * The samples are the map's own scale — a dash here is the same ten minutes of
+ * flying it is on the map — so the picture is a slice of the drawing rather than
+ * an icon of it. It is only 40 units wide, though: wide enough to show two dash
+ * lengths side by side, narrow enough not to push the sentence it explains off
+ * the row.
  */
 function TrajectoryLegend() {
-  // The samples live in the map's own units, so a dash here is the same length
-  // of time as a dash there. 320 units is a little over a tenth of the map.
   return <div className="trajectory-legend">
     <div className="trajectory-legend-item">
       <span className="trajectory-legend-sample">
-        <svg viewBox="0 0 320 90" aria-hidden="true">
-          <line x1="0" y1="22" x2="320" y2="22" className="region-leg"
+        <svg viewBox="0 0 100 60" aria-hidden="true">
+          <line x1="0" y1="15" x2="100" y2="15" className="region-leg"
             strokeWidth={legWidth(2)} strokeDasharray={legDash(100, 5000)} />
-          <line x1="0" y1="40" x2="320" y2="40" className="region-leg"
+          <line x1="0" y1="34" x2="100" y2="34" className="region-leg"
             strokeWidth={legWidth(2)} strokeDasharray={legDash(25, 5000)} />
         </svg>
       </span>
@@ -1186,33 +1300,65 @@ function TrajectoryLegend() {
     </div>
     <div className="trajectory-legend-item">
       <span className="trajectory-legend-sample">
-        <svg viewBox="0 0 320 90" aria-hidden="true">
-          <line x1="0" y1="22" x2="320" y2="22" className="region-leg" strokeWidth={legWidth(4)} />
-          <line x1="0" y1="40" x2="320" y2="40" className="region-leg" strokeWidth={legWidth(0)} />
+        <svg viewBox="0 0 100 60" aria-hidden="true">
+          <line x1="0" y1="15" x2="100" y2="15" className="region-leg" strokeWidth={legWidth(4)} />
+          <line x1="0" y1="34" x2="100" y2="34" className="region-leg" strokeWidth={legWidth(0)} />
         </svg>
       </span>
       <span><Tr text="xpediaTrajectoryThickness" /></span>
     </div>
     <div className="trajectory-legend-item">
       <span className="trajectory-legend-sample">
-        <svg viewBox="0 0 320 90" aria-hidden="true">
-          {stopMarker({ x: 140, y: 30 }, 22, true, "region-stop")}
-          {stopMarker({ x: 220, y: 30 }, 22, false, "region-stop")}
+        <svg viewBox="0 0 100 60" aria-hidden="true">
+          {stopMarker({ x: 32, y: 30 }, 16, true, "region-stop")}
+          {stopMarker({ x: 68, y: 30 }, 16, false, "region-stop")}
         </svg>
       </span>
       <span><Tr text="xpediaTrajectoryMarkers" /></span>
     </div>
     <div className="trajectory-legend-item">
       <span className="trajectory-legend-sample">
-        <svg viewBox="0 0 320 90" aria-hidden="true">
+        <svg viewBox="0 0 100 60" aria-hidden="true">
           {/* The same two shapes the map draws for such a stop, at the same
               relative size: the ring is the whole of what the marker says */}
-          <circle className="region-stop" cx={160} cy={30} r={16} />
-          <circle className="trajectory-legend-ring" cx={160} cy={30} r={26} />
+          <circle className="region-stop" cx={50} cy={30} r={12} />
+          <circle className="trajectory-legend-ring" cx={50} cy={30} r={21} />
         </svg>
       </span>
       <span><Tr text="xpediaTrajectoryAnywhereMark" /></span>
     </div>
+  </div>;
+}
+
+/**
+ * The alien missions that send a UFO along this path.
+ *
+ * A trajectory is only ever reached through a mission: nothing in the game flies
+ * a path for its own sake, so the missions are the answer to "where does this
+ * flight come from, and what does it carry". They are also the reason the page's
+ * region list is what it is — a path's regions are the regions its missions can
+ * pick — so naming them here explains the picker above.
+ *
+ * The list is every mission with a wave on this trajectory, which is what
+ * `Ruleset.missionsFlying` counts. It can be long on a pack that spawns many
+ * ground missions from one path (XFiles flies 230-odd missions on `CA_SPAWN`), so
+ * it reads as a plain list of links that wraps, rather than as a table.
+ *
+ * An empty list is not an error: a pack may keep a path for a script that names
+ * it directly, so the block says so rather than disappearing.
+ */
+function TrajectoryMissions({ trajectory }: { trajectory: UfoTrajectory }) {
+  let missions = useMemo(() => rul.missionsFlying(trajectory.uid), [trajectory]);
+
+  return <div className="trajectory-missions">
+    <div className="world-map-legend-title"><Tr text="xpediaTrajectoryMissions" /></div>
+    {missions.length
+      ? <ul>
+        {missions.map(id => <li key={id}>
+          <a href={pageFor(id) ?? undefined}>{rul.tr(id)}</a>
+        </li>)}
+      </ul>
+      : <p className="world-map-note"><Tr text="xpediaTrajectoryNoMissions" /></p>}
   </div>;
 }
 
@@ -1238,23 +1384,14 @@ function TrajectoryLegend() {
  * one flight apart when they cross: their colours differ, but a reader needs to be
  * able to ask "which one is this".
  */
-function FlightStrip({ stops, hotZone, pinned, hotLeg, pinnedLeg, onHover, onPin, onHoverLeg, onPinLeg }: {
-  stops: PathStop[]
-  hotZone?: number
-  pinned?: number
-  hotLeg?: number
-  pinnedLeg?: number
-  onHover?: (zone?: number) => void
-  onPin?: (zone: number) => void
-  onHoverLeg?: (leg?: number) => void
-  onPinLeg?: (leg: number) => void
-}) {
+function FlightStrip({ stops, focus }: { stops: PathStop[], focus?: TrajectoryFocus }) {
   let strip = useRef<HTMLDivElement>(null);
 
   // Pointing at a line on the map has to bring its sample into view, or the answer
   // "this is leg 60" is written off the right edge on a long flight. `nearest` is
   // the right mode: it scrolls only when the target is actually outside, so a
   // short flight's strip does not jump about, and it never moves the page itself.
+  let hotLeg = focus?.hotLeg;
   useEffect(() => {
     if (hotLeg == null)
       return;
@@ -1272,33 +1409,17 @@ function FlightStrip({ stops, hotZone, pinned, hotLeg, pinnedLeg, onHover, onPin
           className={"trajectory-flight-leg"
             + (hotLeg == stop.leg ? " trajectory-flight-leg-hot" : "")}
           style={{ "--leg-color": legColor(stop.leg) } as CSSProperties}
-          aria-pressed={pinnedLeg == stop.leg}
+          aria-pressed={focus?.pinnedLeg == stop.leg}
           // Named by the stop it reaches, because that is the number the stop list
           // and the picture use: the move into stop 3 is "the leg to stop 3", and a
           // separate count of legs would be a number nothing else on the page has.
           aria-label={`${rul.tr("xpediaLegToStop")} ${stop.leg + 1}`}
-          onPointerEnter={onHoverLeg && (() => onHoverLeg(stop.leg))}
-          onPointerLeave={onHoverLeg && (() => onHoverLeg())}
+          onPointerEnter={focus && (() => focus.hoverLeg(stop.leg))}
+          onPointerLeave={focus && (() => focus.hoverLeg())}
           // The press pins the leg for a touch screen, where the leave that
           // follows a press would otherwise undo it
-          onClick={onPinLeg && (() => onPinLeg(stop.leg))} />}
-        <button type="button"
-          className={"trajectory-flight-stop"
-            + (stop.lands ? " trajectory-flight-land" : "")
-            + (hotZone == stop.zone ? " trajectory-flight-hot" : "")}
-          style={{ "--zone-color": zoneColor(stop.zone) } as CSSProperties}
-          aria-pressed={pinned == stop.zone}
-          // The face of the button is a number in a shape, which says nothing on
-          // its own to a screen reader, so the stop is named in words as well
-          aria-label={`${rul.tr("xpediaStopNumber")} ${stop.leg + 1}`}
-          // Pointing at a stop lights up every box of its zone — the whole area it
-          // may be anywhere in — and pressing pins it, because a touch screen has
-          // no hover and the leave that follows a press would undo it.
-          onPointerEnter={onHover && (() => onHover(stop.zone))}
-          onPointerLeave={onHover && (() => onHover())}
-          onClick={onPin && (() => onPin(stop.zone))}>
-          <span className="trajectory-flight-number"><Val of={stop.leg + 1} /></span>
-        </button>
+          onClick={focus && (() => focus.pinLeg(stop.leg))} />}
+        <StopPlate zone={stop.zone} number={stop.leg + 1} lands={stop.lands} focus={focus} />
       </Fragment>;
     })}
   </div>;
@@ -1317,6 +1438,7 @@ function FlightStrip({ stops, hotZone, pinned, hotLeg, pinnedLeg, onHover, onPin
  * last what its lines mean.
  */
 export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory }) {
+  let focus = useTrajectoryFocus();
   let { map, status } = useWorldMap();
 
   let regions = useMemo(() => rul.regionsFor(trajectory), [trajectory]);
@@ -1342,31 +1464,10 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
     region ? [regionOverlay(region, [trajectory], { outline: REGION_OUTLINE })] : [],
     [region, trajectory]);
   let shape = useMemo(() => region ? pathShape(trajectory, region) : undefined, [region, trajectory]);
-  // Which zone is being pointed at, and which one was pressed to keep it. Both
-  // views — the markers and the strip — share the result, so pointing at "2, 3,
-  // 4" lights up the whole area those stops may be anywhere in, and pointing at
-  // a marker lights up the stop in the strip that names it.
-  //
-  // Hover and the press are kept apart on purpose: a press that a touch screen
-  // makes is followed by the pointer leaving, so a single shared slot would be
-  // cleared again immediately and the press would do nothing.
-  let [hovered, setHovered] = useState<number>();
-  let [pinned, setPinned] = useState<number>();
-  let hotZone = pinned ?? hovered;
-  // The same pair of slots for legs, kept separate from the zone ones: a zone is
-  // an area and a leg is a move, and a stop belongs to both, so both can be lit at
-  // once without saying two different things about one thing.
-  let [hoveredLeg, setHoveredLeg] = useState<number>();
-  let [pinnedLeg, setPinnedLeg] = useState<number>();
-  let hotLeg = pinnedLeg ?? hoveredLeg;
-  let pinLeg = (leg: number) => setPinnedLeg(current => current == leg ? undefined : leg);
   // A radio choice changes the region, and a zone number means something else
   // there, so the highlight must not survive the switch
   useEffect(() => {
-    setHovered(undefined);
-    setPinned(undefined);
-    setHoveredLeg(undefined);
-    setPinnedLeg(undefined);
+    focus?.reset();
   }, [region]);
 
   if (status == "loading")
@@ -1401,19 +1502,13 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
         footnotes, so the explanation does not take the place the flight itself
         should have. */}
     {shape && shape.stops.length > 0 && <div className="trajectory-flight-foot">
-      <FlightStrip stops={shape.stops}
-        hotZone={hotZone} pinned={pinned}
-        hotLeg={hotLeg} pinnedLeg={pinnedLeg}
-        onHover={setHovered}
-        onPin={zone => setPinned(current => current == zone ? undefined : zone)}
-        onHoverLeg={setHoveredLeg}
-        onPinLeg={pinLeg} />
+      <FlightStrip stops={shape.stops} focus={focus} />
       <span className="trajectory-footnote-mark" aria-hidden="true">*</span>
     </div>}
     <MapPicture map={map} overlays={overlays} showCountries={state.showCountryLabels}
-      hotZone={hotZone} onHotZone={setHovered}
-      onPinZone={zone => setPinned(current => current == zone ? undefined : zone)}
-      hotLeg={hotLeg} onHotLeg={setHoveredLeg} onPinLeg={pinLeg} />
+      hotZone={focus?.hotZone} onHotZone={focus?.hoverZone}
+      onPinZone={focus?.pinZone}
+      hotLeg={focus?.hotLeg} onHotLeg={focus?.hoverLeg} onPinLeg={focus?.pinLeg} />
     <CountryLabelsToggle />
     <TrajectoryLegend />
     {/* The notes read as footnotes: small, after everything they explain, and the
@@ -1426,6 +1521,11 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
       </p>}
       <p className="world-map-note"><Tr text="xpediaTrajectoryMapNote" /></p>
     </div>
+    {/* Last, because it is the answer to "where does this flight come from":
+        the missions that send a UFO along it. A path nobody flies any more is
+        still a path a pack may be keeping for an event or a script, so an empty
+        list is not an error and says so rather than leaving the block blank. */}
+    <TrajectoryMissions trajectory={trajectory} />
   </div>;
 }
 

@@ -566,6 +566,51 @@ region page's `xpediaRegionMapNote` does), and tftd's land regions have no
 `areas` at all, so it would only show up for ocean regions and for XFiles /
 X-Piratez.
 
+**Neither list is ever a flight.** The region page draws no path, no stop and no
+arrow: a trajectory is a list of zone *indices*, so it can only be pictured
+against one region chosen to read those indices against, which is what the
+trajectory page's own radio list is for. That page draws exactly one flight, and
+it is the only place a flight is drawn.
+
+The reason the region page used to draw some is worth keeping, because the
+tempting version of it is wrong. It selected paths with `UfoTrajectory.fits`,
+which only asks whether the region has enough `missionZones` for the path's
+indices. In XFiles, North America passes that for 42 paths while its missions fly
+16 — and the first six alphabetically are `B0`–`B4`, which no mission in the pack
+flies at all. Six arbitrary lines drawn over a region, labelled as its traffic.
+
+`Ruleset.flightsIn(region)` is the honest question: walk `missionsIn(region)` to
+each mission's waves and take the trajectory each names. Two filters apply and
+both are about the picture rather than the truth: the path must exist (tftd's
+mission waves name `P0`, `P1`, `P7`, `P8`, `P10`, none of which that pack
+defines), and the region must have the zones it needs (XFiles' one-zone event
+regions are flown by `P1`/`P7`, which visit zones they do not have). What
+survives is listed under the map as links to the pages that draw them.
+
+**The REGIONS section page draws the `areas` of every region at once.** It is the
+one picture where the regions are the subject rather than the backdrop, so it
+shows each region's own boxes with its name in the largest of them — the nations'
+drawing with a different layer on it. Only the regions that state `areas` can
+appear, which in the packs checked is a minority: 15 of 54 in XFiles, 15 of 173
+in X-Piratez, 15 of 22 in tftd. The section's list therefore stays on the page
+below the map, and so does a short legend of the regions that *are* drawn, because
+a press on a shape selects it (for picking one region out of the overlapping
+boxes) instead of following its page.
+
+The colours on that map come from `regionPalette`, not `regionColor`: these are
+peers shown together, and hashing ids into hues put South America and Southern
+Africa 0.3 ΔE apart. Spreading the hues evenly over the count gives 6.7 ΔE at
+fifteen regions.
+
+**The land is painted, not linked.** A terrain polygon used to be an anchor to
+that terrain's page — on XFiles' full-size map that is 2679 anchors inside the
+picture, every one of them a tab stop before the reader reaches the rest of the
+page, which made a keyboard walk through the whole map to get anywhere. The
+polygons are plain shapes with a `title` tooltip now; the legend under each map
+names the same terrains in the same colours and is the way in to those pages.
+Measured on XFiles, dropping the anchors took the map's own construction from
+18.7 ms to 8.3 ms, so the screen-reader argument was not the only one.
+
 ---
 
 ## 5. Objectives 0–6

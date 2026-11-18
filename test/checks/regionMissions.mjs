@@ -60,6 +60,69 @@ function expectedMissions(rul) {
   return expected;
 }
 
+/**
+ * `Ruleset.flightsIn`: the paths a region's missions actually fly.
+ *
+ * The rule this replaces was structural — "the region has enough zones for the
+ * path's indices" — and it passed for paths no mission in the pack flies at all,
+ * so a region page could show lines belonging to no flight. The three things
+ * checked here are what makes the list trustworthy: every path is flown by a
+ * mission the region can host, no path is repeated, and the path can be drawn in
+ * the region (which is the only reason any is left out).
+ */
+function checkFlights(rul, label, expected) {
+  let bad = 0, repeated = 0, undrawable = 0, untraceable = 0;
+  let flights = 0;
+  for (let [id, missions] of expected) {
+    let region = rul.regions[id];
+    // Every path named by a wave of a mission this region hosts
+    let flown = new Set();
+    for (let mission of missions)
+      for (let wave of rul.alienMissions?.[mission]?.waves ?? [])
+        if (wave?.trajectory)
+          flown.add(wave.trajectory);
+
+    let got = rul.flightsIn(id);
+    flights += got.length;
+    let seen = new Set();
+    for (let path of got) {
+      if (seen.has(path.uid)) {
+        repeated++;
+        if (repeated <= 3)
+          ok(false, `${label}: ${id} lists ${path.uid} twice`);
+      }
+      seen.add(path.uid);
+      if (!flown.has(path.uid)) {
+        untraceable++;
+        if (untraceable <= 3)
+          ok(false, `${label}: ${id} lists ${path.uid}, which none of its missions flies`);
+      }
+      // A path that cannot be placed on this region's map is the one legitimate
+      // omission, so anything returned has to be drawable
+      if (!path.fits(region)) {
+        undrawable++;
+        if (undrawable <= 3)
+          ok(false, `${label}: ${id} lists ${path.uid}, which its zones cannot draw`);
+      }
+    }
+
+    // Nothing flown and drawable may be dropped: the list is meant to be complete
+    for (let traj of flown) {
+      let path = rul.ufoTrajectories?.[traj];
+      if (path && path.fits(region) && !seen.has(traj)) {
+        bad++;
+        if (bad <= 3)
+          ok(false, `${label}: ${id} omits ${traj}, flown by its missions and drawable here`);
+      }
+    }
+  }
+  ok(bad == 0, `${label}: every drawable flight a region's missions send is listed`);
+  ok(undrawable == 0, `${label}: every listed flight can be drawn in its region`);
+  ok(untraceable == 0, `${label}: every listed flight is flown by a mission of that region`);
+  ok(repeated == 0, `${label}: no flight is listed twice`);
+  return flights;
+}
+
 function check(rul, label) {
   let expected = expectedMissions(rul);
   let regions = Object.keys(rul.regions ?? {});
@@ -114,6 +177,8 @@ function check(rul, label) {
   // A region with no mission must report none rather than throwing
   let empty = [...expected].filter(([, missions]) => !missions.size).map(([id]) => id);
   ok(empty.every(id => rul.missionsIn(id).length == 0), `${label}: an empty region reports no mission`);
+
+  checkFlights(rul, label, expected);
 
   let solo = 0;
   for (let mission of hosts.values())

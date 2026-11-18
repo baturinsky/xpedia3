@@ -334,12 +334,14 @@ survey(builtin, "builtins");
 // A category order is only interesting on a pack that has categories, and the
 // builtins ship none: they carry the pedia's own pages and no entry tables
 let withCategories;
+let packs = [];
 for (let name of ["tftdvanillaplus-dhf2.zip", "Dioxine_XPiratez_noimages.rar", "openxcom_xfiles_42.zip"]) {
   let path = examplePack(name);
   if (!path)
     continue;
   let rul = await loadPack(path);
   survey(rul, name.replace(/\.(zip|rar)$/i, ""));
+  packs.push({ rul, label: name.replace(/\.(zip|rar)$/i, "") });
   withCategories ??= rul;
 }
 
@@ -369,5 +371,58 @@ function checkOrder(rul, label) {
 
 if (withCategories)
   checkOrder(withCategories, "example pack");
+
+/**
+ * The world map is a block at the bottom of the Countries page, not a page.
+ *
+ * It used to be a `WORLD_MAP` category: the builtin ruleset declared the article
+ * and `Ruleset.parseRuls` made the section. Both had to go when the map moved,
+ * and this is what would notice either coming back — a stray article would show
+ * up in the sidebar and in the arrow walk of a pack that never authored it.
+ *
+ * A pack with no `globe:` node still has a Countries table, so the table page
+ * must survive the move; only the map below it is conditional.
+ */
+function checkWorldMapIsNotAPage(rul, label) {
+  ok(!rul.sections?.["WORLD_MAP"], `${label}: the world map has no section of its own`);
+  ok(!rul.articles?.["WORLD_MAP"], `${label}: the world map has no article of its own`);
+
+  let stray = Object.keys(rul.sections ?? {}).filter(id => /WORLD.?MAP/i.test(id));
+  eq(stray, [], `${label}: no section is named after the world map`);
+
+  // The Countries page is the pack's own, so it is there whether or not the map
+  // can be drawn
+  if (rul.countries && Object.keys(rul.countries).length)
+    ok(rul.sections?.["COUNTRIES"], `${label}: the Countries table page is still a section`);
+}
+
+checkWorldMapIsNotAPage(builtin, "builtins");
+for (let { rul, label } of packs)
+  checkWorldMapIsNotAPage(rul, label);
+
+/**
+ * The REGIONS section's page is a page, and it has to stay one.
+ *
+ * The map of the regions was added to it rather than swapped in for its list: a
+ * region that states no `areas` cannot be drawn anywhere, so the list is the only
+ * route to its page when the sidebar is hidden — and that is how most regions in
+ * the example packs are built (39 of 54 in XFiles, 158 of 173 in X-Piratez).
+ *
+ * A section page is the article whose id matches its section. That is easy to
+ * lose by giving the section a different id or filing the map's own page over it,
+ * and neither would fail any other check.
+ */
+function checkRegionsPageIsASectionPage(rul, label) {
+  let page = rul.sections?.["REGIONS"] && rul.article("REGIONS");
+  if (!page)
+    return;
+  eq(page.id, "REGIONS", `${label}: the REGIONS article is the section's own page`);
+  ok(page.sections.some(s => s.id == "REGIONS"),
+    `${label}: the REGIONS article is filed under the REGIONS section`);
+}
+
+checkRegionsPageIsASectionPage(builtin, "builtins");
+for (let { rul, label } of packs)
+  checkRegionsPageIsASectionPage(rul, label);
 
 report();

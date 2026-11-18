@@ -22,6 +22,10 @@
   --em: rgb(255, 217, 47);
 
   --num: #af8;
+
+  /* Width of the map beside an article on a wide screen. The map keeps its
+     2:1 proportions, so this is also half its height. */
+  --side-map-width: 34rem;
 }
 
 :root[data-theme="light"] {
@@ -1144,6 +1148,83 @@ button:disabled:hover {
   position: relative;
 }
 
+/* The article and, on a wide screen, the map beside it.
+   A flex row rather than a grid: the map's width is fixed and the article takes
+   only what its own content needs. That is what keeps a narrow page narrow — the
+   trajectory flight plan is 295px of table, and stretching it to fill the
+   column left the map stranded a screen-width away from it.
+   `.article-flow` is a plain block box, so the article's children keep the widths
+   they had: tables still take the width available and `.article-body` still makes
+   its two columns.
+   Below the breakpoint the map takes a row of its own and lands at the bottom,
+   which is where it reads best on a narrow page. */
+.article-main.has-side-map {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem 1.5rem;
+}
+
+.article-main.has-side-map > .article-flow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.article-main.has-side-map > .world-map-block {
+  flex: 0 0 100%;
+}
+
+/* Side by side, from the breakpoint below. The flow column keeps only the width
+   its content needs, so a narrow page stays narrow; the map then takes what is
+   left, because it is the one element here that reads better bigger.
+   `min-width` on the map stops it shrinking below legibility when the flow
+   column turns out wide, and past that the map wraps onto its own row rather
+   than squeezing further.
+   1600px is about where a country table and two columns of text still fit beside
+   the map: narrower than this and either the text loses a column or the map
+   becomes too small to read the nations on. */
+@media (min-width: 1600px) {
+  .article-main.has-side-map > .article-flow {
+    flex: 0 1 auto;
+  }
+
+  .article-main.has-side-map > .world-map-block {
+    flex: 1 1 var(--side-map-width);
+    min-width: 24rem;
+  }
+}
+
+/* A trajectory page needs less room for its text: the article column there is a
+   two-column flight table, not a page-wide one. The map therefore fits beside it
+   from 1280px. The block also carries the region picker and the stop list, which
+   wrap, so a narrower column costs nothing. */
+@media (min-width: 1280px) {
+  .article-main.narrow-side-map > .article-flow {
+    flex: 0 1 auto;
+  }
+
+  .article-main.narrow-side-map > .world-map-block {
+    flex: 1 1 var(--side-map-width);
+    min-width: 24rem;
+  }
+}
+
+.article-flow {
+  min-width: 0;
+}
+
+/* An empty body still reserves width: it is a multi-column box, and a box with
+   `column-width` but no content reports that width as its own. On a page whose
+   content is a single table — a trajectory, say — that reserved 36rem pushed the
+   article column wider than anything in it. */
+.article-body:empty {
+  display: none;
+}
+
+.world-map-block {
+  min-width: 0;
+}
+
 .article-body {
   /* column-width + a hard max of 2: the browser makes a second column only
      when both columns are at least 36rem (576px) wide. That suits most
@@ -2108,6 +2189,15 @@ a.services {
   margin-bottom: 1rem;
 }
 
+/* Heads the map where it closes the Countries page. It carries the map's own
+   name, because the page title names the nations rather than the picture. */
+.world-map-title {
+  font-weight: bold;
+  font-variant: small-caps;
+  text-align: center;
+  margin-top: 1rem;
+}
+
 .world-map {
   display: block;
   width: 100%;
@@ -2122,34 +2212,34 @@ a.services {
   stroke-width: 4;
 }
 
-/* Nation areas. They are links like the regions, and their colour is set inline
-   per nation: `--country-color` is read from the element.
+/* Titled areas: a nation's or a region's boxes and the name that goes with them.
+   The colour is set inline per area, in `--area-color`.
 
-   The area carries a faint wash of its own colour, so the nations read apart at
-   a glance, and a one device pixel outline, so the boxes stay hairlines over the
-   land. Hovering a nation's title makes its outline blink between that hairline
+   The area carries a faint wash of its own colour, so neighbouring ones read
+   apart at a glance, and a one device pixel outline, so the boxes stay hairlines
+   over the land. Hovering a title makes its outline blink between that hairline
    and a drawn-width stroke, which is what ties a label to the area it names.
 
    `pointer-events: stroke` matters: with a fill, the whole rectangle would
    otherwise become a link and swallow the clicks meant for the biome regions
-   underneath. Only the outline belongs to the nation. */
-.world-map .country-contour {
-  fill: var(--country-color, var(--border));
+   underneath. Only the outline belongs to the area. */
+.world-map .area-contour {
+  fill: var(--area-color, var(--border));
   fill-opacity: .25;
-  stroke: var(--country-color, var(--border));
+  stroke: var(--area-color, var(--border));
   stroke-opacity: .3;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   pointer-events: stroke;
 }
 
-.world-map .country-hot .country-contour {
+.world-map .area-hot .area-contour {
   fill-opacity: .35;
   stroke-opacity: 1;
-  animation: country-contour-blink .2s steps(1, end) infinite;
+  animation: area-contour-blink .2s steps(1, end) infinite;
 }
 
-@keyframes country-contour-blink {
+@keyframes area-contour-blink {
 
   0%,
   50% {
@@ -2178,7 +2268,7 @@ a.services {
 /* Sizes are in viewBox units, so they scale with the picture: 36 of 2048 keeps
    a label around 12px on a narrow column and 20px on a wide page. */
 .world-map text {
-  fill: var(--country-color, var(--text));
+  fill: var(--area-color, var(--text));
   font-size: 36px;
   paint-order: stroke;
   stroke: var(--shadow);
@@ -2186,16 +2276,13 @@ a.services {
   stroke-linejoin: round;
 }
 
-/* Region and label links: the shapes are clickable, so hovering has to say so.
-   Nation contours are excluded: their own blink is the feedback, and a hover
-   rule here would override their hairline width. */
+/* A contour — a nation's or a region's area — is the only shape still drawn as a
+   link, so hovering it has to say so. Its own blink is the feedback for being
+   pointed at, which is why there is no stroke override here any more: the biome
+   polygons are no longer links, so the rule that used to highlight them on hover
+   had nothing left to match. */
 .world-map a polygon {
   cursor: pointer;
-}
-
-.world-map a:hover polygon:not(.country-contour) {
-  stroke: var(--link);
-  stroke-width: 4;
 }
 
 .world-map-legend {
@@ -2242,28 +2329,11 @@ a.services {
   font-size: 85%;
   opacity: .7;
   max-width: 60rem;
+  margin: 0;
 }
 
 .world-map-status {
   margin-bottom: 1rem;
-}
-
-/* A note that part of a picture could not be drawn: a waypoint naming a zone the
-   game fills with a random point anywhere in the world has no place to mark, so
-   the map is missing something and says so instead of looking complete. */
-.world-map-unplaced {
-  font-size: 85%;
-  opacity: .8;
-  max-width: 60rem;
-  padding-left: .6rem;
-  border-left: solid 2px var(--border);
-}
-
-.world-map-unplaced-mark {
-  margin-left: .5rem;
-  font-size: 85%;
-  opacity: .6;
-  font-style: italic;
 }
 
 /* ---- Region and trajectory overlays ---- */
@@ -2561,6 +2631,25 @@ a.services {
   pointer-events: none;
 }
 
+/* The missions that fly a trajectory, under its map. The same shape as the
+   region's mission list, because it is the same kind of thing seen from the
+   other end: one names the missions a place can host, this names the places a
+   mission's flight can happen in. Wraps, because a pack can fly a hundred
+   ground missions from one spawn path and a column of that many would be the
+   whole page. */
+.trajectory-missions {
+  font-size: 90%;
+}
+
+.trajectory-missions ul {
+  list-style: none;
+  margin: .25rem 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .1rem .9rem;
+}
+
 /* The flight-path list under a region map */
 .region-paths,
 .region-missions {
@@ -2606,11 +2695,6 @@ a.services {
   cursor: pointer;
 }
 
-.region-paths-hot {
-  opacity: .7;
-  font-size: 85%;
-}
-
 /* Which region a trajectory was drawn in. A fieldset, because the choice is one
    of a set and the browser already knows how to make that accessible. */
 .trajectory-region {
@@ -2646,19 +2730,18 @@ a.services {
 
 /* The flight as a strip: stop, leg, stop, leg, … in flight order.
    A chip-per-zone row said which zones existed; this says what the UFO did, which
-   is what the picture above it says too. It scrolls sideways rather than wrapping,
-   because a wrapped sequence stops being a sequence: after the line break the
-   reader has to work out which stop comes next. */
+   is what the picture above it says too.
+   It wraps, so it can sit in a narrow column beside the map. `row-gap` is larger
+   than the horizontal gap because a wrapped line still has to read as its own row:
+   a leg drawn between two stops sits on their line, and the space above it keeps
+   it from pointing at the stop on the line before. */
 .trajectory-flight {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  /* A path can have 77 stops, so the strip is one long row that scrolls */
-  overflow-x: auto;
-  overflow-y: hidden;
+  gap: .35rem .1rem;
   padding: .1rem 0 .2rem;
-  /* The row is wider than the column on a long path, and a scrollbar under a
-     short strip reads as a broken layout, so it is only reserved when needed */
-  scrollbar-width: thin;
+  min-width: 0;
 }
 
 /* The strip and the mark that says "read the note below". The strip is the wide
@@ -2789,29 +2872,17 @@ a.services {
   }
 }
 
-/* A zone colour sample, matching the boxes drawn on the map. Round by default
-   because the shape carries a second fact, the same one the map's markers carry:
-   a circle is a stop in the air, a square is a landing. */
-.trajectory-zone-swatch {
-  display: inline-block;
-  width: .9rem;
-  height: .9rem;
-  border: solid 1px var(--border);
-  border-radius: 50%;
-  background: var(--zone-color, #ffd24a);
-}
-
-.trajectory-zone-swatch-land {
-  border-radius: 0;
-}
-
 /* What the line drawing means. The samples are the real drawing functions, so the
-   legend cannot drift from the picture. */
+   legend cannot drift from the picture.
+   The items sit in one flowing row and each is a sample plus its sentence. The
+   gaps are kept small and even, because these are four short remarks rather than
+   four sections: a wide gap turned each one into a block of its own and left the
+   eye jumping across the page. */
 .trajectory-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: .3rem 1.2rem;
+  gap: .1rem .9rem;
   font-size: 85%;
   opacity: .85;
 }
@@ -2819,15 +2890,18 @@ a.services {
 .trajectory-legend-item {
   display: flex;
   align-items: center;
-  gap: .4rem;
+  gap: .35rem;
+  /* A sentence is allowed to be the last thing on its row; the sample beside it
+     stays next to the words it explains rather than at the far end of the gap */
+  flex: 0 1 auto;
 }
 
 .trajectory-legend-sample svg {
   display: block;
   /* The samples are drawn in map units, so the box has to show a slice of the
      map rather than a fixed pixel size */
-  width: 7rem;
-  height: 2rem;
+  width: 3.2rem;
+  height: 1.2rem;
   overflow: hidden;
 }
 
@@ -2917,24 +2991,65 @@ a.services {
   vertical-align: top;
 }
 
+/* The flight plan is a two-column table that reads like a list, so it is only as
+   wide as its own text. `.main-table` stretches every table to the page width,
+   which is right for a field table and wrong for this one: it left two thirds of
+   the row empty, and on a wide screen it also pushed the map's column further
+   than the page needed. */
+.trajectory-table {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.trajectory-table .main-table,
+.trajectory-table .trajectory-plan {
+  width: auto;
+}
+
+.trajectory-table td {
+  max-width: 40rem;
+}
+
+/* The flight plan's left column: the marks, and nothing else.
+   The stop is a `StopPlate` — the same number-in-a-shape the strip above the map
+   draws — so the column is only as wide as one of those plus its margin. It is
+   centred, so a flight's stops line up down the table and the sequence reads as
+   one line rather than as a column of icons. */
 .trajectory-plan-what {
   display: flex;
-  align-items: baseline;
-  gap: .35rem;
-  width: 4.5rem;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
   white-space: nowrap;
 }
 
-.trajectory-plan-number {
-  opacity: .85;
-  font-variant-numeric: tabular-nums;
+/* The plan's own plate: the strip's stop at the size a table row needs. It keeps
+   the strip's colours, shape, rim and hover answer, because it is the same
+   element; only the box it occupies is smaller.
+
+   `pointer-events: auto` undoes the `region-overlay` switch. That class is on the
+   plan table so its legs inherit the map's leg rules, but it also turns the
+   pointer off for everything inside — right for a picture laid over a map, wrong
+   for the one thing in the table that answers a pointer. */
+.trajectory-plan-plate {
+  font-size: 76%;
+  pointer-events: auto;
 }
 
-/* A stop's colour sample, matching the zone box and the stop marker on the map */
-.trajectory-plan-stop .trajectory-zone-swatch {
-  width: .7rem;
-  height: .7rem;
-  align-self: center;
+/* A leg's row: the move between two stops, drawn as the map draws it but
+   upright. The line is `region-leg` itself, so its colour, dash and halo are the
+   map's; only the axis and the size differ. */
+.trajectory-plan-line {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+/* The leg's row is as tall as the move it shows. The plan's rows are already
+   alternating, so a fixed height on the line's own cell keeps the marks evenly
+   spaced down the column whatever the altitude's stroke width is. */
+.trajectory-plan-line {
+  height: 1.15rem;
 }
 
 /* What the UFO does at a stop, at full size: this is the row's content rather
@@ -2944,23 +3059,13 @@ a.services {
   margin-top: .15rem;
 }
 
-/* A leg's row: a short dashed sample, so the speed encoding is recognisable here
-   too rather than being a picture-only convention */
-.trajectory-plan-dashes {
-  display: inline-block;
-  width: 1.6rem;
-  height: 0;
-  border-top: dotted 2px var(--zone-color, var(--border));
-  align-self: center;
-}
-
 .trajectory-plan-stop {
   background: hsla(0, 0%, 50%, .08);
 }
 
 /* A leg row has no number in its first cell now, so give the cell a height of its
    own: one line of the body text. Without it the row collapses to the height of
-   the dashed sample and the alternation stops reading. 1.35em is the line box that
+   the line sample and the alternation stops reading. 1.35em is the line box that
    `.trajectory-plan td` would otherwise have. */
 .trajectory-plan-leg .trajectory-plan-what {
   min-height: 1.35em;

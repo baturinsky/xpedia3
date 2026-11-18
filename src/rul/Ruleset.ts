@@ -389,14 +389,38 @@ export default class Ruleset {
     return out;
   }
 
-  /** The trajectories whose paths a region could draw */
-  trajectoriesFor(region: string | Region) {
+  /**
+   * The flight paths a region's own missions send, in the order the region's
+   * missions are listed.
+   *
+   * The paths are the ones the region's missions actually fly, taken from their
+   * waves. That is a different set from `UfoTrajectory.fits`'s: North America in
+   * XFiles passes the structural test for forty-two paths and its missions fly
+   * sixteen, so a picture drawn from `fits` alone showed lines belonging to no
+   * flight there.
+   *
+   * One filter is still applied, and it is about drawing rather than about truth:
+   * a path the region does not have the zones for cannot be placed on its map.
+   * XFiles' one-zone event regions (`REGION_SILO_ATTACK` and friends) have their
+   * missions name `P1` and `P7`, which visit zones that region does not have; the
+   * flight is real, the picture of it is impossible.
+   */
+  flightsIn(region: string | Region) {
     let target = typeof region == "string" ? this.regions?.[region] : region;
     if (!target)
       return [];
-    return Object.values(this.ufoTrajectories ?? {})
-      .filter(path => path.fits(target))
-      .sort((a, b) => a.uid.localeCompare(b.uid));
+
+    let seen = new Set<string>(), out: UfoTrajectory[] = [];
+    for (let { mission } of this.missionsIn(target))
+      for (let wave of this.alienMissions?.[mission]?.waves ?? []) {
+        let id = wave?.trajectory;
+        let path = id && this.ufoTrajectories?.[id];
+        if (!path || seen.has(path.uid) || !path.fits(target))
+          continue;
+        seen.add(path.uid);
+        out.push(path);
+      }
+    return out;
   }
 
   /**
@@ -643,20 +667,11 @@ export default class Ruleset {
 
     this.raw = this.combineModRuls(mods);
 
-    // The world map is a generated page rather than a pack's own article, so it
-    // is registered as a Category like the entry tables below. This has to
-    // happen before the articles are parsed: the builtin ruleset gives the map
-    // article `section: WORLD_MAP`, and a Section created on the fly by
-    // `Article.addToSection` would land in the pedia sections list instead.
-    //
-    // A pack with no `globe:` node has no map to draw, so neither the page nor
-    // its article exists, and the entry is dropped rather than left dangling.
-    if (this.raw.globe)
-      new Section("WORLD_MAP", true);
-    else {
-      delete this.raw.ufopaedia?.WORLD_MAP;
-      delete this.raw.ufopaedia?.XPEDIA_WORLD_MAP;
-    }
+    // The world map used to be a generated page under a `WORLD_MAP` category,
+    // declared here and in the builtin ruleset. It is now drawn at the bottom of
+    // the Countries page, so neither exists any more, and nothing is registered
+    // for it. A pack that declares its own `WORLD_MAP` article keeps it: that is
+    // the pack's content, and the builtins do not override a modpack.
 
     // Sounds are read from the mods rather than from `this.raw`: a slot's file
     // path is relative to the mod folder that declares it, and merging the

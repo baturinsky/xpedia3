@@ -19,6 +19,15 @@ export const dbVersion = 11;
 export type Selections = {
   /** Id of the region chosen on a trajectory map, see `Ruleset.regionsFor` */
   region?: string
+  /**
+   * Region pinned on the map of the regions, so its outline stays lit.
+   *
+   * The same field the trajectory page uses would be wrong: that one says which
+   * region a flight is being drawn in, and pressing a region on this map is a
+   * much lighter act — it only lights a shape up. Sharing the field would have
+   * the next trajectory page open on a region chosen for an unrelated reason.
+   */
+  regionsMap?: string
   /** Pose of the armor sprite sheet, see `UnitPose` */
   pose?: string
   /** Facing of the armor sprite, 0..7 as `UNIT_DIRECTIONS` numbers them */
@@ -220,7 +229,7 @@ function readSelection(raw: unknown): Selections {
   // A stored blob is plain JSON data with no declared shape, so it is read as a
   // loose record here; each field is then checked against its own type below
   let stored = raw as { [key: string]: unknown };
-  for (let key of ["region", "pose"] as const)
+  for (let key of ["region", "regionsMap", "pose"] as const)
     if (typeof stored[key] == "string" && stored[key])
       out[key] = stored[key] as string;
   for (let key of ["direction", "turretDirection", "frame"] as const) {

@@ -6,6 +6,9 @@ import MainTable from "./MainTable";
 import { Tr, Val } from "./Val";
 import { formatSeconds } from "./timing";
 import { legColor, pathSpeeds, zoneColor } from "./mapOverlay";
+import { legDash, legWidth } from "./mapMarks";
+import { useTrajectoryFocus, type TrajectoryFocus } from "./trajectoryFocus";
+import { StopPlate } from "./StopPlate";
 
 /**
  * A UFO flight path: a list of zones, altitudes and speeds.
@@ -107,38 +110,108 @@ function zonePlace(trajectory: UfoTrajectory, index: number) {
  * each pair — without the same fact appearing twice.
  *
  * The numbers are stop numbers, which are the numbers on the picture, so a row
- * can be found on the map. The table has no header: its two columns are a number
- * in a coloured swatch and a sentence about it, and "Stop" over the first of them
- * only repeated what the numbers already say.
+ * can be found on the map. The table has no header: its two columns are a stop
+ * mark and a sentence about it, and "Stop" over the first of them only repeated
+ * what the numbers already say. The mark is `StopPlate`, the very element the
+ * strip above the map draws, so a stop looks the same in both places.
  */
-function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
+
+/** The width of the leg column's drawing, and the viewBox a leg is drawn in */
+const MARK_WIDTH = 14;
+const MARK_VIEW = 40;
+
+/**
+ * One stop of the plan, as the strip above the map draws it: a number inside the
+ * shape that says whether the UFO is on the ground.
+ *
+ * This used to be the map's raw marker with the number printed beside it, which
+ * read as two facts in two columns — a coloured blob, then a number. The strip
+ * above the map says the same thing in one mark, so the plan says it the same way
+ * and the same `StopPlate` draws both.
+ */
+function PlanStop({ zone, stops, lands, focus }: {
+  zone: number
+  /** The stop number, as the map and the strip label it */
+  stops: number
+  lands: boolean
+  focus?: TrajectoryFocus
+}) {
+  return <StopPlate zone={zone} number={stops} lands={lands} focus={focus}
+    className="trajectory-plan-plate" />;
+}
+
+/**
+ * The move between two stops, as a line drawn exactly as the map draws it, only
+ * turned upright.
+ *
+ * Length is speed and thickness is altitude on both, from the map's own
+ * `legDash` and `legWidth`, in the map's own units — so a leg that looks like one
+ * long dash on the map is one long dash here too, and a leg flown high is thin in
+ * both places. The line is vertical because the table reads downwards: a
+ * horizontal line in a table column would be a row rule, not a move.
+ *
+ * The halo, the wide invisible pointer target and the blink are the map's as
+ * well, so pointing at this line lights the same leg on the picture, and pointing
+ * at the picture lights it here.
+ */
+function PlanLeg({ leg, focus }: {
+  /** The leg, as `planLeg` describes it for this row */
+  leg: { index: number, altitude: number, speed: number, dash?: string }
+  focus?: TrajectoryFocus
+}) {
+  let x = MARK_VIEW / 2;
+  return <svg className="trajectory-plan-line"
+    viewBox={`0 0 ${MARK_VIEW} 100`} preserveAspectRatio="xMidYMid meet"
+    width={MARK_WIDTH} aria-hidden="true">
+    <g className={"region-leg-group"
+      + (focus ? " region-leg-live" : "")
+      + (focus?.hotLeg == leg.index ? " region-leg-hot" : "")}
+      style={{ "--leg-color": legColor(leg.index) } as CSSProperties}
+      onPointerEnter={focus && (() => focus.hoverLeg(leg.index))}
+      onPointerLeave={focus && (() => focus.hoverLeg())}
+      onPointerUp={focus && (() => focus.pinLeg(leg.index))}>
+      {focus && <line className="region-leg-hit" x1={x} y1={0} x2={x} y2={100} />}
+      {focus?.hotLeg == leg.index && <line className="region-leg-halo" x1={x} y1={0} x2={x} y2={100} />}
+      <line className="region-leg" x1={x} y1={0} x2={x} y2={100}
+        strokeWidth={legWidth(leg.altitude)} strokeDasharray={leg.dash} />
+    </g>
+  </svg>;
+}
+
+function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory, focus?: TrajectoryFocus }) {
   let steps = trajectory.flightSteps;
   let legs = trajectory.legs;
+  // A path of fewer than two lines is not flown: it is the standard way to have a
+  // mission appear on the ground with no UFO at all, so there is no flight to
+  // draw and the caller leaves this table out rather than explaining an error
   if (!legs.length)
-    return <p className="trajectory-note"><Tr text="xpediaLegTooShort" /></p>;
+    return null;
 
   // A path can be flown by several craft, and a leg's speed is a percentage of
   // its craft's top speed. The knots are only printable when the craft is known.
   let speeds = pathSpeeds(trajectory);
+  // The map draws a leg's dash from one craft speed; the mean is what one line
+  // can show when a path is flown by several
+  let craftKnots = speeds ? (speeds.min + speeds.max) / 2 : undefined;
   // How long a stay on the ground lasts, in seconds. The engine counts
   // `groundTimer` down five seconds at a time, which is why the field itself is
   // never printed: see `UfoTrajectory.landingSeconds`.
   let landing = trajectory.landingSeconds;
   let last = steps[steps.length - 1];
 
-  return <table className="main-table trajectory-plan">
+  return <table className="main-table trajectory-plan region-overlay region-path">
     <tbody>
       {steps.map((step, i) => step.kind == "stop"
         ? <tr key={"s" + i} className="trajectory-plan-stop"
           style={{ "--zone-color": zoneColor(step.stop.zone) } as CSSProperties}>
           <td className="trajectory-plan-what">
-            {/* Shaped like the marker the map and the strip draw for the same
-                stop: a circle in the air, a square on the ground. The shape is a
-                second fact about the stop, so a reader who spots the square here
-                can find the landings by eye instead of reading every row. */}
-            <span className={"trajectory-zone-swatch"
-              + (step.stop.lands ? " trajectory-zone-swatch-land" : "")} />
-            <span className="trajectory-plan-number"><Val of={step.stop.index + 1} /></span>
+            {/* The number sits inside the shape, as it does in the strip above
+                the map: the shape is whether the UFO is on the ground, the
+                number is which stop of the flight this is. The plan lists one row
+                per stop, so a place reached twice appears twice, each row
+                carrying its own number. */}
+            <PlanStop zone={step.stop.zone} stops={step.stop.index + 1}
+              lands={step.stop.lands} focus={focus} />
           </td>
           <td>
             {zonePlace(trajectory, step.stop.zone)}
@@ -169,13 +242,18 @@ function FlightPlan({ trajectory }: { trajectory: UfoTrajectory }) {
           </td>
         </tr>
         : <tr key={"l" + i} className="trajectory-plan-leg"
-          style={{ "--zone-color": legColor(step.leg.index) } as CSSProperties}>
+          style={{ "--leg-color": legColor(step.leg.index) } as CSSProperties}>
           {/* A leg carries no number: it is not a place, nothing else on the page
               refers to a leg by number, and the only number that would fit here
               is the stop it is flying to, which the row above already prints.
               Its colour is its own — see `legColor`. */}
           <td className="trajectory-plan-what">
-            <span className="trajectory-plan-dashes" />
+            <PlanLeg leg={{
+              index: step.leg.index,
+              altitude: step.leg.altitude,
+              speed: step.leg.speed,
+              dash: legDash(step.leg.speed, craftKnots),
+            }} focus={focus} />
           </td>
           <td>
             <span className="trajectory-plan-flight"><Tr text="xpediaLegFlies" /></span>{" "}
@@ -244,33 +322,47 @@ export default function TrajectoryComponent({ entry }: { entry: UfoTrajectory })
    * do" and this is only useful to someone comparing against a rul file.
    */
   let [showLines, setShowLines] = useState(false);
+  // The stop and leg highlight is shared with the map, so pointing at a row's
+  // marker lights the same stop on the picture and the other way round
+  let focus = useTrajectoryFocus();
+  // A path of one line is not a flight: it is the pack's way of having a mission
+  // appear on the ground with no UFO, so there is nothing to draw and no error to
+  // report. The declared lines, if the pack wrote any, are still worth printing.
+  let flies = entry.legs.length > 0;
+  if(!flies)
+    return;
 
-  return <MainTable
-    of={entry}
-    title="UFO_TRAJECTORIES"
-    sort={{ last: ["waypoints"], exclude: ["id", "groundTimer"] }}
-    rows={{
-      // The flight plan leads, because it is what the page is about; the
-      // declared lines and the raw timer fields follow it.
-      waypoints: () => <>
-        <tr><td colSpan={2}><FlightPlan trajectory={entry} /></td></tr>
-        <tr><td colSpan={2}>
-          <button type="button"
-            className="btn-hover-effect btn-hover-effect--effect-1 trajectory-lines-toggle"
-            aria-expanded={showLines}
-            onClick={() => setShowLines(!showLines)}>
-            <Tr text={showLines ? "xpediaLinesHide" : "xpediaLinesShow"} />
-          </button>
-        </td></tr>
-        {showLines && <>
-          <tr><td colSpan={2} className="table-subheader"><Val of="xpediaLines" /></td></tr>
+  return <div className="trajectory-table">
+    <MainTable
+      of={entry}
+      title="UFO_TRAJECTORIES"
+      sort={{ last: ["waypoints"], exclude: ["id", "groundTimer"] }}
+      rows={{
+        // The flight plan leads, because it is what the page is about; the
+        // declared lines and the raw timer fields follow it.
+        waypoints: () => <>
+          {flies && <tr><td colSpan={2}><FlightPlan trajectory={entry} focus={focus} /></td></tr>}
+          {!flies && <tr><td colSpan={2}>
+            <p className="trajectory-note"><Tr text="xpediaNoFlight" /></p>
+          </td></tr>}
           <tr><td colSpan={2}>
-            <LineTable trajectory={entry} />
-            <p className="trajectory-note"><Tr text="xpediaLegNote" /></p>
-            <p className="trajectory-note"><Tr text="xpediaLinesNote" /></p>
+            <button type="button"
+              className="btn-hover-effect btn-hover-effect--effect-1 trajectory-lines-toggle"
+              aria-expanded={showLines}
+              onClick={() => setShowLines(!showLines)}>
+              <Tr text={showLines ? "xpediaLinesHide" : "xpediaLinesShow"} />
+            </button>
           </td></tr>
-        </>}
-      </>,
-    }}
-  />;
+          {showLines && <>
+            <tr><td colSpan={2} className="table-subheader"><Val of="xpediaLines" /></td></tr>
+            <tr><td colSpan={2}>
+              <LineTable trajectory={entry} />
+              {flies && <p className="trajectory-note"><Tr text="xpediaLegNote" /></p>}
+              <p className="trajectory-note"><Tr text="xpediaLinesNote" /></p>
+            </td></tr>
+          </>}
+        </>,
+      }}
+    />
+  </div>;
 }

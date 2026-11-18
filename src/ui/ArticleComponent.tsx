@@ -17,11 +17,12 @@ import MissionScriptComponent from "./MissionScriptComponent";
 import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
 import TrajectoryComponent from "./TrajectoryComponent";
+import { TrajectoryFocusProvider } from "./trajectoryFocus";
 import { LandingPage, packTitle, onLandingPage, xpediaNamed } from "./ui";
 import UnitComponent from "./UnitComponent";
 import { Val, Tr } from "./Val";
 import { xpediaVersion, xpediaBuildStamp } from "../util";
-import { WorldMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
+import { WorldMapArticle, RegionsMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
 import type { Article } from "../rul/Article";
 import type { Section } from "../rul/Section";
 
@@ -589,67 +590,115 @@ export function ArticleComponent() {
       <Img src={article.image_id} scale={2} />
     </div>;
 
+  // The map that belongs beside the article rather than in it.
+  //
+  // Old `Article.svelte` put the map above the columns, full width, because it
+  // is a wide picture. On a wide screen there is room to set it beside the page
+  // instead, where it stays in sight while the tables are read; below that the
+  // stylesheet stacks it at the bottom, which is where it read best there.
+  //
+  // The gate on `COUNTRIES` is the id alone rather than `article.section`: that
+  // getter is the *first* section the article was filed under, which for a
+  // pack's own COUNTRIES article is a pedia category, not the table page.
+  // A pack with no `globe:` node has no map to draw, so the block is left out
+  // rather than reporting a missing feature.
+  let sideMap = article?.id == "COUNTRIES" && rul?.raw.globe && <WorldMapArticle />;
+  // A flight is a picture of part of the globe too, and its block holds the
+  // region picker and the numbered stop list as well as the map, so the whole
+  // of it moves: splitting it would leave the reader with the choices in one
+  // place and the picture they are choosing for in another.
+  if (trajectory)
+    sideMap = <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />;
+
+  // A trajectory page puts the map on the side sooner than the Countries page:
+  // its article column is a narrow flight table, so there is room beside it well
+  // before a full country table and two columns of text would leave any.
+  let mainClass = "article-main"
+    + (sideMap ? " has-side-map" : "")
+    + (sideMap && trajectory ? " narrow-side-map" : "");
+
   let main = article && <><ArticleTitle />
-    {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
-        tables get the full page width instead of a single column */}
-    {table}
-    {/* The map is a wide picture like a table, so it goes above the columns
-        rather than into one of them, and before the pedia text that explains it */}
-    {article.id == "WORLD_MAP" && <WorldMapArticle />}
-    {/* A region or a flight path is a picture of part of the globe, so its map
-        belongs in the same place: above the columns, full width */}
-    {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
-      <RegionMapArticle key={article.id} region={rul.regions[article.id]} />}
-    {trajectory && <>
-      <TrajectoryComponent key={article.id} entry={trajectory} />
-      <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />
-    </>}
-    {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
-      <LinksPage links={rul.categories[article.id]} />}
-    {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
-      <LinksPage links={rul.manufactureCategories[article.id]} />}
-    {/* Section pages put their own pedia text and illustration first, then the
-        list of the articles in the section */}
-    {isSectionPage && articleText}
-    {isSectionPage && sectionImage}
-    {isSectionPage &&
-      <div className="articles-list">
-        {/* The section's own order, so the list and `<`/`>` agree. It is already
-            sorted by `articles()`, which caches it per language. */}
-        <LinksPage key={article.id} preSorted
-          links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
-      </div>
-    }
-    {!isSectionPage && articleText}
-    <div className={"article-body"} ref={bodyRef}
-      // Set only when the two-column layout did not fit, see `useColumnFit`
-      style={oneColumn ? { columns: 1 } : undefined}>
-      {!table && specialArticleBody()}
-      {!table && Object.entries(renderers).filter(([key]) => {
-        return collectionEntry(key, id) != null;
-      }
-      ).map(([key, ren]) => {
-        if (typeof ren == "function") {
-          // Render as an element so hooks inside the renderer work
-          return createElement(ren, { key, entry: collectionEntry(key, id), text: article?.text });
-        } else {
-          let { title } = ren;
-          return <MainTable
-            {...ren}
-            key={key}
-            of={collectionEntry(key, id)}
-            title={title != null ? title : key}
-          />;
+    <div className={mainClass}>
+      <div className="article-flow">
+        {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
+            tables get the full page width instead of a single column */}
+        {table}
+        {/* The map of the regions heads the REGIONS page: it is the picture the
+            section is named for, drawn the way the nations are drawn on the
+            Countries page. The section's own list stays below it, because most
+            regions state no `areas` and so cannot appear on a map at all — and
+            because the pedia is readable with the sidebar hidden, where that
+            list is the only way to reach those pages. */}
+        {article.id == "REGIONS" && <RegionsMapArticle />}
+        {/* A region is a picture of part of the globe, so its map belongs in the
+            same place: above the columns, full width */}
+        {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
+          <RegionMapArticle key={article.id} region={rul.regions[article.id]} />}
+        {/* The waypoints a flight visits, as a table. The picture of where it
+            happens is in the side column, see `sideMap`. */}
+        {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
+        {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
+          <LinksPage links={rul.categories[article.id]} />}
+        {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
+          <LinksPage links={rul.manufactureCategories[article.id]} />}
+        {/* Section pages put their own pedia text and illustration first, then
+            the list of the articles in the section */}
+        {isSectionPage && articleText}
+        {isSectionPage && sectionImage}
+        {isSectionPage &&
+          <div className="articles-list">
+            {/* The section's own order, so the list and `<`/`>` agree. It is
+                already sorted by `articles()`, which caches it per language. */}
+            <LinksPage key={article.id} preSorted
+              links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
+          </div>
         }
-      })}
-      {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
-      {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id &&
-        <Img src={article.image_id} scale={1.5} />}
+        {!isSectionPage && articleText}
+        <div className={"article-body"} ref={bodyRef}
+          // Set only when the two-column layout did not fit, see `useColumnFit`
+          style={oneColumn ? { columns: 1 } : undefined}>
+          {!table && specialArticleBody()}
+          {!table && Object.entries(renderers).filter(([key]) => {
+            return collectionEntry(key, id) != null;
+          }
+          ).map(([key, ren]) => {
+            if (typeof ren == "function") {
+              // Render as an element so hooks inside the renderer work
+              return createElement(ren, { key, entry: collectionEntry(key, id), text: article?.text });
+            } else {
+              let { title } = ren;
+              return <MainTable
+                {...ren}
+                key={key}
+                of={collectionEntry(key, id)}
+                title={title != null ? title : key}
+              />;
+            }
+          })}
+          {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
+          {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id &&
+            <Img src={article.image_id} scale={1.5} />}
+        </div>
+      </div>
+      {/* Beside the article when the screen is wide, below it otherwise. The
+          order in the DOM is the reading order as a single column: the map
+          follows everything it illustrates. */}
+      {sideMap}
     </div>
   </>;
 
 
+  // A trajectory page draws the same flight twice — as the plan and as the map —
+  // and pointing at a stop in either has to light it in the other. The provider
+  // has to sit above both, and the map is the article column's flex sibling
+  // rather than one of its children, so it wraps the whole row.
+  //
+  // Keyed by the article, because a pinned stop is a zone number and a zone
+  // number means something else on the next path. Without the key the highlight
+  // would survive the step to the next trajectory and point at nothing.
   return <div className={"article"}>
-    {main}
+    {trajectory && sideMap
+      ? <TrajectoryFocusProvider key={article.id + "-flight"}>{main}</TrajectoryFocusProvider>
+      : main}
   </div>;
 }

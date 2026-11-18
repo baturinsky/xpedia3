@@ -2716,8 +2716,9 @@ en-US:
   BT_NONE: Misc
   STR_RULESET_REFERENCE: Ruleset Reference Nightly (OpenXcom)
   STR_PALETTE_CONVERTER: Palette Converter
-  WORLD_MAP: WORLD MAP
-  XPEDIA_WORLD_MAP: "The pack's geoscape, flattened. Land is drawn from the globe's polygons, borders from its polylines, and the nations are labelled where the pack anchors them."
+  # Heads the world map at the bottom of the Countries page. It used to be the
+  # title of the map's own page, which no longer exists.
+  xpediaWorldMap: World map
   xpediaMapLegend: Terrain
   xpediaMapLoading: Loading the map...
   xpediaMapMissing: This pack has no geoscape data, so there is no world map to draw.
@@ -2727,6 +2728,13 @@ en-US:
   # area boxes by default, because the page's own boxes and flight line are the
   # subject; this checkbox brings them back.
   xpediaShowCountryLabels: Show nation names and areas
+  # The map that heads the REGIONS section page. It draws the regions that state
+  # `areas` — the boxes the game tests a point against — and names each one, the
+  # way the Countries page draws the nations.
+  xpediaRegionsMapNote: Each outline is a region's own area — the boxes the game tests a point against to decide whether a base, a UFO or a landing belongs there — and its name sits in the largest of them. Pressing one lights it up, so a single region can be told apart where the boxes overlap; pressing it again lets it go. The regions that state no area are not on this picture at all, because they have no place on the globe. There are
+  xpediaRegionsMapNoAreas: such technical regions, which only weight missions and hold zones. Their pages are still in the section list below.
+  xpediaRegionsMapLegend: Regions drawn on the map
+  xpediaRegionsMapNone: No region in this pack states an area, so there is no map of the regions to draw. The list below is the whole of them.
   xpediaColumnsAll: All
   xpediaColumnsNone: None
   xpediaColumnsDefault: Default
@@ -2741,7 +2749,7 @@ en-US:
   REGIONS: REGIONS
   UFO_TRAJECTORIES: UFO TRAJECTORIES
   INVENTORY_SECTIONS: INVENTORY SECTIONS
-  xpediaRegionMapNote: The solid boxes are the region's own outline, not a place anything is put. The game asks one question of them — is this point in this region — and uses the answer to price a base built there, to credit a UFO's activity to this region's graph, and to keep a landing inside the region the flight is in. The dashed boxes are the region's mission zones, which serve two purposes — a UFO trajectory steers by them, and missions may put their objectives in them. A region with no solid boxes is a technical one, used only to weight missions and hold zones. A flight path only means something in the region it is flown in, so the paths drawn here are the ones this region's missions use.
+  xpediaRegionMapNote: The solid boxes are the region's own outline, not a place anything is put. The game asks one question of them — is this point in this region — and uses the answer to price a base built there, to credit a UFO's activity to this region's graph, and to keep a landing inside the region the flight is in. The dashed boxes are the region's mission zones, which serve two purposes — a UFO trajectory steers by them, and missions may put their objectives in them. A region with no solid boxes is a technical one, used only to weight missions and hold zones. No flight is drawn here — a trajectory is a list of zone numbers rather than places, so it can only be pictured against one chosen region, which each flight's own page does.
   xpediaTrajectories: Flight paths
   xpediaChooseRegion: Choose region
   xpediaTrajectoryMapNote: A waypoint names a mission zone, not a place, so this path is only one of the several the game can fly. Each zone is coloured and its boxes are shaded the same way, so "stop 1 is anywhere in the red box" can be read off the picture. The marker on a zone sits in the largest of its boxes — one spot the game can really pick, not the spot it will pick.
@@ -2759,6 +2767,11 @@ en-US:
   xpediaRegionCountOne: region in all.
   xpediaRegionNoMissions: No mission script in this pack can start a mission in this region. It exists for its map data alone.
   xpediaTrajectoryNoRegion: No region in this pack has the mission zones this path refers to, so it cannot be drawn.
+  # Which alien missions send a UFO along this path. Added at the end of the
+  # trajectory map block, because it answers "where does this flight come from"
+  # after the flight and the picture of it have been read.
+  xpediaTrajectoryMissions: Missions that fly this path
+  xpediaTrajectoryNoMissions: No alien mission in this pack flies this path. It is kept for a script or an event that names it directly.
   # A mission script is the scheduler, and its timing fields all mean something
   # other than they say: `firstMonth: 0` is the run at the founding of the first
   # base rather than a calendar month, and `startDelay` with `randomDelay` is one
@@ -2805,7 +2818,6 @@ en-US:
   xpediaScriptLimitsNote: Rating and funds are not checked on the first month, because there is no previous month to score.
   xpediaScriptNoTable: The mission is kept off the region's mission table instead of being struck from it, so this script can run any number of times.
   xpediaTrajectoryAnywhereMark: A stop inside a dotted ring is one the game puts anywhere on the globe, so it has no place of its own to show; it is drawn at the middle of the map.
-  xpediaPathUnplaced: no place on the map
 #=================== Field labels ===================
 #Countries
   fundingBase: Base funding
@@ -2906,7 +2918,10 @@ en-US:
   xpediaLegRepeats: waits, then the same zone again
   xpediaLegNeverLands: This path never lands a UFO, so nothing it carries can be found on the ground.
   xpediaLegLandsFor: lands for
-  xpediaLegTooShort: This path has a single line, which the game rejects with "Missing second waypoint!", so no UFO can fly it.
+  # A trajectory of one line is not an error: it is how a pack has a mission
+  # appear on the ground with no UFO at all. There is no flight to draw, so the
+  # page says what the path is for instead of showing an empty plan.
+  xpediaNoFlight: This trajectory has a single waypoint, which is how a mission appears on the ground with no UFO. Nothing flies, so there is no flight to show.
   xpediaLegNote: A line of a trajectory is not a stop, and the second line is both an arrival and a departure, so a path of N lines is flown as N legs and the second zone is visited twice. A line's own altitude and speed are those of the leg flying away from it, not the one arriving.
   # The flight plan: the stops in order, with the move between each pair
   xpediaStopNumber: Stop

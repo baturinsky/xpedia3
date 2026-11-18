@@ -508,11 +508,7 @@ function SectionsList() {
 export function NavSide() {
   if (!rul)
     return null;
-  // The world map has no articles of its own, so its sidebar shows the nations
-  // instead: they are what the map's labels and contours are about, and the
-  // COUNTRY list is exactly what the COUNTRIES category shows.
-  let source = section?.id == "WORLD_MAP" ? rul.sections["COUNTRIES"] : section;
-  let articlesList = source?.articles(state.alphabeticalSort) ?? [];
+  let articlesList = section?.articles(state.alphabeticalSort) ?? [];
   // The sidebar scrolls as a whole (see `.sidebar` in the stylesheet), so its
   // `scrollTop` is what has to move; `.menu-list` is only the column of links
   let list = useRef<HTMLElement>(null);
