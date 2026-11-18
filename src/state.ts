@@ -110,6 +110,16 @@ export let state = {
   showCountryLabels: false,
   /** Selected language name, see `Ruleset.selectLang` */
   lang: undefined as string | undefined,
+  /**
+   * Which translations an export carries: language name -> wanted.
+   *
+   * A language with no entry is on, so a fresh install exports every language a
+   * pack has and an existing choice survives a pack the reader has not exported
+   * before. Only the languages the dialog actually showed are written, which is
+   * what keeps choosing "unselect all" on one pack from silently turning off a
+   * language that some other pack is the only one to have.
+   */
+  exportLanguages: {} as { [lang: string]: boolean },
   /** Theme name, see `Theme` */
   theme: "dark" as Theme,
   /**
@@ -178,6 +188,7 @@ export let savedFields = [
   "alphabeticalSort",
   "showCountryLabels",
   "lang",
+  "exportLanguages",
   "theme",
   "devView",
   "devUnlocked",
@@ -240,9 +251,25 @@ function readSelection(raw: unknown): Selections {
   return out;
 }
 
+/**
+ * The stored export language choices, keeping only the languages that are off.
+ *
+ * A missing entry means "on", which is what makes the default all-on without
+ * listing every language the reader has ever seen. Dropping the `true` entries
+ * keeps the blob from growing by one key per language per pack.
+ */
+function readExportLanguages(raw: unknown): { [lang: string]: boolean } {
+  let out: { [lang: string]: boolean } = {};
+  if (raw == null || typeof raw != "object" || Array.isArray(raw))
+    return out;
+  for (let [lang, wanted] of Object.entries(raw as { [key: string]: unknown }))
+    if (wanted === false)
+      out[lang] = false;
+  return out;
+}
+
 /** Set while the user has asked to abort the running slow process */
 export let slowProcessCancelRequested = false;
-
 /** Abort the running load/unpack, best effort: long stages check this flag */
 export function requestCancelSlowProcess() {
   if (state.slowProcessDone)
@@ -321,6 +348,11 @@ function load(): StoredSettings {
   // here can repair a choice that was meant in an older, different sense.
   data.selection = readSelection(data.selection);
 
+  // Which translations an export carries. Only booleans are meaningful and a
+  // stored entry for a language the pack no longer has is harmless, so this is
+  // a shape check rather than a repair.
+  data.exportLanguages = readExportLanguages(data.exportLanguages);
+
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.
   try {
@@ -357,13 +389,52 @@ export const externalStore = {
 };
 
 
+/**
+ * Fields the article never reads, so changing one cannot change what it draws.
+ *
+ * `UI` re-renders on every update because it subscribes to the whole store, and
+ * that is the price of one global store being cheap to write against. The article
+ * subtree is the expensive half of that render, so it is memoised on
+ * `articleRevision`, which `update()` bumps only when an update could have reached
+ * it. An update is skippable exactly when every field it sets is listed here:
+ * nothing under `ArticleComponent` reads these, so the article's output cannot
+ * depend on them and React may keep the subtree it already has.
+ *
+ * The test is "does the article read it", not "is it visual" — the two do not
+ * coincide. `theme` qualifies because the stylesheet colours the article, not
+ * React, so nothing in the component tree reads the field; the dropdown flags and
+ * `seeSide` qualify because they are navbar-only. `devView` and `imagePreview` do
+ * not, because the landing page reads both.
+ *
+ * Listing a field the article *does* read would leave a stale page, so the rule
+ * is inverted on purpose: an unlisted field re-renders. Adding a field later costs
+ * a render at worst, never a bug.
+ */
+const articleBlindFields = new Set<string>([
+  "theme", "seeSide", "showDropdown", "showPacksDropdown", "showLanguagesDropdown",
+]);
+
+/**
+ * Bumped whenever an update can have changed what the article shows.
+ *
+ * The memo key of the article subtree in `UI`; see `articleBlindFields`.
+ */
+export let articleRevision = 0;
+
 export function update(a?: Partial<StoreType>) {
+  // Read before the assignment, so the test sees what the caller actually asked
+  // for rather than the merged state
+  let changed = a ? Object.keys(a) : undefined;
   if (a)
     Object.assign(state, a);
   state.count++;
   storeSnapshot = { ...state };
   article = state.article;
   section = state.section;
+  // A change the article cannot see leaves it exactly as it was, so its element
+  // keeps its identity and React skips that subtree altogether
+  if (!changed || !changed.every(key => articleBlindFields.has(key)))
+    articleRevision++;
   save();
   onUpdate.forEach(f => f());
 }

@@ -853,6 +853,16 @@ button:disabled:hover {
   opacity: 0.8;
 }
 
+/* An option the pack cannot offer stays visible so its explanation can be
+   read, but it must not look like something that can be ticked */
+.export-format:has(input:disabled) {
+  cursor: default;
+}
+
+.export-format:has(input:disabled) small {
+  opacity: 1;
+}
+
 .export-size {
   margin: 0.8rem 0 0;
 }

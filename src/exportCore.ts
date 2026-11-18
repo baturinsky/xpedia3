@@ -16,8 +16,16 @@ import { WORLD_DAT, gameRelativePath } from "./packBuild";
 /** The `.inline` suffix marks an exported pack in the modpack list */
 export const inlineSuffix = ".inline";
 
-/** Pack name the exported file shows itself under */
+/**
+ * Pack name the exported file shows itself under.
+ *
+ * A page that is itself an export already ends in `.inline`, and exporting it
+ * again must not stack a second one on top: `X.inline.inline` would read as a
+ * different pack in the modpack list.
+ */
 export function exportedPackName(pack: string) {
+  if (pack.endsWith(inlineSuffix))
+    return pack;
   return pack.replace(/\.(zip|rar)$/i, "") + inlineSuffix;
 }
 
@@ -247,18 +255,21 @@ export function dataPaths(mods: Mod[] = []): string[] {
  * Only the paths that actually resolve are returned. A pack that ships no
  * `WORLD.DAT` is normal — it means "use the stock globe", which the builtin copy
  * already provides — so a miss is not an error.
+ *
+ * `read` is given both spellings: the archive path the resource map resolved,
+ * and the ruleset-relative one the payload is keyed by. A pack that is itself
+ * an exported page stores the file under the latter, since it has no archive
+ * to look in.
  */
 export async function collectDataFiles(
   resources: { [rel: string]: string } | undefined,
-  read: (archivePath: string) => Promise<Uint8Array | undefined>,
+  read: (archivePath: string, rel: string) => Promise<Uint8Array | undefined>,
   mods: Mod[] = [],
 ) {
   let files: { [path: string]: string } = {};
   for (let rel of dataPaths(mods)) {
     let archivePath = resources?.[rel];
-    if (!archivePath)
-      continue;
-    let bytes = await read(archivePath);
+    let bytes = archivePath ? await read(archivePath, rel) : undefined;
     if (!bytes?.length)
       continue;
     // Gzipped then base64ed: this is a JSON payload, so raw binary would have
@@ -299,6 +310,15 @@ export type PagePayload = {
    * Absent when the pack has none, so an ordinary export keeps its old shape.
    */
   data?: { [path: string]: string },
+  /**
+   * Set when the page previews a folder served by `xpedia-cli --serve`.
+   *
+   * The page is otherwise exactly what an export writes, so this is what tells
+   * the two apart later: a served pack's images belong to the served folder,
+   * while an exported page's are files beside the page. See `imagesUnavailable`
+   * in `packSource.ts`.
+   */
+  served?: boolean,
 };
 
 /**
@@ -313,7 +333,9 @@ export async function renderPage(
   rulesetBase64: string,
   shell: AppShell,
   page?: PageLanguage,
-  data?: { [path: string]: string }
+  data?: { [path: string]: string },
+  /** True when the page previews a served folder, see `PagePayload.served` */
+  served?: boolean
 ) {
   let payload: PagePayload = {
     pack: exportedPackName(pack),
@@ -329,6 +351,9 @@ export async function renderPage(
   // Only written when the pack actually has data files, which most do not
   if (data && Object.keys(data).length)
     payload.data = data;
+  // Only a served page carries this, so an ordinary export keeps its old shape
+  if (served)
+    payload.served = true;
 
   let { scripts, styles } = shell;
   // The page title names the mod the pack is about, the same one the navbar
@@ -372,6 +397,8 @@ export type BuildPageOptions = {
   page?: PageLanguage,
   /** Data files to carry inside the page, see `collectDataFiles` */
   data?: { [path: string]: string },
+  /** True when the page previews a served folder, see `PagePayload.served` */
+  served?: boolean,
 };
 
 /** Builds the HTML text of the exported pedia */
@@ -382,7 +409,7 @@ export async function buildPageHtml(options: BuildPageOptions) {
     options.page?.packs ? Object.keys(options.page.packs) : []);
   let gzipped = await gzipText(JSON.stringify(trimmed));
   return renderPage(options.pack, trimmed, bytesToBase64(gzipped), options.shell,
-    options.page, options.data);
+    options.page, options.data, options.served);
 }
 
 /** Base64 is 4 characters per 3 bytes, rounded up to a whole group */

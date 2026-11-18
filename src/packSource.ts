@@ -38,6 +38,22 @@ export interface PackSource {
   readonly kind: "database" | "inline";
   /** Inlined packs cannot be deleted or re-unpacked: their data is the HTML file */
   readonly permanent: boolean;
+  /**
+   * Why an export of this pack cannot carry its images, when it cannot.
+   *
+   * Printing this *is* the decision: a pack with no entry has its images in the
+   * database, one record each, so bundling them only costs a read. The other two
+   * keep them somewhere an export cannot reach into without copying every byte
+   * through the browser again, which is why the export dialog offers the option
+   * disabled rather than ticking it to no effect.
+   *
+   * - `"page"`: the pack *is* an exported page, which keeps its images as
+   *   ordinary files beside itself.
+   * - `"served"`: the pack is a folder served by `xpedia-cli --serve`, which
+   *   reads its images out of that folder as the page asks for them. They are
+   *   not part of the page at all, so an export of it has none to copy.
+   */
+  readonly imagesUnavailable?: "page" | "served";
   /** Row for the modpack list */
   stats(): Promise<PackStat>;
   /** The processed ruleset, exactly what `Ruleset` is built from */
@@ -46,6 +62,16 @@ export interface PackSource {
   imgData(path: string): Promise<Uint8Array | undefined>;
   /** Image location relative to the page, for packs whose images live outside */
   imgUrl(path: string): string | undefined;
+  /**
+   * The bytes of a file of the pack, by archive path.
+   *
+   * The exporters read a pack's raw data files — the globe — and its images
+   * through this, so one reader serves a ruleset written to the database and a
+   * page that is itself an export. A file that cannot be read resolves to
+   * nothing rather than throwing: a sprite may name a file no pack shipped, and
+   * an export must not fail over that.
+   */
+  fileData(path: string): Promise<Uint8Array | undefined>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -70,6 +96,10 @@ function databaseSource(pack: string): PackSource {
     },
     rulData: () => idb.readRulData(pack),
     imgData: path => idb.readImgData(pack, path),
+    // A stored pack keeps every image as its own database record, so they can
+    // be copied into an archive. `imagesUnavailable` is what says a pack cannot,
+    // and this one has nothing to say there.
+    fileData: path => idb.readImgData(pack, path),
     imgUrl: () => undefined
   };
 }
@@ -105,6 +135,14 @@ export type InlinePayload = {
    * files the pedia reads instead of showing. Absent when there are none.
    */
   data?: { [path: string]: string },
+  /**
+   * Set by `xpedia-cli --serve`, which writes this page to preview a folder.
+   *
+   * The page is otherwise exactly what an export produces, so this is the only
+   * thing that tells the two apart: a served pack's images stay in the served
+   * folder, while an exported page's sit beside the file.
+   */
+  served?: boolean,
 };
 
 function readInlinePayload(): InlinePayload | undefined {
@@ -145,6 +183,22 @@ export function inlineLanguageNames() {
   if (!packs)
     return;
   return [defaultLanguage, ...Object.keys(packs)];
+}
+
+/**
+ * The raw data files a page carries inside itself, as the payload spells them.
+ *
+ * Exported so a pedia that is itself a page can be exported again: the bytes are
+ * already gzipped and base64ed there, and reading them back from the page is the
+ * only way to keep them, since an inlined pack has no stored copy and a page
+ * opened from `file://` cannot fetch its neighbours. Undefined when the payload
+ * carries none, so a caller can fall through to reading them from the pack.
+ */
+export function inlineDataFiles() {
+  let data = readInlinePayload()?.data;
+  if (!data || typeof data != "object" || !Object.keys(data).length)
+    return;
+  return data;
 }
 
 /** Language packs already loaded or loading, so a second click reuses them */
@@ -241,7 +295,22 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     },
     // Images are not in the payload, they live in the game folder
     imgData: async () => undefined,
-    imgUrl: path => "./" + gameRelativePath(path)
+    imgUrl: path => "./" + gameRelativePath(path),
+    // The images are already files beside the page, put there by whatever made
+    // it, so there is nothing to bundle: reading them back through the browser
+    // would copy hundreds of megabytes only to write the same bytes again. A
+    // served folder is even further away: its images stay in the folder.
+    imagesUnavailable: payload.served ? "served" : "page",
+    async fileData(path) {
+      try {
+        let response = await fetch("./" + gameRelativePath(path));
+        if (!response.ok)
+          return;
+        return new Uint8Array(await response.arrayBuffer());
+      } catch (e) {
+        return;
+      }
+    }
   };
 
   return inlineSource;

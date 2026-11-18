@@ -1,6 +1,6 @@
-import { createContext, Fragment, JSX, MouseEventHandler, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, Fragment, JSX, memo, MouseEventHandler, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createRoot, Root } from 'react-dom/client';
-import { article, externalStore, reveal, revealLock, section, state, update, type StoreType } from "../state";
+import { article, articleRevision, externalStore, reveal, revealLock, section, state, update, type StoreType } from "../state";
 import { clearHash, xpediaVersion, xpediaBuildStamp } from "../util";
 import { goToLanding } from "../navigation";
 
@@ -57,6 +57,26 @@ function useNarrow() {
   return narrow;
 }
 
+/**
+ * The article, held behind a memo key so that updates the article cannot see do
+ * not re-render it.
+ *
+ * `UI` subscribes to the whole store and therefore re-renders on every update,
+ * which is what makes a single store so cheap to write against. But some updates
+ * reach only the navbar — the theme, a dropdown opening — and the article under
+ * `ITEMS` costs about 13 ms and 394 DOM writes to re-render for a change none of
+ * its 8,000 nodes can observe. `articleRevision` moves only when an update could
+ * have changed the article, so on such an update this element keeps its identity
+ * and React skips the whole subtree.
+ *
+ * The `revision` prop is deliberately unread: it is the memo key, and the article
+ * reads the store directly. See `articleBlindFields` in `state.ts` for which
+ * fields are allowed to skip.
+ */
+const ArticlePane = memo(function ArticlePane(props: { revision: number }) {
+  return <ArticleComponent />;
+});
+
 function UI() {
   const store = useSyncExternalStore(externalStore.subscribe, externalStore.getSnapshot);
   useDocumentSettings();
@@ -80,7 +100,7 @@ function UI() {
           </button>
         }
         <div className={"content" + (onLandingPage() ? " landing-page" : "")}>
-          <ArticleComponent />
+          <ArticlePane revision={articleRevision} />
         </div>
       </div>
       <div className="tooltip fadein" id="xpediaTooltip">Tooltip</div>

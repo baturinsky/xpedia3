@@ -1,7 +1,8 @@
 import * as fflate from "fflate";
 import { state } from "./state";
-import { readImgData, readImgSizes, readRulData } from "./idb";
-import { isPermanentPack } from "./packSource";
+import { readImgSizes } from "./idb";
+import { inlineDataFiles, packSource } from "./packSource";
+import { base64ToArrayBuffer } from "./util";
 import type { Langs, ProcessedRuleset } from "./rul/Ruleset";
 import {
   base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, collectDataFiles,
@@ -220,7 +221,7 @@ addEventListener("xpedia:loaded", () => {
  * they cannot even open.
  */
 export function warmEstimate() {
-  if (state.packName && !isPermanentPack(state.packName))
+  if (state.packName)
     void prepareEstimate();
 }
 
@@ -287,8 +288,8 @@ export async function measureArchive(estimate: ExportEstimate, pack: string, wit
   }
   if (withImages && estimate.imageBytes == null) {
     // The archive carries only the images the pedia can show, so the referenced
-    // paths are collected and looked up rather than taking the pack's whole
-    // image total, which is usually much larger
+    // paths are looked up rather than taking the pack's whole image total, which
+    // is usually much larger
     let sizes = await readImgSizes(pack);
     let imageBytes = 0;
     for (let path of referencedPaths(state.rul))
@@ -373,12 +374,19 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   if (!pack)
     throw new Error("Nothing to export: no modpack is selected");
 
+  let source = packSource(pack);
   let report = options.onProgress ?? (() => { });
   report(`Preparing ${pack}...`, 0);
 
-  let processed = await readRulData(pack);
+  let processed = await source?.rulData();
   if (!processed)
-    throw new Error(`The stored ruleset of ${pack} is missing, so there is nothing to export`);
+    throw new Error(`The ruleset of ${pack} is missing, so there is nothing to export`);
+
+  // The globe a page carries inside itself is read back from the payload: an
+  // exported page has no stored copy of it, and a page opened from `file://`
+  // cannot fetch its neighbours. `inlineDataFiles` is empty for a database pack,
+  // which then reads the file the way every other asset is read.
+  let carried = inlineDataFiles() ?? {};
 
   report("Building the page...", 0.1);
   let name = exportedPackName(pack);
@@ -391,7 +399,12 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
     page: options.split ? { packs: Object.fromEntries(pairs.map(lang => [lang, languagePackPath(lang)])) } : undefined,
     // The world map's globe travels inside the page: it is far too small to need
     // a file beside it, and a page opened from `file://` cannot read one anyway
-    data: await collectDataFiles(processed.resources, path => readImgData(pack, path), processed.mods)
+    data: await collectDataFiles(processed.resources, async (archivePath, rel) => {
+      let own = carried[rel];
+      if (own)
+        return fflate.gunzipSync(new Uint8Array(base64ToArrayBuffer(own)));
+      return source?.fileData(archivePath);
+    }, processed.mods)
   });
 
   // A single HTML file is only possible when nothing else is asked for; the
@@ -404,13 +417,17 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   // The page is written first either way. The images are a separate choice:
   // language packs share the archive with them, but asking for the packs must
   // not pull in hundreds of megabytes of sprites the reader never asked for.
+  //
+  // A pack whose images are not in the page has none to bundle. For an exported
+  // page they are files beside it; for a served folder they stay in the folder.
+  let bundleImages = options.images && !source?.imagesUnavailable;
   let files: ExportFile[] = [{ path: `${name}.html`, data: new TextEncoder().encode(html) }];
   let images = 0;
-  if (options.images) {
+  if (bundleImages) {
     // Images go under the paths the game uses, next to the HTML file
     let withImages = await buildAssetFiles({
       pack, page: `${name}.html`, html, rul: state.rul,
-      readImage: path => readImgData(pack, path),
+      readImage: path => source?.fileData(path) ?? Promise.resolve(undefined),
       onProgress: (done, total) => report(`Bundling images... ${done}/${total}`,
         0.1 + 0.8 * done / (total || 1))
     });

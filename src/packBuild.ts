@@ -27,7 +27,43 @@ const lngExts = ["yml", "html", "txt"];
  */
 const dataExts = ["dat"];
 
-type AssetType = "lng" | "rul" | "meta" | "img" | "nam" | "dat";
+/**
+ * The `.cfg` files whose contents the pedia reads instead of ignoring.
+ *
+ * Only `options.cfg` is here, and only because it is where OpenXcom keeps the
+ * player's enabled/disabled state for every installed mod: `Options::save`
+ * writes `mods: [{ id, active }]` into `user/options.cfg`, and `Options::load`
+ * reads it back. `metadata.yml` has no such field — `ModInfo::load` never reads
+ * `active` — so a `metadata.yml` is no place to look for it.
+ *
+ * Every other `.cfg` in a pack is an engine config the pedia has no use for, so
+ * the name is matched exactly rather than by extension.
+ */
+const cfgFileNames = ["options.cfg"];
+
+/**
+ * Whether a path is the game's own mod activation list.
+ *
+ * The test is "the folder holding it is called `user`", which covers every
+ * layout at once: a pack root (`XPiratez/user/options.cfg`), and a bare game
+ * root (`user/options.cfg`, which is what `--serve` is handed). A copy of the
+ * file inside a *mod's* folder is the player's own rather than the pack's, so
+ * that spelling is not recognised — there the parent folder is a mod name.
+ *
+ * Shared by `interpretPath` and `usefulFileName` so the two cannot drift: a
+ * file the filter lets through but the reader does not recognise would arrive
+ * only to be dropped.
+ */
+function isModActivationList(parts: string[]) {
+  if (parts.length < 2)
+    return false;
+  let file = parts[parts.length - 1].toLowerCase();
+  let folder = parts[parts.length - 2].toLowerCase();
+  return folder == "user" && cfgFileNames.includes(file);
+}
+
+type AssetType = "lng" | "rul" | "meta" | "img" | "nam" | "dat" | "cfg";
+
 
 /** Prefix of the builtin mod directories that exist for a single modpack only */
 const xhelperPrefix = "xhelper-";
@@ -112,6 +148,12 @@ export function interpretPath(s: string): InterpretedPath | undefined {
   if (file.toLowerCase() == "metadata.yml")
     return { type: "meta", mod, path };
 
+  // The player's mod activation list, which lives in the game's `user/` folder
+  // rather than in any mod. It is checked before the mod-relative rules below
+  // because it is matched by its place in the layout, not by its mod.
+  if (isModActivationList(parts))
+    return { type: "cfg", mod, path };
+
   // OpenXcom loads `<mod>/Language/<lang>.yml` and `<mod>/Ruleset/*.rul`; nested
   // variants such as `Language/OXCE/` are for the engine's own folder layout and
   // are not part of a mod's language set
@@ -147,7 +189,11 @@ export function usefulFileName(name: string) {
   // Article bodies may be `Language/STR_ID.<lang>.html` (or `.txt`) instead of
   // yaml. Restricted to the Language folder so a pack's other HTML is still
   // not decompressed.
-  return /[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name);
+  if (/[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name))
+    return true;
+  // The player's mod activation list, see `isModActivationList`. Without this the
+  // file is never decompressed, so a pack's enabled/disabled state is invisible.
+  return isModActivationList(name.split(/[/\\]/).filter(p => p != ""));
 }
 
 /**
@@ -169,6 +215,37 @@ export function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
   return interpretFiles(files)
     .filter(f => ["lng", "rul", "meta"].includes(f.type))
     .map(f => ({ ...f, text: new TextDecoder().decode(f.data) }));
+}
+
+/**
+ * The mods the player has switched off, from the pack's `user/options.cfg`.
+ *
+ * OpenXcom keeps activation in `options.cfg`, not in `metadata.yml`: `Options::save`
+ * writes `mods: [{ id, active }]` and `Options::load` reads it back. A mod the
+ * list does not mention is left to the default, which is "on", so a pack with no
+ * `options.cfg` — every archive that was never played, and the usual case —
+ * loads exactly as it would without this function.
+ *
+ * Ids are `metadata.yml`'s `id`, falling back to the folder name, which is what
+ * `Ruleset.activeMods` compares against.
+ */
+export function disabledMods(files: { [name: string]: Uint8Array }): Set<string> {
+  let off = new Set<string>();
+  let cfg = Object.values(interpretFiles(files)).find(f => f.type == "cfg");
+  if (!cfg)
+    return off;
+  try {
+    let data = loadYaml(new TextDecoder().decode(cfg.data));
+    for (let entry of data?.mods ?? [])
+      if (entry && typeof entry.id == "string" && entry.active === false)
+        off.add(entry.id);
+  } catch (e) {
+    // A broken options.cfg is not worth failing a whole load over: the mods a
+    // player disabled are a preference, and the pedia without it describes the
+    // same archive, just with mods the player had switched off
+    console.error(`Can't read ${cfg.path}`, e);
+  }
+  return off;
 }
 
 /**
@@ -313,6 +390,8 @@ export function buildPackData(
 ) {
   let interpretedFiles = interpretFiles(files);
   let mods = loadModsAndLng(decodedYamlFiles(files));
+  // Which of them the player switched off, from the pack's own `user/options.cfg`
+  let disabled = disabledMods(files);
 
   for (let mod of Object.values(mods))
     if (builtinDirs?.has(mod.dir))
@@ -328,7 +407,7 @@ export function buildPackData(
     ? JSON.parse(JSON.stringify(Object.values(mods).filter(mod => !mod.builtin)))
     : undefined;
 
-  let processed = Ruleset.preprocessMods(mods);
+  let processed = Ruleset.preprocessMods(mods, disabled);
 
   // OpenXcom finds a resource by its path relative to the mod folder, so the
   // same relative path often exists in several mods. Build the index it ends
@@ -344,7 +423,17 @@ export function buildPackData(
       processed.mods.filter(m => !m.builtin))
     : undefined;
 
-  return { processed: { ...processed, resources }, interpretedFiles, ownMods, ownResources };
+  return {
+    processed: {
+      ...processed,
+      resources,
+      // The activation state has to survive storage: a saved pack keeps only its
+      // own mods, so without this a pack the player had switched mods off in
+      // would come back with everything on the next time it is opened
+      ...(disabled.size ? { disabled: [...disabled] } : {})
+    },
+    interpretedFiles, ownMods, ownResources
+  };
 }
 
 /**
@@ -478,7 +567,10 @@ export function mergeBuiltinMods(
     Object.values(builtinParsed).map(mod => ({ ...mod, builtin: true })));
   let builtinInterpreted = interpretFiles(builtinFiles);
 
-  let processed = Ruleset.preprocessMods(mods);
+  // The player's own enabled/disabled list is stored with the pack, so the mods
+  // they switched off stay off on every read rather than only on the upload
+  let processed = Ruleset.preprocessMods(mods,
+    stored.disabled?.length ? new Set(stored.disabled) : undefined);
 
   // Assets shipped with the builtin mods are indexed again here, underneath
   // the pack's own entries, for the same reason the language strings are

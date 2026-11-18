@@ -17,6 +17,7 @@ import unrarWasmPayload from "xpedia:unrar-wasm";
 import { UsageError } from "./cliError";
 import { resolveLanguages } from "./cliLanguages";
 import { servePack } from "./cliServe";
+import { layoutOf, listFiles, readFolderPack } from "./cliFolder";
 
 /**
  * Exports an XPedia modpack without a browser.
@@ -30,11 +31,13 @@ import { servePack } from "./cliServe";
 const helpText = `xpedia-cli - export an XPedia modpack as a standalone reference
 
 Usage:
-  xpedia-cli <pack.zip|pack.rar> <target> [options]
+  xpedia-cli <pack.zip|pack.rar|folder> <target> [options]
   xpedia-cli --serve[=<folder>] [options]
 
 Arguments:
-  <pack>                 Modpack archive (ZIP or RAR)
+  <pack>                 Modpack archive (ZIP or RAR), or a folder laid out the
+                         way --serve reads one: a game root with user/mods, a
+                         folder of mod folders, or a single mod folder.
   <target>               Output directory, or the path of a file to write. A
                          directory gets index.html and, with --split, an
                          xpedia-lang/ folder of language scripts. A name ending
@@ -49,7 +52,10 @@ Options:
                          user/mods, a folder of mod folders, or a single mod
                          folder of its own. Mods, images and sounds are read
                          from the folder as the request arrives; reload the page
-                         to pick up an edit.
+                         to pick up an edit. A served page cannot export its
+                         images, since they are never part of it: export the
+                         folder directly, with --assets, to get a pack that
+                         carries them.
   --port <n>             Port for --serve, 9391 by default. The next free port
                          is used when it is taken, and the one chosen is printed.
   --lang <names>         Languages to include, comma separated and repeatable.
@@ -79,6 +85,7 @@ Examples:
   xpedia-cli pack.zip site --assets --lang ru,en-US
   xpedia-cli pack.zip site --split --lang ru,de,pl
   xpedia-cli pack.rar pedia.zip --zip
+  xpedia-cli "D:/OpenXcom/user/mods/MyMod" site
   xpedia-cli --serve "D:/OpenXcom/user/mods/MyMod"
   xpedia-cli --serve --port 8080
 
@@ -335,9 +342,31 @@ async function readArchive(file: string, report: ReturnType<typeof makeReporter>
   return files;
 }
 
+/**
+ * Reads a folder as if it were an archive, which is what `--serve` already does
+ * for a live preview: a modder works on a folder and should not have to repack
+ * it just to see the pedia it produces.
+ *
+ * The layout rules live in `cliFolder.ts`, shared with `--serve`, so a folder
+ * exports exactly what it would have served. The image bytes are read here
+ * rather than skipped, because an export writes them.
+ */
+function readFolder(dir: string, report: ReturnType<typeof makeReporter>) {
+  let names = listFiles(dir);
+  let layout = layoutOf(names);
+  let files = readFolderPack(dir, names, layout, path.basename(path.resolve(dir)));
+
+  if (!Object.keys(files).length)
+    throw new UsageError(`Nothing usable found in ${dir}`);
+
+  report.info(`Read ${Object.keys(files).length} files from ${layout} folder layout ` +
+    `${path.basename(path.resolve(dir))}`);
+  return files;
+}
+
 /** The modpack's own name, which decides the builtin helpers and the page title */
 function packNameOf(file: string) {
-  return path.basename(file).replace(/\.(zip|rar)$/i, "");
+  return path.basename(path.normalize(file)).replace(/\.(zip|rar)$/i, "");
 }
 
 /**
@@ -349,7 +378,9 @@ function packNameOf(file: string) {
  */
 async function loadPack(file: string, report: ReturnType<typeof makeReporter>) {
   let packName = packNameOf(file);
-  let files = await readArchive(file, report);
+  let files = fs.statSync(file, { throwIfNoEntry: false })?.isDirectory()
+    ? readFolder(file, report)
+    : await readArchive(file, report);
 
   let builtinFiles = filterBuiltinMods(unpackBuiltinMods(builtinModsPayload), packName);
 
@@ -593,8 +624,10 @@ async function main(argv: string[]) {
       info: message => report.info(message),
     });
 
-  if (!fs.statSync(options.source, { throwIfNoEntry: false })?.isFile())
-    throw new UsageError(`No such archive: ${options.source}`);
+  // A folder is exported the way `--serve` reads one, so a modder can look at
+  // the result without repacking anything first
+  if (!fs.statSync(options.source, { throwIfNoEntry: false }))
+    throw new UsageError(`No such archive or folder: ${options.source}`);
 
   let pack = await loadPack(options.source, report);
   let available = pack.processed.langs ? Object.keys(pack.processed.langs).filter(n => n != "icon") : [];

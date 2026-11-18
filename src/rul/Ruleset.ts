@@ -43,6 +43,18 @@ export type Mod = {
   common?: boolean
   /** Files that came from the builtin mods rather than from the uploaded pack */
   builtin?: boolean
+  /**
+   * Not one of the pack's own mods, but a base master the game loads underneath
+   * one that is.
+   *
+   * The player can switch `xcom1` off and still keep an active total conversion
+   * that names it as its master — the shipped X-Piratez `options.cfg` does
+   * exactly that — and the game loads such a master anyway, because the chain
+   * expansion in `FileMap::setup` walks from every *enabled* mod up through its
+   * masters. These mods are in the ruleset for that reason alone, so the pedia
+   * must not present them as part of what the player chose.
+   */
+  dependency?: boolean
 };
 
 /**
@@ -54,6 +66,12 @@ export type ProcessedRuleset = {
   langs?: Langs,
   /** Relative resource path (lowercased) -> full archive path */
   resources?: { [rel: string]: string },
+  /**
+   * Ids of the mods the player switched off, as the pack's `user/options.cfg`
+   * says. Absent when everything is on, which is what a pack that was never
+   * played looks like, so the payload keeps its usual shape.
+   */
+  disabled?: string[],
 };
 
 /**
@@ -1118,8 +1136,8 @@ export default class Ruleset {
   }
 
   /**Orders mods and merges languages*/
-  static preprocessMods(mods: { [modName: string]: Mod }) {
-    let modOrder = Ruleset.activeMods(Object.values(mods));
+  static preprocessMods(mods: { [modName: string]: Mod }, disabled?: Set<string>) {
+    let modOrder = Ruleset.activeMods(Object.values(mods), disabled);
 
     let langs: { [langName: string]: { [id: string]: string } } = {};
 
@@ -1155,15 +1173,14 @@ export default class Ruleset {
    * XPedia's own builtin mods are exempt from that filter and always load, so a
    * helper does not have to name the pack's master to be included.
    *
-   * `active` is deliberately ignored here. In a pack the game stores it to mean
-   * "installed but switched off", which is a load-time decision for a player, not
-   * a property of a reference page: the pedia describes everything the archive
-   * contains. Honouring it would also let the flag reorder the merge, which it
-   * must never do.
+   * `active` is read from the pack's `user/options.cfg` by the caller and passed
+   * in as `disabled`; it is not a `metadata.yml` field. Only the dynamics of it
+   * belong here: a mod the player switched off is dropped, while a base master
+   * one of the enabled mods still depends on is kept — see `dependency`.
    *
    * Order is the merge order: later mods override earlier ones.
    */
-  static activeMods(all: Mod[]): Mod[] {
+  static activeMods(all: Mod[], disabled?: Set<string>): Mod[] {
     /** Metadata id, falling back to the folder name like `ModInfo` does */
     let idOf = (mod: Mod) => mod.meta?.id ?? mod.dir.split(/[/\\]/).pop();
 
@@ -1174,30 +1191,56 @@ export default class Ruleset {
         byId[id] = mod;
     }
 
-    /** Resolvable masters, deepest first: mods chaining to xcom1 beat xcom1 */
-    let masters = all.filter(mod => mod.meta?.isMaster);
+    /**
+     * True for the mods the player themselves left on.
+     *
+     * The builtins and `common` count as on: they are not something a pack
+     * installs or enables, so a player's list cannot speak about them.
+     */
+    let chosen = (mod: Mod) => !disabled?.has(idOf(mod)!);
 
-    let depth = (mod: Mod, seen = new Set<string>()): number => {
+    // The chain of the deepest master the player kept. A pack can ship several
+    // masters (`xcom1` next to `xcom2`), and only the one that is switched on
+    // decides what the rest of the list belongs to.
+    let masters = all.filter(mod => mod.meta?.isMaster);
+    let keptMasters = masters.filter(chosen);
+    let activeMaster = keptMasters.length ? deepest(keptMasters) : deepest(masters);
+
+    function depth(mod: Mod, seen = new Set<string>()): number {
       let id = idOf(mod);
       if (!id || seen.has(id)) return 0;
       seen.add(id);
       let parent = mod.meta?.master ? byId[mod.meta.master] : undefined;
       return parent ? depth(parent, seen) + 1 : 0;
-    };
+    }
 
-    // A total conversion lives in `user/mods`, while `standard` holds the base
-    // game masters and optional tweaks; prefer the former as the active master
-    let userMasters = masters.filter(mod => !/[/\\]standard[/\\]/i.test(mod.dir));
-    let activeMaster = (userMasters.length ? userMasters : masters)
-      .sort((a, b) => depth(b) - depth(a))[0];
+    /** Deepest first: a mod chaining to `xcom1` beats `xcom1` */
+    function deepest(list: Mod[]) {
+      // A total conversion lives in `user/mods`, while `standard` holds the base
+      // game masters and optional tweaks; prefer the former
+      let userMasters = list.filter(mod => !/[/\\]standard[/\\]/i.test(mod.dir));
+      return (userMasters.length ? userMasters : list)
+        .sort((a, b) => depth(b) - depth(a))[0];
+    }
 
+    /**
+     * The chain from a master down to the base game, in load order.
+     *
+     * An inactive master in the middle is still loaded, which is what the game
+     * does: `FileMap::setup` walks up from every enabled mod through its
+     * `master` links without consulting the flag. Those mods are marked as a
+     * dependency so the pedia can tell them apart from the player's own choice.
+     */
     let chain: Mod[] = [];
-    let seen = new Set<string>();
-    for (let mod: Mod | undefined = activeMaster; mod && !seen.has(idOf(mod)!);) {
-      seen.add(idOf(mod)!);
+    let chainSeen = new Set<string>();
+    for (let mod: Mod | undefined = activeMaster; mod && !chainSeen.has(idOf(mod)!);) {
+      chainSeen.add(idOf(mod)!);
       chain.unshift(mod);
       mod = mod.meta?.master ? byId[mod.meta.master] : undefined;
     }
+    for (let mod of chain)
+      if (!chosen(mod))
+        mod.dependency = true;
 
     let masterId = activeMaster ? idOf(activeMaster) : undefined;
 
@@ -1236,6 +1279,11 @@ export default class Ruleset {
         return true;
       if (!mod.meta || Object.keys(mod.meta).length == 0)
         return true;
+      // What the player switched off in the game's own mod list. Only the mods
+      // that nothing enabled depends on get this far, so a disabled master is
+      // still loaded above through the chain.
+      if (!chosen(mod))
+        return false;
       // A pack can be a single mod packed on its own rather than a whole
       // OpenXcom install: `Final Mod Pack/metadata.yml` declares `master: xcom1`
       // and is not a master itself, because xcom1 ships with the game. With no

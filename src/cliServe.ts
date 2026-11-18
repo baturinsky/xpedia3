@@ -4,6 +4,9 @@ import path from "node:path";
 import {
   buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods
 } from "./packBuild";
+import {
+  archivePath, isDat, isText, layoutOf, listFiles, readFolderPack, type Layout
+} from "./cliFolder";
 import { buildPageHtml, collectDataFiles, type AppShell } from "./exportCore";
 import { defaultLanguage } from "./rul/Ruleset";
 import { resolveLanguages } from "./cliLanguages";
@@ -27,15 +30,6 @@ import { UsageError } from "./cliError";
  * watcher would additionally yank the page out from under someone mid-article.
  */
 
-/** How a folder lays out its mods, which decides how a file's path is spelled */
-type Layout =
-  /** A game root: `user/mods/<mod>/…`, `standard/<mod>/…`, `common/…` */
-  | "game"
-  /** The folder *is* one mod, so its own name becomes the mod folder */
-  | "mod"
-  /** A folder of mod folders, each with its own `metadata.yml` */
-  | "flat";
-
 export type ServeOptions = {
   /** Folder to serve as the modpack */
   root: string,
@@ -49,117 +43,6 @@ export type ServeOptions = {
   builtinModsPayload: string,
   info: (message: string) => void,
 };
-
-/** Extensions whose bytes the ruleset builder actually reads */
-function isText(name: string) {
-  let lower = name.toLowerCase();
-  let ext = lower.substring(lower.lastIndexOf(".") + 1);
-  if (ext == "rul" || ext == "yml")
-    return true;
-  // Article bodies may be `Language/STR_ID.<lang>.html` or `.txt`
-  if (ext != "html" && ext != "txt")
-    return false;
-  let parts = lower.split("/");
-  return parts.length > 1 && parts[parts.length - 2] == "language";
-}
-
-/** Noise a served folder may contain that is never part of a pack */
-const skippedDirs = new Set([".git", "node_modules"]);
-
-/**
- * Every file in the folder, relative to it, with forward slashes.
- *
- * Sorted so two runs over the same folder agree on which of two spellings of
- * the same path wins.
- */
-function listFiles(root: string) {
-  let out: string[] = [];
-  let walk = (dir: string, prefix: string) => {
-    for (let entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && (entry.name.startsWith(".") || skippedDirs.has(entry.name)))
-        continue;
-      let rel = prefix ? prefix + "/" + entry.name : entry.name;
-      if (entry.isDirectory())
-        walk(path.join(dir, entry.name), rel);
-      else if (entry.isFile())
-        out.push(rel);
-    }
-  };
-  walk(root, "");
-  return out.sort();
-}
-
-/**
- * Which of the three layouts the folder is in.
- *
- * The ruleset builder decides a file's mod from its path the way OpenXcom's
- * `FileMap` does, so the paths handed to it have to follow the same convention:
- * a game root already carries the `user/mods` prefix, a single mod folder needs
- * its own name put in front, and a folder of mods needs nothing. Getting this
- * wrong is not cosmetic — a folder mistaken for "flat" would turn its own
- * `Language/` into a mod called `Language`.
- *
- * - A game root is recognised by the folders the engine itself creates.
- * - A single mod is recognised by the folders a mod must have, `metadata.yml`
- *   being optional but `Ruleset`/`Language`/`Resources` being unmistakable.
- * - Anything else is a folder of mods. A pack nested one level deeper, such as
- *   `<pack>/<pack>/user/mods/…`, still resolves: `interpretPath` looks for
- *   `user/mods` and `standard` anywhere in the path, not just at the start.
- */
-function layoutOf(names: string[]): Layout {
-  let topFiles = new Set(names.filter(n => !n.includes("/")).map(n => n.toLowerCase()));
-  if (["user", "standard", "common"].some(dir => topFiles.has(dir)))
-    return "game";
-
-  let topDirs = new Set(names
-    .filter(n => n.includes("/"))
-    .map(n => n.substring(0, n.indexOf("/")).toLowerCase()));
-  let modMarkers = ["ruleset", "language", "resources", "geodata"];
-  if (topFiles.has("metadata.yml") || modMarkers.some(dir => topDirs.has(dir)))
-    return "mod";
-
-  return "flat";
-}
-
-/** The path a folder file is known by while the ruleset is built */
-function archivePath(rel: string, layout: Layout, modRoot: string) {
-  return layout == "mod" ? `${modRoot}/${rel}` : rel;
-}
-
-/**
- * Reads the folder into `archive path -> bytes`, skipping image contents.
- *
- * Text is read in full, and so is the globe's data: it is small, and the page
- * carries it inside itself rather than fetching it. A sprite becomes an empty
- * placeholder: the resource map still indexes it, so every path resolves exactly
- * as it would in a real archive, while the bytes are never needed — the page
- * asks the server for the image itself. Reading them would copy hundreds of
- * megabytes for nothing.
- */
-function readFolderPack(root: string, names: string[], layout: Layout, modRoot: string) {
-  let files: { [name: string]: Uint8Array } = {};
-  for (let rel of names) {
-    let archive = archivePath(rel, layout, modRoot);
-    if (!interpretPath(archive))
-      continue;
-    files[archive] = isText(rel) || isDat(rel)
-      ? new Uint8Array(fs.readFileSync(path.join(root, rel)))
-      : new Uint8Array(0);
-  }
-  return files;
-}
-
-/**
- * Whether a folder file is raw bytes the page needs, rather than an image it
- * only has to index.
- *
- * This is the same rule `interpretPath` uses to call a file `dat`: only the
- * globe's own folder, so a pack's fonts and other binary DAT files stay
- * unread.
- */
-function isDat(rel: string) {
-  return /\.dat$/i.test(rel) && /(^|[/\\])geodata[/\\]/i.test(rel);
-}
 
 /**
  * `request path -> file on disk`, for everything the page may ask for.
@@ -341,7 +224,7 @@ function makeBuilder(options: ServeOptions) {
     if (cached?.fingerprint == stamp)
       return { html: cached.built.html, index };
 
-    let files = readFolderPack(root, names, layout, modRoot);
+    let files = readFolderPack(root, names, layout, modRoot, { textOnly: true });
 
     // A pack that ships its own copy of a builtin path keeps it as its own data,
     // exactly as `unpackData` and the archive export decide it
@@ -381,6 +264,10 @@ function makeBuilder(options: ServeOptions) {
       processed,
       languages: extra,
       shell: options.shell,
+      // Marks the page as a preview of this folder rather than an export of it,
+      // which is what tells the export dialog its images cannot be bundled:
+      // they are read from the folder as the page asks, never carried by it
+      served: true,
       // The globe travels inside the page, so serving it as a URL is not only
       // unnecessary but wrong: a pack that ships none has no file in the folder
       data: await collectDataFiles(processed.resources, async archivePath => {
