@@ -257,7 +257,17 @@ export function resetSlowProcessCancel() {
 
 export let article: Article | undefined, section: Section | undefined;
 
-let storeSnapshot: StoreType = state, onUpdate = new Set<Function>();
+/**
+ * The value `getSnapshot` hands out, and the listeners waiting for it to change.
+ *
+ * `state` is mutated in place and this is a copy of it, refreshed on every
+ * `update()`. The copy is what a `useSyncExternalStore` consumer compares: same
+ * object means "nothing changed", so it has to be a fresh object per update and
+ * never `state` itself — the first render's snapshot is a copy for the same
+ * reason as every later one.
+ */
+let storeSnapshot: StoreType = { ...state };
+let onUpdate = new Set<Function>();
 let savedJson: string | null = null;
 
 function save() {
@@ -332,11 +342,15 @@ function load(): StoredSettings {
 /** Assuming only UI will subscribe */
 export const externalStore = {
   subscribe: (callback: () => void) => {
-    onUpdate.add(() => {
+    // The wrapper is what is remembered, so the same value is removed again:
+    // deleting the bare `callback` would delete nothing, and every unmount would
+    // leave one more listener behind
+    let listener = () => {
       callback();
-    });
+    };
+    onUpdate.add(listener);
     return () => {
-      onUpdate.delete(callback);
+      onUpdate.delete(listener);
     };
   },
   getSnapshot: () => storeSnapshot
