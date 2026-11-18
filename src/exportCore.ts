@@ -1,6 +1,6 @@
 import * as fflate from "fflate";
 import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
-import { mainMod, type LangMap, type Langs, type ProcessedRuleset } from "./rul/Ruleset";
+import { mainMod, type LangMap, type Langs, type Mod, type ProcessedRuleset } from "./rul/Ruleset";
 import type Ruleset from "./rul/Ruleset";
 import { WORLD_DAT, gameRelativePath } from "./packBuild";
 
@@ -80,17 +80,21 @@ export function buildLanguagePack(processed: ProcessedRuleset, lang: string) {
 }
 
 /**
- * Compresses text, preferring the native stream like the pack loader does.
+ * Compresses bytes, preferring the native stream like the pack loader does.
  *
  * Both paths produce a valid gzip; the native one is several times faster on a
  * big translation, which matters when the export runs from the page.
  */
-export async function gzipText(text: string) {
-  let bytes = new TextEncoder().encode(text);
+export async function gzipBytes(bytes: Uint8Array) {
   if (typeof CompressionStream == "undefined")
     return fflate.gzipSync(bytes);
-  let stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  let stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/** Compresses text, see `gzipBytes` */
+export async function gzipText(text: string) {
+  return gzipBytes(new TextEncoder().encode(text));
 }
 
 /**
@@ -158,7 +162,7 @@ export function prepareRul(processed: ProcessedRuleset, languages: string[], lab
  *
  * Sprites cover items, facilities, armor layers and article illustrations;
  * obs tables are the indexed sprite sheets (`BIGOBS.PCK` and friends); the
- * globe's DAT file is needed to draw the world map.
+ * globe's DAT is *not* here: it travels inside the page, see `collectDataFiles`.
  */
 export function referencedPaths(rul: Ruleset | undefined) {
   let paths = new Set<string>();
@@ -189,13 +193,79 @@ export function referencedPaths(rul: Ruleset | undefined) {
       add(id);
   }
 
-  // The world map reads the pack's globe data through the resource index. Only
-  // the file that index resolves to is needed, not every DAT the pack ships.
-  let dat = rul.resourceMap?.[WORLD_DAT];
-  if (dat)
-    add(dat);
+  // The world map's globe data is deliberately *not* here: it is not a file the
+  // reader's game folder is guaranteed to have, and a page opened from `file://`
+  // cannot fetch it at all. It travels inside the page, see `dataPaths`.
 
   return paths;
+}
+
+/**
+ * Data files the pedia reads as bytes rather than shows as pictures.
+ *
+ * These are the ruleset's `geodata:` inputs — the polygons and coastline the
+ * world map is drawn from. They cannot be left for the reader to fetch, the way
+ * images are: a page opened from `file://` cannot fetch its neighbours at all,
+ * so the map would silently fall back to the stock globe and a pack that ships
+ * its own would draw the wrong world. They are also small enough to carry —
+ * `WORLD.DAT` is 18 KB, 9 KB gzipped — against images that are megabytes each.
+ *
+ * The spellings are the ruleset-relative ones, `geodata/world.dat`, so the
+ * payload is keyed by what the code that wants the file already asks for, and
+ * never by where the file happened to sit in the archive.
+ *
+ * `globe: data:` lets a pack name a file other than the stock globe, and the
+ * last mod to set it wins, exactly as `combineModRuls` merges the block. Both
+ * spellings are carried when they differ: the stock one is what the code asks
+ * for by default, the named one is what such a pack actually means.
+ */
+export function dataPaths(mods: Mod[] = []): string[] {
+  let paths: string[] = [];
+  let named: string | undefined;
+  for (let mod of mods)
+    for (let file of mod.rul ?? [])
+      if (file?.globe && typeof file.globe.data == "string")
+        named = file.globe.data;
+  // The stock globe is always carried: it is what the reader falls back to when
+  // the pack names none, and the builtin copy is not a file they can fetch
+  paths.push(WORLD_DAT);
+  if (named) {
+    let key = named.replace(/^[/\\]+/, "").toLowerCase();
+    if (!paths.includes(key))
+      paths.push(key);
+  }
+  return paths;
+}
+
+/**
+ * The data files of a pack, as `ruleset-relative path -> base64 of its gzipped bytes`.
+ *
+ * Takes the resource map rather than a `Ruleset`: building one stamps flag
+ * labels onto the shared language table, and a page's payload must not carry
+ * those. The map is all this needs anyway.
+ *
+ * Only the paths that actually resolve are returned. A pack that ships no
+ * `WORLD.DAT` is normal — it means "use the stock globe", which the builtin copy
+ * already provides — so a miss is not an error.
+ */
+export async function collectDataFiles(
+  resources: { [rel: string]: string } | undefined,
+  read: (archivePath: string) => Promise<Uint8Array | undefined>,
+  mods: Mod[] = [],
+) {
+  let files: { [path: string]: string } = {};
+  for (let rel of dataPaths(mods)) {
+    let archivePath = resources?.[rel];
+    if (!archivePath)
+      continue;
+    let bytes = await read(archivePath);
+    if (!bytes?.length)
+      continue;
+    // Gzipped then base64ed: this is a JSON payload, so raw binary would have
+    // to be escaped into a larger form than the compression saves
+    files[rel] = bytesToBase64(await gzipBytes(bytes));
+  }
+  return files;
 }
 
 function escapeHtml(text: string) {
@@ -222,6 +292,13 @@ export type PagePayload = {
   lang?: string,
   /** Language name -> script carrying its strings, for a split export */
   packs?: { [name: string]: string },
+  /**
+   * Ruleset-relative path -> base64 of the gzipped bytes, for the raw data
+   * files the pedia reads rather than shows. See `dataPaths`.
+   *
+   * Absent when the pack has none, so an ordinary export keeps its old shape.
+   */
+  data?: { [path: string]: string },
 };
 
 /**
@@ -235,7 +312,8 @@ export async function renderPage(
   processed: ProcessedRuleset,
   rulesetBase64: string,
   shell: AppShell,
-  page?: PageLanguage
+  page?: PageLanguage,
+  data?: { [path: string]: string }
 ) {
   let payload: PagePayload = {
     pack: exportedPackName(pack),
@@ -248,6 +326,9 @@ export async function renderPage(
   // Only written when the other languages live in scripts beside the page
   if (page?.packs && Object.keys(page.packs).length)
     payload.packs = page.packs;
+  // Only written when the pack actually has data files, which most do not
+  if (data && Object.keys(data).length)
+    payload.data = data;
 
   let { scripts, styles } = shell;
   // The page title names the mod the pack is about, the same one the navbar
@@ -289,6 +370,8 @@ export type BuildPageOptions = {
   languages: string[],
   shell: AppShell,
   page?: PageLanguage,
+  /** Data files to carry inside the page, see `collectDataFiles` */
+  data?: { [path: string]: string },
 };
 
 /** Builds the HTML text of the exported pedia */
@@ -298,7 +381,8 @@ export async function buildPageHtml(options: BuildPageOptions) {
     // the ones whose strings live elsewhere need their flag label
     options.page?.packs ? Object.keys(options.page.packs) : []);
   let gzipped = await gzipText(JSON.stringify(trimmed));
-  return renderPage(options.pack, trimmed, bytesToBase64(gzipped), options.shell, options.page);
+  return renderPage(options.pack, trimmed, bytesToBase64(gzipped), options.shell,
+    options.page, options.data);
 }
 
 /** Base64 is 4 characters per 3 bytes, rounded up to a whole group */

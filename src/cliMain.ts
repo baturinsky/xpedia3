@@ -8,7 +8,7 @@ import {
   unpackBuiltinMods, unpackRar, unpackZip
 } from "./packBuild";
 import {
-  buildPageHtml, buildLanguagePack, exportedPackName, languagePackPath,
+  buildPageHtml, buildLanguagePack, collectDataFiles, exportedPackName, languagePackPath,
   referencedPaths, zipFiles, type AppShell, type ExportFile
 } from "./exportCore";
 import shellPayload from "xpedia:shell";
@@ -644,6 +644,15 @@ async function main(argv: string[]) {
   let pages = 0;
 
   report.info(`Building ${pageName} (${options.split ? "English" : primary})`);
+  // The raw data files the page has to carry, gathered before the page is built
+  // because they go inside it. The archive's own copy is the only one available
+  // here: the ruleset names the globe, and the file is in the pack.
+  let byPath = new Map<string, Uint8Array>();
+  for (let file of pack.interpretedFiles)
+    if (file.type == "img" || file.type == "dat")
+      byPath.set(file.path, file.data);
+  let data = await collectDataFiles(pack.processed.resources, async path => byPath.get(path),
+    pack.processed.mods);
   let html = await buildPageHtml({
     pack: pack.packName,
     processed: pack.processed,
@@ -653,7 +662,8 @@ async function main(argv: string[]) {
     // Only a page that cannot hold every language needs to say how it starts
     page: options.split
       ? { packs }
-      : primary == defaultLanguage ? undefined : { lang: primary }
+      : primary == defaultLanguage ? undefined : { lang: primary },
+    data
   });
   outputs.push({ rel: pageName, data: new TextEncoder().encode(html) });
   pages++;
@@ -673,24 +683,19 @@ async function main(argv: string[]) {
   if (options.assets) {
     // Only the images the pedia can show travel, laid out where the game keeps
     // them, so the result works without a game installation
-    let byPath = new Map<string, Uint8Array>();
-    for (let file of pack.interpretedFiles)
-      if (file.type == "img" || file.type == "dat")
-        byPath.set(file.path, file.data);
-
+    //
     // The ruleset is built here, after the pages, because constructing one adds
     // the language flags to the shared `langs` map — data the exported payload
     // must not carry, since the browser exporter does not add it either
-    let rul = new Ruleset(pack.processed);
-    let paths = [...referencedPaths(rul)];
+    let paths = [...referencedPaths(new Ruleset(pack.processed))];
     let taken = new Set(outputs.map(o => o.rel));
     for (let i = 0; i < paths.length; i++) {
-      let data = byPath.get(paths[i]);
-      if (data && data.length) {
+      let bytes = byPath.get(paths[i]);
+      if (bytes && bytes.length) {
         let rel = gameRelativePath(paths[i]);
         if (!taken.has(rel)) {
           taken.add(rel);
-          outputs.push({ rel, data });
+          outputs.push({ rel, data: bytes });
           assets++;
         }
       }

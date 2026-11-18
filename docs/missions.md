@@ -611,6 +611,22 @@ names the same terrains in the same colours and is the way in to those pages.
 Measured on XFiles, dropping the anchors took the map's own construction from
 18.7 ms to 8.3 ms, so the screen-reader argument was not the only one.
 
+**The globe travels inside the page.** `WORLD.DAT` is not in the ruleset, so an
+exported page used to leave it beside itself as a loose file and read it back
+with `fetch` — which a page opened from `file://` cannot do at all. XFiles
+therefore drew the *stock* coastline while claiming to be XFiles. The bytes are
+now gzipped into the payload as `window.xpedia.data["geodata/world.dat"]`
+(11.8 KB of base64 against a 10 MB page), and the loose file is gone from
+`--assets` exports.
+
+That channel is deliberately general, since the globe will not be the only raw
+input: `dataPaths(mods)` in `exportCore.ts` decides which files go in,
+`collectDataFiles` reads and compresses them, and `inlineDataFile` in
+`packSource.ts` answers by path. Adding another non-ruleset, non-image file
+means naming it in `dataPaths` — the writer and the reader both walk that list.
+`readDat` still tries the older sources for a database pack and for an export
+made before this change, so no page in the wild breaks.
+
 ---
 
 ## 5. Objectives 0–6

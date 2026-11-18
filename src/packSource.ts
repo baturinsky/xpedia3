@@ -100,6 +100,11 @@ export type InlinePayload = {
    * for the first time. English is absent: it is always already there.
    */
   packs?: { [name: string]: string },
+  /**
+   * Ruleset-relative path -> base64 of the gzipped bytes, for the raw data
+   * files the pedia reads instead of showing. Absent when there are none.
+   */
+  data?: { [path: string]: string },
 };
 
 function readInlinePayload(): InlinePayload | undefined {
@@ -336,4 +341,49 @@ export async function resolveImage(path: string): Promise<{ data?: Uint8Array, u
   let record = await idb.getImg(path);
   if (record?.data)
     return { data: record.data };
+}
+
+/** Data files already decoded, keyed by the path the payload spells them with */
+let dataLoads = new Map<string, Promise<Uint8Array | undefined>>();
+
+/**
+ * Bytes of a raw data file of the shown pack — the globe's `WORLD.DAT` so far.
+ *
+ * An exported page carries these inside itself rather than beside itself, so
+ * this reads the payload and never the disk: a page opened from `file://` cannot
+ * `fetch` its neighbours at all, which used to make the map quietly fall back to
+ * the stock globe. `path` is the ruleset-relative spelling the rest of the code
+ * asks with, `geodata/world.dat`, which is also how the export keys it.
+ *
+ * A database pack has no such payload; its bytes live with the images and are
+ * found through `resolveImage`.
+ */
+export function inlineDataFile(path: string): Promise<Uint8Array | undefined> {
+  let payload = readInlinePayload();
+  if (!payload)
+    return Promise.resolve(undefined);
+
+  let encoded = payload.data?.[path.replace(/\\/g, "/").toLowerCase()];
+  if (!encoded)
+    return Promise.resolve(undefined);
+
+  let started = dataLoads.get(path);
+  if (started)
+    return started;
+
+  // Decoding is deferred to the first ask: the map is one page of many, and a
+  // reader who never opens it should not pay for the gunzip
+  let load = (async () => {
+    try {
+      let gzipped = new Uint8Array(base64ToArrayBuffer(encoded));
+      return fflate.gunzipSync(gzipped);
+    } catch (e) {
+      console.error(`Can't read the inlined ${path}`, e);
+      // Not remembered, so a retry does not stay broken
+      dataLoads.delete(path);
+      return undefined;
+    }
+  })();
+  dataLoads.set(path, load);
+  return load;
 }

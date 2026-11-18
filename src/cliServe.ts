@@ -2,9 +2,9 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import {
-  buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods, WORLD_DAT
+  buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods
 } from "./packBuild";
-import { buildPageHtml, type AppShell } from "./exportCore";
+import { buildPageHtml, collectDataFiles, type AppShell } from "./exportCore";
 import { defaultLanguage } from "./rul/Ruleset";
 import { resolveLanguages } from "./cliLanguages";
 import { gameRelativePath } from "./util";
@@ -129,10 +129,12 @@ function archivePath(rel: string, layout: Layout, modRoot: string) {
 /**
  * Reads the folder into `archive path -> bytes`, skipping image contents.
  *
- * Only text is read. A sprite becomes an empty placeholder: the resource map
- * still indexes it, so every path resolves exactly as it would in a real
- * archive, while the bytes are never needed — the page asks the server for the
- * image itself. Reading them would copy hundreds of megabytes for nothing.
+ * Text is read in full, and so is the globe's data: it is small, and the page
+ * carries it inside itself rather than fetching it. A sprite becomes an empty
+ * placeholder: the resource map still indexes it, so every path resolves exactly
+ * as it would in a real archive, while the bytes are never needed — the page
+ * asks the server for the image itself. Reading them would copy hundreds of
+ * megabytes for nothing.
  */
 function readFolderPack(root: string, names: string[], layout: Layout, modRoot: string) {
   let files: { [name: string]: Uint8Array } = {};
@@ -140,7 +142,7 @@ function readFolderPack(root: string, names: string[], layout: Layout, modRoot: 
     let archive = archivePath(rel, layout, modRoot);
     if (!interpretPath(archive))
       continue;
-    files[archive] = isText(rel)
+    files[archive] = isText(rel) || isDat(rel)
       ? new Uint8Array(fs.readFileSync(path.join(root, rel)))
       : new Uint8Array(0);
   }
@@ -148,25 +150,31 @@ function readFolderPack(root: string, names: string[], layout: Layout, modRoot: 
 }
 
 /**
- * What a request path answers with: a file in the folder, or bytes that live in
- * this process.
+ * Whether a folder file is raw bytes the page needs, rather than an image it
+ * only has to index.
  *
- * Only the builtin globe takes the second form. It is not on disk — it is
- * compiled into this script — yet the page fetches it by URL like any other
- * image, so it has to be answerable without a temporary copy that a hard kill
- * would leave behind.
+ * This is the same rule `interpretPath` uses to call a file `dat`: only the
+ * globe's own folder, so a pack's fonts and other binary DAT files stay
+ * unread.
  */
-type IndexEntry =
-  | { file: string }
-  | { bytes: Uint8Array, type: string };
+function isDat(rel: string) {
+  return /\.dat$/i.test(rel) && /(^|[/\\])geodata[/\\]/i.test(rel);
+}
 
-/** `request path -> file on disk`, for everything the page may ask for. */
+/**
+ * `request path -> file on disk`, for everything the page may ask for.
+ *
+ * A map of paths rather than of entries: every file the page can ask for is in
+ * the folder. The builtin globe used to be the exception — compiled into this
+ * script, with no file to point at — but the page now carries it inside itself,
+ * so nothing is served from memory any more.
+ */
 function buildFileIndex(root: string, names: string[], layout: Layout, modRoot: string) {
-  let index = new Map<string, IndexEntry>();
+  let index = new Map<string, string>();
   let register = (key: string, file: string) => {
     let lower = key.replace(/^\/+/, "").toLowerCase();
     if (lower && !index.has(lower))
-      index.set(lower, { file });
+      index.set(lower, file);
   };
   for (let rel of names) {
     let full = path.join(root, rel);
@@ -179,17 +187,18 @@ function buildFileIndex(root: string, names: string[], layout: Layout, modRoot: 
 }
 
 /**
- * A cheap signature of everything that decides the ruleset.
+ * A cheap signature of everything that decides the page.
  *
  * Names, sizes and modification times of the text files: enough to tell that a
  * reload would produce a different pedia, without reading or parsing anything.
  * Images are deliberately absent — they are served as they are, so changing one
- * needs no rebuild at all.
+ * needs no rebuild at all. The globe's data is not an image in that sense: the
+ * page carries its bytes, so editing it has to rebuild the page.
  */
 function fingerprint(root: string, names: string[]) {
   let parts: string[] = [];
   for (let rel of names) {
-    if (!isText(rel))
+    if (!isText(rel) && !isDat(rel))
       continue;
     let stat = fs.statSync(path.join(root, rel), { throwIfNoEntry: false });
     parts.push(`${rel}:${stat?.size ?? -1}:${stat?.mtimeMs ?? -1}`);
@@ -225,25 +234,15 @@ function contentTypeOf(file: string) {
  * server that answers the whole file to every range request makes scrubbing
  * reload the track from the start.
  */
-function sendFile(res: http.ServerResponse, entry: IndexEntry, req: http.IncomingMessage) {
-  let data: Uint8Array | undefined;
-  let size: number;
-  let type: string;
-
-  if ("bytes" in entry) {
-    data = entry.bytes;
-    size = entry.bytes.length;
-    type = entry.type;
-  } else {
-    let stat = fs.statSync(entry.file, { throwIfNoEntry: false });
-    if (!stat?.isFile()) {
-      res.statusCode = 404;
-      res.end("Not found");
-      return;
-    }
-    size = stat.size;
-    type = contentTypeOf(entry.file);
+function sendFile(res: http.ServerResponse, file: string, req: http.IncomingMessage) {
+  let stat = fs.statSync(file, { throwIfNoEntry: false });
+  if (!stat?.isFile()) {
+    res.statusCode = 404;
+    res.end("Not found");
+    return;
   }
+  let size = stat.size;
+  let type = contentTypeOf(file);
 
   // A reload must show the files as they are, so nothing is cached
   res.setHeader("Cache-Control", "no-store");
@@ -268,11 +267,7 @@ function sendFile(res: http.ServerResponse, entry: IndexEntry, req: http.Incomin
       res.end();
       return;
     }
-    if (data) {
-      res.end(data.subarray(start, end + 1));
-      return;
-    }
-    fs.createReadStream((entry as { file: string }).file, { start, end }).pipe(res);
+    fs.createReadStream(file, { start, end }).pipe(res);
     return;
   }
 
@@ -281,11 +276,7 @@ function sendFile(res: http.ServerResponse, entry: IndexEntry, req: http.Incomin
     res.end();
     return;
   }
-  if (data) {
-    res.end(data);
-    return;
-  }
-  fs.createReadStream((entry as { file: string }).file).pipe(res);
+  fs.createReadStream(file).pipe(res);
 }
 
 /** Binds the first free port at or after `start` */
@@ -317,7 +308,7 @@ function listen(server: http.Server, start: number, tries = 25) {
 }
 
 /** The page and the file index, rebuilt together so they always describe one state */
-type Built = { html: string, index: Map<string, IndexEntry> };
+type Built = { html: string, index: Map<string, string> };
 
 /**
  * Rebuilds the page from the folder.
@@ -333,18 +324,6 @@ function makeBuilder(options: ServeOptions) {
   let modRoot = path.basename(root);
   let builtin = filterBuiltinMods(unpackBuiltinMods(options.builtinModsPayload), modRoot);
   let cached: { fingerprint: string, built: Built } | undefined;
-  /**
-   * Where the ruleset found the globe, and the bytes to answer it with when the
-   * pack ships none.
-   *
-   * A pack that carries no `WORLD.DAT` still draws a globe: the ruleset falls
-   * back to the copy compiled into the builtin mods, which has no file in the
-   * folder to serve. The key is settled on the first build and reused, because
-   * every request after that may take the cached page and has to answer its
-   * globe request too.
-   */
-  let globeKey: string | undefined;
-  let globeBytes: Uint8Array | undefined;
   return async function build(refresh = true): Promise<Built> {
     // A sprite request does not re-list the folder. The page request that
     // preceded it already did, and a pack has tens of thousands of files: walking
@@ -357,11 +336,6 @@ function makeBuilder(options: ServeOptions) {
     let names = listFiles(root);
     let layout = layoutOf(names);
     let index = buildFileIndex(root, names, layout, modRoot);
-
-    // The globe is not always a file in the folder, so the index is completed
-    // here rather than in the build below: a cached page still asks for it
-    if (globeKey && globeBytes && !index.has(globeKey))
-      index.set(globeKey, { bytes: globeBytes, type: "application/octet-stream" });
 
     let stamp = fingerprint(root, names);
     if (cached?.fingerprint == stamp)
@@ -407,21 +381,17 @@ function makeBuilder(options: ServeOptions) {
       processed,
       languages: extra,
       shell: options.shell,
+      // The globe travels inside the page, so serving it as a URL is not only
+      // unnecessary but wrong: a pack that ships none has no file in the folder
+      data: await collectDataFiles(processed.resources, async archivePath => {
+        let own = files[archivePath];
+        if (own?.length)
+          return own;
+        // A pack that ships no globe borrows the builtin one, which is compiled
+        // into this script rather than being a file in the folder
+        return builtin["mods/xpedia/GEODATA/WORLD.DAT"];
+      }, processed.mods)
     });
-
-    // The globe must be reachable, and a pack that ships none borrows the one in
-    // the builtin mods, which is not a file in the folder. It is served under
-    // the path the ruleset resolved it to, straight from the bytes in this
-    // script.
-    let dat = processed.resources?.[WORLD_DAT];
-    if (dat && !index.has(dat.toLowerCase())) {
-      let fallback = builtin["mods/xpedia/GEODATA/WORLD.DAT"];
-      if (fallback) {
-        globeKey = dat.toLowerCase();
-        globeBytes = fallback;
-        index.set(globeKey, { bytes: fallback, type: "application/octet-stream" });
-      }
-    }
 
     cached = { fingerprint: stamp, built: { html, index } };
     return { html, index };
@@ -469,13 +439,13 @@ export async function servePack(options: ServeOptions) {
 
     build(false)
       .then(({ index }) => {
-        let entry = index.get(url.replace(/^\/+/, "").toLowerCase());
-        if (!entry) {
+        let file = index.get(url.replace(/^\/+/, "").toLowerCase());
+        if (!file) {
           res.statusCode = 404;
           res.end("Not found");
           return;
         }
-        sendFile(res, entry, req);
+        sendFile(res, file, req);
       })
       .catch(() => {
         res.statusCode = 500;

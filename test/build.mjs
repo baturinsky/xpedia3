@@ -20,6 +20,7 @@ const shim = path.join(here, "helpers", "js-worker-search.mjs");
 const modules = [
   ["src/rul/Ruleset.ts", "engine.mjs"],
   ["src/packBuild.ts", "packbuild.mjs"],
+  ["src/exportCore.ts", "exportcore.mjs"],
   ["src/ui/schedule.ts", "schedule.mjs"],
   ["src/ui/timing.ts", "timing.mjs"],
 ];

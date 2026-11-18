@@ -4,9 +4,9 @@ import { readImgData, readImgSizes, readRulData } from "./idb";
 import { isPermanentPack } from "./packSource";
 import type { Langs, ProcessedRuleset } from "./rul/Ruleset";
 import {
-  base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, exportedPackName,
-  gzipText, languagePackPath, onlyTranslated, prepareRul, referencedPaths, renderPage,
-  zipFiles, type AppShell, type ExportFile, type TagCopy
+  base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, collectDataFiles,
+  exportedPackName, gzipText, languagePackPath, onlyTranslated, prepareRul, referencedPaths,
+  renderPage, zipFiles, type AppShell, type ExportFile, type TagCopy
 } from "./exportCore";
 
 /**
@@ -388,7 +388,10 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
     // A split page carries English alone; the others travel beside it
     languages: options.split ? [] : options.languages,
     shell: await readAppAssets(),
-    page: options.split ? { packs: Object.fromEntries(pairs.map(lang => [lang, languagePackPath(lang)])) } : undefined
+    page: options.split ? { packs: Object.fromEntries(pairs.map(lang => [lang, languagePackPath(lang)])) } : undefined,
+    // The world map's globe travels inside the page: it is far too small to need
+    // a file beside it, and a page opened from `file://` cannot read one anyway
+    data: await collectDataFiles(processed.resources, path => readImgData(pack, path), processed.mods)
   });
 
   // A single HTML file is only possible when nothing else is asked for; the

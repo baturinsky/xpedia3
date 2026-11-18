@@ -94,7 +94,24 @@ export async function loadPack(path) {
   let packDirs = modDirs(own);
   let builtinDirs = new Set([...modDirs(builtin)].filter(dir => !packDirs.has(dir)));
 
-  return new Ruleset(rulesetOf({ ...builtin, ...own }, builtinDirs));
+  // The unpacked files are kept on the ruleset so a check can read a file out of
+  // the pack with the same bytes an exporter would: the exporters hand
+  // `collectDataFiles` a reader over exactly this map
+  let files = { ...builtin, ...own };
+  let rul = new Ruleset(rulesetOf(files, builtinDirs));
+  rul.packFiles = files;
+  return rul;
+}
+
+/**
+ * A reader over an unpacked pack, in the shape `collectDataFiles` wants.
+ *
+ * The exporters each have their own source of bytes — an archive here, a folder
+ * in the served case, the database in the browser — but they all read one file
+ * at a time by archive path, which is all this has to do too.
+ */
+export function fileReader(files) {
+  return async path => files[path];
 }
 
 /**

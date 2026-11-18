@@ -1,5 +1,5 @@
 import { rul } from "./rul/Ruleset";
-import { resolveImage } from "./packSource";
+import { inlineDataFile, resolveImage } from "./packSource";
 import { WORLD_DAT } from "./packBuild";
 import { builtinFile } from "./load";
 
@@ -322,23 +322,28 @@ export function findDatPath(rel?: string) {
 }
 
 /**
- * Bytes of a DAT file, preferring the shown pack over the builtin copy.
+ * Bytes of a DAT file, in the order the sources are trusted.
  *
- * DATs are stored next to the images, so a pack that ships its own `WORLD.DAT`
- * comes back through the normal image lookup. Packs that ship none fall back to
- * the copy compiled into the builtin mods, which is read straight from the
- * bundle rather than the database: an exported page opened from disk has no
- * database to read it from.
+ * The page's own payload comes first: an exported page carries the globe inside
+ * itself precisely because it cannot fetch a neighbour, and that bundle is the
+ * only copy the reader is guaranteed to have. Then the pack's stored record, for
+ * a database pack; then the game folder, which is what an older export beside a
+ * game installation still provides; and last the builtin copy, compiled into the
+ * bundle, for a pack that ships no globe of its own.
  */
 async function readDat(rel: string) {
+  let inline = await inlineDataFile(rel);
+  if (inline)
+    return looksLikeWorldDat(inline) ? inline : undefined;
+
   let path = findDatPath(rel) ?? rel;
   let resolved = await resolveImage(path);
   if (resolved?.data)
     return looksLikeWorldDat(resolved.data) ? resolved.data : undefined;
 
-  // An inlined pack has no bytes in storage: its files sit next to the HTML
-  // page, so the URL has to be fetched instead. The stock globe usually is not
-  // there, which is not a problem, hence no warning.
+  // An older export has no payload of its own, only files beside the page, so
+  // the URL is tried as a fallback. The stock globe usually is not there, which
+  // is not a problem, hence no warning.
   //
   // What comes back is checked, because a missing file is often not a 404: a
   // single-page server answers everything with its own `index.html`, and that
