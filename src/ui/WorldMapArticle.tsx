@@ -159,8 +159,25 @@ function splitPoles(points: [number, number][]) {
  * Every shape is emitted three times, one turn to either side, so a shape that
  * straddles the cut is still complete: the off-canvas copies are clipped away
  * and the parts that fall inside fill in the other edge.
+ *
+ * Without overlays the result depends on nothing but the map, so it is kept: a
+ * nation's page crops the same drawing, and projecting two and a half thousand
+ * polygons once per nation visited is work that never changes answer. The cache
+ * is keyed by the map object itself, so a different pack is a different entry
+ * and the old one is collected with it.
  */
+const plainProjections = new WeakMap<WorldMap, ReturnType<typeof buildProjection>>();
+
 function projectMap(map: WorldMap, overlays?: Overlay[]) {
+  if (overlays?.length)
+    return buildProjection(map, overlays);
+  let cached = plainProjections.get(map);
+  if (!cached)
+    plainProjections.set(map, cached = buildProjection(map));
+  return cached;
+}
+
+function buildProjection(map: WorldMap, overlays?: Overlay[]) {
   let polygons = map.polygons.map(polygon => {
     let lons = center(polygon.points.map(p => p[0]));
     let lats = polygon.points.map(p => p[1]);
@@ -183,7 +200,7 @@ function projectMap(map: WorldMap, overlays?: Overlay[]) {
     label: country.label
       ? { x: wrapColumn(country.label.lon), y: rowForLat(country.label.lat) }
       : undefined,
-    areas: country.areas.map(area => countryRectangle(area))
+    areas: oneTurn(country.areas.map(area => countryRectangle(area)))
   }));
 
   return {
@@ -374,6 +391,46 @@ function countryRectangle(area: MapRectangle) {
   let lons = center([area.lonMin, lonMax, lonMax, area.lonMin]);
   let lats = [area.latMin, area.latMin, area.latMax, area.latMax];
   return lons.map((lon, i) => [columnForLon(lon), rowForLat(lats[i])] as [number, number]);
+}
+
+/**
+ * Brings one nation's boxes into a single turn of the map.
+ *
+ * `center` chooses a turn for each shape on its own, by rounding its middle
+ * toward `ORIGIN`. That is right for a coastline, which is one continuous run of
+ * vertices, but a nation is a list of separate boxes and each is rounded by
+ * itself. A nation with boxes on both sides of the rounding point — 10°E, since
+ * the map is cut at the Bering Strait — ends up with one box a whole world away
+ * from the rest. In XFiles, Denmark's three boxes come out at columns 1011 and
+ * -1018, so the country is drawn as a band a third of a world wide.
+ *
+ * The big map hides this, because the +-WIDTH copies it draws either side fill
+ * the gap. A picture cropped to the nation does not: the crop is the union of
+ * the boxes, so it becomes the whole world, and the nation appears twice in it.
+ *
+ * The widest box is the anchor, since it is the part of a nation a reader would
+ * call the country, and every other box is moved by the whole number of turns
+ * that brings it nearest. A nation with territory genuinely far away — France
+ * with its Pacific islands, say — keeps the distance, because no turn is a lie
+ * that would bring it closer.
+ */
+function oneTurn(quads: [number, number][][]) {
+  if (quads.length < 2)
+    return quads;
+
+  let middle = (quad: [number, number][]) =>
+    (Math.min(...quad.map(p => p[0])) + Math.max(...quad.map(p => p[0]))) / 2;
+  let span = (quad: [number, number][]) =>
+    Math.max(...quad.map(p => p[0])) - Math.min(...quad.map(p => p[0]));
+
+  let anchor = quads.reduce((a, b) => span(b) > span(a) ? b : a);
+  let at = middle(anchor);
+  return quads.map(quad => {
+    let turns = Math.round((at - middle(quad)) / WIDTH);
+    return turns
+      ? quad.map(([x, y]) => [x + turns * WIDTH, y] as [number, number])
+      : quad;
+  });
 }
 
 /**
@@ -1176,6 +1233,134 @@ export function RegionsMapArticle() {
       {" "}<Val of={missing} />{" "}
       <Tr text="xpediaRegionsMapNoAreas" />
     </p>}
+  </div>;
+}
+
+/**
+ * The country minimap's floor, in map units.
+ *
+ * A window is never smaller than this, so a nation of one small box is not blown
+ * up to fill the panel on its own: at 300 units the whole 2048-unit map is about
+ * seven panels wide, which is enough context to see which coast is which.
+ */
+const MIN_WINDOW = 300;
+
+/**
+ * The part of the map a country's boxes occupy, with room around them.
+ *
+ * Cropped rather than showing the whole world: in the picture under a nation's
+ * table the nation is the subject, and at full width it would be a few pixels.
+ * The land and the borders around it stay in the window, so the crop still says
+ * where in the world the place is.
+ *
+ * The window is kept between 0.9:1 and 2:1: a country that is mostly a long
+ * strip — Chile, Norway — would otherwise produce a sliver with nothing but sea
+ * above and below it.
+ */
+function countryWindow(areas: [number, number][][]) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let box of areas)
+    for (let [x, y] of box) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  if (!isFinite(minX))
+    return;
+
+  // Room around the boxes, proportional to them so a continent and an island
+  // both keep the same reading distance
+  let pad = Math.max(maxX - minX, maxY - minY) * 0.12 + 12;
+  let x = minX - pad, y = minY - pad;
+  let width = maxX - minX + pad * 2, height = maxY - minY + pad * 2;
+
+  if (width / height > 2) {
+    let want = width / 2;
+    y -= (want - height) / 2;
+    height = want;
+  } else if (width / height < 0.9) {
+    let want = height * 0.9;
+    x -= (want - width) / 2;
+    width = want;
+  }
+
+  if (width < MIN_WINDOW) {
+    let scale = MIN_WINDOW / width;
+    x -= (width * scale - width) / 2;
+    y -= (height * scale - height) / 2;
+    width *= scale;
+    height *= scale;
+  }
+
+  return { x, y, width, height };
+}
+
+/**
+ * A nation's boxes as the only subject of a small map.
+ *
+ * This is the Countries page's picture cropped to one nation, with none of that
+ * page's machinery: no zoom, no pan, no hover, no labels. The whole block is a
+ * single link back to the Countries page, which is where the nation can be read
+ * against all the others — so the press has to mean one thing everywhere in the
+ * picture rather than depending on where in it the pointer landed.
+ *
+ * It is drawn from `projectMap` like the big map, so the coastline, the borders
+ * and the nation's own colour are the same drawing rather than a second one that
+ * could drift.
+ */
+export function CountryMapArticle({ id }: { id: string }) {
+  let { map, status } = useWorldMap();
+  let projected = useMemo(() => map && projectMap(map), [map]);
+  let country = projected?.countries.find(c => c.id == id);
+
+  if (status == "loading")
+    return <div className="world-map-status"><Tr text="xpediaMapLoading" /></div>;
+  // A pack with a globe but no readable DAT still has a table, so the row is
+  // filled with the reason the picture is absent rather than left blank
+  if (status == "missing" || !projected || !country)
+    return <div className="world-map-status"><Tr text="xpediaMapMissing" /></div>;
+
+  let window = countryWindow(country.areas);
+  // A nation with no boxes has no place on the globe at all, which some packs
+  // state for the technical ones
+  if (!window)
+    return null;
+
+  let viewBox = `${window.x} ${window.y} ${window.width} ${window.height}`;
+  // The Countries page is where a nation is read against the others; a pack
+  // that states countries but no table page has none to follow
+  let href = rul?.article("COUNTRIES") ? "##COUNTRIES" : undefined;
+
+  let picture = <svg className="world-map world-map-mini" viewBox={viewBox}
+    // The picture's own shape, in the viewBox's units: the CSS keeps an SVG
+    // square unless it is told otherwise, and a crop of Norway must not become
+    // one
+    style={{ aspectRatio: `${window.width} / ${window.height}` } as CSSProperties}
+    role="img" aria-label={rul?.tr(id) ?? id}>
+    {/* The name is in the panel above already, so it is a tooltip and a label
+        rather than something written on the picture */}
+    <title>{rul?.tr(id) ?? id}</title>
+    {projected.polygons.map((polygon, i) => <Repeated key={i} points={polygon.points}
+      render={(points, shift) => <polygon points={points} fill={polygon.color}
+        transform={shift ? `translate(${shift} 0)` : undefined} />} />)}
+    {projected.lines.map((line, i) => <Repeated key={i} points={line}
+      render={(points, shift) => <polyline points={points} fill="none"
+        transform={shift ? `translate(${shift} 0)` : undefined} />} />)}
+    {country.areas.map((box, i) => <Repeated key={"a" + i} points={box}
+      render={(points, shift) => <polygon className="area-contour" points={points}
+        style={{ "--area-color": country.color } as CSSProperties}
+        transform={shift ? `translate(${shift} 0)` : undefined} />} />)}
+  </svg>;
+
+  if (!href)
+    return <div className="world-map-mini-block">{picture}</div>;
+
+  // The picture is the link. It wraps the whole block rather than each box
+  // because a nation's boxes are one place: a press has to mean the same thing
+  // wherever on the map it lands.
+  return <div className="world-map-mini-block">
+    <a href={href} className="world-map-mini-link">{picture}</a>
   </div>;
 }
 

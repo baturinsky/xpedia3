@@ -39,21 +39,28 @@ export interface PackSource {
   /** Inlined packs cannot be deleted or re-unpacked: their data is the HTML file */
   readonly permanent: boolean;
   /**
-   * Why an export of this pack cannot carry its images, when it cannot.
+   * Why the browser cannot bundle this pack's images into an archive itself.
    *
-   * Printing this *is* the decision: a pack with no entry has its images in the
-   * database, one record each, so bundling them only costs a read. The other two
-   * keep them somewhere an export cannot reach into without copying every byte
-   * through the browser again, which is why the export dialog offers the option
-   * disabled rather than ticking it to no effect.
+   * Absent for a stored pack: its image bytes are database records, one each, so
+   * copying them out costs a read and nothing more.
    *
    * - `"page"`: the pack *is* an exported page, which keeps its images as
-   *   ordinary files beside itself.
+   *   ordinary files beside itself. They are already where a page looks for
+   *   them, so there is nothing to write.
    * - `"served"`: the pack is a folder served by `xpedia-cli --serve`, which
-   *   reads its images out of that folder as the page asks for them. They are
-   *   not part of the page at all, so an export of it has none to copy.
+   *   reads its images out of that folder as the page asks. They are not part of
+   *   the page, and the browser never receives them; see `serveExport`.
    */
   readonly imagesUnavailable?: "page" | "served";
+  /**
+   * Where to ask for an export, for a pack whose images the browser lacks.
+   *
+   * A served pack has a server behind it that owns the folder, and that server
+   * can export it with the same code the command line uses. The page sends the
+   * settings and downloads the archive, so choosing "Include images" works
+   * instead of silently producing a page without them.
+   */
+  readonly serveExport?: { url: string };
   /** Row for the modpack list */
   stats(): Promise<PackStat>;
   /** The processed ruleset, exactly what `Ruleset` is built from */
@@ -299,8 +306,13 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     // The images are already files beside the page, put there by whatever made
     // it, so there is nothing to bundle: reading them back through the browser
     // would copy hundreds of megabytes only to write the same bytes again. A
-    // served folder is even further away: its images stay in the folder.
+    // served folder is further away still — its images never reach the page, so
+    // the server behind it has to do the export instead.
     imagesUnavailable: payload.served ? "served" : "page",
+    // A served page has a server that owns the folder and can export it. The
+    // endpoint is relative to the page, so a pack served on another port or
+    // path still finds it.
+    serveExport: payload.served ? { url: "./xpedia-export" } : undefined,
     async fileData(path) {
       try {
         let response = await fetch("./" + gameRelativePath(path));

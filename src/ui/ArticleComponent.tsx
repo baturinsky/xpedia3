@@ -6,6 +6,7 @@ import ArmorComponent from "./ArmorComponent";
 import { BaseService, Img, LinksPage, SectionTable, SectionRow } from "./components";
 import CommendationComponent, { SoldierBonusesComponent } from "./CommendationComponent";
 import Conditions from "./Conditions";
+import CountriesComponent from "./CountryComponent";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
 import FacilityComponent from "./FacilityComponent";
@@ -131,7 +132,7 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
   research: ResearchComponent,
   stats: {},
   damageTypes: {},
-  countries: {},
+  countries: CountriesComponent,
   commendations: CommendationComponent,
   baseServices: BaseService,
   facilities: FacilityComponent,
@@ -590,6 +591,25 @@ export function ArticleComponent() {
       <Img src={article.image_id} scale={2} />
     </div>;
 
+  // The entries the body draws. Listed here rather than at the point of drawing
+  // because the maps below have to know whether the page carries anything else.
+  let bodyPanels = !table
+    ? Object.entries(renderers).filter(([key]) => collectionEntry(key, id) != null)
+    : [];
+
+  // A region is drawn the way it is on its own page: as a picture of the place.
+  //
+  // Which page is a region's is decided by the collection, not by
+  // `article.section`: that getter is the *first* section the article was filed
+  // under, and a page can be reached from more than one. `entryConstructors`
+  // parses the entry tables before `regions`, so a uid that names both kinds
+  // files the region under the section its other kind named first, and reading
+  // the section alone would drop the map without saying so.
+  //
+  // `REGIONS` itself is the section's own page, which leads with the picture of
+  // all regions (`RegionsMapArticle`) instead.
+  let region = !table && article.id != "REGIONS" ? rul.regions?.[article.id] : undefined;
+
   // The map that belongs beside the article rather than in it.
   //
   // Old `Article.svelte` put the map above the columns, full width, because it
@@ -603,19 +623,39 @@ export function ArticleComponent() {
   // A pack with no `globe:` node has no map to draw, so the block is left out
   // rather than reporting a missing feature.
   let sideMap = article?.id == "COUNTRIES" && rul?.raw.globe && <WorldMapArticle />;
+
+  // Two entry types may share a uid — a region or a flight is often also a
+  // research project or a pedia page — and then one page is both. The panels
+  // are what the page is asked about, so they come first and the map follows
+  // them, full width. A page that is nothing but the map keeps it where it has
+  // always been: beside the text, or above the columns when the picture is of a
+  // region. Deciding that here keeps the two arrangements from being written
+  // out twice further down.
+  let mapLast = bodyPanels.length > 0;
+
+  let regionMap = region && <RegionMapArticle key={article.id + "-region-map"} region={region} />;
   // A flight is a picture of part of the globe too, and its block holds the
   // region picker and the numbered stop list as well as the map, so the whole
   // of it moves: splitting it would leave the reader with the choices in one
   // place and the picture they are choosing for in another.
-  if (trajectory)
-    sideMap = <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />;
+  let flightMap = trajectory && <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />;
+  if (flightMap && !mapLast && !regionMap)
+    sideMap = flightMap;
+
+  // The maps that follow the page's own blocks, in the order they are read: the
+  // region first, since it is the whole of what the page is about, then the
+  // flight drawn across it.
+  let laterMaps = <>
+    {regionMap && mapLast && regionMap}
+    {flightMap && (mapLast || regionMap) && flightMap}
+  </>;
 
   // A trajectory page puts the map on the side sooner than the Countries page:
   // its article column is a narrow flight table, so there is room beside it well
   // before a full country table and two columns of text would leave any.
   let mainClass = "article-main"
     + (sideMap ? " has-side-map" : "")
-    + (sideMap && trajectory ? " narrow-side-map" : "");
+    + (sideMap && sideMap == flightMap ? " narrow-side-map" : "");
 
   let main = article && <><ArticleTitle />
     <div className={mainClass}>
@@ -631,9 +671,10 @@ export function ArticleComponent() {
             list is the only way to reach those pages. */}
         {article.id == "REGIONS" && <RegionsMapArticle />}
         {/* A region is a picture of part of the globe, so its map belongs in the
-            same place: above the columns, full width */}
-        {article.section == "REGIONS" && article.id != "REGIONS" && rul.regions[article.id] &&
-          <RegionMapArticle key={article.id} region={rul.regions[article.id]} />}
+            same place: above the columns, full width. When the page is also
+            another entry type the map follows that entry's panels instead, see
+            `laterMaps`. */}
+        {regionMap && !mapLast}
         {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
         {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
@@ -658,10 +699,7 @@ export function ArticleComponent() {
           // Set only when the two-column layout did not fit, see `useColumnFit`
           style={oneColumn ? { columns: 1 } : undefined}>
           {!table && specialArticleBody()}
-          {!table && Object.entries(renderers).filter(([key]) => {
-            return collectionEntry(key, id) != null;
-          }
-          ).map(([key, ren]) => {
+          {bodyPanels.map(([key, ren]) => {
             if (typeof ren == "function") {
               // Render as an element so hooks inside the renderer work
               return createElement(ren, { key, entry: collectionEntry(key, id), text: article?.text });
@@ -684,20 +722,22 @@ export function ArticleComponent() {
           order in the DOM is the reading order as a single column: the map
           follows everything it illustrates. */}
       {sideMap}
+      {/* The page's own maps, after its own blocks: see `laterMaps` */}
+      {laterMaps}
     </div>
   </>;
 
 
   // A trajectory page draws the same flight twice — as the plan and as the map —
   // and pointing at a stop in either has to light it in the other. The provider
-  // has to sit above both, and the map is the article column's flex sibling
-  // rather than one of its children, so it wraps the whole row.
+  // has to sit above both, and the map may be the article column's flex sibling
+  // rather than one of its children, so it wraps the whole row either way.
   //
   // Keyed by the article, because a pinned stop is a zone number and a zone
   // number means something else on the next path. Without the key the highlight
   // would survive the step to the next trajectory and point at nothing.
   return <div className={"article"}>
-    {trajectory && sideMap
+    {trajectory
       ? <TrajectoryFocusProvider key={article.id + "-flight"}>{main}</TrajectoryFocusProvider>
       : main}
   </div>;

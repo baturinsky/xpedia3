@@ -2346,6 +2346,47 @@ a.services {
   margin-bottom: 1rem;
 }
 
+/* ---- Country minimap ----
+   The picture under a nation's `areas` row: the same drawing as the world map,
+   cropped to one nation. It is a single link to the Countries page, so the whole
+   picture says where the press goes and none of it is a separate target.
+
+   The fixed aspect-ratio keeps the crop at the shape `countryWindow` gave it, and
+   `max-width` keeps a tall crop from taking the whole column. */
+
+.world-map-mini-block {
+  margin: .25rem 0;
+}
+
+.world-map-mini {
+  width: 100%;
+  max-width: 22rem;
+  /* The big map caps its height so a full-width picture does not fill the
+     screen; a thumbnail is already bounded by its width */
+  max-height: none;
+  cursor: pointer;
+}
+
+.world-map-mini-link {
+  display: inline-block;
+  line-height: 0;
+}
+
+/* The nation's boxes are the subject here, not an outline over a bigger picture,
+   so they are drawn stronger than a contour on the full map: a fuller wash, a
+   solid outline and a thicker stroke. At the big map's hairline the territory
+   read as a faint haze over the land and the reader could not tell which ground
+   was the nation's.
+
+   The blink and the link cursor belong to the block: the picture is one target,
+   not a pile of them. */
+.world-map-mini .area-contour {
+  fill-opacity: .6;
+  stroke-opacity: 1;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
 /* ---- Region and trajectory overlays ---- */
 
 /* A region's site boxes: a wash of its colour with a drawn outline, so the boxes

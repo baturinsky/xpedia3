@@ -52,10 +52,13 @@ function ExportDialogBody() {
   let [estimate, setEstimate] = useState<ExportEstimate>();
 
   let pack = state.packName;
-  // A pack whose images are not in the page has none to bundle: either it *is*
-  // an exported page, whose images are files beside it, or it is a folder served
-  // by `xpedia-cli --serve`, whose images stay in that folder
-  let unavailable = packSource(pack)?.imagesUnavailable;
+  // A pack whose images the browser does not have is normally unable to bundle
+  // them: an exported page keeps them beside itself. A served pack is different
+  // — the server behind it owns the folder and can export it whole, so the
+  // choice is offered and handed to that server.
+  let source = packSource(pack);
+  let serverExport = source?.serveExport;
+  let unavailable = serverExport ? undefined : source?.imagesUnavailable;
   let bundleable = !unavailable;
 
   // `images` can only ever mean "bundle the stored sprites", so it is forced off
@@ -102,8 +105,45 @@ function ExportDialogBody() {
   // reopening the dialog would measure the same languages again
   let [, redraw] = useState(0);
   let pending = estimatePending(estimate, selected, archive, includeImages);
+  // Only an export that carries images is built on the server, so only that one
+  // has a size the browser cannot measure: the sprites never reach the page.
+  // A page-only export of the same pack is built here as usual, and its own
+  // measurement is both correct and instant.
+  let serverSized = serverExport && includeImages;
+  // `undefined` while the server is still answering, `null` when it did not:
+  // the two are different, because one is worth waiting for and the other is an
+  // answer the dialog has to give rather than spin on forever
+  let [servedBytes, setServedBytes] = useState<number | null>();
   useEffect(() => {
-    if (!estimate || !pending) {
+    if (!serverExport)
+      return;
+    if (!includeImages) {
+      setServedBytes(undefined);
+      return;
+    }
+    let live = true;
+    setServedBytes(undefined);
+    let query = new URLSearchParams();
+    query.set("estimate", "1");
+    if (selected.length)
+      query.set("lang", selected.join(","));
+    if (split)
+      query.set("split", "1");
+    query.set("images", "1");
+    fetch(`${serverExport.url}?${query}`)
+      .then(r => r.ok ? r.json() : undefined)
+      .then(data => {
+        if (!live)
+          return;
+        setServedBytes(typeof data?.bytes == "number" ? data.bytes : null);
+      })
+      .catch(() => { if (live) setServedBytes(null); });
+    return () => { live = false; };
+  }, [serverExport?.url, selected.join(","), split, includeImages]);
+
+  useEffect(() => {
+    // The server's archive is not measured here, so the local one is not either
+    if (!estimate || !pending || serverSized) {
       setTicking(false);
       return;
     }
@@ -130,6 +170,15 @@ function ExportDialogBody() {
     return null;
 
   let name = exportedPackName(pack);
+
+  // The size to show: the server's own answer when it builds the archive,
+  // otherwise the browser's measurement once it has finished measuring
+  let showSize = serverSized
+    ? servedBytes ?? undefined
+    : estimate && !ticking ? estimateSize(estimate, selected, archive, includeImages) : undefined;
+  // The server was asked and gave no size: an endpoint that predates the request
+  // or a reply that failed. Saying so is better than "Estimating..." forever.
+  let sizeUnknown = serverSized && servedBytes === null;
 
   function close() {
     if (busy)
@@ -228,21 +277,18 @@ function ExportDialogBody() {
           <b>Include images</b><br />
           <small>
             {bundleable
-              ? <>Every image the pedia can show, so the game is not needed at all.
-                Without it, images are read from the game's{" "}
-                <code>user/mods</code> folder next to the file.</>
-              : unavailable == "served"
-                ? <>Not available here: this page previews a folder served by{" "}
-                  <code>xpedia-cli --serve</code>, so its images stay in that folder
-                  and are never part of the page. To get a pack that carries them,
-                  run <code>xpedia-cli</code> on the folder itself with{" "}
-                  <code>--assets</code>, which writes them straight from disk. A page
-                  exported from here has no images of its own, so it only shows them
-                  while it sits in that folder.</>
-                : <>Not available here: this pedia is itself an exported file, so its
-                  images are already real files beside it. Bundling them would copy
-                  every one of them through the browser only to write out the same
-                  bytes again.</>}
+              ? serverExport
+                ? <>Every image the folder has, so the result runs without the game.
+                  The export is built by the <code>xpedia-cli --serve</code> that is
+                  serving this page and downloaded as a ZIP, which is faster than the
+                  browser could do it and needs no repacking.</>
+                : <>Every image the pedia can show, so the game is not needed at all.
+                  Without it, images are read from the game's{" "}
+                  <code>user/mods</code> folder next to the file.</>
+              : <>Not available here: this pedia is itself an exported file, so its
+                images are already real files beside it. Bundling them would copy
+                every one of them through the browser only to write out the same
+                bytes again.</>}
           </small>
         </span>
       </label>
@@ -273,10 +319,12 @@ function ExportDialogBody() {
       {/* Cheap enough to recompute on every render: the measuring is what
           costs, and it happened when the dialog opened or when the
           checkboxes changed */}
-      <p className={"export-size" + (estimate && !ticking ? "" : " export-size-pending")}>
-        {estimate && !ticking
-          ? <>Estimated file size: <b>{asMB(estimateSize(estimate, selected, archive, includeImages))}</b></>
-          : "Estimating file size..."}
+      <p className={"export-size" + (showSize != null || sizeUnknown ? "" : " export-size-pending")}>
+        {showSize != null
+          ? <>Estimated file size: <b>{asMB(showSize)}</b></>
+          : sizeUnknown
+            ? "The server did not report a size; the export will still be built there."
+            : "Estimating file size..."}
       </p>
 
       {status &&

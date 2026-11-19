@@ -122,6 +122,24 @@ export function isDat(rel: string) {
  * while hundreds of megabytes are never copied for nothing. An export instead
  * needs the bytes, because they are what it writes.
  */
+/**
+ * `archive path -> file on disk`, for reading one file's bytes later.
+ *
+ * `--serve` builds its ruleset from placeholders for the images, because the
+ * page fetches them itself. An export of the same folder needs the real bytes,
+ * and re-walking the tree for every sprite would be far more work than the
+ * export, so the mapping is kept and read from on demand.
+ */
+export function folderFiles(root: string, names: string[], layout: Layout, modRoot: string) {
+  let files = new Map<string, string>();
+  for (let rel of names) {
+    let archive = archivePath(rel, layout, modRoot);
+    if (interpretPath(archive))
+      files.set(archive, path.join(root, rel));
+  }
+  return files;
+}
+
 export function readFolderPack(root: string, names: string[], layout: Layout, modRoot: string,
   options: { textOnly?: boolean } = {}) {
   let files: { [name: string]: Uint8Array } = {};

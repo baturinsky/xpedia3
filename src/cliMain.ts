@@ -2,15 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fileTypeFromBuffer } from "file-type";
-import Ruleset, { defaultLanguage } from "./rul/Ruleset";
+import { defaultLanguage } from "./rul/Ruleset";
 import {
-  buildPackData, filterBuiltinMods, gameRelativePath, interpretPath,
+  buildPackData, filterBuiltinMods, interpretPath,
   unpackBuiltinMods, unpackRar, unpackZip
 } from "./packBuild";
-import {
-  buildPageHtml, buildLanguagePack, collectDataFiles, exportedPackName, languagePackPath,
-  referencedPaths, zipFiles, type AppShell, type ExportFile
-} from "./exportCore";
+import { exportedPackName, zipFiles, type AppShell, type ExportFile } from "./exportCore";
+import { buildExport } from "./cliExport";
 import shellPayload from "xpedia:shell";
 import builtinModsPayload from "xpedia:builtin-mods";
 import unrarWasmPayload from "xpedia:unrar-wasm";
@@ -52,10 +50,10 @@ Options:
                          user/mods, a folder of mod folders, or a single mod
                          folder of its own. Mods, images and sounds are read
                          from the folder as the request arrives; reload the page
-                         to pick up an edit. A served page cannot export its
-                         images, since they are never part of it: export the
-                         folder directly, with --assets, to get a pack that
-                         carries them.
+                         to pick up an edit. Exporting from the served page is
+                         handled by this process, so the result carries the
+                         images the browser never received. See the HTTP
+                         interface below.
   --port <n>             Port for --serve, 9391 by default. The next free port
                          is used when it is taken, and the one chosen is printed.
   --lang <names>         Languages to include, comma separated and repeatable.
@@ -79,6 +77,19 @@ Options:
 
 The primary language is the first one named by --lang, or English. It is the one
 an unsplit page opens in; with --split every language but English is a pack.
+
+While --serve is running, the folder can also be exported over HTTP.
+
+HTTP interface:
+  GET /xpedia-export      Builds an export of the folder and answers with the
+                          .zip, taking the same choices as the flags above:
+                          lang, split, images and name, each as a query
+                          parameter, with images and split given as 1.
+                          Adding estimate=1 replies with the size as JSON
+                          instead of the archive.
+
+The served page uses this for its own export button, and it can be called
+directly, for example to fetch a size without writing anything out.
 
 Examples:
   xpedia-cli "Dioxine_XPiratez.zip" public/pedia
@@ -664,80 +675,29 @@ async function main(argv: string[]) {
   // A split export is one page carrying English plus a script per other
   // language, so the page name never varies with the languages: every one of
   // them, English included, lives in `languagePackPath`
-  let packs: { [name: string]: string } | undefined;
-  if (options.split)
-    packs = Object.fromEntries(extra.map(name => [name, languagePackPath(name)]));
-
   report.info(`Pack: ${pack.packName}`);
   report.info(`Languages: ${languages.join(", ")}` +
     (options.split ? " (English page, one language pack per other language)" : ""));
 
-  let outputs: Output[] = [];
-  /** How many of the outputs are pages rather than images */
-  let pages = 0;
-
-  report.info(`Building ${pageName} (${options.split ? "English" : primary})`);
-  // The raw data files the page has to carry, gathered before the page is built
-  // because they go inside it. The archive's own copy is the only one available
-  // here: the ruleset names the globe, and the file is in the pack.
+  // The archive's own copy is the only one available here: the ruleset names the
+  // globe and the images, and both are files of the pack
   let byPath = new Map<string, Uint8Array>();
   for (let file of pack.interpretedFiles)
     if (file.type == "img" || file.type == "dat")
       byPath.set(file.path, file.data);
-  let data = await collectDataFiles(pack.processed.resources, async path => byPath.get(path),
-    pack.processed.mods);
-  let html = await buildPageHtml({
-    pack: pack.packName,
+
+  let plan = await buildExport({
+    packName: pack.packName,
     processed: pack.processed,
-    // A split page carries English alone; the other languages travel as packs
-    languages: options.split ? [] : extra,
+    readFile: archivePath => byPath.get(archivePath),
     shell,
-    // Only a page that cannot hold every language needs to say how it starts
-    page: options.split
-      ? { packs }
-      : primary == defaultLanguage ? undefined : { lang: primary },
-    data
+    request: { languages, split: options.split, images: options.assets },
+    pageName,
+    report,
   });
-  outputs.push({ rel: pageName, data: new TextEncoder().encode(html) });
-  pages++;
-
-  if (options.split) {
-    for (let name of extra) {
-      let rel = languagePackPath(name);
-      report.info(`Building ${rel} (${name})`);
-      let pack_ = buildLanguagePack(pack.processed, name);
-      outputs.push({ rel, data: new TextEncoder().encode(pack_) });
-    }
-  }
-
-  /** How many image files were collected, for the closing summary */
-  let assets = 0;
-
-  if (options.assets) {
-    // Only the images the pedia can show travel, laid out where the game keeps
-    // them, so the result works without a game installation
-    //
-    // The ruleset is built here, after the pages, because constructing one adds
-    // the language flags to the shared `langs` map — data the exported payload
-    // must not carry, since the browser exporter does not add it either
-    let paths = [...referencedPaths(new Ruleset(pack.processed))];
-    let taken = new Set(outputs.map(o => o.rel));
-    for (let i = 0; i < paths.length; i++) {
-      let bytes = byPath.get(paths[i]);
-      if (bytes && bytes.length) {
-        let rel = gameRelativePath(paths[i]);
-        if (!taken.has(rel)) {
-          taken.add(rel);
-          outputs.push({ rel, data: bytes });
-          assets++;
-        }
-      }
-      if (i % 20 == 0 || i == paths.length - 1)
-        report.progress(`Collecting images ${assets}/${paths.length}`);
-    }
-    report.endProgress();
-    report.info(`Collected ${assets} image(s)`);
-  }
+  let outputs: Output[] = plan.outputs.map(f => ({ rel: f.path, data: f.data }));
+  let pages = plan.pages;
+  let assets = plan.assets;
 
   if (options.zip) {
     // A `.zip` target names the archive; a directory one is named the way the

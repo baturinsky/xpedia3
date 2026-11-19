@@ -365,6 +365,59 @@ export function estimatePending(estimate: ExportEstimate | undefined,
 }
 
 /**
+ * Has the server behind a served pack build the archive, and returns it.
+ *
+ * The request is a GET because everything it carries is small: the languages,
+ * and two flags. The reply is the zip the command line would have written for
+ * the same folder, so the two are interchangeable rather than merely similar.
+ *
+ * The reply is read as a blob and saved by the same `downloadExport` the
+ * browser-built archive uses, so the two paths show the same progress and end in
+ * the same file. That holds the archive in memory while it is saved, which is
+ * what the page cannot avoid for a download, but the bytes never make a round
+ * trip through the ruleset the way a browser export's would.
+ */
+async function exportThroughServer(url: string, pack: string, options: ExportOptions,
+  report: (status: string, progress?: number) => void): Promise<ExportResult> {
+  // English always travels, and every export writes a page, so the CLI's own
+  // defaults decide the rest: no `lang` means every language the folder has
+  let query = new URLSearchParams();
+  if (options.languages.length)
+    query.set("lang", options.languages.join(","));
+  if (options.split)
+    query.set("split", "1");
+  if (options.images)
+    query.set("images", "1");
+
+  let endpoint = `${url}?${query}`;
+  report(`Asking the server to export ${pack}...`, 0.1);
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint);
+  } catch (e) {
+    throw new Error(`The server that serves ${pack} is not reachable any more: ` +
+      `${e?.message ?? e}. Export the folder with \`xpedia-cli\` instead.`);
+  }
+
+  if (!response.ok) {
+    // The server sends a plain-text explanation, which is written for a modder
+    let detail = await response.text().catch(() => "");
+    throw new Error(detail.trim() || `The server refused to export ${pack} (${response.status})`);
+  }
+
+  report("Downloading the archive...", 0.7);
+  let blob = await response.blob();
+  report("Downloaded the archive", 1);
+
+  // The server names the file, so the dialog and the saved file agree
+  let disposition = response.headers.get("Content-Disposition") ?? "";
+  let match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  let name = match ? decodeURIComponent(match[1]) : `${exportedPackName(pack)}.zip`;
+  return { name, data: blob };
+}
+
+/**
  * Builds the export. The single-file variant inlines only the ruleset, while the
  * archive also carries every image its articles can show, so it works without
  * the game being installed.
@@ -377,6 +430,14 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   let source = packSource(pack);
   let report = options.onProgress ?? (() => { });
   report(`Preparing ${pack}...`, 0);
+
+  // A served pack is a folder with a server behind it, and the browser never
+  // received its images. That server can export the folder with the same code
+  // the command line uses, so a request for the images is handed back to it
+  // rather than producing a pack that silently lacks them. A page without them
+  // the browser still builds itself, which keeps the common case instant.
+  if (source?.serveExport && options.images)
+    return exportThroughServer(source.serveExport.url, pack, options, report);
 
   let processed = await source?.rulData();
   if (!processed)
@@ -418,8 +479,9 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   // language packs share the archive with them, but asking for the packs must
   // not pull in hundreds of megabytes of sprites the reader never asked for.
   //
-  // A pack whose images are not in the page has none to bundle. For an exported
-  // page they are files beside it; for a served folder they stay in the folder.
+  // A pack whose images are not in the page has none here to bundle: an exported
+  // page keeps them as files beside it, and a served folder's were answered above
+  // by the server that owns them.
   let bundleImages = options.images && !source?.imagesUnavailable;
   let files: ExportFile[] = [{ path: `${name}.html`, data: new TextEncoder().encode(html) }];
   let images = 0;
