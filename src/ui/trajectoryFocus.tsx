@@ -56,9 +56,9 @@ export function TrajectoryFocusProvider({ children }: { children: ReactNode }) {
       hotLeg: pinnedLeg ?? hoveredLeg,
       pinnedLeg,
       hoverZone: setHovered,
-      pinZone: (zone) => setPinned((current) => (current == zone ? undefined : zone)),
+      pinZone: (zone) => setPinned((current) => (current === zone ? undefined : zone)),
       hoverLeg: setHoveredLeg,
-      pinLeg: (leg) => setPinnedLeg((current) => (current == leg ? undefined : leg)),
+      pinLeg: (leg) => setPinnedLeg((current) => (current === leg ? undefined : leg)),
       reset: () => {
         setHovered(undefined);
         setPinned(undefined);

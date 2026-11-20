@@ -18,7 +18,6 @@ import {
   type AppShell,
   buildPageHtml,
   collectDataFiles,
-  type ExportFile,
   exportedPackName,
   zipFiles,
 } from "./exportCore";
@@ -157,7 +156,7 @@ function sendFile(res: http.ServerResponse, file: string, req: http.IncomingMess
     res.statusCode = 206;
     res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
     res.setHeader("Content-Length", String(end - start + 1));
-    if (req.method == "HEAD") {
+    if (req.method === "HEAD") {
       res.end();
       return;
     }
@@ -166,7 +165,7 @@ function sendFile(res: http.ServerResponse, file: string, req: http.IncomingMess
   }
 
   res.setHeader("Content-Length", String(size));
-  if (req.method == "HEAD") {
+  if (req.method === "HEAD") {
     res.end();
     return;
   }
@@ -180,7 +179,7 @@ function listen(server: http.Server, start: number, tries = 25) {
       const onError = (error: NodeJS.ErrnoException) => {
         server.off("listening", onListening);
         // Only a taken port is worth trying past; anything else is a real error
-        if (error.code == "EADDRINUSE" && left > 0) {
+        if (error.code === "EADDRINUSE" && left > 0) {
           attempt(port + 1, left - 1);
           return;
         }
@@ -283,7 +282,7 @@ function makeBuilder(options: ServeOptions) {
     const index = buildFileIndex(root, names, layout, modRoot);
 
     const stamp = fingerprint(root, names);
-    if (cached?.fingerprint == stamp) return { ...cached.built, index };
+    if (cached?.fingerprint === stamp) return { ...cached.built, index };
 
     const files = readFolderPack(root, names, layout, modRoot, { textOnly: true });
 
@@ -307,12 +306,12 @@ function makeBuilder(options: ServeOptions) {
     const { processed } = buildPackData(merged, builtinDirs, false);
 
     const available = processed.langs
-      ? Object.keys(processed.langs).filter((name) => name != "icon")
+      ? Object.keys(processed.langs).filter((name) => name !== "icon")
       : [];
     // Omitting `--lang` means every language the pack has, the same default the
     // export uses. English is always carried, so it is never one of the extras.
     const wanted = resolveLanguages(options.languages, available);
-    const extra = wanted.filter((name) => name != defaultLanguage);
+    const extra = wanted.filter((name) => name !== defaultLanguage);
 
     const articles = Object.keys(processed.langs?.["en-US"] ?? {}).length;
     options.info(`Building the page: ${articles} strings, ${available.length} languages`);
@@ -388,12 +387,12 @@ function makeExportHandler(options: ServeOptions) {
           .map((name) => name.trim())
           .filter(Boolean)
       : undefined;
-    const split = url.searchParams.get("split") == "1";
-    const images = url.searchParams.get("images") == "1";
+    const split = url.searchParams.get("split") === "1";
+    const images = url.searchParams.get("images") === "1";
 
     const { processed, reader } = built.source;
     const available = processed.langs
-      ? Object.keys(processed.langs).filter((n) => n != "icon")
+      ? Object.keys(processed.langs).filter((n) => n !== "icon")
       : [];
     const languages = resolveLanguages(requested, available);
 
@@ -427,7 +426,7 @@ function makeExportHandler(options: ServeOptions) {
 
   return async function exportPack(url: URL, built: Built) {
     const baseName = (url.searchParams.get("name") ?? "").replace(/[\\/:*?"<>|]/g, "").trim();
-    if (url.searchParams.get("estimate") == "1") return { json: await estimate(url, built) };
+    if (url.searchParams.get("estimate") === "1") return { json: await estimate(url, built) };
 
     const started = Date.now();
     const { plan, languages, split, images } = await buildPlan(url, built);
@@ -437,7 +436,7 @@ function makeExportHandler(options: ServeOptions) {
     );
 
     const zipped = zipFiles(plan.outputs);
-    const name = (baseName || exportedPackName(modRoot)) + ".zip";
+    const name = `${baseName || exportedPackName(modRoot)}.zip`;
     options.info(
       `Exported ${plan.outputs.length} file(s), ` +
         `${(zipped.length / 1e6).toFixed(2)} MB in ${((Date.now() - started) / 1000).toFixed(1)}s`,
@@ -475,7 +474,7 @@ export async function servePack(options: ServeOptions) {
    * the answer.
    */
   function handleExport(req: http.IncomingMessage, res: http.ServerResponse, url: URL) {
-    if (req.method != "GET" && req.method != "HEAD") {
+    if (req.method !== "GET" && req.method !== "HEAD") {
       res.statusCode = 405;
       res.setHeader("Allow", "GET, HEAD");
       res.end("Use GET");
@@ -491,7 +490,7 @@ export async function servePack(options: ServeOptions) {
           const body = JSON.stringify(result.json);
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Content-Length", String(Buffer.byteLength(body)));
-          res.end(req.method == "HEAD" ? undefined : body);
+          res.end(req.method === "HEAD" ? undefined : body);
           return;
         }
         const { name, data } = result;
@@ -502,7 +501,7 @@ export async function servePack(options: ServeOptions) {
           "Content-Disposition",
           `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
         );
-        if (req.method == "HEAD") {
+        if (req.method === "HEAD") {
           res.end();
           return;
         }
@@ -514,7 +513,7 @@ export async function servePack(options: ServeOptions) {
         res.statusCode = e instanceof UsageError ? 400 : 500;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.setHeader("Cache-Control", "no-store");
-        res.end(message + "\n");
+        res.end(`${message}\n`);
       });
   }
 
@@ -524,11 +523,11 @@ export async function servePack(options: ServeOptions) {
     // The export is a GET because the page cannot send a body it does not have:
     // the settings are small enough to be query parameters, and the reply is a
     // plain file a browser can download
-    if (url == "/xpedia-export") {
+    if (url === "/xpedia-export") {
       handleExport(req, res, parsed);
       return;
     }
-    if (url == "/" || url == "/index.html") {
+    if (url === "/" || url === "/index.html") {
       // Rebuilt per request: a reload has to see the files as they are now
       build()
         .then(({ html }) => {
@@ -562,7 +561,7 @@ export async function servePack(options: ServeOptions) {
 
   const port = await listen(server, options.port);
   process.stdout.write(`Serving ${root}\nhttp://localhost:${port}/\n`);
-  if (port != options.port)
+  if (port !== options.port)
     process.stdout.write(`(port ${options.port} was taken, so ${port} was used)\n`);
 
   // Serving is the whole job, so the command ends when the server does

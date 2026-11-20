@@ -40,7 +40,7 @@ export type SortFirstLastOptions = {
   first?: string[];
   last?: string[];
   exclude?: string[];
-  sortBy?: Function;
+  sortBy?: (value: string) => string | number;
 };
 type StringValue = [string, any];
 export const defaultLanguage = "en-US";
@@ -131,7 +131,7 @@ export type ProcessedRuleset = {
 export function mainMod(mods: Mod[]): Mod | undefined {
   const masters = mods.filter((m) => m.meta?.isMaster);
   const chained = masters.filter(
-    (m) => m.meta?.master && mods.some((o) => (o.meta?.id ?? o.dir) == m.meta!.master),
+    (m) => m.meta?.master && mods.some((o) => (o.meta?.id ?? o.dir) === m.meta!.master),
   );
   const master = (chained.length ? chained : masters).slice(-1)[0];
   if (master) return master;
@@ -340,10 +340,10 @@ export default class Ruleset {
     if (str in rul.lang) {
       str = rul.lang[str];
       str = stripPediaMarkup(str);
-    } else if (typeof str == "string") {
-      if (props?.icon && props?.icon != "none") str = null;
+    } else if (typeof str === "string") {
+      if (props?.icon && props?.icon !== "none") str = null;
       else {
-        if (str.substr(0, 4) == "STR_") str = str.substr(4);
+        if (str.substr(0, 4) === "STR_") str = str.substr(4);
 
         if (str.match(bigSnakeCase)) str = str.replace(/_/g, " ");
 
@@ -399,7 +399,7 @@ export default class Ruleset {
    * because the game would never draw the path there either.
    */
   regionsFor(trajectory: string | UfoTrajectory) {
-    const path = typeof trajectory == "string" ? this.ufoTrajectories?.[trajectory] : trajectory;
+    const path = typeof trajectory === "string" ? this.ufoTrajectories?.[trajectory] : trajectory;
     if (!path) return [];
 
     const chosen = new Set<string>();
@@ -435,7 +435,7 @@ export default class Ruleset {
     const out: string[] = [];
     for (const mission of Object.values(this.alienMissions ?? {}))
       for (const wave of mission.waves ?? [])
-        if (wave?.trajectory == trajectory) {
+        if (wave?.trajectory === trajectory) {
           out.push(mission.uid);
           break;
         }
@@ -472,7 +472,7 @@ export default class Ruleset {
    * flight is real, the picture of it is impossible.
    */
   flightsIn(region: string | Region) {
-    const target = typeof region == "string" ? this.regions?.[region] : region;
+    const target = typeof region === "string" ? this.regions?.[region] : region;
     if (!target) return [];
 
     const seen = new Set<string>(),
@@ -528,7 +528,7 @@ export default class Ruleset {
    * hundred and seventy times.
    */
   missionsIn(region: string | Region) {
-    const target = typeof region == "string" ? this.regions?.[region] : region;
+    const target = typeof region === "string" ? this.regions?.[region] : region;
     if (!target) return [];
 
     const reach = this.missionReach();
@@ -575,10 +575,10 @@ export default class Ruleset {
         const modDir = file.file.modDir;
         if (Array.isArray(table))
           for (const entry of table) {
-            if (typeof entry == "object" && !Array.isArray(entry)) entry.modDir = modDir;
+            if (typeof entry === "object" && !Array.isArray(entry)) entry.modDir = modDir;
           }
 
-        if (key.substr(0, 4) == "lang") {
+        if (key.substr(0, 4) === "lang") {
           Object.assign(this.lang, table);
         }
         if (!(key in this.raw)) {
@@ -592,7 +592,7 @@ export default class Ruleset {
           } else {
             if (Array.isArray(adding))
               for (const k of adding) {
-                if (k in old && typeof old[k] == "object") Object.assign(old[k], adding[k]);
+                if (k in old && typeof old[k] === "object") Object.assign(old[k], adding[k]);
                 else old[k] = adding[k];
               }
           }
@@ -609,7 +609,7 @@ export default class Ruleset {
     if (lang == null || lang.ALREADYCONVERTED) return;
     lang.ALREADYCONVERTED = "true";
 
-    if (langName == defaultLanguage)
+    if (langName === defaultLanguage)
       lang = {
         ...{
           dependencies: "STR_DEPENDS_ON",
@@ -648,7 +648,7 @@ export default class Ruleset {
   parseMusics() {
     this.musics = {};
     for (const [id, raw] of Object.entries(this.raw.musics ?? {}) as [string, any][]) {
-      if (raw == null || typeof raw != "object") continue;
+      if (raw == null || typeof raw !== "object") continue;
       this.musics[id] = new Music(id, raw);
     }
   }
@@ -707,7 +707,7 @@ export default class Ruleset {
                 const block = rawCategory[id];
                 if (
                   block != null &&
-                  typeof block == "object" &&
+                  typeof block === "object" &&
                   !Array.isArray(block) &&
                   !block.uid
                 )
@@ -754,7 +754,7 @@ export default class Ruleset {
             // The path is stored the way the page must ask for it: relative to
             // the game root, so the pack's own outer folder is not part of it.
             // That is the same rule images follow, see `gameRelativePath`.
-            const full = gameRelativePath((mod.dir ? mod.dir + "/" : "") + String(path));
+            const full = gameRelativePath((mod.dir ? `${mod.dir}/` : "") + String(path));
             (this.sounds[cat.toUpperCase()] ||= {})[slot] = full;
           }
         }
@@ -773,7 +773,7 @@ export default class Ruleset {
           : Object.entries(extra).map(([type, def]: [string, any]) => ({ type, ...def }));
 
         for (const def of entries) {
-          if (def == null || typeof def != "object") continue;
+          if (def == null || typeof def !== "object") continue;
 
           if (def.delete) {
             delete this.sprites[def.delete];
@@ -940,7 +940,7 @@ export default class Ruleset {
         .filter((a) => a.units)
         .map((a) => a.uid),
       SoldierTypes: Object.keys(rul.soldiers),
-      Vehicles: Object.keys(rul.units).filter((k) => rul.items[k]?.battleType == 3),
+      Vehicles: Object.keys(rul.units).filter((k) => rul.items[k]?.battleType === 3),
       Craft: Object.keys(rul.crafts),
     };
 
@@ -1021,7 +1021,7 @@ export default class Ruleset {
       backLink(research.name, research.dependencies ?? null, rul.research, "leadsTo");
       backLink(research.name, research.getOneFree ?? null, rul.research, "freeFrom");
 
-      if (research.lookup && research.name != research.lookup && this.research[research.lookup]) {
+      if (research.lookup && research.name !== research.lookup && this.research[research.lookup]) {
         const lookup = this.research[research.lookup];
         lookup.seeAlso = lookup.seeAlso || [];
         lookup.seeAlso.push(research.name);
@@ -1066,7 +1066,7 @@ export default class Ruleset {
    * same way in the game, see `Globe::drawMarker`.
    */
   globeMarker(num: number) {
-    return this.sprites["GlobeMarkers"]?.frameSource(num);
+    return this.sprites.GlobeMarkers?.frameSource(num);
   }
 
   /** Sections that hold generated entries (items, units...) sorted by name */
@@ -1098,7 +1098,7 @@ export default class Ruleset {
     return [...this.sectionsOrder, ...this.typeSectionOrder(alphabetical)];
   }
 
-  parseArticles(data: Object) {
+  parseArticles(data: object) {
     if (!data) return;
     for (const articleData of Object.values(data)) {
       if (articleData.id) {
@@ -1137,19 +1137,19 @@ export default class Ruleset {
     const section = currentSection ?? current.sections[0];
     if (!section) return undefined;
 
-    if (current.id == section.id) {
+    if (current.id === section.id) {
       const neighbour = section.adjacentSection(delta, alphabetical);
       // `this` only when no section has an article at all
-      if (neighbour == section) return undefined;
+      if (neighbour === section) return undefined;
       const page = this.article(neighbour.id);
       return page && { article: page, section: neighbour };
     }
 
     const list = section.articles(alphabetical);
-    const index = list.findIndex((a) => a.id == current.id);
+    const index = list.findIndex((a) => a.id === current.id);
     // An article reached through a redirect can sit in a section that does not
     // list it, so there is no row to step from and the page has to stay put
-    if (index == -1) return undefined;
+    if (index === -1) return undefined;
 
     const nextIndex = index + delta;
     if (nextIndex >= 0 && nextIndex < list.length) return { article: list[nextIndex], section };
@@ -1157,7 +1157,7 @@ export default class Ruleset {
     // Off an end: step into the next section and take the article at the end of
     // its list that the walk is heading towards
     const neighbour = section.adjacentSection(delta, alphabetical);
-    if (neighbour == section) return undefined;
+    if (neighbour === section) return undefined;
     const neighbourList = neighbour.articles(alphabetical);
     return { article: delta < 0 ? util.last(neighbourList) : neighbourList[0], section: neighbour };
   }
@@ -1205,7 +1205,7 @@ export default class Ruleset {
       // `icon` is not a spoken language: it maps field names to emoji. Folding
       // the English strings into it would make every icon look like an English
       // label, so `Tr` would draw that label next to the translated one.
-      if (lname == "icon") continue;
+      if (lname === "icon") continue;
       langs[lname] = { ...langs[defaultLanguage], ...langs[lname] };
     }
 
@@ -1317,7 +1317,7 @@ export default class Ruleset {
       // name the pack's master to survive the filter below. This is also what
       // lets the per-pack helper be declared against XPedia's own base.
       if (mod.builtin) return true;
-      if (!mod.meta || Object.keys(mod.meta).length == 0) return true;
+      if (!mod.meta || Object.keys(mod.meta).length === 0) return true;
       // What the player switched off in the game's own mod list. Only the mods
       // that nothing enabled depends on get this far, so a disabled master is
       // still loaded above through the chain.
@@ -1329,7 +1329,7 @@ export default class Ruleset {
       // the user uploaded is the one they want to read, so load everything.
       if (!masterId) return true;
       // Dependants of the active master only; this drops xcom2's TFTD mods
-      return mod.meta.master == masterId;
+      return mod.meta.master === masterId;
     });
 
     return active.sort((a, b) => {
@@ -1348,13 +1348,14 @@ export default class Ruleset {
       // `icon` is an emoji map, and a language whose file produced no strings
       // at all would be a dead, blank entry in the dropdown
       .filter(
-        (name) => name != "icon" && this.langs[name] != null && typeof this.langs[name] == "object",
+        (name) =>
+          name !== "icon" && this.langs[name] != null && typeof this.langs[name] === "object",
       )
       .sort((a, b) => langWeight(b) - langWeight(a));
 
     function langWeight(name: string) {
       // The default language always leads the list, whatever its size
-      if (name == defaultLanguage) return Infinity;
+      if (name === defaultLanguage) return Infinity;
       return Object.keys(data.langs?.[name] ?? {}).length;
     }
 
@@ -1379,7 +1380,7 @@ export default class Ruleset {
 
     this.langName = name;
 
-    if (name == defaultLanguage) {
+    if (name === defaultLanguage) {
       this.lang = this.langs[defaultLanguage];
     } else {
       this.convertLang(name);
@@ -1400,8 +1401,8 @@ export default class Ruleset {
 
   bodiesCompare(strs: string[]) {
     for (const i in strs) {
-      if (strs[i].length == 2)
-        strs[i] = (strs[i].charAt(0) == "M" ? "A" : "B") + "0" + strs[i].substr(1);
+      if (strs[i].length === 2)
+        strs[i] = `${strs[i].charAt(0) === "M" ? "A" : "B"}0${strs[i].substr(1)}`;
     }
     return strs[0] > strs[1] ? 1 : -1;
   }
@@ -1520,8 +1521,8 @@ export const soundCatOf: { [field: string]: string } = {
  */
 export function soundCat(field: string, collection?: string) {
   if (
-    (field == "hitSound" || field == "fireSound") &&
-    (collection == "facilities" || collection == "ufos")
+    (field === "hitSound" || field === "fireSound") &&
+    (collection === "facilities" || collection === "ufos")
   )
     return "GEO.CAT";
   return soundCatOf[field] ?? "BATTLE.CAT";
@@ -1537,9 +1538,9 @@ export function soundCat(field: string, collection?: string) {
  */
 export function regionNamesOf(weights: any) {
   const out = new Set<string>();
-  if (weights == null || typeof weights != "object") return out;
+  if (weights == null || typeof weights !== "object") return out;
   for (const block of Array.isArray(weights) ? weights : Object.values(weights))
-    if (block && typeof block == "object" && !Array.isArray(block))
+    if (block && typeof block === "object" && !Array.isArray(block))
       for (const id of Object.keys(block)) out.add(id);
   return out;
 }
@@ -1620,9 +1621,9 @@ export function damageTypeIndex(value: any): number | null {
 
   if (typeof value === "string") {
     let idx = damageTypes.indexOf(value);
-    if (idx != -1) return idx;
+    if (idx !== -1) return idx;
     idx = internalDamageTypes.indexOf(value);
-    if (idx != -1 && idx < damageTypes.length) return idx;
+    if (idx !== -1 && idx < damageTypes.length) return idx;
     // A numeric string is still an index
     if (!/^\d+$/.test(value.trim())) return null;
   }
@@ -1698,7 +1699,7 @@ export function backLink(
     if (!to) to = (rul as any)[collection] = {};
   }
   if (list == null) return;
-  if (typeof list == "object" && !Array.isArray(list)) {
+  if (typeof list === "object" && !Array.isArray(list)) {
     for (const key of Object.keys(list)) {
       let back = to[key];
       if (back == null && collection != null) {
@@ -1731,7 +1732,7 @@ function addFields(entry: Entry, field: string, list: string[] | { [key: string]
   if (Array.isArray(list)) {
     entry[field] = entry[field] || [];
     for (const id of list) {
-      if (entry[field].indexOf(id) == -1) entry[field].push(id);
+      if (entry[field].indexOf(id) === -1) entry[field].push(id);
     }
   } else {
     entry[field] = { ...(entry[field] || {}), ...list };
@@ -1755,7 +1756,7 @@ function crosslink(
 }
 
 export function stripPediaMarkup(t: string) {
-  if (t != null && t.indexOf("{") != -1) {
+  if (t != null && t.indexOf("{") !== -1) {
     t = t.replace(/\{NEWLINE\}/g, "\n");
     t = t.replace(/^\s+/g, "");
     t = t.replace(/\{[^}]+\}/g, " ");

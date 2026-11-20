@@ -12,7 +12,7 @@ export default function UnitComponent({ entry }: { entry: Unit }) {
         title="Unit"
         sort={{
           first: ["stats", "armor", "canSurrender"],
-          last: Object.keys(entry).filter((s) => s.indexOf("ound") != -1),
+          last: Object.keys(entry).filter((s) => s.indexOf("ound") !== -1),
           exclude: ["type"],
         }}
       />

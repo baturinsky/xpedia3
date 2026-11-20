@@ -102,7 +102,7 @@ export function parseWorldDat(bytes: Uint8Array): MapPolygon[] {
 function recordToPolygon(value: number[]): MapPolygon | undefined {
   // A record is three or four vertices plus a texture id; an HTML page read as
   // one gives negative, huge or mismatched values
-  const count = value[6] != -1 ? 4 : 3;
+  const count = value[6] !== -1 ? 4 : 3;
   const points: [number, number][] = [];
   for (let i = 0; i < count; i++) {
     const lon = value[i * 2] * 0.125;
@@ -123,7 +123,7 @@ function recordToPolygon(value: number[]): MapPolygon | undefined {
 
 /** Whether these bytes look like a globe file rather than some other file */
 export function looksLikeWorldDat(bytes: Uint8Array) {
-  if (bytes.byteLength < 20 || bytes.byteLength % 20 != 0) return false;
+  if (bytes.byteLength < 20 || bytes.byteLength % 20 !== 0) return false;
   let points = 0;
   for (let offset = 0; offset + 20 <= bytes.byteLength && offset < 400; offset += 20) {
     const view = new DataView(bytes.buffer, bytes.byteOffset + offset, 20);
@@ -347,6 +347,6 @@ async function readDat(rel: string) {
   // rather than a different one.
   const builtinPath = findDatPath(rel);
   if (builtinPath && /^mods\//i.test(builtinPath)) return builtinFile(builtinPath);
-  if (rel.replace(/^[/\\]+/, "").toLowerCase() == WORLD_DAT)
+  if (rel.replace(/^[/\\]+/, "").toLowerCase() === WORLD_DAT)
     return builtinFile("mods/xpedia/GEODATA/WORLD.DAT");
 }

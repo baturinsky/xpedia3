@@ -71,6 +71,7 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
       {bodies.length > 1 && (
         <p>
           <button
+            type="button"
             className="btn-hover-effect btn-hover-effect--effect-1"
             onClick={() => update({ seeAllArmorVariants: !state.seeAllArmorVariants })}
           >
@@ -178,7 +179,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
     if (
       user.substr(0, 8) !== "INV_NULL" &&
       user !== entry.type &&
-      "##" + user !== window.location.hash
+      `##${user}` !== window.location.hash
     )
       seeAlso.push(user);
 
@@ -223,7 +224,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
                   view={{
                     sheet: val,
                     routine: entry.drawingRoutine,
-                    female: entry.forcedTorso == 2,
+                    female: entry.forcedTorso === 2,
                     deathFrames: entry.deathFrames,
                     movementType: entry.movementType,
                     size: entry.size,

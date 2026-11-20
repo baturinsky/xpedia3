@@ -59,7 +59,7 @@ export function monthWindow(entry: MissionScriptTiming): MonthWindow {
   let last = entry?.lastMonth == null ? -1 : Number(entry.lastMonth);
   if (!Number.isFinite(first)) first = 0;
   if (!Number.isFinite(last)) last = -1;
-  return { first, last, single: last >= 0 && first == last, open: last < 0 };
+  return { first, last, single: last >= 0 && first === last, open: last < 0 };
 }
 
 /**
@@ -80,7 +80,7 @@ export type ScriptDelay = {
 export function scriptDelay(entry: MissionScriptTiming): ScriptDelay {
   const base = Math.max(0, Number(entry?.startDelay ?? 0) || 0);
   const extra = Math.max(0, Number(entry?.randomDelay ?? 0) || 0);
-  return { min: base, max: base + extra, delegates: base == 0 && extra == 0 };
+  return { min: base, max: base + extra, delegates: base === 0 && extra === 0 };
 }
 
 /**
@@ -112,7 +112,7 @@ export type ResearchGate = {
 
 export function researchGate(entry: MissionScriptTiming): ResearchGate | undefined {
   const triggers = entry?.researchTriggers;
-  if (triggers == null || typeof triggers != "object") return undefined;
+  if (triggers == null || typeof triggers !== "object") return undefined;
   const needed: string[] = [];
   const forbidden: string[] = [];
   for (const [topic, wanted] of Object.entries(triggers)) (wanted ? needed : forbidden).push(topic);
@@ -127,5 +127,5 @@ export function researchGate(entry: MissionScriptTiming): ResearchGate | undefin
  * "month 0" would be wrong and calling it "month 1" worse.
  */
 export function calendarMonth(index: number): number | null {
-  return index == 0 ? null : index;
+  return index === 0 ? null : index;
 }

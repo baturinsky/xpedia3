@@ -100,27 +100,27 @@ for (const language of [...packOverrides, ...interfaceFiles]) {
     seen.add(key);
   }
   ok(
-    duplicates.length == 0,
+    duplicates.length === 0,
     `${language}: no key is defined twice`,
     duplicates.slice(0, 10).join(", "),
   );
 
   // Indentation is what makes the block a block; a tab is not an indentation
   const tabs = text.split(/\r?\n/).filter((line) => /^\t/.test(line));
-  ok(tabs.length == 0, `${language}: no tab-indented line`, String(tabs.length));
+  ok(tabs.length === 0, `${language}: no tab-indented line`, String(tabs.length));
 
   // Every key the text declares is a key the parse actually kept. A quoted key
   // is the parser's own string, so `'true'` and `true` are the same key here.
   const missing = [...seen].filter((key) => !(key in block));
   ok(
-    missing.length == 0,
+    missing.length === 0,
     `${language}: every declared key survived the parse`,
     missing.slice(0, 10).join(", "),
   );
 
   const labels = packOverrides.includes(language) ? packLabels : interfaceLabels;
   const absent = labels.filter((key) => !(key in block));
-  ok(absent.length == 0, `${language}: carries its labels`, absent.join(", "));
+  ok(absent.length === 0, `${language}: carries its labels`, absent.join(", "));
 
   // The paperdoll names are what label the armor variants, so they have to stay
   if (packOverrides.includes(language)) {

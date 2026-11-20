@@ -81,9 +81,7 @@ function MonthRow({ entry }: { entry: MissionScript }) {
           <>
             <Tr text="xpediaScriptFromMonth" /> <em className="num">{first}</em>{" "}
             {last == null ? (
-              <>
-                <Tr text="xpediaScriptToFounding" />
-              </>
+              <Tr text="xpediaScriptToFounding" />
             ) : (
               <>
                 <Tr text="xpediaScriptUntilMonth" /> <em className="num">{last}</em>
@@ -107,9 +105,7 @@ function DelayRow({ entry }: { entry: MissionScript }) {
   if (entry?.startDelay == null && entry?.randomDelay == null) return null;
 
   const text = delay.delegates ? (
-    <>
-      <Tr text="xpediaScriptNoDelay" />
-    </>
+    <Tr text="xpediaScriptNoDelay" />
   ) : (
     <span className="mission-delay">
       {formatDelay({ min: delay.min, max: delay.max }) ?? formatMinutes(delay.min)}
@@ -121,7 +117,7 @@ function DelayRow({ entry }: { entry: MissionScript }) {
   // wording
   const note = delay.delegates
     ? "xpediaScriptNoDelayNote"
-    : delay.min == delay.max
+    : delay.min === delay.max
       ? "xpediaScriptFixedDelayNote"
       : "xpediaScriptDelayNote";
 
@@ -152,7 +148,7 @@ function DelayRow({ entry }: { entry: MissionScript }) {
 
 /** How often the script is even offered the chance to run */
 function OddsRow({ entry }: { entry: MissionScript }) {
-  if (entry?.executionOdds == null || Number(entry.executionOdds) == 100) return null;
+  if (entry?.executionOdds == null || Number(entry.executionOdds) === 100) return null;
   return (
     <tr>
       <td className="row-name">
@@ -252,7 +248,7 @@ function TriggerRows({ entry }: { entry: MissionScript }) {
   ];
   const rows = groups.filter((group) => {
     const found = entry?.[group.field];
-    return found != null && typeof found == "object" && Object.keys(found).length > 0;
+    return found != null && typeof found === "object" && Object.keys(found).length > 0;
   });
   if (!rows.length) return null;
   return (

@@ -18,7 +18,7 @@ export function goToArticle(href?: AnyRef) {
   // links, and `MAIN` is an older name for the same page; both are accepted,
   // but the URL is rewritten to the hash-less form. `null` (or a missing href)
   // means the same thing, so a link to nowhere cannot land on a stale article.
-  if (ref == null || ref == "MAIN" || ref == "HOME") {
+  if (ref == null || ref === "MAIN" || ref === "HOME") {
     goToLanding();
     return;
   }
@@ -33,7 +33,7 @@ export function goToArticle(href?: AnyRef) {
     } else {
       update({ article });
     }
-    if ("##" + ref != location.hash) location.hash = "##" + ref;
+    if (`##${ref}` !== location.hash) location.hash = `##${ref}`;
   }
 }
 
@@ -48,14 +48,14 @@ export { goToLanding } from "./navigation";
 function goToHash() {
   const hash = decodeURI(document.location.hash);
   // No hash at all is the landing page, so it is not an error to have none
-  if (hash && hash.substring(0, 2) != "##") return;
+  if (hash && hash.substring(0, 2) !== "##") return;
   // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
   update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
   const id = hash.substring(2);
 
   // `##SEARCH::query` shows full text search results instead of an article
   const separator = id.indexOf("::");
-  if (separator != -1) {
+  if (separator !== -1) {
     const query = id.substring(separator + 2);
     update({ searchQuery: query, found: undefined, article: undefined, section: undefined });
     if (query.length >= 2)
@@ -145,9 +145,9 @@ function isEditable(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return (
     target.isContentEditable ||
-    target.tagName == "INPUT" ||
-    target.tagName == "TEXTAREA" ||
-    target.tagName == "SELECT"
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
   );
 }
 
@@ -172,14 +172,14 @@ addEventListener("keydown", (e) => {
     ArrowDown: "down",
   }[e.code];
   if (pageSwitch) {
-    if (upAndDownKeysEnabled && pageSwitch == "up") {
+    if (upAndDownKeysEnabled && pageSwitch === "up") {
       if (section) {
-        if (section.id == article?.id) goToLanding();
+        if (section.id === article?.id) goToLanding();
         else goToArticle(section);
       }
-    } else if (upAndDownKeysEnabled && pageSwitch == "down") {
+    } else if (upAndDownKeysEnabled && pageSwitch === "down") {
       history.go(-1);
-    } else if (pageSwitch == 1 || pageSwitch == -1) {
+    } else if (pageSwitch === 1 || pageSwitch === -1) {
       if (article && section) {
         // The step may cross into a neighbouring section, and the reader carries
         // on browsing there: going to the article alone would leave the sidebar

@@ -16,67 +16,66 @@ import { eq, ok, report } from "../helpers/check.mjs";
 import { testPack } from "../helpers/packs.mjs";
 
 const rul = await testPack({
-  rul:
-    [
-      "ufoTrajectories:",
-      // The reference's example, with its zones as numbers: A=5, D=0, G=1, J=2, M=3.
-      // It gives `go A->D at B,C; D->D at E,F; D->G at H,I; G->J at K,L; J->M at N,P`.
-      "  - id: REFERENCE",
-      "    waypoints:",
-      "      - [5, 4, 100]",
-      "      - [0, 3, 74]",
-      "      - [1, 1, 28]",
-      "      - [2, 1, 47]",
-      "      - [3, 2, 60]",
-      // The documented P0 table from docs/missions.md
-      "  - id: P0",
-      "    groundTimer: 3000",
-      "    waypoints:",
-      "      - [5, 4, 100]",
-      "      - [0, 3, 74]",
-      "      - [0, 1, 28]",
-      "      - [1, 1, 47]",
-      "      - [5, 2, 100]",
-      // A ground line in the middle: lands in line 2's zone, then flies on
-      "  - id: LANDS",
-      "    waypoints:",
-      "      - [0, 4, 100]",
-      "      - [1, 2, 70]",
-      "      - [2, 0, 40]",
-      "      - [0, 4, 100]",
-      // A ground *second* line is the odd case: leg 1 is already heading for line
-      // 2's zone, so it lands there — in the ground line's own zone, not an earlier
-      // one like every later ground line
-      "  - id: LANDS_LINE2",
-      "    waypoints:",
-      "      - [0, 4, 100]",
-      "      - [1, 0, 50]",
-      "      - [2, 2, 60]",
-      // A path that starts on the ground: the UFO waits before it can fly
-      "  - id: GROUNDED",
-      "    waypoints:",
-      "      - [0, 0, 50]",
-      "      - [1, 2, 60]",
-      "      - [2, 1, 60]",
-      // A path with only the spawn on the ground, and nothing else grounded
-      "  - id: SPAWN_GROUND_ONLY",
-      "    waypoints:",
-      "      - [0, 0, 50]",
-      "      - [1, 2, 60]",
-      // A ground last line lands one stop early, then the UFO flies on to vanish
-      "  - id: ENDS_GROUND",
-      "    waypoints:",
-      "      - [0, 4, 100]",
-      "      - [1, 2, 60]",
-      "      - [2, 0, 0]",
-      // One line is not flyable at all
-      "  - id: ONE",
-      "    waypoints:",
-      "      - [1, 0, 0]",
-      // No lines at all is the same as one
-      "  - id: NONE",
-      "    waypoints: []",
-    ].join("\n") + "\n",
+  rul: `${[
+    "ufoTrajectories:",
+    // The reference's example, with its zones as numbers: A=5, D=0, G=1, J=2, M=3.
+    // It gives `go A->D at B,C; D->D at E,F; D->G at H,I; G->J at K,L; J->M at N,P`.
+    "  - id: REFERENCE",
+    "    waypoints:",
+    "      - [5, 4, 100]",
+    "      - [0, 3, 74]",
+    "      - [1, 1, 28]",
+    "      - [2, 1, 47]",
+    "      - [3, 2, 60]",
+    // The documented P0 table from docs/missions.md
+    "  - id: P0",
+    "    groundTimer: 3000",
+    "    waypoints:",
+    "      - [5, 4, 100]",
+    "      - [0, 3, 74]",
+    "      - [0, 1, 28]",
+    "      - [1, 1, 47]",
+    "      - [5, 2, 100]",
+    // A ground line in the middle: lands in line 2's zone, then flies on
+    "  - id: LANDS",
+    "    waypoints:",
+    "      - [0, 4, 100]",
+    "      - [1, 2, 70]",
+    "      - [2, 0, 40]",
+    "      - [0, 4, 100]",
+    // A ground *second* line is the odd case: leg 1 is already heading for line
+    // 2's zone, so it lands there — in the ground line's own zone, not an earlier
+    // one like every later ground line
+    "  - id: LANDS_LINE2",
+    "    waypoints:",
+    "      - [0, 4, 100]",
+    "      - [1, 0, 50]",
+    "      - [2, 2, 60]",
+    // A path that starts on the ground: the UFO waits before it can fly
+    "  - id: GROUNDED",
+    "    waypoints:",
+    "      - [0, 0, 50]",
+    "      - [1, 2, 60]",
+    "      - [2, 1, 60]",
+    // A path with only the spawn on the ground, and nothing else grounded
+    "  - id: SPAWN_GROUND_ONLY",
+    "    waypoints:",
+    "      - [0, 0, 50]",
+    "      - [1, 2, 60]",
+    // A ground last line lands one stop early, then the UFO flies on to vanish
+    "  - id: ENDS_GROUND",
+    "    waypoints:",
+    "      - [0, 4, 100]",
+    "      - [1, 2, 60]",
+    "      - [2, 0, 0]",
+    // One line is not flyable at all
+    "  - id: ONE",
+    "    waypoints:",
+    "      - [1, 0, 0]",
+    // No lines at all is the same as one
+    "  - id: NONE",
+    "    waypoints: []",
+  ].join("\n")}\n`,
 });
 
 // --- the reference's own example ---------------------------------------------
@@ -169,7 +168,10 @@ eq(
   [1, 2],
   "the landing is in line 2's zone; the last leg still departs for line 3's",
 );
-ok(endsGround[endsGround.length - 1].lands == false, "the final leg cannot land: the UFO vanishes");
+ok(
+  endsGround[endsGround.length - 1].lands === false,
+  "the final leg cannot land: the UFO vanishes",
+);
 
 eq(rul.ufoTrajectories.ONE.legs, [], "one line is unflyable");
 eq(rul.ufoTrajectories.NONE.legs, [], "no lines is unflyable");
@@ -178,15 +180,14 @@ eq(rul.ufoTrajectories.ONE.stops, [1], "an unflyable path still reports its one 
 
 // --- sizing, on a pack built for it -----------------------------------------
 const sizes = await testPack({
-  rul:
-    [
-      "ufoTrajectories:",
-      "  - id: THREE",
-      "    waypoints:",
-      "      - [0, 1, 10]",
-      "      - [1, 1, 10]",
-      "      - [2, 1, 10]",
-    ].join("\n") + "\n",
+  rul: `${[
+    "ufoTrajectories:",
+    "  - id: THREE",
+    "    waypoints:",
+    "      - [0, 1, 10]",
+    "      - [1, 1, 10]",
+    "      - [2, 1, 10]",
+  ].join("\n")}\n`,
 });
 eq(sizes.ufoTrajectories.THREE.legs.length, 3, "three lines fly three legs");
 eq(sizes.ufoTrajectories.THREE.stops.length, 4, "three lines visit four waypoints");

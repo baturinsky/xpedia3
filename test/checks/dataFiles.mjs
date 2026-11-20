@@ -72,7 +72,7 @@ function stockGlobe() {
     async () => bytes,
   );
   const encoded = files["geodata/world.dat"];
-  ok(typeof encoded == "string" && encoded.length > 0, "the globe is carried");
+  ok(typeof encoded === "string" && encoded.length > 0, "the globe is carried");
   const { gunzipSync } = await import("node:zlib");
   const decoded = gunzipSync(Buffer.from(encoded, "base64"));
   eq([...decoded], [...bytes], "the bytes survive the round trip");
@@ -96,7 +96,7 @@ function stockGlobe() {
     const carried = gunzipSync(Buffer.from(data["geodata/world.dat"], "base64"));
     ok(!!stock, "there is a stock globe to compare against");
     ok(
-      Buffer.compare(carried, Buffer.from(stock)) != 0,
+      Buffer.compare(carried, Buffer.from(stock)) !== 0,
       "xfiles carries its own globe rather than the stock one",
     );
   }

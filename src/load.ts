@@ -67,7 +67,7 @@ function unpackBuiltins() {
 export function builtinFile(path: string) {
   const wanted = path.replace(/\\/g, "/").toLowerCase();
   for (const [name, data] of Object.entries(builtinFiles()))
-    if (name.toLowerCase() == wanted) return data;
+    if (name.toLowerCase() === wanted) return data;
 }
 
 /** The unpacked builtin folder, kept because gunzipping it is not free */
@@ -168,7 +168,7 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   try {
     if (!fileType) throw new Error("Unknown file type");
     await beginStage("Unpacking", `${packName ?? "archive"} (${asMB(data.byteLength)})`);
-    if (fileType.ext == "rar") {
+    if (fileType.ext === "rar") {
       files = await unpackRarFiles(data, unrarWasm(), {
         checkCancelled: throwIfCancelled,
         onProgress: async (done, total, name) => {
@@ -223,8 +223,8 @@ export async function loadBuiltinOnlyPack() {
   // are cached under the "builtin" pack just like a real load would. A page
   // without storage (an exported file opened from disk) still browses fine, just
   // without them.
-  const images = interpretedFiles.filter((f) => f.type == "img");
-  const dataFiles = interpretedFiles.filter((f) => f.type == "dat");
+  const images = interpretedFiles.filter((f) => f.type === "img");
+  const dataFiles = interpretedFiles.filter((f) => f.type === "dat");
   try {
     if (images.length || dataFiles.length) {
       await wipeAssets(builtinPackName);
@@ -287,7 +287,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     throwIfCancelled();
 
-    const images = interpretedFiles.filter((f) => f.type == "img");
+    const images = interpretedFiles.filter((f) => f.type === "img");
     const assetsSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
 
     await beginStage("Saving images", `${images.length} images`);
@@ -310,7 +310,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     // The globe's DAT files are stored like images, so the map can be drawn
     // without the archive having to be unpacked again
-    const dataFiles = interpretedFiles.filter((f) => f.type == "dat");
+    const dataFiles = interpretedFiles.filter((f) => f.type === "dat");
     if (dataFiles.length)
       await saveImgs(
         packName,
@@ -387,7 +387,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
 /** Compresses bytes as gzip, preferring the native stream when available */
 async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof CompressionStream == "undefined") return fflate.compressSync(bytes);
+  if (typeof CompressionStream === "undefined") return fflate.compressSync(bytes);
   // `slice` gives a fresh array over an `ArrayBuffer`, which is what `Blob`
   // accepts; a `Uint8Array` view may be backed by a shared buffer
   const stream = new Blob([bytes.slice()]).stream().pipeThrough(new CompressionStream("gzip"));

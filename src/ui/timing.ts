@@ -64,12 +64,12 @@ export function waveDelay(timer: unknown): { min: number; max: number } | undefi
  */
 export function formatDelay(delay: { min: number; max: number }): string | null {
   if (delay.max <= 0) return null;
-  if (delay.max == delay.min) return formatMinutes(delay.min);
+  if (delay.max === delay.min) return formatMinutes(delay.min);
   // A range reads better with one unit than two: "0–30 min", not "0 min–30 min".
   // Units are only shared when both ends land in the same one, because "12 h–3 d"
   // is clearer than "0.5 d–3 d".
   const [lo, hi] = [formatMinutes(delay.min), formatMinutes(delay.max)];
   const unitOf = (text: string) => text.split(" ").pop();
-  if (unitOf(lo) == unitOf(hi)) return `${lo.replace(/\s*\D+$/, "")}–${hi}`;
+  if (unitOf(lo) === unitOf(hi)) return `${lo.replace(/\s*\D+$/, "")}–${hi}`;
   return `${lo}–${hi}`;
 }

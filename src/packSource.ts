@@ -92,7 +92,7 @@ function databaseSource(pack: string): PackSource {
     permanent: false,
     async stats() {
       const records = (await idb.getStats()) as any[];
-      const record = records?.find((r) => r.pack == pack);
+      const record = records?.find((r) => r.pack === pack);
       return {
         pack,
         archive: record?.archive ?? 0,
@@ -154,7 +154,7 @@ export type InlinePayload = {
 
 function readInlinePayload(): InlinePayload | undefined {
   const payload = (window as any).xpedia;
-  if (!payload || typeof payload != "object" || typeof payload.rul != "string") return;
+  if (!payload || typeof payload !== "object" || typeof payload.rul !== "string") return;
   return payload;
 }
 
@@ -166,7 +166,7 @@ export function inlinePayload(): InlinePayload | undefined {
 /** The language an unsplit page was exported in, when it was asked for one */
 export function inlinePageLanguage() {
   const lang = readInlinePayload()?.lang;
-  return typeof lang == "string" && lang ? lang : undefined;
+  return typeof lang === "string" && lang ? lang : undefined;
 }
 
 /**
@@ -175,7 +175,7 @@ export function inlinePageLanguage() {
  */
 export function inlineLanguagePacks() {
   const packs = readInlinePayload()?.packs;
-  if (!packs || typeof packs != "object" || !Object.keys(packs).length) return;
+  if (!packs || typeof packs !== "object" || !Object.keys(packs).length) return;
   return packs;
 }
 
@@ -200,7 +200,7 @@ export function inlineLanguageNames() {
  */
 export function inlineDataFiles() {
   const data = readInlinePayload()?.data;
-  if (!data || typeof data != "object" || !Object.keys(data).length) return;
+  if (!data || typeof data !== "object" || !Object.keys(data).length) return;
   return data;
 }
 
@@ -236,7 +236,7 @@ export function loadLanguagePack(lang: string): Promise<{ [id: string]: string }
     if (!strings) {
       langPackLoads.delete(lang);
       for (const tag of document.querySelectorAll("script[src]"))
-        if (tag.getAttribute("src") == path) tag.remove();
+        if (tag.getAttribute("src") === path) tag.remove();
     }
     return strings;
   });
@@ -294,7 +294,7 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     },
     // Images are not in the payload, they live in the game folder
     imgData: async () => undefined,
-    imgUrl: (path) => "./" + gameRelativePath(path),
+    imgUrl: (path) => `./${gameRelativePath(path)}`,
     // The images are already files beside the page, put there by whatever made
     // it, so there is nothing to bundle: reading them back through the browser
     // would copy hundreds of megabytes only to write the same bytes again. A
@@ -307,7 +307,7 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     serveExport: payload.served ? { url: "./xpedia-export" } : undefined,
     async fileData(path) {
       try {
-        const response = await fetch("./" + gameRelativePath(path));
+        const response = await fetch(`./${gameRelativePath(path)}`);
         if (!response.ok) return;
         return new Uint8Array(await response.arrayBuffer());
       } catch {
@@ -343,7 +343,7 @@ export function inlinePackStats(): PackStat | undefined {
 export function packSource(pack?: string): PackSource | undefined {
   if (!pack) return;
   const inline = inlinePack();
-  if (inline && inline.pack == pack) return inline;
+  if (inline && inline.pack === pack) return inline;
   return databaseSource(pack);
 }
 
@@ -363,7 +363,7 @@ export function allPackStats(): PackStat[] {
   if (!inline) return db;
   // The database can never contain the inlined pack, but guard anyway in case
   // an export named its pack like an uploaded archive
-  return [...db.filter((p) => p.pack != inline.pack), inlineStat!];
+  return [...db.filter((p) => p.pack !== inline.pack), inlineStat!];
 }
 
 /** Loads a pack's ruleset into the app, from whichever source owns it */
@@ -375,10 +375,10 @@ export async function loadPackRul(pack: string) {
   if (!processed) return;
 
   const rul = new Ruleset(processed);
-  const pageLang = source.kind == "inline" ? inlinePageLanguage() : undefined;
+  const pageLang = source.kind === "inline" ? inlinePageLanguage() : undefined;
   // A split page carries English alone and names a script for each other
   // language, so those are candidates the browser's locale can also pick.
-  const packs = source.kind == "inline" ? Object.keys(inlineLanguagePacks() ?? {}) : undefined;
+  const packs = source.kind === "inline" ? Object.keys(inlineLanguagePacks() ?? {}) : undefined;
   const wanted = idb.applySavedLanguage(rul, pageLang, packs);
   // A language the page cannot show yet has to be fetched; this is what makes a
   // shared split page open in the reader's language instead of in English. A

@@ -46,7 +46,7 @@ function asSize(bytes: number) {
 
 /** Installs the stored ruleset of an already-unpacked pack */
 export async function selectPack(pack: string) {
-  if (busy() || pack == state.packName) return;
+  if (busy() || pack === state.packName) return;
   update({
     slowProcessStatus: `Switching to ${pack}...`,
     slowProcessStage: "",
@@ -114,14 +114,14 @@ async function erasePack(pack: string) {
     return;
   }
 
-  if (state.packName != pack) {
+  if (state.packName !== pack) {
     closeStatus();
     return;
   }
 
   // The active pack is gone, so open whatever is left. `state.files` may still
   // contain the deleted pack until the stats refresh comes back, so filter it.
-  const next = state.files?.find((f) => f.pack != pack)?.pack;
+  const next = state.files?.find((f) => f.pack !== pack)?.pack;
   update({ article: undefined, section: undefined, images: {}, packName: undefined });
   const loaded = next ? await loadPackRul(next) : undefined;
   if (!loaded) {
@@ -192,6 +192,7 @@ export function ArchiveFiles() {
         player never sees the unpacking tools by accident */}
       {state.devUnlocked && (
         <button
+          type="button"
           className="modpack-mode-switch"
           title={
             state.devView
@@ -205,6 +206,7 @@ export function ArchiveFiles() {
       )}
       {state.devView && (
         <button
+          type="button"
           className="modpack-deselect"
           disabled={!state.packName}
           title={
@@ -230,14 +232,12 @@ function ModpackList() {
       {packs.length > 0 && <StorageSummary packs={packs} />}
       <div className="modpack-list">
         {packs.map((pack) => {
-          const current = pack.pack == state.packName;
+          const current = pack.pack === state.packName;
           const permanent = isPermanentPack(pack.pack);
           return (
             <div
               key={pack.pack}
-              className={
-                "modpack-panel" + (current ? " current" : "") + (permanent ? " permanent" : "")
-              }
+              className={`modpack-panel${current ? " current" : ""}${permanent ? " permanent" : ""}`}
               title={current ? "Currently shown" : "Click to show this modpack"}
               onClick={() => selectPack(pack.pack)}
             >
@@ -245,6 +245,7 @@ function ModpackList() {
               delete button: there is nothing separate to remove */}
               {!permanent && (
                 <button
+                  type="button"
                   className="modpack-delete"
                   title="Delete this modpack"
                   onClick={(e) => {
@@ -309,7 +310,7 @@ function UploadTile() {
     <>
       <button
         type="button"
-        className={"modpack-panel modpack-add" + (dragging ? " dragging" : "")}
+        className={`modpack-panel modpack-add${dragging ? " dragging" : ""}`}
         title="Add a modpack: choose a zip or rar file, or drag one onto the page"
         onClick={() => input.current?.click()}
       >
@@ -375,7 +376,7 @@ function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
     reasons.push(`unused packs are removed after ${info.retentionDays} days`);
   if (legacy)
     reasons.push(
-      legacy == 1
+      legacy === 1
         ? "1 pack was installed before this version and is kept until you delete it"
         : `${legacy} packs were installed before this version and are kept until you delete them`,
     );
@@ -383,7 +384,7 @@ function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
   return (
     <div className="modpack-storage">
       <span>
-        {stored == 1 ? "1 modpack" : `${stored} modpacks`} using <b>{asSize(usage)}</b>
+        {stored === 1 ? "1 modpack" : `${stored} modpacks`} using <b>{asSize(usage)}</b>
         {quota ? ` of ${asSize(quota)} the browser allows` : ""}
       </span>
       {/* Saying this is the difference between "my packs are safe" and "they may
@@ -391,7 +392,7 @@ function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
       {reasons.length > 0 && (
         <span
           className="modpack-storage-warning"
-          title={reasons.map((r) => r[0].toUpperCase() + r.slice(1) + ".").join(" ")}
+          title={reasons.map((r) => `${r[0].toUpperCase() + r.slice(1)}.`).join(" ")}
         >
           storage is not guaranteed
         </span>
@@ -469,13 +470,13 @@ function UrlPackLoader() {
         type="text"
         value={url}
         spellCheck={false}
-        placeholder={base ? base + "mod.zip" : "http://host/mod.zip"}
+        placeholder={base ? `${base}mod.zip` : "http://host/mod.zip"}
         onChange={(e) => setUrl(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key == "Enter") load();
+          if (e.key === "Enter") load();
         }}
       />
-      <button disabled={!url.trim() || busy()} onClick={load}>
+      <button type="button" disabled={!url.trim() || busy()} onClick={load}>
         load
       </button>
       {error && <span className="modpack-url-error">{error}</span>}
@@ -490,7 +491,7 @@ function ModpackTable() {
     <MyTable
       className="file-select"
       rowClass={(row) => {
-        const current = row.name == state.packName;
+        const current = row.name === state.packName;
         return current ? "current-file" : "";
       }}
       columns={[
@@ -510,7 +511,8 @@ function ModpackTable() {
               return (
                 <div>
                   <button
-                    className={pack == state.packName ? "current-file" : ""}
+                    type="button"
+                    className={pack === state.packName ? "current-file" : ""}
                     onClick={() => selectPack(pack)}
                   >
                     rul
@@ -519,9 +521,14 @@ function ModpackTable() {
               );
             return (
               <div>
-                <button onClick={() => deletePack(pack)}>delete</button>
-                <button onClick={() => unpackArchiveFile(pack)}>unpack</button>
+                <button type="button" onClick={() => deletePack(pack)}>
+                  delete
+                </button>
+                <button type="button" onClick={() => unpackArchiveFile(pack)}>
+                  unpack
+                </button>
                 <button
+                  type="button"
                   onClick={async () => {
                     await wipeAssets(pack);
                     await updateFileStats();
@@ -529,9 +536,12 @@ function ModpackTable() {
                 >
                   wipe assets
                 </button>
-                <button onClick={() => viewAssets(pack)}>assets</button>
+                <button type="button" onClick={() => viewAssets(pack)}>
+                  assets
+                </button>
                 <button
-                  className={pack == state.packName ? "current-file" : ""}
+                  type="button"
+                  className={pack === state.packName ? "current-file" : ""}
                   onClick={() => selectPack(pack)}
                 >
                   rul
@@ -588,7 +598,7 @@ export function ConfirmDialog() {
   useEffect(() => {
     if (!request) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key == "Escape") {
+      if (e.key === "Escape") {
         e.preventDefault();
         cancelConfirm();
       }
@@ -606,10 +616,10 @@ export function ConfirmDialog() {
         <div className="confirm-buttons">
           {/* The safe choice holds the focus: a destructive action must not be
             one stray Enter away */}
-          <button className="confirm-ok" onClick={acceptConfirm}>
+          <button type="button" className="confirm-ok" onClick={acceptConfirm}>
             OK
           </button>
-          <button className="confirm-cancel" autoFocus onClick={cancelConfirm}>
+          <button type="button" className="confirm-cancel" autoFocus onClick={cancelConfirm}>
             Cancel
           </button>
         </div>
@@ -635,9 +645,7 @@ export function SlowProcessStatus() {
   return (
     <div className="full-screen-centered status-overlay">
       <div
-        className={
-          "slow-process-status" + (done ? " done" : "") + (state.slowProcessError ? " error" : "")
-        }
+        className={`slow-process-status${done ? " done" : ""}${state.slowProcessError ? " error" : ""}`}
         role="dialog"
         aria-modal="true"
       >
@@ -659,6 +667,7 @@ export function SlowProcessStatus() {
         {!done && <CogAnimation size={state.fontSize * 2} />}
         {!done && cancellable && (
           <button
+            type="button"
             className="slow-process-cancel"
             title="Cancel loading"
             onClick={requestCancelSlowProcess}
@@ -667,7 +676,12 @@ export function SlowProcessStatus() {
           </button>
         )}
         {done && (
-          <button className="slow-process-close" title="Dismiss" onClick={closeStatus}>
+          <button
+            type="button"
+            className="slow-process-close"
+            title="Dismiss"
+            onClick={closeStatus}
+          >
             OK
           </button>
         )}

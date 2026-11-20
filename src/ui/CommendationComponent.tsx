@@ -11,7 +11,7 @@ function deedLink(id?: string) {
   if (id == null) return "";
   // Through `Tr`, so a damage type also draws its emoji icon here
   return (
-    <a href={"##" + id} className={rul.article(id) ? "" : "dead"}>
+    <a href={`##${id}`} className={rul.article(id) ? "" : "dead"}>
       <Tr text={id} />
     </a>
   );
@@ -40,7 +40,7 @@ function deedDescription(deed: ResolvedDeed) {
         .filter((p) => p !== "" && p != null)
         .map((p, i) => (
           <span key={i}>
-            {i != 0 && " "}
+            {i !== 0 && " "}
             {p}
           </span>
         ))}
@@ -122,28 +122,26 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
         }}
         special={{
           killCriteria2: ({ val: prop }) =>
-            prop.length == 0 ? (
+            prop.length === 0 ? (
               <Val of="See stage descriptions" />
             ) : (
-              <>
-                {prop.map((deeds: ResolvedDeed[], i: number) => (
-                  <span key={i}>
-                    {i != 0 && (
-                      <>
-                        {" "}
-                        {rul.tr("or")}
-                        <br />
-                      </>
-                    )}
-                    {deeds.map((deed, j) => (
-                      <span key={j}>
-                        {j != 0 && <> {rul.tr("and")} </>}
-                        {deedDescription(deed)}
-                      </span>
-                    ))}
-                  </span>
-                ))}
-              </>
+              prop.map((deeds: ResolvedDeed[], i: number) => (
+                <span key={i}>
+                  {i !== 0 && (
+                    <>
+                      {" "}
+                      {rul.tr("or")}
+                      <br />
+                    </>
+                  )}
+                  {deeds.map((deed, j) => (
+                    <span key={j}>
+                      {j !== 0 && <> {rul.tr("and")} </>}
+                      {deedDescription(deed)}
+                    </span>
+                  ))}
+                </span>
+              ))
             ),
           finalBonus: ({ val: prop }) => (
             <>

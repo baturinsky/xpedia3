@@ -16,7 +16,7 @@ const Damage = ({ attack }: { attack: Attack }) =>
         <SpecialBonus plus={true} bonus={attack.damageBonus} />
         {attack.pellets > 1 && attack.damageBonus ? ")" : ""}
       </small>
-      {attack.pellets > 1 ? " ×" + attack.pellets : ""}
+      {attack.pellets > 1 ? ` ×${attack.pellets}` : ""}
       <br />
       {attack.damageType != null && <Val of={damageTypes[attack.damageType]} />}
     </>
@@ -166,7 +166,7 @@ const AttacksTable = ({
   <table className="attacks-table">
     <thead>
       <tr>
-        {entry.battleType == 2 ? (
+        {entry.battleType === 2 ? (
           <td colSpan={3} />
         ) : (
           <>
@@ -196,7 +196,7 @@ const AttacksTable = ({
         return (
           <React.Fragment key={idx}>
             <tr>
-              {attack?.mode == "ammo" ? (
+              {attack?.mode === "ammo" ? (
                 <>
                   <td className="item-ammo-img">
                     <Img
@@ -219,7 +219,7 @@ const AttacksTable = ({
                 <>
                   <td>
                     {rul.str(attack.name ?? "")}
-                    {attack.shots == 1 ? "" : "×" + attack.shots}
+                    {attack.shots === 1 ? "" : `×${attack.shots}`}
                   </td>
                   <td>
                     <em className="big-number">{attack.accuracy}</em>
@@ -230,8 +230,8 @@ const AttacksTable = ({
                       <span>
                         {" "}
                         up to{" "}
-                        <em className={attack.range == entry.maxRange ? "bad" : ""}>
-                          {entry.minRange ? entry.minRange + "-" : ""}
+                        <em className={attack.range === entry.maxRange ? "bad" : ""}>
+                          {entry.minRange ? `${entry.minRange}-` : ""}
                           {attack.range}
                         </em>{" "}
                         m
@@ -256,20 +256,20 @@ const AttacksTable = ({
               </td>
             </tr>
 
-            {attack?.mode == "melee" && entry.meleeAlter && <AlterList items={entry.meleeAlter} />}
+            {attack?.mode === "melee" && entry.meleeAlter && <AlterList items={entry.meleeAlter} />}
 
-            {attack?.mode == "ammo" && attack.alter && <AlterList items={attack.alter} />}
+            {attack?.mode === "ammo" && attack.alter && <AlterList items={attack.alter} />}
           </React.Fragment>
         );
       })}
-      {entry.damageAlter && entry.battleType != 2 && <AlterList items={entry.damageAlter} />}
+      {entry.damageAlter && entry.battleType !== 2 && <AlterList items={entry.damageAlter} />}
     </tbody>
   </table>
 );
 
 const ItemComponent = ({ entry }: { entry: Item }) => {
   const attacks = entry.attacks().slice();
-  const ohpen = entry.oneHandedPenalty || entry.battleType == 3 ? 67 : 50;
+  const ohpen = entry.oneHandedPenalty || entry.battleType === 3 ? 67 : 50;
 
   const hand1bonus = entry.twoHanded
     ? entry.blockBothHands
@@ -311,10 +311,10 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
   );
 
   special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val])}`;
-  special.prisonType = ({ val }) => <Val of={"prisonType" + val} />;
+  special.prisonType = ({ val }) => <Val of={`prisonType${val}`} />;
   special.experienceTrainingMode = ({ val }) => (
     <>
-      <Val of={val} />: <Val of={"experienceTrainingMode" + val} />
+      <Val of={val} />: <Val of={`experienceTrainingMode${val}`} />
     </>
   );
   special.costBuy = ({ val }) => (
@@ -372,12 +372,12 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
   // The "See details" button splits the fields in two, so the rows are built
   // here: the first block, the button, then the rest once it is expanded
   const pairs: [string, any][] =
-    hidden.length == 0
+    hidden.length === 0
       ? sorted.first
       : [...sorted.first, ["_details", null], ...(state.anal ? hidden : [])];
 
   const showAttacks =
-    !!(entry.sprite && entry.sprite != "Resources/Blanks/Blank.png") || attacks.length > 0;
+    !!(entry.sprite && entry.sprite !== "Resources/Blanks/Blank.png") || attacks.length > 0;
 
   return (
     <MainTable
@@ -393,6 +393,7 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
           <tr>
             <td colSpan={2}>
               <button
+                type="button"
                 className="btn-hover-effect btn-hover-effect--effect-1"
                 onClick={() => update({ anal: !state.anal })}
               >

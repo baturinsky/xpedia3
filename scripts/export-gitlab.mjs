@@ -77,7 +77,7 @@ function fail(message) {
 function run(command, args, { cwd, tolerate = false } = {}) {
   const result = spawnSync(command, args, { cwd, stdio: "inherit" });
   if (result.error) fail(`Can't run ${command}: ${result.error.message}`);
-  if (result.status != 0 && !tolerate)
+  if (result.status !== 0 && !tolerate)
     fail(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
   return result.status;
 }
@@ -106,7 +106,7 @@ for (const pack of packs) {
   // The exit code says the CLI finished; the page is what says it finished with
   // something. A target the CLI declined to write leaves no page at all.
   const index = path.join(pack.target, "index.html");
-  if (!fs.existsSync(index) || fs.statSync(index).size == 0)
+  if (!fs.existsSync(index) || fs.statSync(index).size === 0)
     fail(`${name} produced no page: ${index} is missing or empty`);
 }
 
@@ -117,7 +117,7 @@ run("git", ["add", "--all"], { cwd: site });
 // that needs committing is staged by now, and `--quiet` reports it as an exit code
 // rather than as a line of output per file. On a repo with no commits yet this
 // diffs against the empty tree, which is right: everything staged is new.
-const changed = run("git", ["diff", "--cached", "--quiet"], { cwd: site, tolerate: true }) != 0;
+const changed = run("git", ["diff", "--cached", "--quiet"], { cwd: site, tolerate: true }) !== 0;
 
 if (changed) {
   run("git", ["commit", "--message", commitName], { cwd: site });

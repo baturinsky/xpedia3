@@ -140,9 +140,9 @@ function routineFrames(routine: number): RoutineFrames {
       legsFloat: 275,
       kneelY: 4,
       // A muton carries a wide charge on its back and bobs differently
-      yoffWalk: routine == 10 ? MUTON_YOFF_WALK : YOFF_WALK,
+      yoffWalk: routine === 10 ? MUTON_YOFF_WALK : YOFF_WALK,
     };
-  if (routine == 13)
+  if (routine === 13)
     // Aquanauts on land. The sources keep a second table for the underwater
     // `_helmet` layer, which the pedia has no way to tell apart from this one.
     return {
@@ -154,7 +154,7 @@ function routineFrames(routine: number): RoutineFrames {
       // TFTD torsos are stubby, so they sit one pixel lower
       yoffWalk: YOFF_WALK.map((v) => v + 1),
     };
-  if (routine == 15)
+  if (routine === 15)
     return {
       die: 256,
       maleTorso: TORSO,
@@ -284,7 +284,7 @@ type RoutineKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 12 | 16 | 19 | 20 | 21 | 
  */
 function routineKind(routine?: number): RoutineKind | undefined {
   const n = routine ?? 0;
-  if (n == 0 || n in ROUTINE0_ALIASES) return 0;
+  if (n === 0 || n in ROUTINE0_ALIASES) return 0;
   if ([1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 19, 20, 21, 22].includes(n)) return n as RoutineKind;
   return undefined;
 }
@@ -295,8 +295,8 @@ function unitTiles(view: UnitView) {
   // Routines with a two-by-two picture always use all four cells
   if (kind != null && FOUR_TILE_ROUTINES.includes(kind)) return 2;
   // A tank is only split when it is over two tiles; a one-tile pillbox is not
-  if (kind != 2) return 1;
-  return view.size == 2 ? 2 : 1;
+  if (kind !== 2) return 1;
+  return view.size === 2 ? 2 : 1;
 }
 
 /**
@@ -329,10 +329,10 @@ export function canComposeUnit(sheet?: string, routine?: number) {
  * them by `walkPhase / 1.6`, which lands as 0, 0, 1, 1, 2, 3, 3, 4.
  */
 function floaterFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying") return { parts: { t: { frame: 64 + phase } }, order: ["t"] };
+  if (pose === "dying") return { parts: { t: { frame: 64 + phase } }, order: ["t"] };
 
   const order = DRAW_ORDER_1[dir];
-  if (pose == "walking")
+  if (pose === "walking")
     return {
       parts: {
         // A floater's arms do not walk: only the torso has a walk sequence
@@ -360,8 +360,8 @@ function floaterFrame(_view: UnitView, pose: UnitPose, dir: number, phase: numbe
  * not move their parts, so the facing is the whole animation.
  */
 function tentaculatFrame(pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying") return { parts: { t: { frame: 16 + phase } }, order: ["t"] };
-  if (pose == "walking") return { parts: { t: { frame: 8 + dir } }, order: ["t"] };
+  if (pose === "dying") return { parts: { t: { frame: 16 + phase } }, order: ["t"] };
+  if (pose === "walking") return { parts: { t: { frame: 8 + dir } }, order: ["t"] };
   return { parts: { t: { frame: 0 + dir } }, order: ["t"] };
 }
 
@@ -374,7 +374,7 @@ function trisceneFrame(dir: number, phase: number, walking: boolean): PoseFrame 
   const partTiles: { [part: string]: number } = {};
   const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    const name = "p" + tile;
+    const name = `p${tile}`;
     // `phase` is the walk picture itself, 0-3, so a standing unit holds picture 0
     parts[name] = { frame: tile * 5 + (walking ? phase : 0) + 20 * dir };
     partTiles[name] = tile;
@@ -392,7 +392,7 @@ function xarquidFrame(dir: number, phase: number): PoseFrame {
   const partTiles: { [part: string]: number } = {};
   const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    const name = "p" + tile;
+    const name = `p${tile}`;
     parts[name] = { frame: tile * 4 + dir * 16 + phase };
     partTiles[name] = tile;
     order.push(name);
@@ -409,7 +409,7 @@ function fourTileCycleFrame(phase: number): PoseFrame {
   const partTiles: { [part: string]: number } = {};
   const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    const name = "p" + tile;
+    const name = `p${tile}`;
     parts[name] = { frame: tile * 8 + phase };
     partTiles[name] = tile;
     order.push(name);
@@ -425,11 +425,11 @@ function fourTileCycleFrame(phase: number): PoseFrame {
  * their death sequence starts.
  */
 function blobFrame(kind: number, pose: UnitPose, phase: number): PoseFrame {
-  if (pose == "dying")
+  if (pose === "dying")
     return { parts: { t: { frame: BLOB_DEATH_START[kind] + phase } }, order: ["t"] };
   // A silacoid pulses 0-1-2-3-4-3-2-1 rather than running through the row, and
   // it has five pictures rather than eight
-  const step = kind == 8 ? SILACOID_PULSE[phase % 8] : phase % 8;
+  const step = kind === 8 ? SILACOID_PULSE[phase % 8] : phase % 8;
   return { parts: { t: { frame: step } }, order: ["t"] };
 }
 
@@ -445,11 +445,11 @@ function propellantFrame(kind: number, dir: number, phase: number): PoseFrame {
   const partTiles: { [part: string]: number } = {};
   const order: string[] = [];
   // A helicopter's rotor covers the hull, a disc's plume sits under it
-  const rotorAbove = kind == 22;
+  const rotorAbove = kind === 22;
 
   for (let tile = 0; tile < 4; tile++) {
-    const hull = "b" + tile;
-    const plume = "e" + tile;
+    const hull = `b${tile}`;
+    const plume = `e${tile}`;
     const hasPlume = tile > 0;
     if (hasPlume && !rotorAbove) {
       parts[plume] = { frame: 32 + (tile - 1) * 8 + phase };
@@ -472,22 +472,22 @@ function propellantFrame(kind: number, dir: number, phase: number): PoseFrame {
 /** How many frames a pose plays; 1 means it stands still */
 function posePhases(pose: UnitPose, view: UnitView) {
   const kind = routineKind(view.routine);
-  if (pose == "walking") {
+  if (pose === "walking") {
     // A sectopod's and a triscene's walk cycles hold four pictures each, and the
     // game picks one picture per two steps, so there are four to choose from
-    if (kind == 5 || kind == 20) return 4;
+    if (kind === 5 || kind === 20) return 4;
     // A tentaculat has one picture per facing, so its walk has nothing to step
     // through
-    if (kind == 19) return 1;
+    if (kind === 19) return 1;
     return WALK_PHASES;
   }
   // The collapsing sequence stops on its last frame once the unit is down
-  if (pose == "dying") return Math.max(1, view.deathFrames ?? 3);
+  if (pose === "dying") return Math.max(1, view.deathFrames ?? 3);
   // A hovering tank's exhaust, a silacoid's pulse and a biodrone's wobble all
   // run while the unit stands still
-  if (pose == "standing" && kind != null && STILL_CYCLES[kind]) {
+  if (pose === "standing" && kind != null && STILL_CYCLES[kind]) {
     // Only a tank that flies has an exhaust to animate
-    if (kind == 2 && view.movementType != MT_FLY) return 1;
+    if (kind === 2 && view.movementType !== MT_FLY) return 1;
     return STILL_CYCLES[kind];
   }
   return 1;
@@ -525,8 +525,8 @@ const STILL_CYCLES: { [kind: number]: number } = {
  */
 function poseLoops(pose: UnitPose, view: UnitView) {
   // A fall plays once and stops on its last frame
-  if (pose == "dying") return false;
-  return pose == "walking" || posePhases(pose, view) > 1;
+  if (pose === "dying") return false;
+  return pose === "walking" || posePhases(pose, view) > 1;
 }
 
 /** One cell of a pose, and where it goes */
@@ -592,7 +592,7 @@ function poseFrame(
     case 19:
       return tentaculatFrame(pose, dir, phase);
     case 20:
-      return trisceneFrame(dir, phase, pose == "walking");
+      return trisceneFrame(dir, phase, pose === "walking");
     case 21:
       return xarquidFrame(dir, phase);
     default:
@@ -673,12 +673,12 @@ function humanoidFrame(
  * torso and arms just bob and shift sideways over them.
  */
 function snakemanFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying") return { parts: { t: { frame: 96 + phase } }, order: ["t"] };
+  if (pose === "dying") return { parts: { t: { frame: 96 + phase } }, order: ["t"] };
 
   const order = DRAW_ORDER_6[dir];
   let bob = 0,
     shift = 0;
-  if (pose == "walking") {
+  if (pose === "walking") {
     bob = SNAKEMAN_YOFF_WALK[phase] ?? 0;
     // The body leans into the step: right while heading east, left while
     // heading west, and neither straight up nor straight down
@@ -690,7 +690,7 @@ function snakemanFrame(_view: UnitView, pose: UnitPose, dir: number, phase: numb
     parts: {
       l: { frame: 0 + dir, offX: shift, offY: bob },
       r: { frame: 8 + dir, offX: shift, offY: bob },
-      g: { frame: pose == "walking" ? 32 + 8 * dir + phase : 16 + dir },
+      g: { frame: pose === "walking" ? 32 + 8 * dir + phase : 16 + dir },
       t: { frame: 24 + dir, offX: shift, offY: bob },
     },
     order,
@@ -702,8 +702,8 @@ function snakemanFrame(_view: UnitView, pose: UnitPose, dir: number, phase: numb
  * facing, and a walk sequence of eight frames behind it.
  */
 function civilianFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying") return { parts: { t: { frame: 72 + phase } }, order: ["t"] };
-  if (pose == "walking") return { parts: { t: { frame: 8 + 8 * dir + phase } }, order: ["t"] };
+  if (pose === "dying") return { parts: { t: { frame: 72 + phase } }, order: ["t"] };
+  if (pose === "walking") return { parts: { t: { frame: 8 + 8 * dir + phase } }, order: ["t"] };
   return { parts: { t: { frame: 0 + dir } }, order: ["t"] };
 }
 
@@ -718,9 +718,9 @@ function fourPartFrame(view: UnitView, pose: UnitPose, dir: number, phase: numbe
   const order: string[] = [];
 
   for (let tile = 0; tile < tiles * tiles; tile++) {
-    const name = "p" + tile;
+    const name = `p${tile}`;
     parts[name] = {
-      frame: pose == "walking" ? 32 + tile * 4 + dir * 16 + phase : 0 + tile * 8 + dir,
+      frame: pose === "walking" ? 32 + tile * 4 + dir * 16 + phase : 0 + tile * 8 + dir,
     };
     partTiles[name] = tile;
     order.push(name);
@@ -744,7 +744,7 @@ function tankFrame(
   phase: number,
   turretDir: number,
 ): PoseFrame {
-  const hover = view.movementType == MT_FLY;
+  const hover = view.movementType === MT_FLY;
   const turret = view.turret ?? -1;
   const tiles = unitTiles(view);
   const parts: { [part: string]: PosePart } = {};
@@ -752,10 +752,10 @@ function tankFrame(
   const order: string[] = [];
 
   for (let tile = 0; tile < tiles * tiles; tile++) {
-    const name = "b" + tile;
+    const name = `b${tile}`;
     // The plume goes under the hull, so it is blitted first
     if (hover && tile > 0) {
-      const plume = "e" + tile;
+      const plume = `e${tile}`;
       parts[plume] = { frame: 104 + (tile - 1) * 8 + phase };
       partTiles[plume] = tile;
       order.push(plume);
@@ -767,7 +767,7 @@ function tankFrame(
 
   // The gun rides on the front tile, and a hovering tank sways, so the gun
   // sways with the hull
-  if (turret >= 0 && tiles == 2) {
+  if (turret >= 0 && tiles === 2) {
     parts.gun = {
       frame: 64 + turret * 8 + turretDir,
       offX: hover ? TANK_SWAY_X[dir] : 0,
@@ -810,7 +810,7 @@ const ROUTINE_POSES: { [kind: number]: UnitPose[] } = {
  */
 function poseIsDirectional(pose: UnitPose, view: UnitView) {
   const kind = routineKind(view.routine);
-  if (kind == 8 || kind == 9 || kind == 12 || kind == 16) return false;
+  if (kind === 8 || kind === 9 || kind === 12 || kind === 16) return false;
   return UNIT_DIRECTIONAL.includes(pose);
 }
 
@@ -820,7 +820,7 @@ export function unitPoses(view: UnitView): UnitPose[] {
   const kind = routineKind(view.routine);
   if (!sprite?.grid || kind == null) return [];
   // A turreted tank can be verified for every gun facing, not just its own
-  const turretDirs = kind == 2 && (view.turret ?? -1) >= 0 ? 8 : 1;
+  const turretDirs = kind === 2 && (view.turret ?? -1) >= 0 ? 8 : 1;
 
   return (ROUTINE_POSES[kind] ?? []).filter((id) => {
     for (let dir = 0; dir < 8; dir++) {
@@ -848,7 +848,7 @@ export function unitLayout(view: UnitView) {
   const sprite = rul?.sprites[view.sheet];
   const w = sprite?.subX ?? TILE_W;
   const h = sprite?.subY ?? 40;
-  if (unitTiles(view) == 2) {
+  if (unitTiles(view) === 2) {
     // The four parts fan out half a tile each way, so the unit is one tile wider
     // and one tile taller than a single part; part 0 starts at (16, 0)
     return { w: w + TILE_W, h: h + TILE_H, x: TILE_W / 2, y: 0 };
@@ -907,7 +907,7 @@ export function UnitSprite(props: {
   const pose = props.pose ?? "standing";
   const direction = (((props.direction ?? 2) % 8) + 8) % 8;
   const turretDirection = (((props.turretDirection ?? direction) % 8) + 8) % 8;
-  const hasRealData = sources.length > 0 && settled && urls.size == sources.length;
+  const hasRealData = sources.length > 0 && settled && urls.size === sources.length;
 
   useEffect(() => {
     const element = canvas.current;
@@ -943,9 +943,9 @@ export function UnitSprite(props: {
         // One part of a multi-tile unit is shifted onto its own tile, and the
         // whole is centred in the canvas
         const tile = model.tiles?.[part] ?? 0;
-        const spot = tiles == 2 ? partOffset(tile) : { x: 0, y: 0 };
-        const baseX = tiles == 2 ? layout.x : SPRITE_OFFSET;
-        const baseY = tiles == 2 ? layout.y : 0;
+        const spot = tiles === 2 ? partOffset(tile) : { x: 0, y: 0 };
+        const baseX = tiles === 2 ? layout.x : SPRITE_OFFSET;
+        const baseY = tiles === 2 ? layout.y : 0;
         context.drawImage(
           image,
           source.x,
@@ -969,7 +969,7 @@ export function UnitSprite(props: {
         if (cancelled) return;
         images.set(source, image);
         // Start once the whole set is in; before that a part would be missing
-        if (++loaded == sources.length) {
+        if (++loaded === sources.length) {
           paint();
           if (phases > 1 && held == null)
             timer = window.setInterval(() => {
@@ -1013,7 +1013,7 @@ export function UnitSprite(props: {
   return (
     <canvas
       ref={canvas}
-      className={"unit-sprite" + (props.className ? " " + props.className : "")}
+      className={`unit-sprite${props.className ? ` ${props.className}` : ""}`}
       width={width}
       height={height}
       aria-label={props.alt ?? `${props.view.sheet} ${pose}`}
@@ -1054,16 +1054,16 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
   // reader rather than the armor: wanting to see how one armor kneels is a fact
   // about the armor, but wanting to see everything kneeling is a fact about the
   // reader, and the second is what a picker is for.
-  const pose = remembered(poses, (p) => p == state.selection.pose, poses[0]);
+  const pose = remembered(poses, (p) => p === state.selection.pose, poses[0]);
   // Every facing is always offered, so a remembered one is nearly always usable;
   // it is still looked up among the eight the compass draws, so a value from an
   // older build cannot leave the compass with nothing lit. The compass is hidden
   // for a pose drawn from a single side, and the remembered facing then simply
   // waits for a pose that can use it.
   const facings = UNIT_DIRECTIONS.map((d) => d.dir);
-  const direction = remembered(facings, (dir) => dir == state.selection.direction, 2);
+  const direction = remembered(facings, (dir) => dir === state.selection.direction, 2);
   // A gun that turns on its own starts out following the hull
-  const turretDirection = remembered(facings, (dir) => dir == state.selection.turretDirection, 2);
+  const turretDirection = remembered(facings, (dir) => dir === state.selection.turretDirection, 2);
 
   const { w, h } = unitSpriteSize(props.view);
 
@@ -1074,14 +1074,14 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
   // memory keeps it, so going back to the walk resumes where it was left. A pose
   // that does not animate has no steps at all, only "play".
   const steps = holdsFrames ? Array.from({ length: phases + 1 }, (_, step) => step) : [0];
-  const heldFrame = remembered(steps, (step) => step == state.selection.frame, 0);
+  const heldFrame = remembered(steps, (step) => step === state.selection.frame, 0);
   const directional = poseIsDirectional(pose, props.view);
   // Only a turreted tank draws its gun separately, and only when it is drawn
   // as four tiles - which is where the game puts the gun
   const hasTurret =
-    routineKind(props.view.routine) == 2 &&
+    routineKind(props.view.routine) === 2 &&
     (props.view.turret ?? -1) >= 0 &&
-    unitTiles(props.view) == 2;
+    unitTiles(props.view) === 2;
 
   return (
     <div className="unit-picker">
@@ -1096,7 +1096,7 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
                   type="radio"
                   name={poseGroup}
                   value={p.id}
-                  checked={pose == p.id}
+                  checked={pose === p.id}
                   onChange={() => rememberSelection("pose", p.id)}
                 />
                 <span>{p.label}</span>
@@ -1116,12 +1116,12 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
               <div className="unit-compass">
                 {!hasTurret ? null : <span className="unit-compass-centre">hull</span>}
                 {UNIT_DIRECTIONS.map((d) => (
-                  <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+                  <label key={d.dir} className={`unit-dir unit-dir-${d.dir}`} title={d.title}>
                     <input
                       type="radio"
                       name={group}
                       value={d.dir}
-                      checked={direction == d.dir}
+                      checked={direction === d.dir}
                       onChange={() => rememberSelection("direction", d.dir)}
                     />
                     <span>{d.short}</span>
@@ -1137,12 +1137,12 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
               <div className="unit-compass">
                 <span className="unit-compass-centre">gun</span>
                 {UNIT_DIRECTIONS.map((d) => (
-                  <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+                  <label key={d.dir} className={`unit-dir unit-dir-${d.dir}`} title={d.title}>
                     <input
                       type="radio"
                       name={turretGroup}
                       value={d.dir}
-                      checked={turretDirection == d.dir}
+                      checked={turretDirection === d.dir}
                       onChange={() => rememberSelection("turretDirection", d.dir)}
                     />
                     <span>{d.short}</span>
@@ -1153,7 +1153,7 @@ export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
           ) : null}
         </div>
 
-        <label className={"unit-frame" + (holdsFrames ? "" : " disabled")}>
+        <label className={`unit-frame${holdsFrames ? "" : " disabled"}`}>
           <input
             type="range"
             min={0}

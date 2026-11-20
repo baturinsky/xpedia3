@@ -72,16 +72,16 @@ function zonePlace(trajectory: UfoTrajectory, index: number) {
     // An unnamed area makes this a rectangle rather than a set of places, and a
     // rectangle only means something against the map
     const names = zone.map((area) => area?.[5]).filter((name) => name);
-    if (names.length != zone.length) return null;
+    if (names.length !== zone.length) return null;
     const places = [...new Set(names.map(String))].sort();
     if (!agreed) agreed = places;
     // The regions this path can be flown in send it to different cities, so no
     // one of them can be named
-    else if (agreed.join("|") != places.join("|")) return null;
+    else if (agreed.join("|") !== places.join("|")) return null;
   }
   if (!agreed?.length) return null;
 
-  if (agreed.length == 1)
+  if (agreed.length === 1)
     return (
       <span className="trajectory-zone-name">
         <Val of={agreed[0]} />
@@ -181,7 +181,7 @@ function PlanLeg({
         className={
           "region-leg-group" +
           (focus ? " region-leg-live" : "") +
-          (focus?.hotLeg == leg.index ? " region-leg-hot" : "")
+          (focus?.hotLeg === leg.index ? " region-leg-hot" : "")
         }
         style={{ "--leg-color": legColor(leg.index) } as CSSProperties}
         onPointerEnter={focus && (() => focus.hoverLeg(leg.index))}
@@ -189,7 +189,7 @@ function PlanLeg({
         onPointerUp={focus && (() => focus.pinLeg(leg.index))}
       >
         {focus && <line className="region-leg-hit" x1={x} y1={0} x2={x} y2={100} />}
-        {focus?.hotLeg == leg.index && (
+        {focus?.hotLeg === leg.index && (
           <line className="region-leg-halo" x1={x} y1={0} x2={x} y2={100} />
         )}
         <line
@@ -230,9 +230,9 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
     <table className="main-table trajectory-plan region-overlay region-path">
       <tbody>
         {steps.map((step, i) =>
-          step.kind == "stop" ? (
+          step.kind === "stop" ? (
             <tr
-              key={"s" + i}
+              key={`s${i}`}
               className="trajectory-plan-stop"
               style={{ "--zone-color": zoneColor(step.stop.zone) } as CSSProperties}
             >
@@ -257,7 +257,7 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
                 footnote to it; `.mission-note` elsewhere is a supporting remark
                 and stays small. */}
                 <div className="trajectory-plan-what-happens">
-                  {step.stop.index == 0 ? (
+                  {step.stop.index === 0 ? (
                     <Tr text={step.stop.lands ? "xpediaStopSpawnsGrounded" : "xpediaStopSpawns"} />
                   ) : step.stop.lands ? (
                     landing != null ? (
@@ -271,7 +271,7 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
                     ) : (
                       <Tr text="xpediaStopLands" />
                     )
-                  ) : step.stop.arrival?.from == step.stop.zone ? (
+                  ) : step.stop.arrival?.from === step.stop.zone ? (
                     <Tr text="xpediaStopMovesWithin" />
                   ) : (
                     <Tr text="xpediaStopArrives" />
@@ -289,7 +289,7 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
             </tr>
           ) : (
             <tr
-              key={"l" + i}
+              key={`l${i}`}
               className="trajectory-plan-leg"
               style={{ "--leg-color": legColor(step.leg.index) } as CSSProperties}
             >

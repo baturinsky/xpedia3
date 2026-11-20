@@ -25,7 +25,7 @@ function placeholderText(id: string): string | undefined {
   // The version is not a language string but the number this build prints
   // beside XPedia's name, so it is taken from the same place that label is. An
   // article must not disagree with the navbar about which build it belongs to.
-  if (id == "xpediaVersion") return xpediaVersion();
+  if (id === "xpediaVersion") return xpediaVersion();
 
   // Anything else has to be a real string in the selected language. `rul.lang`
   // is already the merged table for that language, so this is the same lookup
@@ -35,7 +35,7 @@ function placeholderText(id: string): string | undefined {
   // are objects (`STR_DAY: { one: ..., other: ... }`), neither of which belongs
   // inside a sentence. Those fall through as an unknown id.
   const value = rul.lang[id];
-  return typeof value == "string" ? value : undefined;
+  return typeof value === "string" ? value : undefined;
 }
 
 export class Article {
@@ -60,7 +60,7 @@ export class Article {
       const article = rul.articles[id];
       // A section page shows its own article as a header (pedia text and
       // illustration), not as a link inside its own list, so never add it there
-      if (section && id != section && !article.sections.find((s) => s.id == section)) {
+      if (section && id !== section && !article.sections.find((s) => s.id === section)) {
         article.addToSection(section);
         rul.sections[section].add(article);
       }
@@ -99,7 +99,7 @@ export class Article {
     if (sectionId in rul.sections) section = rul.sections[sectionId];
     else section = rul.sections[sectionId] = new Section(sectionId);
 
-    if (this.id != section.id) section.add(this);
+    if (this.id !== section.id) section.add(this);
 
     if (!this.sections.includes(section)) this.sections.push(section);
 
@@ -109,14 +109,14 @@ export class Article {
   get text() {
     let t =
       rul.lang[this._text ?? ""] ||
-      rul.lang[this.id + "_UFOPEDIA"] ||
+      rul.lang[`${this.id}_UFOPEDIA`] ||
       rul.lang[rul.research[this.id]?.lookup as string];
     // Before the markup, not after: `stripPediaMarkup` deletes every `{...}`
     // token, and the braces are part of a placeholder, so expanding afterwards
     // would leave only a stray `$` behind. Doing it here also means every reader
     // of the body sees the same expanded text: the page, an exported copy of it,
     // and anything else that prints `article.text`.
-    if (t != null && t.indexOf("${") != -1)
+    if (t != null && t.indexOf("${") !== -1)
       t = t.replace(
         placeholder,
         (match, id: string) => placeholderText(id.trim()) ?? match.substring(1),

@@ -42,11 +42,11 @@ export function StopPlate({
       className={
         "trajectory-flight-stop" +
         (lands ? " trajectory-flight-land" : "") +
-        (focus?.hotZone == zone ? " trajectory-flight-hot" : "") +
-        (className ? " " + className : "")
+        (focus?.hotZone === zone ? " trajectory-flight-hot" : "") +
+        (className ? ` ${className}` : "")
       }
       style={{ "--zone-color": zoneColor(zone) } as CSSProperties}
-      aria-pressed={focus?.pinnedZone == zone}
+      aria-pressed={focus?.pinnedZone === zone}
       // The face of the button is a number in a shape, which says nothing on its
       // own to a screen reader, so the stop is named in words as well
       aria-label={`${rul.tr("xpediaStopNumber")} ${number}`}

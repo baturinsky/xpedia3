@@ -190,7 +190,7 @@ export type PathShape = {
 
 /** Whether two stops are the same point on the globe */
 export function samePlace(a: PathStop, b: PathStop) {
-  return a.point.lon == b.point.lon && a.point.lat == b.point.lat;
+  return a.point.lon === b.point.lon && a.point.lat === b.point.lat;
 }
 
 /**
@@ -369,7 +369,7 @@ export function regionColor(id?: string) {
 export function regionPalette(count: number): string[] {
   const palette: string[] = [];
   for (let i = 0; i < count; i++) {
-    const dark = i % 2 == 1;
+    const dark = i % 2 === 1;
     palette.push(
       oklchToHex(dark ? 0.64 : 0.76, dark ? 0.16 : 0.17, ((i * 360) / Math.max(count, 2)) % 360),
     );
@@ -401,7 +401,7 @@ export function regionPalette(count: number): string[] {
  */
 export function zoneColor(index: number) {
   const hue = (index * 137.508) % 360;
-  const dark = index % 2 == 1;
+  const dark = index % 2 === 1;
   // Measured over the first eight indices, this pair keeps the closest two zones
   // 17 ΔE apart in OKLab, against 4.4 for a fixed lightness: 13.4 for the worst
   // pair of a four-zone path. The dark step is kept at 0.60 rather than lower so
@@ -445,7 +445,7 @@ export function visitedZones(stops: PathStop[]) {
  */
 export function legColor(index: number) {
   const hue = (index * 137.508 + 120) % 360;
-  const dark = index % 2 == 1;
+  const dark = index % 2 === 1;
   return oklchToHex(dark ? 0.56 : 0.76, dark ? 0.18 : 0.16, hue);
 }
 
@@ -462,7 +462,7 @@ export function pathSpeeds(trajectory: UfoTrajectory): { min: number; max: numbe
   const values: number[] = [];
   for (const mission of rul.missionsFlying(trajectory.uid))
     for (const wave of rul.alienMissions?.[mission]?.waves ?? []) {
-      if (wave?.trajectory != trajectory.uid) continue;
+      if (wave?.trajectory !== trajectory.uid) continue;
       const speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
       // A `speedMax` of 0 is a craft that does not move, and packs do carry
       // nonsense values here, so only a positive number is a speed

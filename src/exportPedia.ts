@@ -81,7 +81,7 @@ export type ExportResult = {
  */
 async function gzipTextInPieces(text: string) {
   const bytes = new TextEncoder().encode(text);
-  if (typeof CompressionStream == "undefined") return fflate.gzipSync(bytes);
+  if (typeof CompressionStream === "undefined") return fflate.gzipSync(bytes);
   const source = new ReadableStream<Uint8Array<ArrayBuffer>>({
     start(controller) {
       for (let i = 0; i < bytes.length; i += 65536) controller.enqueue(bytes.slice(i, i + 65536));
@@ -236,12 +236,12 @@ export function warmEstimate() {
 export function prepareEstimate(): Promise<ExportEstimate | undefined> {
   const pack = state.packName;
   if (!pack) return Promise.resolve(undefined);
-  if (estimateCache?.pack == pack) return estimateCache.value;
+  if (estimateCache?.pack === pack) return estimateCache.value;
   const value = measureEstimate(pack);
   estimateCache = { pack, value };
   // A failed measurement must not be remembered: the next open tries again
   value.catch(() => {
-    if (estimateCache?.pack == pack) estimateCache = undefined;
+    if (estimateCache?.pack === pack) estimateCache = undefined;
   });
   return value;
 }
@@ -463,7 +463,7 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
 
   report("Building the page...", 0.1);
   const name = exportedPackName(pack);
-  const pairs = options.split ? options.languages.filter((lang) => lang != "en-US") : [];
+  const pairs = options.split ? options.languages.filter((lang) => lang !== "en-US") : [];
   const html = await buildPageHtml({
     pack,
     processed,
@@ -490,7 +490,7 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   // caller decides that via `archive`, so reaching here means loose files
   if (!options.archive) {
     report(`Exported ${name}.html`);
-    return { name: name + ".html", data: new Blob([html], { type: "text/html" }) };
+    return { name: `${name}.html`, data: new Blob([html], { type: "text/html" }) };
   }
 
   // The page is written first either way. The images are a separate choice:
@@ -534,14 +534,14 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   ]
     .filter(Boolean)
     .join(" and ");
-  report(`Exported ${name}.zip` + (contents ? ` with ${contents}` : ""), 1);
-  return { name: name + ".zip", data: new Blob([zipped], { type: "application/zip" }) };
+  report(`Exported ${name}.zip${contents ? ` with ${contents}` : ""}`, 1);
+  return { name: `${name}.zip`, data: new Blob([zipped], { type: "application/zip" }) };
 }
 
 /** Languages provided by the shown pack, for the dialog checkboxes */
 export function exportableLanguages() {
   const names = state.rul?.langNames ?? [];
-  return names.filter((name) => name != "en-US" && name != "icon");
+  return names.filter((name) => name !== "en-US" && name !== "icon");
 }
 
 /** Saves an exported file through a browser download */

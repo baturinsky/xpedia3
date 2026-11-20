@@ -60,7 +60,7 @@ async function checkAliasIds() {
 
   // The alias still answers to the same name it was filed under
   ok(
-    rul.research.STR_ALIAS_RESEARCH_A?.uid == "STR_ALIAS_RESEARCH_A",
+    rul.research.STR_ALIAS_RESEARCH_A?.uid === "STR_ALIAS_RESEARCH_A",
     "an entry's uid is the name the block stated",
   );
   // ...but it states no `id`, so `id` stays empty rather than echoing the uid.
@@ -101,26 +101,26 @@ function checkIdentityColumn(rul, label) {
   for (const [name, table] of Object.entries(rul)) {
     if (
       table == null ||
-      typeof table != "object" ||
+      typeof table !== "object" ||
       Array.isArray(table) ||
       !Object.keys(table).length
     )
       continue;
     for (const [key, entry] of Object.entries(table)) {
       // Only ruleset entries: `rul` also holds plain maps and lists
-      if (entry == null || typeof entry != "object" || !("collection" in entry)) continue;
+      if (entry == null || typeof entry !== "object" || !("collection" in entry)) continue;
       const shown = entry.sortField("id", true);
       if (shown == null || shown === "") blank.push(`${name}/${key}`);
-      else if (shown != entry.uid) wrong.push(`${name}/${key}: column=${shown} uid=${entry.uid}`);
+      else if (shown !== entry.uid) wrong.push(`${name}/${key}: column=${shown} uid=${entry.uid}`);
     }
   }
   ok(
-    blank.length == 0,
+    blank.length === 0,
     `${label}: the \`id\` column is filled for every entry of every table`,
     `${blank.length} empty, e.g. ${blank.slice(0, 4).join(", ")}`,
   );
   ok(
-    wrong.length == 0,
+    wrong.length === 0,
     `${label}: and it names the entry it is the row of`,
     wrong.slice(0, 4).join(", "),
   );
@@ -268,7 +268,7 @@ async function checkUid() {
   ok(item != null && unit != null, "one name can name an entry in two tables");
   eq(item?.uid, unit?.uid, "and the two share a uid");
   ok(
-    item?.globalId != unit?.globalId,
+    item?.globalId !== unit?.globalId,
     `but their collection:uid differ (${item?.globalId} vs ${unit?.globalId})`,
   );
   eq(item?.globalId, "items:STR_SHARED_NAME", "the composite is `collection:uid`");
@@ -345,7 +345,7 @@ function survey(rul, label) {
       // table and must not be read as one
       if (
         table == null ||
-        typeof table != "object" ||
+        typeof table !== "object" ||
         Array.isArray(table) ||
         !Object.keys(table).length
       )
@@ -357,9 +357,9 @@ function survey(rul, label) {
       // The as-written `id` is deliberately not compared: it is evidence of what
       // the file said, and a `name`- or `type`-keyed block states no id at all.
       for (const [key, entry] of Object.entries(table)) {
-        if (entry == null || typeof entry != "object" || !("collection" in entry)) continue;
+        if (entry == null || typeof entry !== "object" || !("collection" in entry)) continue;
         if (!entry.uid) noUid.push(`${name}/${key}`);
-        else if (entry.uid != key) uidMismatch.push(`${name}/${key}: uid=${entry.uid}`);
+        else if (entry.uid !== key) uidMismatch.push(`${name}/${key}: uid=${entry.uid}`);
         if (Object.keys(entry).includes("uid")) uidVisible.push(`${name}/${key}`);
 
         // `uid` is only unique inside its table, so `collection:uid` is the
@@ -369,24 +369,24 @@ function survey(rul, label) {
         seenGlobal.add(entry.globalId);
       }
     }
-    ok(empty.length == 0, `${label}: no collection is keyed by the empty id`, empty.join(", "));
+    ok(empty.length === 0, `${label}: no collection is keyed by the empty id`, empty.join(", "));
     ok(
-      noUid.length == 0,
+      noUid.length === 0,
       `${label}: every entry carries the uid it was merged under`,
       noUid.slice(0, 4).join(", "),
     );
     ok(
-      uidMismatch.length == 0,
+      uidMismatch.length === 0,
       `${label}: an entry's uid is the key it is filed by`,
       uidMismatch.slice(0, 4).join(", "),
     );
     ok(
-      uidVisible.length == 0,
+      uidVisible.length === 0,
       `${label}: uid does not show up as a rendered row`,
       uidVisible.slice(0, 4).join(", "),
     );
     ok(
-      duplicateGlobal.length == 0,
+      duplicateGlobal.length === 0,
       `${label}: collection:uid is unique across the pack`,
       duplicateGlobal.slice(0, 4).join(", "),
     );
@@ -394,7 +394,7 @@ function survey(rul, label) {
     const blank = [];
     for (const s of rul.sectionOrder(alphabetical))
       for (const a of s.articles(alphabetical)) if (!a.id) blank.push(s.id);
-    ok(blank.length == 0, `${label}: no section lists an article with no id`, blank.join(", "));
+    ok(blank.length === 0, `${label}: no section lists an article with no id`, blank.join(", "));
   }
 
   /**
@@ -410,7 +410,7 @@ function survey(rul, label) {
 
     for (let i = 0; i + 1 < list.length; i++) {
       const next = rul.nearbyArticle(list[i], 1, section, alphabetical);
-      if (!next || next.article != list[i + 1] || next.section != section) {
+      if (!next || next.article !== list[i + 1] || next.section !== section) {
         problems.push(
           `${label} ${section.id}/${alphabetical}: ${list[i].id} -> ${next?.article?.id} of ${next?.section?.id}, expected ${list[i + 1].id}`,
         );
@@ -421,20 +421,20 @@ function survey(rul, label) {
     // The last article steps into the next section's first, and the first steps
     // back into the previous section's last
     const after = section.adjacentSection(1, alphabetical);
-    if (after != section) {
+    if (after !== section) {
       const lastStep = rul.nearbyArticle(list[list.length - 1], 1, section, alphabetical);
       const afterList = after.articles(alphabetical);
-      if (lastStep?.section != after || lastStep.article != afterList[0])
+      if (lastStep?.section !== after || lastStep.article !== afterList[0])
         problems.push(
           `${label} ${section.id}/${alphabetical}: last -> ${lastStep?.article?.id} of ${lastStep?.section?.id}`,
         );
     }
 
     const before = section.adjacentSection(-1, alphabetical);
-    if (before != section) {
+    if (before !== section) {
       const firstStep = rul.nearbyArticle(list[0], -1, section, alphabetical);
       const beforeList = before.articles(alphabetical);
-      if (firstStep?.section != before || firstStep.article != beforeList[beforeList.length - 1])
+      if (firstStep?.section !== before || firstStep.article !== beforeList[beforeList.length - 1])
         problems.push(
           `${label} ${section.id}/${alphabetical}: first -> ${firstStep?.article?.id} of ${firstStep?.section?.id}`,
         );
@@ -447,7 +447,7 @@ function survey(rul, label) {
   }
 
   ok(
-    problems.length == 0,
+    problems.length === 0,
     `${label}: every arrow step lands somewhere`,
     problems.slice(0, 4).join("; "),
   );
@@ -489,7 +489,8 @@ function checkOrder(rul, label) {
   // Same comparator as the arrow walk and the sidebar, so this pins the order
   // the reader actually gets rather than a plain `>` over the ids
   const inOrder = sorted.every(
-    (s, i) => i == 0 || rul.sortStringsAndNumbers([sorted[i - 1].id, s.id])[0] == sorted[i - 1].id,
+    (s, i) =>
+      i === 0 || rul.sortStringsAndNumbers([sorted[i - 1].id, s.id])[0] === sorted[i - 1].id,
   );
   ok(inOrder, `${label}: A-Z puts the categories in alphabetical order`);
 
@@ -527,8 +528,8 @@ if (withCategories) checkOrder(withCategories, "example pack");
  * must survive the move; only the map below it is conditional.
  */
 function checkWorldMapIsNotAPage(rul, label) {
-  ok(!rul.sections?.["WORLD_MAP"], `${label}: the world map has no section of its own`);
-  ok(!rul.articles?.["WORLD_MAP"], `${label}: the world map has no article of its own`);
+  ok(!rul.sections?.WORLD_MAP, `${label}: the world map has no section of its own`);
+  ok(!rul.articles?.WORLD_MAP, `${label}: the world map has no article of its own`);
 
   const stray = Object.keys(rul.sections ?? {}).filter((id) => /WORLD.?MAP/i.test(id));
   eq(stray, [], `${label}: no section is named after the world map`);
@@ -536,7 +537,7 @@ function checkWorldMapIsNotAPage(rul, label) {
   // The Countries page is the pack's own, so it is there whether or not the map
   // can be drawn
   if (rul.countries && Object.keys(rul.countries).length)
-    ok(rul.sections?.["COUNTRIES"], `${label}: the Countries table page is still a section`);
+    ok(rul.sections?.COUNTRIES, `${label}: the Countries table page is still a section`);
 }
 
 checkWorldMapIsNotAPage(builtin, "builtins");
@@ -555,11 +556,11 @@ for (const { rul, label } of packs) checkWorldMapIsNotAPage(rul, label);
  * and neither would fail any other check.
  */
 function checkRegionsPageIsASectionPage(rul, label) {
-  const page = rul.sections?.["REGIONS"] && rul.article("REGIONS");
+  const page = rul.sections?.REGIONS && rul.article("REGIONS");
   if (!page) return;
   eq(page.id, "REGIONS", `${label}: the REGIONS article is the section's own page`);
   ok(
-    page.sections.some((s) => s.id == "REGIONS"),
+    page.sections.some((s) => s.id === "REGIONS"),
     `${label}: the REGIONS article is filed under the REGIONS section`,
   );
 }

@@ -29,7 +29,7 @@ export class Section {
     let cached = this._sorted[langName];
     // A section with no cache for this language, or one whose article list has
     // grown since the sort, has to be sorted again
-    if (!cached || cached.count != this._articles.length)
+    if (!cached || cached.count !== this._articles.length)
       cached = this._sorted[langName] = {
         articles: rul.sortArticlesByName(this._articles),
         count: this._articles.length,

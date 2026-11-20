@@ -33,7 +33,7 @@ function FacilitySprite(props: { size: number; prop: number; bottom?: boolean })
       // A missing frame would otherwise render as the 1x1 placeholder and
       // collapse to a couple of pixels, leaving a ragged edge
       cells.push(
-        src == emptyImg ? (
+        src === emptyImg ? (
           <div key={`${x}-${y}`} style={{ ...style, width: cell, height: cell }} />
         ) : (
           <Img
@@ -77,7 +77,7 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
           .sort()
           .map((field, i) => (
             <span key={field}>
-              {i != 0 && <br />}
+              {i !== 0 && <br />}
               <Val of={field} />: {prop[field].build} / {prop[field].refund}
             </span>
           ));
@@ -86,7 +86,11 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
     !prop ? null : (
       <div>
         <div>
-          <button className="button" onClick={() => setSeeStorageTiles(!seeStorageTiles)}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setSeeStorageTiles(!seeStorageTiles)}
+          >
             Expand
           </button>
         </div>

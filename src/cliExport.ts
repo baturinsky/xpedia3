@@ -96,7 +96,7 @@ export async function buildExport(options: {
   const primary = request.languages[0] ?? defaultLanguage;
   // English travels with every page as the fallback, so it is never left out;
   // a page that *is* English simply needs no second copy of it
-  const extra = request.languages.filter((name) => name != defaultLanguage);
+  const extra = request.languages.filter((name) => name !== defaultLanguage);
 
   // A split export is one page carrying English plus a script per other
   // language, so the page name never varies with the languages
@@ -119,7 +119,7 @@ export async function buildExport(options: {
     languages: request.split ? [] : extra,
     shell,
     // Only a page that cannot hold every language needs to say how it starts
-    page: request.split ? { packs } : primary == defaultLanguage ? undefined : { lang: primary },
+    page: request.split ? { packs } : primary === defaultLanguage ? undefined : { lang: primary },
     data,
   });
 
@@ -160,7 +160,7 @@ export async function buildExport(options: {
           if (!weighOnly) outputs.push({ path: rel, data: bytes });
         }
       }
-      if (i % 20 == 0 || i == paths.length - 1)
+      if (i % 20 === 0 || i === paths.length - 1)
         report.progress?.(
           `${weighOnly ? "Weighing" : "Collecting"} images ${assets}/${paths.length}`,
         );

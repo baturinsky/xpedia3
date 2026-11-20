@@ -292,7 +292,7 @@ function AreaShapes({
   // Both are lit at once: the region under the pointer and the one pressed
   // earlier are both answers to "which one am I looking at", and dropping the
   // press because the pointer wandered would unpick what the press was for.
-  const lit = (id: string) => id == hot || id == pinned;
+  const lit = (id: string) => id === hot || id === pinned;
   return (
     <>
       {areas.map((area) =>
@@ -314,7 +314,7 @@ function AreaShapes({
               const handlers = {
                 onPointerEnter: () => onHot(area.id),
                 onPointerLeave: () => onHot(undefined),
-                onClick: onPick && (() => onPick(pinned == area.id ? "" : area.id)),
+                onClick: onPick && (() => onPick(pinned === area.id ? "" : area.id)),
               };
               return href ? (
                 <a key={shift} href={href} className={className} {...handlers}>
@@ -343,7 +343,7 @@ function AreaShapes({
         const handlers = {
           onPointerEnter: () => onHot(area.id),
           onPointerLeave: () => onHot(undefined),
-          onClick: onPick && (() => onPick(pinned == area.id ? "" : area.id)),
+          onClick: onPick && (() => onPick(pinned === area.id ? "" : area.id)),
         };
         const name = rul?.tr(area.id) ?? area.id;
         // The anchor is the middle of the area's largest box, which for an area at
@@ -377,7 +377,7 @@ function AreaShapes({
         ) : (
           <g
             key={area.id}
-            className={"area-label" + (className ? " " + className : "")}
+            className={`area-label${className ? ` ${className}` : ""}`}
             {...handlers}
           >
             {text}
@@ -411,7 +411,7 @@ function projectOverlay(overlay: Overlay) {
 
 /** Whether a globe area is a single point rather than a box */
 function isPointArea(area: MapArea) {
-  return area[0] == area[1] && area[2] == area[3];
+  return area[0] === area[1] && area[2] === area[3];
 }
 
 /**
@@ -608,7 +608,7 @@ function spreadLegs(legs: RawLeg[]): RawLeg[] {
     // rank would land both legs on the same side of the line — which is exactly
     // the overlap this exists to remove. Taking the direction from the track's
     // endpoints in a fixed order gives one perpendicular for the whole group.
-    const forward = leg.a.x < leg.b.x || (leg.a.x == leg.b.x && leg.a.y <= leg.b.y);
+    const forward = leg.a.x < leg.b.x || (leg.a.x === leg.b.x && leg.a.y <= leg.b.y);
     const ux = forward ? dx / length : -dx / length;
     const uy = forward ? dy / length : -dy / length;
     // Right of the canonical direction
@@ -678,13 +678,13 @@ function RegionOverlay({
   // place in that flight, so with several paths on one picture the numbers of
   // different flights would be indistinguishable. Region pages draw none now, so
   // in practice this is the trajectory page and the answer is always yes.
-  const numbered = overlay.paths.length == 1;
+  const numbered = overlay.paths.length === 1;
 
   return (
-    <g className={"region-overlay" + (overlay.hot ? " region-hot" : "")} style={style}>
+    <g className={`region-overlay${overlay.hot ? " region-hot" : ""}`} style={style}>
       {overlay.boxes.map((box, i) => (
         <Repeated
-          key={"a" + i}
+          key={`a${i}`}
           points={box}
           render={(points, shift) => (
             <polygon
@@ -702,19 +702,19 @@ function RegionOverlay({
         `hotZoneBoxes` below, so its brighter outline is not buried under the
         other boxes of a zone with dozens of them. */}
       {overlay.zoneBoxes.map((zone, i) => {
-        const visited = overlay.paths.some((path) => path.stops.some((stop) => stop.zone == i));
+        const visited = overlay.paths.some((path) => path.stops.some((stop) => stop.zone === i));
         // The highlighted zone is not marked here: `hotZoneBoxes` below draws it
         // again above everything, and marking it in both places would draw it twice
-        const className = "region-zone" + (visited ? " region-zone-visited" : "");
+        const className = `region-zone${visited ? " region-zone-visited" : ""}`;
         const extra = visited ? zoneStyle(i) : undefined;
         return zone.map((box, j) =>
           overlay.zoneDots[i] ? (
             <Repeated
-              key={"z" + i + "_" + j}
+              key={`z${i}_${j}`}
               points={box}
               render={(_points, shift) => (
                 <circle
-                  className={className + " region-zone-point"}
+                  className={`${className} region-zone-point`}
                   style={extra}
                   cx={box[0][0]}
                   cy={box[0][1]}
@@ -725,7 +725,7 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={"z" + i + "_" + j}
+              key={`z${i}_${j}`}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -747,7 +747,7 @@ function RegionOverlay({
         (overlay.zoneBoxes[hotZone] ?? []).map((box, j) =>
           overlay.zoneDots[hotZone] ? (
             <Repeated
-              key={"hot" + j}
+              key={`hot${j}`}
               points={box}
               render={(_points, shift) => (
                 <circle
@@ -762,7 +762,7 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={"hot" + j}
+              key={`hot${j}`}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -790,7 +790,7 @@ function RegionOverlay({
         // moving: it has no line.
         const legs = at
           .map((point, i) => {
-            if (i == 0) return undefined;
+            if (i === 0) return undefined;
             const a = at[i - 1];
             if (Math.abs(a.x - point.x) < 0.01 && Math.abs(a.y - point.y) < 0.01) return undefined;
             const stop = path.stops[i];
@@ -852,12 +852,12 @@ function RegionOverlay({
                 const arrow = arrowAt(spread[i].a, spread[i].b, 1 / zoom, STOP_RADIUS / zoom);
                 return (
                   <g
-                    key={"leg" + i}
+                    key={`leg${i}`}
                     style={{ "--leg-color": legColor(leg.leg) } as CSSProperties}
                     className={
                       "region-leg-group" +
                       (onHotLeg ? " region-leg-live" : "") +
-                      (hotLeg == leg.leg ? " region-leg-hot" : "")
+                      (hotLeg === leg.leg ? " region-leg-hot" : "")
                     }
                     // A leg answers the same two gestures a stop does: pointing at it
                     // lights the line, and pressing pins it for a screen with no hover.
@@ -884,7 +884,7 @@ function RegionOverlay({
                   the line's own width stays in map units: the width is how high
                   the craft flies, and a highlight must not overwrite an encoding.
                   Only drawn when hot, since a path can have dozens of legs. */}
-                    {hotLeg == leg.leg && (
+                    {hotLeg === leg.leg && (
                       <line
                         className="region-leg-halo"
                         x1={spread[i].a.x}
@@ -911,13 +911,13 @@ function RegionOverlay({
               })}
               {groups.map((group, i) => (
                 <g
-                  key={"stop" + i}
+                  key={`stop${i}`}
                   style={zoneStyle(group.zone)}
                   className={
                     "region-stop-group" +
                     (group.anywhere ? " region-stop-anywhere" : "") +
                     (onHotZone ? " region-stop-live" : "") +
-                    (hotZone == group.zone ? " region-stop-hot" : "")
+                    (hotZone === group.zone ? " region-stop-hot" : "")
                   }
                   // Pointing at a stop lights up every box of its zone, which is the
                   // whole area the waypoint may be anywhere in — the one thing the
@@ -977,7 +977,7 @@ function RegionOverlay({
  */
 function pageFor(id?: string) {
   if (!id || !rul?.article(id)) return;
-  return "##" + id;
+  return `##${id}`;
 }
 
 const MAX_ZOOM = 12;
@@ -1093,7 +1093,7 @@ function MapPicture({
     function onWheel(e: WheelEvent) {
       // At normal size the map has nothing to zoom out to, so the page keeps
       // scrolling; only an actual zoom swallows the wheel
-      if (view.zoom == 1 && e.deltaY > 0) return;
+      if (view.zoom === 1 && e.deltaY > 0) return;
       e.preventDefault();
       setView((current) => {
         const zoom = clamp(current.zoom * Math.exp(-e.deltaY / 500), 1, MAX_ZOOM);
@@ -1125,11 +1125,11 @@ function MapPicture({
    * on press so the pan does not accumulate rounding drift.
    */
   function startPan(e: React.PointerEvent<SVGSVGElement>) {
-    if (e.button != 0 && e.button != 1) return;
+    if (e.button !== 0 && e.button !== 1) return;
     const svg = svgRef.current;
     if (!svg) return;
     // A middle click must not also start the browser's autoscroll
-    if (e.button == 1) e.preventDefault();
+    if (e.button === 1) e.preventDefault();
     const start = pointInMap(svg, e.clientX, e.clientY);
     const base = view;
     const moved = { moved: false };
@@ -1143,7 +1143,7 @@ function MapPicture({
         y: base.y + now.y - start.y,
       });
       // Nothing moved, so this is still a potential click
-      if (!moved.moved && next.x == base.x && next.y == base.y) return;
+      if (!moved.moved && next.x === base.x && next.y === base.y) return;
       moved.moved = true;
       setPanning(true);
       setView(next);
@@ -1170,7 +1170,7 @@ function MapPicture({
   return (
     <svg
       ref={svgRef}
-      className={"world-map" + (panning ? " panning" : "") + (view.zoom > 1 ? " zoomed" : "")}
+      className={`world-map${panning ? " panning" : ""}${view.zoom > 1 ? " zoomed" : ""}`}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="group"
       aria-label="World map"
@@ -1187,10 +1187,10 @@ function MapPicture({
       // Middle-click is the pan gesture here, so it must not also start the
       // browser's autoscroll or open a link in a new tab
       onMouseDown={(e) => {
-        if (e.button == 1) e.preventDefault();
+        if (e.button === 1) e.preventDefault();
       }}
       onAuxClick={(e) => {
-        if (e.button == 1) e.preventDefault();
+        if (e.button === 1) e.preventDefault();
       }}
       onDoubleClick={() => setView({ zoom: 1, x: 0, y: 0 })}
     >
@@ -1388,14 +1388,14 @@ function useWorldMap() {
 export function WorldMapArticle() {
   const { map, status } = useWorldMap();
 
-  if (status == "loading")
+  if (status === "loading")
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapLoading" />
       </div>
     );
 
-  if (status == "missing" || !map)
+  if (status === "missing" || !map)
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapMissing" />
@@ -1489,13 +1489,13 @@ export function RegionsMapArticle() {
     rememberSelection("regionsMap", id || undefined);
   };
 
-  if (status == "loading")
+  if (status === "loading")
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapLoading" />
       </div>
     );
-  if (status == "missing" || !map) return <NoMap />;
+  if (status === "missing" || !map) return <NoMap />;
 
   if (!regions.length)
     return (
@@ -1626,9 +1626,9 @@ function countryWindow(areas: [number, number][][]) {
 export function CountryMapArticle({ id }: { id: string }) {
   const { map, status } = useWorldMap();
   const projected = useMemo(() => map && projectMap(map), [map]);
-  const country = projected?.countries.find((c) => c.id == id);
+  const country = projected?.countries.find((c) => c.id === id);
 
-  if (status == "loading")
+  if (status === "loading")
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapLoading" />
@@ -1636,7 +1636,7 @@ export function CountryMapArticle({ id }: { id: string }) {
     );
   // A pack with a globe but no readable DAT still has a table, so the row is
   // filled with the reason the picture is absent rather than left blank
-  if (status == "missing" || !projected || !country)
+  if (status === "missing" || !projected || !country)
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapMissing" />
@@ -1695,7 +1695,7 @@ export function CountryMapArticle({ id }: { id: string }) {
       ))}
       {country.areas.map((box, i) => (
         <Repeated
-          key={"a" + i}
+          key={`a${i}`}
           points={box}
           render={(points, shift) => (
             <polygon
@@ -1764,13 +1764,13 @@ export function RegionMapArticle({ region }: { region: Region }) {
   const shown = showAll ? missions : distinctive;
   const hidden = missions.length - shown.length;
 
-  if (status == "loading")
+  if (status === "loading")
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapLoading" />
       </div>
     );
-  if (status == "missing" || !map) return <NoMap />;
+  if (status === "missing" || !map) return <NoMap />;
 
   return (
     <div className="world-map-block">
@@ -1812,7 +1812,7 @@ export function RegionMapArticle({ region }: { region: Region }) {
                   {/* The count is the whole point of the list: "only here" reads very
                 differently from "one of a hundred and seventy regions" */}
                   <span className="region-mission-count">
-                    {entry.regionCount == 1 ? (
+                    {entry.regionCount === 1 ? (
                       <Tr text="xpediaRegionOnlyHere" />
                     ) : (
                       <>
@@ -1826,13 +1826,13 @@ export function RegionMapArticle({ region }: { region: Region }) {
             </ul>
           )}
           {hidden > 0 && (
-            <button className="region-missions-more" onClick={() => setShowAll(true)}>
+            <button type="button" className="region-missions-more" onClick={() => setShowAll(true)}>
               <Tr text="xpediaRegionMissionsMore" /> <Val of={hidden} />
             </button>
           )}
           <p className="world-map-note">
             <Tr text="xpediaRegionMissionsNote" /> <Val of={allRegions} />{" "}
-            <Tr text={allRegions == 1 ? "xpediaRegionCountOne" : "xpediaRegionCount"} />
+            <Tr text={allRegions === 1 ? "xpediaRegionCountOne" : "xpediaRegionCount"} />
           </p>
         </div>
       ) : (
@@ -2030,11 +2030,9 @@ function FlightStrip({ stops, focus }: { stops: PathStop[]; focus?: TrajectoryFo
             {arrives && (
               <button
                 type="button"
-                className={
-                  "trajectory-flight-leg" + (hotLeg == stop.leg ? " trajectory-flight-leg-hot" : "")
-                }
+                className={`trajectory-flight-leg${hotLeg === stop.leg ? " trajectory-flight-leg-hot" : ""}`}
                 style={{ "--leg-color": legColor(stop.leg) } as CSSProperties}
-                aria-pressed={focus?.pinnedLeg == stop.leg}
+                aria-pressed={focus?.pinnedLeg === stop.leg}
                 // Named by the stop it reaches, because that is the number the stop list
                 // and the picture use: the move into stop 3 is "the leg to stop 3", and a
                 // separate count of legs would be a number nothing else on the page has.
@@ -2077,7 +2075,7 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
   // flight can be flown in it, the first region offered otherwise, and never
   // write the memory back, so a flight with a narrow choice of regions does not
   // erase the broader choice made on another one.
-  const region = remembered(regions, (r) => r.uid == state.selection.region, regions[0]);
+  const region = remembered(regions, (r) => r.uid === state.selection.region, regions[0]);
 
   // The region's own outline (`areas`) is not drawn here. It answers "is this
   // point in this region", which the region page is about and this one is not:
@@ -2103,13 +2101,13 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
     focus?.reset();
   }, [region]);
 
-  if (status == "loading")
+  if (status === "loading")
     return (
       <div className="world-map-status">
         <Tr text="xpediaMapLoading" />
       </div>
     );
-  if (status == "missing" || !map) return <NoMap />;
+  if (status === "missing" || !map) return <NoMap />;
 
   // A path with no region to read its zones against cannot be drawn at all; the
   // article still lists its waypoints, so say why the picture is missing
@@ -2135,7 +2133,7 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
               type="radio"
               name="trajectory-region"
               value={r.uid}
-              checked={r.uid == region.uid}
+              checked={r.uid === region.uid}
               onChange={() => rememberSelection("region", r.uid)}
             />
             {rul.tr(r.uid)}

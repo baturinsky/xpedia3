@@ -110,18 +110,19 @@ function UI() {
 
   return (
     <StoreContext value={store}>
-      <div className={"all" + (side ? "" : " no-side") + (narrow ? " narrow" : "")}>
+      <div className={`all${side ? "" : " no-side"}${narrow ? " narrow" : ""}`}>
         <NavTop />
         {side && <NavSide />}
         {canShowSide && (
           <button
-            className={"side-hide-button" + (state.seeSide ? "" : " collapsed")}
+            type="button"
+            className={`side-hide-button${state.seeSide ? "" : " collapsed"}`}
             onClick={() => update({ seeSide: !state.seeSide })}
           >
             {state.seeSide ? "⇤" : "⇥"}
           </button>
         )}
-        <div className={"content" + (onLandingPage() ? " landing-page" : "")}>
+        <div className={`content${onLandingPage() ? " landing-page" : ""}`}>
           <ArticlePane revision={articleRevision} />
         </div>
       </div>
@@ -151,7 +152,11 @@ function ExportButton() {
     return () => removeEventListener("xpedia:loaded", warmEstimate);
   }, [state.packName]);
   return (
-    <button className="export-button" onClick={() => update({ showExportDialog: true })}>
+    <button
+      type="button"
+      className="export-button"
+      onClick={() => update({ showExportDialog: true })}
+    >
       <Tr text="Export" />
     </button>
   );
@@ -160,15 +165,11 @@ function ExportButton() {
 export function LandingPage() {
   return (
     <>
-      {state.packName && (
+      {state.packName && rul && (
         <>
-          {rul && (
-            <>
-              <ModsList />
-              <ExportButton />
-              <SectionsList />
-            </>
-          )}
+          <ModsList />
+          <ExportButton />
+          <SectionsList />
         </>
       )}
 
@@ -192,7 +193,7 @@ function ModsList() {
   // A mod is named by its metadata; `common` and other metadata-less folders are
   // not mods the user installed, so they are not listed
   const mods = (rul?.mods ?? []).filter((mod) => mod?.meta?.id || mod?.meta?.name);
-  if (mods.length == 0) return null;
+  if (mods.length === 0) return null;
   // A builtin mod is XPedia's own: it loads with every pack, so it is dimmed to
   // show that it is not part of the uploaded modpack
   return (
@@ -245,7 +246,7 @@ function isTouchInput() {
 /** Hover only exists for a mouse; a tap must not behave like hovering */
 function hoverOpens(updateFn: () => void) {
   return (e: { pointerType?: string }) => {
-    if (e.pointerType == "mouse") updateFn();
+    if (e.pointerType === "mouse") updateFn();
   };
 }
 
@@ -276,17 +277,17 @@ function dropdownButtonClick(
   }
   update({ showDropdown: false, showPacksDropdown: false, showLanguagesDropdown: false });
   // The landing page has no hash, so it cannot be reached by assigning one
-  if (goTo == "##HOME") {
+  if (goTo === "##HOME") {
     goToLanding();
     return;
   }
-  if (location.hash != goTo) location.hash = goTo;
+  if (location.hash !== goTo) location.hash = goTo;
 }
 
 window.addEventListener(
   "pointerdown",
   (e) => {
-    touchInteraction = e.pointerType != "mouse";
+    touchInteraction = e.pointerType !== "mouse";
     if (!touchInteraction) return;
     // A tap anywhere outside an open list dismisses it. The buttons themselves
     // are inside a container, so their own tap reaches the toggle below instead.
@@ -331,9 +332,10 @@ function NavDropdown() {
       onPointerLeave={hoverOpens(() => update({ showDropdown: false }))}
     >
       <button
+        type="button"
         className="navbar-button dropdown-button"
         title="Sections"
-        onClick={() => dropdownButtonClick("showDropdown", current ? "##" + current : "##HOME")}
+        onClick={() => dropdownButtonClick("showDropdown", current ? `##${current}` : "##HOME")}
       >
         {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
         {/* The version is added only where XPedia itself is named: a loaded pack
@@ -357,7 +359,7 @@ function NavDropdown() {
               the current URL */}
             <a
               href="#"
-              className={"menu-home" + (onLandingPage() ? " active-section" : "")}
+              className={`menu-home${onLandingPage() ? " active-section" : ""}`}
               style={{ textDecoration: "underline" }}
               onClick={(e) => {
                 e.preventDefault();
@@ -370,8 +372,8 @@ function NavDropdown() {
             {rul?.sectionsOrder?.map((s) => (
               <a
                 key={s.id}
-                href={"##" + s.id}
-                className={s.id == current ? "active-section" : undefined}
+                href={`##${s.id}`}
+                className={s.id === current ? "active-section" : undefined}
               >
                 <Tr text={s.id} />
               </a>
@@ -381,8 +383,8 @@ function NavDropdown() {
             {rul?.typeSectionOrder(state.alphabeticalSort)?.map((s) => (
               <a
                 key={s.id}
-                href={"##" + s.id}
-                className={s.id == current ? "active-section" : undefined}
+                href={`##${s.id}`}
+                className={s.id === current ? "active-section" : undefined}
               >
                 <Tr text={s.id} />
                 {tableSections.includes(s.id) && <span className="table-marker">☰</span>}
@@ -405,7 +407,7 @@ export function NavTop() {
   const currentLanguage = state.lang ?? rul?.langName ?? "";
 
   function selectLanguage(lang: string) {
-    if (lang == currentLanguage) return;
+    if (lang === currentLanguage) return;
     // A language whose strings are in a pack is fetched first; on failure the
     // current language stays, rather than switching to one with no strings
     if (languagePacks?.[lang]) {
@@ -429,12 +431,17 @@ export function NavTop() {
       <div className="right">
         <SearchBox />
         <button
+          type="button"
           className="navbar-button"
-          onClick={() => update({ theme: state.theme == "light" ? "dark" : "light" })}
+          onClick={() => update({ theme: state.theme === "light" ? "dark" : "light" })}
         >
-          {state.theme == "light" ? "◐" : "◑"}
+          {state.theme === "light" ? "◐" : "◑"}
         </button>
-        <button className="navbar-button" onClick={() => update({ hugeFont: !state.hugeFont })}>
+        <button
+          type="button"
+          className="navbar-button"
+          onClick={() => update({ hugeFont: !state.hugeFont })}
+        >
           <span style={{ fontSize: "150%" }}>A</span>
           <span style={{ fontSize: "75%" }}>A</span>
         </button>
@@ -442,8 +449,9 @@ export function NavTop() {
           (languages.length <= 3 ? (
             languages.map((lang) => (
               <button
+                type="button"
                 key={lang}
-                className={"navbar-button" + (lang == currentLanguage ? " current" : "")}
+                className={`navbar-button${lang === currentLanguage ? " current" : ""}`}
                 onClick={() => selectLanguage(lang)}
               >
                 <Val of={lang} nobr />
@@ -456,6 +464,7 @@ export function NavTop() {
               onPointerLeave={hoverOpens(() => update({ showLanguagesDropdown: false }))}
             >
               <button
+                type="button"
                 className="navbar-button"
                 onClick={() => dropdownButtonClick("showLanguagesDropdown")}
               >
@@ -470,7 +479,7 @@ export function NavTop() {
                 {languages.map((lang) => (
                   <div
                     key={lang}
-                    className={"clickable" + (lang == currentLanguage ? " current" : "")}
+                    className={`clickable${lang === currentLanguage ? " current" : ""}`}
                     onClick={() => selectLanguage(lang)}
                   >
                     <Val of={lang} nobr />
@@ -480,6 +489,7 @@ export function NavTop() {
             </div>
           ))}
         <button
+          type="button"
           className="navbar-button"
           title="Alphabetical sort"
           onClick={() => update({ alphabeticalSort: !state.alphabeticalSort })}
@@ -490,7 +500,8 @@ export function NavTop() {
         </button>
 
         <button
-          className={"navbar-button" + (state.revealed ? " reveal-lock" : "")}
+          type="button"
+          className={`navbar-button${state.revealed ? " reveal-lock" : ""}`}
           title="Hold to reveal language keys"
           onMouseOver={() => reveal(true)}
           onMouseOut={() => reveal(false)}
@@ -523,6 +534,7 @@ function PackDropdown() {
       onPointerLeave={hoverOpens(() => update({ showPacksDropdown: false }))}
     >
       <button
+        type="button"
         className="navbar-button"
         title="Modpacks"
         onClick={() => dropdownButtonClick("showPacksDropdown", "##HOME")}
@@ -531,14 +543,14 @@ function PackDropdown() {
         <span>▾</span>
       </button>
       <div className="navbar-dropdown" style={{ visibility: visible ? "visible" : "hidden" }}>
-        {packs.length == 0 ? (
+        {packs.length === 0 ? (
           <div className="packs-empty">No modpacks uploaded yet</div>
         ) : (
           packs.map((pack) => (
             <div
               key={pack.pack}
-              className={"clickable" + (pack.pack == state.packName ? " current" : "")}
-              title={pack.pack == state.packName ? "Currently shown" : "Show this modpack"}
+              className={`clickable${pack.pack === state.packName ? " current" : ""}`}
+              title={pack.pack === state.packName ? "Currently shown" : "Show this modpack"}
               onClick={() => {
                 update({ showPacksDropdown: false });
                 selectPack(pack.pack);
@@ -566,11 +578,11 @@ function SearchBox() {
   /** Search is driven by the hash so it can be linked and reached with history */
   function search(value: string) {
     // A hidden keyword unlocks the developer tools instead of searching for it
-    if (value.trim().toLowerCase() == devModeKeyword) {
+    if (value.trim().toLowerCase() === devModeKeyword) {
       if (handle) clearTimeout(handle);
       setHandle(undefined);
       update({ searchQuery: "", devView: true, devUnlocked: true });
-      if (article) location.hash = "##" + article.id;
+      if (article) location.hash = `##${article.id}`;
       else clearHash();
       return;
     }
@@ -579,8 +591,8 @@ function SearchBox() {
     setHandle(
       globalThis.setTimeout(() => {
         setHandle(undefined);
-        if (value) location.hash = "##SEARCH::" + value;
-        else if (article) location.hash = "##" + article.id;
+        if (value) location.hash = `##SEARCH::${value}`;
+        else if (article) location.hash = `##${article.id}`;
         // No hash is how the landing page is addressed; assigning "" would
         // append a bare "#" and fire a second navigation
         else clearHash();
@@ -597,7 +609,7 @@ function SearchBox() {
         value={state.searchQuery ?? ""}
         onChange={(e) => search(e.target.value)}
         onKeyUp={(e) => {
-          if (e.key == "Enter") search(e.currentTarget.value);
+          if (e.key === "Enter") search(e.currentTarget.value);
         }}
         placeholder="Search..."
       />
@@ -685,11 +697,11 @@ export function NavSide() {
     <nav className="sidebar" ref={list}>
       <div className="menu-list">
         {articlesList.map((option) => {
-          const here = article?.id == option.id;
+          const here = article?.id === option.id;
           return (
             <a
               key={option.id}
-              href={"##" + option.id}
+              href={`##${option.id}`}
               ref={here ? current : undefined}
               // The mark also has to be audible: a background tint says nothing to a
               // screen reader, `aria-current` says which page this is
@@ -700,7 +712,7 @@ export function NavSide() {
               // the only way to re-centre on purpose, rather than having the list
               // snap back under the reader whenever something unrelated re-renders.
               onClick={here ? reveal : undefined}
-              className={"side-link" + (here ? " active-article-option" : "")}
+              className={`side-link${here ? " active-article-option" : ""}`}
             >
               <Tr text={option.id} />
             </a>
@@ -718,7 +730,7 @@ export function Clickable(props: {
   children: JSX.Element;
 }) {
   return (
-    <div onClick={props.onClick} className={"link " + (props.className ?? "")}>
+    <div onClick={props.onClick} className={`link ${props.className ?? ""}`}>
       {props.children}
     </div>
   );
@@ -744,7 +756,7 @@ export function initUI() {
 window.addEventListener("pointermove", async (e) => {
   const target = e.target as HTMLElement;
   // Only a mouse hovers; a touch pointer must not open or close menus this way
-  if (e.pointerType == "mouse") {
+  if (e.pointerType === "mouse") {
     // Hovering the very left edge (and the top third) opens the main menu
     if (e.screenX < 10 && e.screenY < innerHeight / 3) {
       if (!state.showDropdown) update({ showDropdown: true });
@@ -758,17 +770,17 @@ window.addEventListener("pointermove", async (e) => {
     let el = e.target as HTMLElement;
     while (el && !el.dataset?.tooltip) el = el.parentNode as HTMLElement;
 
-    if (el && el.dataset?.tooltip) {
+    if (el?.dataset?.tooltip) {
       const id = el.dataset.tooltip;
       const rect = el.getBoundingClientRect();
       toggleTooltip(id in rul.lang && !e.shiftKey ? rul.lang[id] : id.substring(4));
 
-      tooltip.style.left = Math.max(200, rect.left + rect.width / 2) + "px";
+      tooltip.style.left = `${Math.max(200, rect.left + rect.width / 2)}px`;
       // Normally the tip opens below the element it explains; near the bottom
       // of the screen it is put above the element instead, so it stays visible.
       let top = rect.top > 100 ? rect.top + 40 : rect.top + 120;
       if (top + tooltip.offsetHeight > innerHeight) top = rect.top - tooltip.offsetHeight;
-      tooltip.style.top = Math.max(100, top) + "px";
+      tooltip.style.top = `${Math.max(100, top)}px`;
     } else {
       toggleTooltip(undefined);
     }
@@ -806,5 +818,5 @@ export function onLandingPage() {
   // The search results set `article` to undefined too, but they are a page of
   // their own: they must not take the landing page's layout class, nor mark
   // HOME as the current page.
-  return article == undefined && !state.searchQuery;
+  return article === undefined && !state.searchQuery;
 }

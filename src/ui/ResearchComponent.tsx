@@ -30,7 +30,7 @@ export const ResearchComponent = ({ entry }: { entry: Entry }) => {
   // needs a row per group instead of one block of nested tables
   const groups = entry.getOneFreeProtected;
   const wide = longLists.filter(
-    (field) => field != "getOneFreeProtected" && hasContent(entry[field]),
+    (field) => field !== "getOneFreeProtected" && hasContent(entry[field]),
   );
 
   // The research table centred the list that sits under each subheader

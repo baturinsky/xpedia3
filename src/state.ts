@@ -233,15 +233,15 @@ export function rememberSelection<K extends SelectionKey>(key: K, value: Selecti
  */
 function readSelection(raw: unknown): Selections {
   const out: Selections = {};
-  if (raw == null || typeof raw != "object" || Array.isArray(raw)) return out;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return out;
   // A stored blob is plain JSON data with no declared shape, so it is read as a
   // loose record here; each field is then checked against its own type below
   const stored = raw as { [key: string]: unknown };
   for (const key of ["region", "regionsMap", "pose"] as const)
-    if (typeof stored[key] == "string" && stored[key]) out[key] = stored[key] as string;
+    if (typeof stored[key] === "string" && stored[key]) out[key] = stored[key] as string;
   for (const key of ["direction", "turretDirection", "frame"] as const) {
     const value = stored[key];
-    if (typeof value == "number" && Number.isInteger(value) && value >= 0) out[key] = value;
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) out[key] = value;
   }
   return out;
 }
@@ -255,7 +255,7 @@ function readSelection(raw: unknown): Selections {
  */
 function readExportLanguages(raw: unknown): { [lang: string]: boolean } {
   const out: { [lang: string]: boolean } = {};
-  if (raw == null || typeof raw != "object" || Array.isArray(raw)) return out;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return out;
   for (const [lang, wanted] of Object.entries(raw as { [key: string]: unknown }))
     if (wanted === false) out[lang] = false;
   return out;
@@ -286,7 +286,7 @@ export let article: Article | undefined, section: Section | undefined;
  * reason as every later one.
  */
 let storeSnapshot: StoreType = { ...state };
-const onUpdate = new Set<Function>();
+const onUpdate = new Set<() => void>();
 let savedJson: string | null = null;
 
 function save() {
@@ -295,7 +295,7 @@ function save() {
   const data: { [key: string]: unknown } = {};
   for (const key of savedFields) data[key] = state[key];
   const json = JSON.stringify(data);
-  if (json == savedJson) return;
+  if (json === savedJson) return;
   savedJson = json;
   localStorage.xpedia3 = json;
 }
@@ -317,7 +317,7 @@ function load(): StoredSettings {
     console.warn("Can't parse saved settings", e);
     data = {};
   }
-  if (data == null || typeof data != "object" || Array.isArray(data)) data = {};
+  if (data == null || typeof data !== "object" || Array.isArray(data)) data = {};
 
   // The three old sort flags are now one. Turn the new flag on if the user had
   // any of them enabled and has not saved a choice for it yet.
@@ -348,7 +348,7 @@ function load(): StoredSettings {
   // anything the new version has already stored.
   try {
     const legacy: StoredSettings = JSON.parse(localStorage[legacySettingsKey] ?? "null");
-    if (legacy && typeof legacy == "object" && !Array.isArray(legacy)) {
+    if (legacy && typeof legacy === "object" && !Array.isArray(legacy)) {
       for (const key of legacyFields) {
         if (data[key] === undefined && legacy[key] !== undefined) data[key] = legacy[key];
       }
@@ -424,7 +424,7 @@ export function update(a?: Partial<StoreType>) {
   section = state.section;
   // A change the article cannot see leaves it exactly as it was, so its element
   // keeps its identity and React skips that subtree altogether
-  if (!changed || !changed.every((key) => articleBlindFields.has(key))) articleRevision++;
+  if (!changed?.every((key) => articleBlindFields.has(key))) articleRevision++;
   save();
   onUpdate.forEach((f) => {
     f();

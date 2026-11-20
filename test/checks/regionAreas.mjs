@@ -29,9 +29,9 @@ function survey(rul, label) {
       return;
     }
     for (let i = 0; i < 5 && i < area.length; i++)
-      if (typeof area[i] != "number" || !Number.isFinite(area[i]))
+      if (typeof area[i] !== "number" || !Number.isFinite(area[i]))
         bad.push(`${where}[${i}] is ${JSON.stringify(area[i])} in ${JSON.stringify(area)}`);
-    if (area.length > 5 && typeof area[5] != "string")
+    if (area.length > 5 && typeof area[5] !== "string")
       bad.push(`${where}[5] is not a city id: ${JSON.stringify(area)}`);
   }
 
@@ -48,7 +48,7 @@ function survey(rul, label) {
     }
   }
 
-  ok(bad.length == 0, `${label}: every coordinate is a number`, bad.slice(0, 3).join("; "));
+  ok(bad.length === 0, `${label}: every coordinate is a number`, bad.slice(0, 3).join("; "));
   return { boxes, zones };
 }
 

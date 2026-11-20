@@ -22,7 +22,7 @@ import { examplePack, loadBuiltinPack, loadPack } from "../helpers/packs.mjs";
 function idsIn(weights) {
   const out = new Set();
   const walk = (obj) => {
-    if (obj == null || typeof obj != "object") return;
+    if (obj == null || typeof obj !== "object") return;
     if (Array.isArray(obj)) {
       obj.forEach(walk);
       return;
@@ -106,17 +106,17 @@ function checkFlights(rul, label, expected) {
     // Nothing flown and drawable may be dropped: the list is meant to be complete
     for (const traj of flown) {
       const path = rul.ufoTrajectories?.[traj];
-      if (path && path.fits(region) && !seen.has(traj)) {
+      if (path?.fits(region) && !seen.has(traj)) {
         bad++;
         if (bad <= 3)
           ok(false, `${label}: ${id} omits ${traj}, flown by its missions and drawable here`);
       }
     }
   }
-  ok(bad == 0, `${label}: every drawable flight a region's missions send is listed`);
-  ok(undrawable == 0, `${label}: every listed flight can be drawn in its region`);
-  ok(untraceable == 0, `${label}: every listed flight is flown by a mission of that region`);
-  ok(repeated == 0, `${label}: no flight is listed twice`);
+  ok(bad === 0, `${label}: every drawable flight a region's missions send is listed`);
+  ok(undrawable === 0, `${label}: every listed flight can be drawn in its region`);
+  ok(untraceable === 0, `${label}: every listed flight is flown by a mission of that region`);
+  ok(repeated === 0, `${label}: no flight is listed twice`);
   return flights;
 }
 
@@ -124,7 +124,7 @@ function check(rul, label) {
   const expected = expectedMissions(rul);
   const regions = Object.keys(rul.regions ?? {});
   const scripts = Object.keys(rul.missionScripts ?? {});
-  ok(regions.length > 0 || scripts.length == 0, `${label}: regions present when scripts are`);
+  ok(regions.length > 0 || scripts.length === 0, `${label}: regions present when scripts are`);
 
   for (const [id, missions] of expected) {
     const got = rul.missionsIn(id);
@@ -137,7 +137,7 @@ function check(rul, label) {
       got.map((e) => e.mission).join(","),
     );
     ok(
-      new Set(got.map((e) => e.mission)).size == got.length,
+      new Set(got.map((e) => e.mission)).size === got.length,
       `${label}: ${id} has no duplicate mission`,
     );
   }
@@ -156,7 +156,7 @@ function check(rul, label) {
         ok(false, `${label}: ${id} offers ${entry.mission}, which no region hosts`);
         continue;
       }
-      if (entry.regionCount != real) {
+      if (entry.regionCount !== real) {
         wrongCount++;
         if (wrongCount <= 3)
           ok(
@@ -166,7 +166,7 @@ function check(rul, label) {
       }
     }
   }
-  ok(wrongCount == 0, `${label}: every regionCount agrees with the direct walk`);
+  ok(wrongCount === 0, `${label}: every regionCount agrees with the direct walk`);
 
   // The list is read top-down as "rarest first", which is what makes the first
   // entries the region's speciality
@@ -179,19 +179,19 @@ function check(rul, label) {
         break;
       }
   }
-  ok(unsorted == 0, `${label}: every region's list is rarest-first`);
+  ok(unsorted === 0, `${label}: every region's list is rarest-first`);
 
   // A region with no mission must report none rather than throwing
   const empty = [...expected].filter(([, missions]) => !missions.size).map(([id]) => id);
   ok(
-    empty.every((id) => rul.missionsIn(id).length == 0),
+    empty.every((id) => rul.missionsIn(id).length === 0),
     `${label}: an empty region reports no mission`,
   );
 
   checkFlights(rul, label, expected);
 
   let solo = 0;
-  for (const mission of hosts.values()) if (mission == 1) solo++;
+  for (const mission of hosts.values()) if (mission === 1) solo++;
   return { regions: regions.length, scripts: scripts.length, missions: hosts.size, solo };
 }
 

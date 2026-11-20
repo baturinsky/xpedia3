@@ -81,9 +81,9 @@ export const Val = ({
   if (field && collection && /Sound$/.test(field))
     return <SoundRef value={val} field={field} collection={collection} />;
 
-  if (field == "music") {
+  if (field === "music") {
     const ids = (Array.isArray(val) ? val : [val])
-      .map((v) => (typeof v == "string" ? v : v?.id))
+      .map((v) => (typeof v === "string" ? v : v?.id))
       .filter((v) => v != null && v !== "");
     if (ids.length)
       return (
@@ -137,7 +137,7 @@ export const Val = ({
     // the link would only reload this same page
     if (state.article && state.article.id === id)
       return <span className="self-ref">{tr1(children ?? id)}</span>;
-    return <a href={"##" + id}>{tr1(children ?? id)}</a>;
+    return <a href={`##${id}`}>{tr1(children ?? id)}</a>;
   }
 
   if (id && rul.hasSprite(id)) {
@@ -145,7 +145,7 @@ export const Val = ({
   }
 
   // Plain text, or a reference that has no article/sprite behind it
-  if (typeof val == "string") return tr1(val);
+  if (typeof val === "string") return tr1(val);
 
   // Array/object case
   if (Array.isArray(val) || val instanceof Set || val instanceof Object) {
@@ -173,7 +173,7 @@ function sameText(a: string, b: string) {
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
-  return norm(a) == norm(b);
+  return norm(a) === norm(b);
 }
 
 export function Tr({
@@ -209,21 +209,21 @@ export function Tr({
   let element: ReactNode = valtr;
 
   if (iconText) {
-    if (icon == "monospace")
+    if (icon === "monospace")
       element = (
         <>
           <div className="monospace-emoji-icon">{iconText}</div>
           {element}
         </>
       );
-    else if (icon == "simple")
+    else if (icon === "simple")
       element = (
         <>
           {iconText}
           {element}
         </>
       );
-    else if (icon != "none")
+    else if (icon !== "none")
       element = (
         <>
           <div className="emoji-icon">{iconText}</div>
@@ -243,9 +243,9 @@ export function Tr({
     </span>
   );
 
-  if (!notip && text && "tip_" + text in rul.lang) {
+  if (!notip && text && `tip_${text}` in rul.lang) {
     element = (
-      <span data-tooltip={"tip_" + text}>
+      <span data-tooltip={`tip_${text}`}>
         {element}
         <sup className="tipmark">?</sup>
       </span>
@@ -300,7 +300,7 @@ const LinksList: FC<LinksListProps> = ({
 
   if (cols) {
     return (
-      <div className={"cols " + className} style={{ columns: cols }}>
+      <div className={`cols ${className}`} style={{ columns: cols }}>
         {keys.map((field) => (
           <div key={field}>
             {state.article && state.article.id === field ? (
@@ -308,7 +308,7 @@ const LinksList: FC<LinksListProps> = ({
                 <Tr text={field} />
               </span>
             ) : (
-              <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}>
+              <a href={`##${field}`} className={rul.article(field) ? undefined : "dead"}>
                 <Tr text={field} />
               </a>
             )}
@@ -320,7 +320,7 @@ const LinksList: FC<LinksListProps> = ({
 
   if (numberTable) {
     return (
-      <table className={"number-table " + className}>
+      <table className={`number-table ${className}`}>
         <tbody>
           {rul.sortStringsAndNumbers(Object.keys(items)).map((field) => (
             <tr key={field}>
@@ -340,7 +340,7 @@ const LinksList: FC<LinksListProps> = ({
   }
 
   // Objects holding further objects need one block per key to stay readable
-  if (!isArray && Object.values(items).some((a) => typeof a == "object")) {
+  if (!isArray && Object.values(items).some((a) => typeof a === "object")) {
     return (
       <>
         {keys.map((subfield, j) => (
@@ -357,7 +357,7 @@ const LinksList: FC<LinksListProps> = ({
 
   if (table) {
     return (
-      <table className={"properties-table " + className}>
+      <table className={`properties-table ${className}`}>
         <tbody>
           {keys.map((field) => {
             const cells = isArray
@@ -383,7 +383,7 @@ const LinksList: FC<LinksListProps> = ({
   // Object of plain values: show the value, then the key as a reference
   if (!isArray && keys.length > 0 && !table) {
     return (
-      <span className={"links-list " + className}>
+      <span className={`links-list ${className}`}>
         {keys.map((field, i) => (
           <Fragment key={field}>
             {i !== 0 && <Divider vertical={vertical} />}
@@ -396,7 +396,7 @@ const LinksList: FC<LinksListProps> = ({
   }
 
   return (
-    <span className={"links-list " + className}>
+    <span className={`links-list ${className}`}>
       {keys.map((item, i) =>
         Array.isArray(item) ? (
           <div key={i} className="sublist">

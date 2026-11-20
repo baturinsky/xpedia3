@@ -124,9 +124,9 @@ export function readDeclaredCountryColors() {
       const entries = Array.isArray(block) ? block : block ? [block] : [];
       for (const entry of entries) {
         const table = entry?.countryColors;
-        if (!table || typeof table != "object") continue;
+        if (!table || typeof table !== "object") continue;
         for (const [id, color] of Object.entries(table))
-          if (id && typeof color == "string") declaredCountryColors[id.toUpperCase()] = color;
+          if (id && typeof color === "string") declaredCountryColors[id.toUpperCase()] = color;
       }
     }
   }
@@ -155,9 +155,9 @@ export function readDeclaredColors() {
 }
 
 function addDeclared(table: unknown) {
-  if (!table || typeof table != "object") return;
+  if (!table || typeof table !== "object") return;
   for (const [name, color] of Object.entries(table))
-    if (name && typeof color == "string") declared[name.toUpperCase()] = color;
+    if (name && typeof color === "string") declared[name.toUpperCase()] = color;
 }
 
 /**

@@ -25,7 +25,7 @@ export function ok(condition, what, detail) {
   total++;
   if (condition) return true;
   failures++;
-  console.log(`  FAIL ${what}${detail == null ? "" : ": " + detail}`);
+  console.log(`  FAIL ${what}${detail == null ? "" : `: ${detail}`}`);
   return false;
 }
 

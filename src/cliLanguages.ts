@@ -18,7 +18,7 @@ import { defaultLanguage } from "./rul/Ruleset";
  */
 export function resolveLanguages(requested: string[] | undefined, available: string[]) {
   // Omitting `--lang` means every language the pack has, English leading
-  if (!requested) return [defaultLanguage, ...available.filter((name) => name != defaultLanguage)];
+  if (!requested) return [defaultLanguage, ...available.filter((name) => name !== defaultLanguage)];
 
   const byLower = new Map(available.map((name) => [name.toLowerCase(), name]));
   const unknown = requested.filter((name) => !byLower.has(name.toLowerCase()));

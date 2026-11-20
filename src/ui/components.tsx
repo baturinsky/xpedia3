@@ -59,7 +59,7 @@ function lookupImage(path: string): {
 } {
   const pack = state.packName;
   const running = imageLookups.get(path);
-  if (running && running.pack == pack) return running;
+  if (running && running.pack === pack) return running;
   const lookup = { pack, promise: resolveImage(path) };
   imageLookups.set(path, lookup);
   // Kept only while in flight: a missing image is cached as `null` separately,
@@ -75,9 +75,9 @@ function lookupImage(path: string): {
 function cacheImage(path: string, value: string | null, pack?: string) {
   // A lookup that was already running when the pack changed answers with the
   // previous pack's bytes, so its result is dropped rather than buffered
-  if ((pack ?? state.packName) != state.packName) return;
+  if ((pack ?? state.packName) !== state.packName) return;
   // Urls buffered for another pack must not land in this one's cache
-  if (pendingPack != null && pendingPack != state.packName) {
+  if (pendingPack != null && pendingPack !== state.packName) {
     pendingImages = undefined;
     imageFlushQueued = false;
   }
@@ -277,7 +277,7 @@ export function Img(props: {
   const frame = props.frame;
   const element = (
     <img
-      className={"x-image" + (props.className ? " " + props.className : "")}
+      className={`x-image${props.className ? ` ${props.className}` : ""}`}
       src={dataImage}
       alt={props.alt ?? props.src}
       onLoad={(e) => {
@@ -288,7 +288,7 @@ export function Img(props: {
         if (
           t.naturalWidth &&
           t.naturalHeight &&
-          (t.naturalWidth != size?.w || t.naturalHeight != size?.h)
+          (t.naturalWidth !== size?.w || t.naturalHeight !== size?.h)
         )
           setNatural({ path: path!, w: t.naturalWidth, h: t.naturalHeight });
       }}
@@ -418,7 +418,7 @@ export type AnyRef = string | { type: string } | { id: string };
 /** Normalizes a reference to the id it points to, if any */
 export function fromAnyRef(href?: AnyRef) {
   if (href == null) return null;
-  if (typeof href == "object") {
+  if (typeof href === "object") {
     const type = "type" in href ? href.type : undefined;
     const id = "id" in href ? href.id : undefined;
     return type ?? id ?? null;
@@ -459,7 +459,7 @@ export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
     <table className="main-table base-service-table">
       <tbody>
         {Object.entries(entry)
-          .sort((a, b) => (a[0] == "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1))
+          .sort((a, b) => (a[0] === "providedBy" ? -10 : 10) + (a[0] > b[0] ? 1 : -1))
           .map(
             (prop) =>
               !["id"].includes(prop[0]) && (
@@ -479,12 +479,12 @@ export function BaseService({ entry }: { entry: { [id: string]: AnyRef[] } }) {
 }
 
 export function BaseServiceList({ items = null as string[] | null, vertical = false }) {
-  if (!items || !items.length) return null;
+  if (!items?.length) return null;
   return (
     <>
       {items.map((item, i) => (
         <React.Fragment key={item}>
-          {i == 0 ? "" : vertical ? <br /> : ", "}
+          {i === 0 ? "" : vertical ? <br /> : ", "}
           <Val of={item} />
         </React.Fragment>
       ))}
@@ -563,7 +563,7 @@ export function AlterList(props: { items: AlterMap }) {
 
                   <Val of={props.items[field]} />
 
-                  {(rul.lang && rul.lang[`${field}_${props.items[field]}`]) || ""}
+                  {rul.lang?.[`${field}_${props.items[field]}`] || ""}
                 </Nobr>
               </React.Fragment>
             ))}
@@ -616,7 +616,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus?: BonusMap; plus?:
               value
             ) : (
               <Nobr>
-                <a href={"##" + type}>{rul.tr(type, { icon: "compact" })}</a>
+                <a href={`##${type}`}>{rul.tr(type, { icon: "compact" })}</a>
                 {power === 1 ? "" : <sup>{power}</sup>}
                 {value !== 1 && <em>×{value}</em>}
               </Nobr>
@@ -653,12 +653,13 @@ export function PaginatedList<T>(props: {
       {pages > 1 && (
         <div className="dark-pagination-nav">
           {Array.from({ length: pages }, (_, i) => i + 1)
-            .filter((p) => p == 1 || p == pages || Math.abs(p - page) <= 2)
+            .filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 2)
             .map((p, i, shownPages) => (
               <React.Fragment key={p}>
-                {i > 0 && shownPages[i - 1] != p - 1 && <span> … </span>}
+                {i > 0 && shownPages[i - 1] !== p - 1 && <span> … </span>}
                 <button
-                  className={"pagination-button" + (p == page ? " current" : "")}
+                  type="button"
+                  className={`pagination-button${p === page ? " current" : ""}`}
                   onClick={() => setPage(p)}
                 >
                   {p}
@@ -667,7 +668,7 @@ export function PaginatedList<T>(props: {
             ))}
         </div>
       )}
-      <span className={"links-list " + (props.className ?? "")}>{props.children(shown)}</span>
+      <span className={`links-list ${props.className ?? ""}`}>{props.children(shown)}</span>
     </>
   );
 }
@@ -753,14 +754,12 @@ export function IncrementalList<T>(props: {
   }, [more, count, batchSize]);
 
   return (
-    <>
-      <span className={"links-list " + (props.className ?? "")}>
-        {props.children(items.slice(0, count))}
-        {/* Zero height and empty, so it neither adds a line nor widens the
+    <span className={`links-list ${props.className ?? ""}`}>
+      {props.children(items.slice(0, count))}
+      {/* Zero height and empty, so it neither adds a line nor widens the
           shrink-to-fit wrapper around a wide table */}
-        {more && <span className="incremental-sentinel" ref={sentinel} aria-hidden="true"></span>}
-      </span>
-    </>
+      {more && <span className="incremental-sentinel" ref={sentinel} aria-hidden="true"></span>}
+    </span>
   );
 }
 
@@ -866,7 +865,7 @@ export interface SectionTableProps {
 /** Table of entries with selectable/sortable columns, follows old SectionTable.svelte */
 export function SectionTable(props: SectionTableProps) {
   const entries = props.entries ?? [];
-  const storageKey = "xpediaColumnOrder" + (props.aId ?? "");
+  const storageKey = `xpediaColumnOrder${props.aId ?? ""}`;
   const fields = [...(props.fields ?? [])];
   const extraFields = (props.extraFields ?? []).filter((f) => !fields.includes(f));
 
@@ -897,7 +896,7 @@ export function SectionTable(props: SectionTableProps) {
   for (const [key, options] of Object.entries(props.filters ?? {})) {
     filters[key] = [...options];
     const autoAt = filters[key].indexOf("auto");
-    if (autoAt != -1) {
+    if (autoAt !== -1) {
       // The values are printed as options and compared with the selection, so a
       // number from the ruleset (an inventory size) is used as its text
       const values = allFieldValuesOf(entries, key)
@@ -920,11 +919,11 @@ export function SectionTable(props: SectionTableProps) {
   for (const k in filtersSelected) {
     if (filtersSelected[k] != null)
       sorted = sorted.filter((a) => {
-        if (filtersSelected[k] == "any") return true;
+        if (filtersSelected[k] === "any") return true;
         const v = a.sortField(k, filtersSelected[k]);
         return (
           v === true ||
-          v == filtersSelected[k] ||
+          v === filtersSelected[k] ||
           (Array.isArray(v) && v.includes(filtersSelected[k]))
         );
       });
@@ -935,7 +934,7 @@ export function SectionTable(props: SectionTableProps) {
   if (sortField) {
     const nullValue = sortDescending ? Number.MIN_VALUE : Number.MAX_VALUE;
     sorted = sorted.sort((a, b) =>
-      (a.sortField(sortField) ?? nullValue) > (b.sortField(sortField) ?? nullValue) ==
+      (a.sortField(sortField) ?? nullValue) > (b.sortField(sortField) ?? nullValue) ===
       sortDescending
         ? -1
         : 1,
@@ -943,9 +942,9 @@ export function SectionTable(props: SectionTableProps) {
   }
 
   function sortBy(field: string) {
-    if (field != sortField) {
+    if (field !== sortField) {
       setSortField(field);
-      setSortDescending(field != "id");
+      setSortDescending(field !== "id");
     } else {
       setSortDescending(!sortDescending);
     }
@@ -953,7 +952,9 @@ export function SectionTable(props: SectionTableProps) {
 
   function toggleField(field: string) {
     setShownFields(
-      shownFields.includes(field) ? shownFields.filter((f) => f != field) : [...shownFields, field],
+      shownFields.includes(field)
+        ? shownFields.filter((f) => f !== field)
+        : [...shownFields, field],
     );
   }
 
@@ -976,13 +977,13 @@ export function SectionTable(props: SectionTableProps) {
     <>
       <div className="extra-fields">
         <span className="column-buttons">
-          <button onClick={showAll}>
+          <button type="button" onClick={showAll}>
             <Val of="xpediaColumnsAll" />
           </button>
-          <button onClick={showNone}>
+          <button type="button" onClick={showNone}>
             <Val of="xpediaColumnsNone" />
           </button>
-          <button onClick={showDefault}>
+          <button type="button" onClick={showDefault}>
             <Val of="xpediaColumnsDefault" />
           </button>
         </span>
@@ -997,7 +998,7 @@ export function SectionTable(props: SectionTableProps) {
           return (
             <React.Fragment key={field}>
               <Divider />
-              <span className={"extra-field " + (shown ? "on" : "off")}>
+              <span className={`extra-field ${shown ? "on" : "off"}`}>
                 <input
                   type="checkbox"
                   checked={shown}
@@ -1067,7 +1068,7 @@ export function SectionTable(props: SectionTableProps) {
                 {shownFields.map((field) => (
                   <td
                     key={field}
-                    id={"thead " + field}
+                    id={`thead ${field}`}
                     draggable="true"
                     onDragStart={(e) => e.dataTransfer.setData("field", field)}
                     onDrop={(e) =>
@@ -1084,7 +1085,7 @@ export function SectionTable(props: SectionTableProps) {
                     <span className="sort-order-arrow invisible">&#9660;</span>
                     <Tr text={field} />
                     <span className="sort-order-arrow">
-                      {sortField != field ? (
+                      {sortField !== field ? (
                         <span className="invisible">&#9660;</span>
                       ) : sortDescending ? (
                         "▼"
@@ -1100,7 +1101,7 @@ export function SectionTable(props: SectionTableProps) {
               {visibleRows.map((entry, i) => (
                 <tr key={String(entry.sortField("id", true) ?? i)}>
                   {shownFields.map((field) => (
-                    <td key={field} className={"st-" + field}>
+                    <td key={field} className={`st-${field}`}>
                       <Val
                         of={entry.cellValue?.(field) ?? entry.sortField(field, true)}
                         nobr={20}
@@ -1126,10 +1127,10 @@ function moveField(
   setShownFields: (v: string[]) => void,
 ) {
   const fi = shownFields.indexOf(field);
-  if (fi == -1) return;
-  const next = shownFields.filter((f) => f != field);
+  if (fi === -1) return;
+  const next = shownFields.filter((f) => f !== field);
   let ai = next.indexOf(after);
-  if (ai == -1) ai = 0;
+  if (ai === -1) ai = 0;
   else ai++;
   next.splice(ai, 0, field);
   setShownFields(next);

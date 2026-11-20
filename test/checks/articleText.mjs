@@ -18,20 +18,23 @@ const rul = await loadBuiltinPack();
 // `Article.text` is a getter over the entry's `text` id, so a probe body is put
 // into the language table and an article pointed at it. The constructor is
 // reached through a real article, which is the only way to get the class.
-const Article = Object.getPrototypeOf(rul.articles["STR_ABOUT_XPEDIA"]).constructor;
+const Article = Object.getPrototypeOf(rul.articles.STR_ABOUT_XPEDIA).constructor;
 let probes = 0;
 
 function bodyOf(text) {
-  const id = "STR_PROBE_" + ++probes;
+  const id = `STR_PROBE_${++probes}`;
   rul.lang[id] = text;
   return String(
-    new Article({ id: "STR_PROBE_ARTICLE_" + probes, section: "SERVICES", text: id }).text,
+    new Article({ id: `STR_PROBE_ARTICLE_${probes}`, section: "SERVICES", text: id }).text,
   );
 }
 
 // --- a real id expands --------------------------------------------------------
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the `${...}` is the literal test input, not interpolation
 eq(bodyOf("A ${STR_ABOUT_XPEDIA} B"), "A About XPedia B", "a real string id expands");
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the `${...}` is the literal test input, not interpolation
 eq(bodyOf("x ${ xpediaVersion } y"), "x 0-test y", "spaces inside the braces are allowed");
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the `${...}` is the literal test input, not interpolation
 eq(bodyOf("v ${xpediaVersion}"), "v 0-test", "${xpediaVersion} is the printed version");
 
 // --- an unknown id keeps the old behaviour -----------------------------------
@@ -46,7 +49,7 @@ for (const token of ["NEWLINE", "ALT", "STR_NOT_A_REAL_KEY"]) {
 }
 
 // --- nothing is left unexpanded in the real page -----------------------------
-const about = String(rul.articles["STR_ABOUT_XPEDIA"].text);
+const about = String(rul.articles.STR_ABOUT_XPEDIA.text);
 ok(about.length > 0, "the About article has a body");
 ok(!about.includes("${"), "no placeholder survives in the About body");
 ok(about.includes("0-test"), "the About body carries the version");

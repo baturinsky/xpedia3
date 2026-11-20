@@ -25,19 +25,19 @@ export default defineConfig(({ mode }) => {
     root: `src`,
     publicDir: `../public`,
     define: {
-      DEBUG: mode == "development",
+      DEBUG: mode === "development",
       // The version and the build number are frozen into the bundle, so a copy
       // of the page prints its own numbers rather than reading them from the
       // machine it happens to run on. The dev server is the exception: it has no
       // bundle to freeze one into, and injects a number into each page instead,
       // so its constants must stay empty for that tag to be used.
-      ...versionDefines({ bump: mode != "development", dev: mode == "development" }),
+      ...versionDefines({ bump: mode !== "development", dev: mode === "development" }),
     },
     build: {
       assetsInlineLimit: 1000000,
       sourcemap: true,
-      minify: mode == "min",
-      cssMinify: mode == "min",
+      minify: mode === "min",
+      cssMinify: mode === "min",
       outDir: `../build`,
       emptyOutDir: true,
       rollupOptions: {
@@ -68,7 +68,7 @@ function outputName() {
     enforce: "post" as const,
     generateBundle(_: any, bundle: any) {
       for (const [key, asset] of Object.entries<any>(bundle)) {
-        if (asset.fileName != "index.html") continue;
+        if (asset.fileName !== "index.html") continue;
         asset.fileName = "xpedia.html";
         delete bundle[key];
         bundle["xpedia.html"] = asset;
@@ -145,7 +145,7 @@ function base64Loader() {
     name: "base64-loader",
     transform(_: any, id: string) {
       const [path, query] = id.split("?");
-      if (query != "base64") return null;
+      if (query !== "base64") return null;
 
       const data = fs.readFileSync(path);
       const base64 = data.toString("base64");
@@ -181,7 +181,7 @@ function examplePacks() {
     // build serves nothing but its own page, and its field starts blank
     config(config: UserConfig, env: { command: string }) {
       const define = config.define ?? {};
-      define.__XPEDIA_DEV_PACKS__ = JSON.stringify(env.command == "serve" ? prefix : "");
+      define.__XPEDIA_DEV_PACKS__ = JSON.stringify(env.command === "serve" ? prefix : "");
       return { define };
     },
 
@@ -259,7 +259,7 @@ function builtinModsFolder() {
     },
 
     load(this: PluginContext, id: string) {
-      if (id != virtualId) return null;
+      if (id !== virtualId) return null;
 
       const root = `${__dirname}/src/builtinMods`;
       const parts: Buffer[] = [];

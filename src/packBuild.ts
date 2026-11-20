@@ -63,7 +63,7 @@ function isModActivationList(parts: string[]) {
   if (parts.length < 2) return false;
   const file = parts[parts.length - 1].toLowerCase();
   const folder = parts[parts.length - 2].toLowerCase();
-  return folder == "user" && cfgFileNames.includes(file);
+  return folder === "user" && cfgFileNames.includes(file);
 }
 
 type AssetType = "lng" | "rul" | "meta" | "img" | "nam" | "dat" | "cfg";
@@ -113,18 +113,18 @@ export type InterpretedPath = {
 };
 
 export function interpretPath(s: string): InterpretedPath | undefined {
-  const parts = s.split(/[/\\]/).filter((p) => p != "");
+  const parts = s.split(/[/\\]/).filter((p) => p !== "");
   if (parts.length < 1) return;
 
   const lower = parts.map((p) => p.toLowerCase());
   /** How many leading segments make up the mod folder */
   let modLength = 1;
 
-  if (lower[0] == "mods" && parts.length > 1) {
+  if (lower[0] === "mods" && parts.length > 1) {
     // Builtin mods are packed without a pack folder in front
     modLength = 2;
   } else {
-    const userMods = lower.findIndex((p, i) => p == "user" && lower[i + 1] == "mods");
+    const userMods = lower.findIndex((p, i) => p === "user" && lower[i + 1] === "mods");
     const standard = lower.indexOf("standard");
     const common = lower.indexOf("common");
     if (userMods >= 0 && parts.length > userMods + 2) modLength = userMods + 3;
@@ -143,7 +143,7 @@ export function interpretPath(s: string): InterpretedPath | undefined {
   const ext = (rawExt ?? "").toLowerCase();
   const path = parts.join("/");
 
-  if (file.toLowerCase() == "metadata.yml") return { type: "meta", mod, path };
+  if (file.toLowerCase() === "metadata.yml") return { type: "meta", mod, path };
 
   // The player's mod activation list, which lives in the game's `user/` folder
   // rather than in any mod. It is checked before the mod-relative rules below
@@ -189,7 +189,7 @@ export function usefulFileName(name: string) {
   if (/[\\/]language[\\/][^\\/]+\.(html|txt)$/i.test(name)) return true;
   // The player's mod activation list, see `isModActivationList`. Without this the
   // file is never decompressed, so a pack's enabled/disabled state is invisible.
-  return isModActivationList(name.split(/[/\\]/).filter((p) => p != ""));
+  return isModActivationList(name.split(/[/\\]/).filter((p) => p !== ""));
 }
 
 /**
@@ -226,12 +226,12 @@ export function decodedYamlFiles(files: { [name: string]: Uint8Array }) {
  */
 export function disabledMods(files: { [name: string]: Uint8Array }): Set<string> {
   const off = new Set<string>();
-  const cfg = Object.values(interpretFiles(files)).find((f) => f.type == "cfg");
+  const cfg = Object.values(interpretFiles(files)).find((f) => f.type === "cfg");
   if (!cfg) return off;
   try {
     const data = loadYaml(new TextDecoder().decode(cfg.data));
     for (const entry of data?.mods ?? [])
-      if (entry && typeof entry.id == "string" && entry.active === false) off.add(entry.id);
+      if (entry && typeof entry.id === "string" && entry.active === false) off.add(entry.id);
   } catch (e) {
     // A broken options.cfg is not worth failing a whole load over: the mods a
     // player disabled are a preference, and the pedia without it describes the
@@ -297,25 +297,25 @@ export function loadModsAndLng(
     };
 
     try {
-      if (f.type == "lng") {
-        const data = f.ext == "yml" ? loadYaml(f.text) : f.text;
+      if (f.type === "lng") {
+        const data = f.ext === "yml" ? loadYaml(f.text) : f.text;
 
-        if (typeof data == "object" && data != null) {
+        if (typeof data === "object" && data != null) {
           // A language file normally declares one language at the top level, but
           // some packs repeat the key; every block is read so none is dropped.
           const blocks = data as Langs;
           for (const lngName in blocks) addToLng(lngName, blocks[lngName]);
-        } else if (typeof data == "string") {
+        } else if (typeof data === "string") {
           // Non-yaml translations are named "STR_ID.<lang>.html"
           const [strName, lngName] = splitName(f.name ?? "");
           if (lngName) addToLng(lngName, { [strName]: data });
         }
       }
-      if (f.type == "rul") {
+      if (f.type === "rul") {
         const data = loadYaml(f.text);
         mods[modName].rul.push(data);
       }
-      if (f.type == "meta") {
+      if (f.type === "meta") {
         mods[modName].meta = loadYaml(f.text);
       }
     } catch (e) {
@@ -346,9 +346,9 @@ export function buildResourceMap(
   ];
 
   for (const mod of priority) {
-    const prefix = mod.dir + "/";
+    const prefix = `${mod.dir}/`;
     for (const file of interpreted) {
-      if (file.type != "img" && file.type != "nam" && file.type != "dat") continue;
+      if (file.type !== "img" && file.type !== "nam" && file.type !== "dat") continue;
       if (!file.path.startsWith(prefix)) continue;
       const rel = file.path.substring(prefix.length).toLowerCase();
       if (!(rel in map)) map[rel] = file.path;
@@ -624,7 +624,7 @@ export async function unpackRar(
   for (const f of extracted.files) {
     options.checkCancelled?.();
     files.push(f);
-    if (files.length % 100 == 0)
+    if (files.length % 100 === 0)
       await options.onProgress?.(files.length, rulHeaders.length, f.fileHeader.name);
   }
 

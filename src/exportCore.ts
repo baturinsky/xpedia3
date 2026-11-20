@@ -93,7 +93,7 @@ export function buildLanguagePack(processed: ProcessedRuleset, lang: string) {
  * big translation, which matters when the export runs from the page.
  */
 export async function gzipBytes(bytes: Uint8Array) {
-  if (typeof CompressionStream == "undefined") return fflate.gzipSync(bytes);
+  if (typeof CompressionStream === "undefined") return fflate.gzipSync(bytes);
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
@@ -146,7 +146,7 @@ export function prepareRul(
     // English and the emoji map are the reference the others are merged onto,
     // so they have to stay complete
     langs[name] =
-      name == "en-US" || name == "icon" ? source[name] : onlyTranslated(english, source[name]);
+      name === "en-US" || name === "icon" ? source[name] : onlyTranslated(english, source[name]);
   }
 
   // A language gets its flag label from `Ruleset.loadProcessedMods`, which only
@@ -222,7 +222,7 @@ export function dataPaths(mods: Mod[] = []): string[] {
   let named: string | undefined;
   for (const mod of mods)
     for (const file of mod.rul ?? [])
-      if (file?.globe && typeof file.globe.data == "string") named = file.globe.data;
+      if (file?.globe && typeof file.globe.data === "string") named = file.globe.data;
   // The stock globe is always carried: it is what the reader falls back to when
   // the pack names none, and the builtin copy is not a file they can fetch
   paths.push(WORLD_DAT);
@@ -452,7 +452,7 @@ export async function buildAssetFiles(options: {
       }
     }
     // One update per few images keeps a progress line responsive on big packs
-    if (i % 25 == 0 || i == paths.length - 1) options.onProgress?.(i + 1, paths.length);
+    if (i % 25 === 0 || i === paths.length - 1) options.onProgress?.(i + 1, paths.length);
   }
   return files;
 }

@@ -99,7 +99,7 @@ if (process.argv.includes("--write")) {
   for (const [file, list] of byFile) {
     let text = readFileSync(path.join(root, file), "utf8");
     for (const h of [...list].sort((a, b) => b.start - a.start)) {
-      text = text.slice(0, h.start) + "uid" + text.slice(h.end);
+      text = `${text.slice(0, h.start)}uid${text.slice(h.end)}`;
       changed++;
     }
     writeFileSync(path.join(root, file), text);

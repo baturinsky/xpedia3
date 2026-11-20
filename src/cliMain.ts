@@ -142,22 +142,22 @@ function parseArgs(argv: string[]): Options | "help" {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     // A bare `-` is a valid path; anything else starting with `-` is a flag
-    if (arg == "--help" || arg == "-h") return "help";
-    else if (arg == "--split") split = true;
-    else if (arg == "--assets") assets = true;
-    else if (arg == "--zip") zip = true;
-    else if (arg == "--no-manifest" || arg == "--nomanifest") manifest = false;
-    else if (arg == "--force" || arg == "-f") force = true;
-    else if (arg == "--quiet" || arg == "-q") quiet = true;
-    else if (arg == "--serve" || arg.startsWith("--serve=")) {
+    if (arg === "--help" || arg === "-h") return "help";
+    else if (arg === "--split") split = true;
+    else if (arg === "--assets") assets = true;
+    else if (arg === "--zip") zip = true;
+    else if (arg === "--no-manifest" || arg === "--nomanifest") manifest = false;
+    else if (arg === "--force" || arg === "-f") force = true;
+    else if (arg === "--quiet" || arg === "-q") quiet = true;
+    else if (arg === "--serve" || arg.startsWith("--serve=")) {
       // Both `--serve folder` and `--serve=folder` are accepted. A bare
       // `--serve` serves the current directory, and a following argument is not
       // taken as the folder: `--serve pack.zip out` would otherwise silently
       // treat the archive as a folder.
-      const value = arg == "--serve" ? undefined : arg.substring("--serve=".length);
+      const value = arg === "--serve" ? undefined : arg.substring("--serve=".length);
       serve = value ?? "";
-    } else if (arg == "--port" || arg.startsWith("--port=")) {
-      const value = arg == "--port" ? argv[++i] : arg.substring("--port=".length);
+    } else if (arg === "--port" || arg.startsWith("--port=")) {
+      const value = arg === "--port" ? argv[++i] : arg.substring("--port=".length);
       if (value == null || value.startsWith("--"))
         throw new UsageError("--port needs a number, e.g. --port 8080");
       port = Number(value);
@@ -165,15 +165,15 @@ function parseArgs(argv: string[]): Options | "help" {
         throw new UsageError(
           `--port needs a whole number between 1 and 65535, not ${JSON.stringify(value)}`,
         );
-    } else if (arg == "--lang" || arg.startsWith("--lang=")) {
+    } else if (arg === "--lang" || arg.startsWith("--lang=")) {
       // Both `--lang ru,de` and `--lang=ru,de` are accepted, and repeating the
       // flag adds to the list rather than replacing it
-      const value = arg == "--lang" ? argv[++i] : arg.substring("--lang=".length);
+      const value = arg === "--lang" ? argv[++i] : arg.substring("--lang=".length);
       if (value == null || value.startsWith("--"))
         throw new UsageError("--lang needs a value, e.g. --lang ru,de");
       languages ??= [];
       for (const name of value.split(",")) if (name.trim()) languages.push(name.trim());
-    } else if (arg.startsWith("-") && arg != "-") throw new UsageError(`Unknown option: ${arg}`);
+    } else if (arg.startsWith("-") && arg !== "-") throw new UsageError(`Unknown option: ${arg}`);
     else positional.push(arg);
   }
 
@@ -184,7 +184,7 @@ function parseArgs(argv: string[]): Options | "help" {
     // also read as one so `xpedia-cli --serve D:/mods/MyMod` works
     let folder = serve;
     if (!folder) {
-      if (positional.length == 1) folder = positional[0];
+      if (positional.length === 1) folder = positional[0];
       else if (positional.length > 1)
         throw new UsageError(`--serve takes one folder, not ${positional.length} arguments`);
     }
@@ -228,14 +228,14 @@ function makeReporter(quiet: boolean) {
   let last = "";
   return {
     info(message: string) {
-      if (!quiet) process.stderr.write(message + "\n");
+      if (!quiet) process.stderr.write(`${message}\n`);
     },
     /** Progress that overwrites itself, so long stages do not scroll */
     progress(message: string) {
       if (quiet) return;
       const width = process.stderr.columns ?? 80;
-      const line = message.length > width ? message.slice(0, width - 1) + "…" : message;
-      process.stderr.write("\r" + line.padEnd(last.length));
+      const line = message.length > width ? `${message.slice(0, width - 1)}…` : message;
+      process.stderr.write(`\r${line.padEnd(last.length)}`);
       last = line;
     },
     /** Ends the current progress line, if one is open */
@@ -245,7 +245,7 @@ function makeReporter(quiet: boolean) {
       last = "";
     },
     error(message: string) {
-      process.stderr.write(message + "\n");
+      process.stderr.write(`${message}\n`);
     },
   };
 }
@@ -335,12 +335,12 @@ async function readArchive(file: string, report: ReturnType<typeof makeReporter>
   const data = fs.readFileSync(file);
   const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   const type = await fileTypeFromBuffer(buffer).catch(() => undefined);
-  if (!type || (type.ext != "zip" && type.ext != "rar"))
+  if (!type || (type.ext !== "zip" && type.ext !== "rar"))
     throw new UsageError(`${file} is not a ZIP or RAR archive`);
 
   report.info(`Reading ${path.basename(file)} (${(data.length / 1e6).toFixed(1)} MB)`);
   let files: { [name: string]: Uint8Array };
-  if (type.ext == "rar") {
+  if (type.ext === "rar") {
     const wasm = Buffer.from(unrarWasmPayload, "base64");
     files = await unpackRar(
       buffer,
@@ -449,7 +449,7 @@ function readManifest(dir: string): Manifest | undefined {
     const text = fs.readFileSync(path.join(dir, manifestName), "utf8");
     const data = JSON.parse(text);
     if (Array.isArray(data?.files))
-      return { files: data.files.filter((f: any) => typeof f == "string") };
+      return { files: data.files.filter((f: any) => typeof f === "string") };
   } catch {
     // A missing or unreadable manifest is not an error: the directory may simply
     // never have been exported into
@@ -461,7 +461,7 @@ function readManifest(dir: string): Manifest | undefined {
 function insideDirectory(root: string, rel: string) {
   const resolved = path.resolve(root, rel);
   const base = path.resolve(root);
-  return resolved == base || resolved.startsWith(base + path.sep);
+  return resolved === base || resolved.startsWith(base + path.sep);
 }
 
 /**
@@ -512,7 +512,7 @@ async function confirmChanges(kind: "overwrite" | "delete", paths: string[], opt
   if (!paths.length) return;
 
   const what =
-    kind == "overwrite"
+    kind === "overwrite"
       ? `${paths.length} file(s) would be overwritten:`
       : `${paths.length} stale file(s) from a previous export would be removed:`;
 
@@ -568,7 +568,7 @@ function removeStale(dir: string, stale: string[]) {
 function removeEmptyAbove(dir: string, stopAt: string) {
   const base = path.resolve(stopAt);
   let current = path.resolve(dir);
-  while (current != base && current.startsWith(base + path.sep)) {
+  while (current !== base && current.startsWith(base + path.sep)) {
     try {
       // Throws when not empty, or when it is already gone
       fs.rmdirSync(current);
@@ -582,7 +582,7 @@ function removeEmptyAbove(dir: string, stopAt: string) {
 /** Writes the manifest, so the next run knows what this one produced */
 function writeManifest(dir: string, outputs: Output[]) {
   const manifest: Manifest = { files: outputs.map((o) => o.rel).sort() };
-  fs.writeFileSync(path.join(dir, manifestName), JSON.stringify(manifest, null, 2) + "\n");
+  fs.writeFileSync(path.join(dir, manifestName), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 /** Drops a manifest left by an earlier run, so `--no-manifest` leaves none */
@@ -613,7 +613,7 @@ function resolveTarget(target: string) {
 
 async function main(argv: string[]) {
   const parsed = parseArgs(argv);
-  if (parsed == "help") {
+  if (parsed === "help") {
     process.stdout.write(helpText);
     return 0;
   }
@@ -639,13 +639,13 @@ async function main(argv: string[]) {
 
   const pack = await loadPack(options.source, report);
   const available = pack.processed.langs
-    ? Object.keys(pack.processed.langs).filter((n) => n != "icon")
+    ? Object.keys(pack.processed.langs).filter((n) => n !== "icon")
     : [];
   const languages = resolveLanguages(options.languages, available);
 
   // English travels with every page as the fallback, so it is never left out;
   // a page that *is* English simply needs no second copy of it
-  const extra = languages.filter((name) => name != defaultLanguage);
+  const extra = languages.filter((name) => name !== defaultLanguage);
 
   const shell = appShell();
 
@@ -686,7 +686,7 @@ async function main(argv: string[]) {
   // globe and the images, and both are files of the pack
   const byPath = new Map<string, Uint8Array>();
   for (const file of pack.interpretedFiles)
-    if (file.type == "img" || file.type == "dat") byPath.set(file.path, file.data);
+    if (file.type === "img" || file.type === "dat") byPath.set(file.path, file.data);
 
   const plan = await buildExport({
     packName: pack.packName,
@@ -756,7 +756,7 @@ main(process.argv.slice(2))
   })
   .catch((error) => {
     if (error instanceof UsageError) {
-      process.stderr.write(error.message + "\n");
+      process.stderr.write(`${error.message}\n`);
       process.exitCode = 1;
       return;
     }

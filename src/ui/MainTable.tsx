@@ -54,7 +54,7 @@ const MainTable = ({
     //return <div>No entry in main table</div>;
   }
 
-  if (of != null && Object.keys(of).length == 1 && "0" in of) {
+  if (of != null && Object.keys(of).length === 1 && "0" in of) {
     of = of[0];
   }
 
@@ -67,8 +67,8 @@ const MainTable = ({
     // `Val` already does exactly that, so only a node that is not a reference
     // becomes a table of its own.
     const ref = fromAnyRef(value);
-    const isRef = typeof value == "object" && ref != null && rul?.article(ref) != null;
-    return value != null && typeof value == "object" && !isFlat(value) && !isRef ? (
+    const isRef = typeof value === "object" && ref != null && rul?.article(ref) != null;
+    return value != null && typeof value === "object" && !isFlat(value) && !isRef ? (
       <MainTable of={value} />
     ) : (
       <Val of={value} field={key} collection={of?.collection} />
@@ -77,7 +77,7 @@ const MainTable = ({
 
   return (
     <table className={"main-table"}>
-      {(title != undefined || header != null) && (
+      {(title !== undefined || header != null) && (
         <thead>
           <tr>
             <td colSpan={2}>

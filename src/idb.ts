@@ -173,8 +173,8 @@ async function requestPersistence() {
  * so the message has to explain the likely cause instead of echoing it.
  */
 function archiveWriteError(size: number, error?: DOMException | null) {
-  const quota = error?.name == "QuotaExceededError" || error?.name == "DataError";
-  if (!quota && error?.name && error.name != "UnknownError")
+  const quota = error?.name === "QuotaExceededError" || error?.name === "DataError";
+  if (!quota && error?.name && error.name !== "UnknownError")
     return `Could not save the archive: ${error.message || error.name}`;
   return (
     `Could not save the archive: it needs ${asMB(size)} of local storage, ` +
@@ -188,7 +188,7 @@ export async function updateFileStats() {
   const inline = inlinePackStats();
   update({
     files,
-    packs: inline ? [...files.filter((p) => p.pack != inline.pack), inline] : files,
+    packs: inline ? [...files.filter((p) => p.pack !== inline.pack), inline] : files,
   });
 }
 
@@ -396,7 +396,7 @@ export async function getRul(pack: string) {
  * make.
  */
 export function applySavedLanguage(rul: Ruleset, fallback?: string, available?: readonly string[]) {
-  const carried = Object.keys(rul.langs ?? {}).filter((name) => name != "icon");
+  const carried = Object.keys(rul.langs ?? {}).filter((name) => name !== "icon");
   const names = available?.length ? [...new Set([...carried, ...available])] : carried;
   const lang = chooseLanguage(names, state.lang, fallback);
   if (!lang) {
@@ -447,7 +447,7 @@ export async function readImgSizes(pack: string) {
   if (!records) return;
   const sizes = new Map<string, number>();
   for (const record of records)
-    if (record.kind == "img" && record.name) sizes.set(record.name, record.data?.byteLength ?? 0);
+    if (record.kind === "img" && record.name) sizes.set(record.name, record.data?.byteLength ?? 0);
   return sizes;
 }
 
@@ -528,9 +528,9 @@ export async function getImg(path: string) {
   return await readPick(
     (transaction) => transaction.objectStore("assets").index("name").getAll(path),
     (records) =>
-      records.find((r) => r.kind == "img" && r.pack == state.packName) ??
-      records.find((r) => r.kind == "img" && r.pack == "builtin") ??
-      records.find((r) => r.kind == "img"),
+      records.find((r) => r.kind === "img" && r.pack === state.packName) ??
+      records.find((r) => r.kind === "img" && r.pack === "builtin") ??
+      records.find((r) => r.kind === "img"),
   );
 }
 
@@ -539,9 +539,9 @@ export async function readImgData(pack: string, path: string) {
   return await readPick(
     (transaction) => transaction.objectStore("assets").index("name").getAll(path),
     (records) =>
-      records.find((r) => r.kind == "img" && r.pack == pack)?.data ??
+      records.find((r) => r.kind === "img" && r.pack === pack)?.data ??
       // Builtin images are cached under their own pseudo pack and shared by all
-      records.find((r) => r.kind == "img" && r.pack == "builtin")?.data,
+      records.find((r) => r.kind === "img" && r.pack === "builtin")?.data,
   );
 }
 
@@ -608,7 +608,7 @@ export async function queryDBCursor(
     };
     request.onerror = (e) => {
       console.error(e, request);
-      error && error();
+      error?.();
     };
   });
 }
@@ -645,7 +645,7 @@ function runQuery<T = unknown>(
     request.onsuccess = () => {
       result = request.result;
     };
-    transaction.oncomplete = () => success && success(result);
+    transaction.oncomplete = () => success?.(result);
     transaction.onabort = () => {
       console.error("Transaction aborted", transaction.error);
       error?.(transaction.error);
@@ -690,7 +690,7 @@ async function openLegacy(): Promise<IDBDatabase | null> {
   if (!packBucket) return null;
   try {
     const known = await indexedDB.databases?.();
-    if (!known?.some((db) => db.name == "xpedia3")) return null;
+    if (!known?.some((db) => db.name === "xpedia3")) return null;
     return await new Promise<IDBDatabase>((ok, fail) => {
       const request = indexedDB.open("xpedia3");
       request.onsuccess = () => ok(request.result);
@@ -705,7 +705,7 @@ async function openLegacy(): Promise<IDBDatabase | null> {
 
 /** True when a read found nothing, whether it returned `undefined` or `[]` */
 function empty(result: unknown) {
-  return result == undefined || (Array.isArray(result) && !result.length);
+  return result === undefined || (Array.isArray(result) && !result.length);
 }
 
 /**
@@ -734,7 +734,7 @@ async function readPick<T>(
   pick: (records: AssetRecord[]) => T | undefined,
 ): Promise<T | undefined> {
   const found = pick((await readDB<AssetRecord[]>(action)) ?? []);
-  if (found != undefined) return found;
+  if (found !== undefined) return found;
   const db = await legacy();
   if (!db) return found;
   return pick((await runQuery<AssetRecord[]>(db, action, "readonly", ["files", "assets"])) ?? []);

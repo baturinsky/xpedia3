@@ -22,6 +22,6 @@ import { clearHash } from "./util";
 export function goToLanding() {
   update({ article: undefined, section: undefined, searchQuery: "", found: undefined });
   if (!location.hash) return;
-  if (location.hash == "##HOME" || location.hash == "##MAIN") clearHash();
+  if (location.hash === "##HOME" || location.hash === "##MAIN") clearHash();
   else history.pushState(history.state, "", location.pathname + location.search);
 }

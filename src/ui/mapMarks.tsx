@@ -96,7 +96,7 @@ export function stopMarker(
     [1, 1],
     [-1, 1],
   ].map(([sx, sy]) => `${(at.x + sx * half).toFixed(1)},${(at.y + sy * half).toFixed(1)}`);
-  return <polygon className={className + " region-stop-land"} points={pts.join(" ")} />;
+  return <polygon className={`${className} region-stop-land`} points={pts.join(" ")} />;
 }
 
 /**

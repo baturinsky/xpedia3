@@ -63,8 +63,8 @@ function check(rul, label) {
       const base = Number(script.startDelay ?? 0);
       const extra = Number(script.randomDelay ?? 0);
       const delay = scriptDelay(script);
-      ok(delay.min == base, `${where}: delay min ${delay.min} != startDelay ${base}`);
-      ok(delay.max == base + extra, `${where}: delay max ${delay.max} != ${base}+${extra}`);
+      ok(delay.min === base, `${where}: delay min ${delay.min} != startDelay ${base}`);
+      ok(delay.max === base + extra, `${where}: delay max ${delay.max} != ${base}+${extra}`);
       // `formatDelay` returns null for a zero span, and the page reads that as
       // "at once", so a negative cannot reach it
       ok(delay.min >= 0 && delay.max >= 0, `${where}: delay is not negative`);
@@ -80,7 +80,7 @@ function check(rul, label) {
     const gate = researchGate(script);
     if (gate) {
       const both = gate.needed.filter((id) => gate.forbidden.includes(id));
-      ok(both.length == 0, `${where}: ${both.join(",")} is both needed and forbidden`);
+      ok(both.length === 0, `${where}: ${both.join(",")} is both needed and forbidden`);
     }
 
     // A numeric field the page prints must be a number when the pack states one
@@ -106,15 +106,19 @@ for (const name of ["Dioxine_XPiratez_noimages.rar", "openxcom_xfiles_42.zip"]) 
   examples++;
 }
 
-if (examples == 0) {
+if (examples === 0) {
   console.log("  no example pack present, nothing to read");
 } else {
   // Every branch of the month sentence must be reached by the packs at hand, or
   // the component has a shape nothing here has ever rendered
   const unrendered = Object.entries(shapes)
-    .filter(([, n]) => n == 0)
+    .filter(([, n]) => n === 0)
     .map(([name]) => name);
-  ok(unrendered.length == 0, "every month shape is produced by these packs", unrendered.join(", "));
+  ok(
+    unrendered.length === 0,
+    "every month shape is produced by these packs",
+    unrendered.join(", "),
+  );
   ok(total > 0, "some mission script was checked");
 }
 

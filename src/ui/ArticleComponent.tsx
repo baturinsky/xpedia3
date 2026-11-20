@@ -52,7 +52,7 @@ export function ArticleTitle() {
     article ? rul.nearbyArticle(article, delta, section, state.alphabeticalSort) : undefined,
   );
   // Old `Article.svelte` filtered out the article's own section from the list
-  const sectionIds = article?.sections?.map((s) => s.id).filter((id) => id != article?.id) ?? [];
+  const sectionIds = article?.sections?.map((s) => s.id).filter((id) => id !== article?.id) ?? [];
   if (onLandingPage()) {
     return (
       <>
@@ -103,7 +103,7 @@ function NearbyLink(props: {
 }) {
   const { article: target, section: targetSection } = props.target;
   return (
-    <a href={"##" + target.id} onClick={() => update({ section: targetSection })}>
+    <a href={`##${target.id}`} onClick={() => update({ section: targetSection })}>
       <Tr text={target.id} prefix={props.prefix} postfix={props.postfix} />
     </a>
   );
@@ -330,7 +330,7 @@ function sectionTable() {
         Object.values(rul.commendations),
         [...statsList, "mana", "visibilityAtDark"],
         [
-          ...battleStats.map((s) => "recovery." + s),
+          ...battleStats.map((s) => `recovery.${s}`),
           "description",
           "visibilityAtDay",
           "camouflageAtDark",
@@ -394,7 +394,7 @@ function sectionTable() {
           "ToWound",
           "SmokeThreshold",
           ...statsList,
-          ...statsList.map((v) => "acc*" + v),
+          ...statsList.map((v) => `acc*${v}`),
         ],
         {
           internalBattleType: ["any", ...internalBattleTypes],
@@ -462,9 +462,9 @@ function specialArticleBody() {
   const id = article?.id;
   if (!id) return null;
 
-  if (id == "SERVICES") return <ServicesTable />;
+  if (id === "SERVICES") return <ServicesTable />;
 
-  if (id == "CONDITIONS") return <Conditions conditions={rul.startingConditions[id]} />;
+  if (id === "CONDITIONS") return <Conditions conditions={rul.startingConditions[id]} />;
 
   return null;
 }
@@ -565,7 +565,7 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
 
     const width = body.clientWidth;
     const last = measured.current;
-    const sameArticle = !!last && last.articleId == articleId;
+    const sameArticle = !!last && last.articleId === articleId;
     // Only a real resize counts. A one-column body is taller, which can add a
     // scrollbar and narrow it by ~15px; reacting to that would flip the layout
     // back and forth forever
@@ -582,7 +582,7 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
       return;
     }
 
-    if (last && sameArticle && !resized && !fontChanged && last.recheck == recheck) return;
+    if (last && sameArticle && !resized && !fontChanged && last.recheck === recheck) return;
     measured.current = { articleId, width, recheck, fontSalt };
 
     const style = getComputedStyle(body);
@@ -622,9 +622,9 @@ function ServicesTable({ query = null as string | null }) {
         {names.map((name) => {
           const items = rul.baseServices[name];
           return (
-            <tr key={name} className={name == query ? "highlight" : ""}>
+            <tr key={name} className={name === query ? "highlight" : ""}>
               <td>
-                <a className="services" href={"##" + name}>
+                <a className="services" href={`##${name}`}>
                   <Tr text={name} />
                 </a>
               </td>
@@ -668,7 +668,7 @@ function SearchResults() {
       </div>
     );
 
-  if (found.length == 0)
+  if (found.length === 0)
     return (
       <div>
         {searchingFor}
@@ -686,9 +686,9 @@ function SearchResults() {
     <div>
       Searching "<em>{state.searchQuery}</em>":
       <br />
-      <LinksPage key={"primary" + query} links={primary} title="In Title" />
+      <LinksPage key={`primary${query}`} links={primary} title="In Title" />
       <br />
-      <LinksPage key={"secondary" + query} links={secondary} title="In Body" />
+      <LinksPage key={`secondary${query}`} links={secondary} title="In Body" />
     </div>
   );
 }
@@ -732,11 +732,11 @@ export function ArticleComponent() {
 
   // A section page is the article whose id matches its own section; it lists
   // that section's articles below its own pedia text
-  const isSectionPage = !table && section?.id == article.id;
+  const isSectionPage = !table && section?.id === article.id;
 
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
-  const itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
+  const itemImage = item?.sprite && article?.text && item.battleType !== 2 ? item : null;
 
   const articleText = article?.text && (
     <div className="main-table main-text">
@@ -757,7 +757,7 @@ export function ArticleComponent() {
           A block container is needed because such bodies contain blocks. */}
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: article bodies are authored HTML (parity with old `{@html}`), trusted modpack data */}
         <div dangerouslySetInnerHTML={{ __html: article.text }} />
-        {article.requires && article.requires.join("") != article.id && (
+        {article.requires && article.requires.join("") !== article.id && (
           <>
             <br />
             <Val of="Research required: " />
@@ -792,7 +792,7 @@ export function ArticleComponent() {
   //
   // `REGIONS` itself is the section's own page, which leads with the picture of
   // all regions (`RegionsMapArticle`) instead.
-  const region = !table && article.id != "REGIONS" ? rul.regions?.[article.id] : undefined;
+  const region = !table && article.id !== "REGIONS" ? rul.regions?.[article.id] : undefined;
 
   // The map that belongs beside the article rather than in it.
   //
@@ -806,7 +806,7 @@ export function ArticleComponent() {
   // pack's own COUNTRIES article is a pedia category, not the table page.
   // A pack with no `globe:` node has no map to draw, so the block is left out
   // rather than reporting a missing feature.
-  let sideMap = article?.id == "COUNTRIES" && rul?.raw.globe && <WorldMapArticle />;
+  let sideMap = article?.id === "COUNTRIES" && rul?.raw.globe && <WorldMapArticle />;
 
   // Two entry types may share a uid — a region or a flight is often also a
   // research project or a pedia page — and then one page is both. The panels
@@ -817,13 +817,13 @@ export function ArticleComponent() {
   // out twice further down.
   const mapLast = bodyPanels.length > 0;
 
-  const regionMap = region && <RegionMapArticle key={article.id + "-region-map"} region={region} />;
+  const regionMap = region && <RegionMapArticle key={`${article.id}-region-map`} region={region} />;
   // A flight is a picture of part of the globe too, and its block holds the
   // region picker and the numbered stop list as well as the map, so the whole
   // of it moves: splitting it would leave the reader with the choices in one
   // place and the picture they are choosing for in another.
   const flightMap = trajectory && (
-    <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />
+    <TrajectoryMapArticle key={`${article.id}-map`} trajectory={trajectory} />
   );
   if (flightMap && !mapLast && !regionMap) sideMap = flightMap;
 
@@ -843,7 +843,7 @@ export function ArticleComponent() {
   const mainClass =
     "article-main" +
     (sideMap ? " has-side-map" : "") +
-    (sideMap && sideMap == flightMap ? " narrow-side-map" : "");
+    (sideMap && sideMap === flightMap ? " narrow-side-map" : "");
 
   const main = article && (
     <>
@@ -859,7 +859,7 @@ export function ArticleComponent() {
             regions state no `areas` and so cannot appear on a map at all — and
             because the pedia is readable with the sidebar hidden, where that
             list is the only way to reach those pages. */}
-          {article.id == "REGIONS" && <RegionsMapArticle />}
+          {article.id === "REGIONS" && <RegionsMapArticle />}
           {/* A region is a picture of part of the globe, so its map belongs in the
             same place: above the columns, full width. When the page is also
             another entry type the map follows that entry's panels instead, see
@@ -868,11 +868,11 @@ export function ArticleComponent() {
           {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
           {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
-          {article.section == "CATEGORIES" && article.id != "CATEGORIES" && (
+          {article.section === "CATEGORIES" && article.id !== "CATEGORIES" && (
             <LinksPage links={rul.categories[article.id]} />
           )}
-          {article.section == "MANUFACTURE_CATEGORIES" &&
-            article.id != "MANUFACTURE_CATEGORIES" && (
+          {article.section === "MANUFACTURE_CATEGORIES" &&
+            article.id !== "MANUFACTURE_CATEGORIES" && (
               <LinksPage links={rul.manufactureCategories[article.id]} />
             )}
           {/* Section pages put their own pedia text and illustration first, then
@@ -899,7 +899,7 @@ export function ArticleComponent() {
           >
             {!table && specialArticleBody()}
             {bodyPanels.map(([key, ren]) => {
-              if (typeof ren == "function") {
+              if (typeof ren === "function") {
                 // Render as an element so hooks inside the renderer work
                 // biome-ignore lint/correctness/useJsxKeyInIterable: `key` is in the createElement config object
                 return createElement(ren, {
@@ -946,7 +946,7 @@ export function ArticleComponent() {
   return (
     <div className={"article"}>
       {trajectory ? (
-        <TrajectoryFocusProvider key={article.id + "-flight"}>{main}</TrajectoryFocusProvider>
+        <TrajectoryFocusProvider key={`${article.id}-flight`}>{main}</TrajectoryFocusProvider>
       ) : (
         main
       )}

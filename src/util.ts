@@ -26,9 +26,9 @@ export function getFlagEmoji(countryCode: string) {
  * than guessing, which keeps this usable from a headless script.
  */
 export function browserLanguages(): string[] {
-  if (typeof navigator == "undefined") return [];
+  if (typeof navigator === "undefined") return [];
   const list = navigator.languages?.length ? navigator.languages : [navigator.language];
-  return [...list].filter((tag) => typeof tag == "string" && tag.length > 0);
+  return [...list].filter((tag) => typeof tag === "string" && tag.length > 0);
 }
 
 /**
@@ -85,7 +85,7 @@ export function matchLanguage(available: readonly string[], preferred: readonly 
     // `de-CH` against a pack with only `de` and `de-AT`
     if (rest.length) {
       const region = rest.join("-");
-      const sameRegion = candidates.find((c) => c.toLowerCase().endsWith("-" + region));
+      const sameRegion = candidates.find((c) => c.toLowerCase().endsWith(`-${region}`));
       if (sameRegion) return sameRegion;
     }
     const bare = candidates.find((c) => !c.includes("-"));
@@ -106,7 +106,7 @@ export function removeByValue<T>(arr: T[], item: T) {
 
 export function addIfNew<T>(arr: T[], item: T) {
   const ind = arr.indexOf(item);
-  if (ind == -1) arr.push(item);
+  if (ind === -1) arr.push(item);
 }
 
 export function addAllIfNew<T>(arr: T[], items: T[] | T) {
@@ -164,7 +164,7 @@ export function allFieldValuesOf(objects: { [key: string]: any }[], field: strin
   const s = new Set<unknown>();
 
   for (const o of objects) {
-    if (o[field] != undefined) s.add(o[field]);
+    if (o[field] !== undefined) s.add(o[field]);
   }
   return [...s];
 }
@@ -183,9 +183,9 @@ export function exclude<T>(a: T[], b: T[]) {
  * array or object to qualify.
  */
 export function isFlat(value: unknown) {
-  if (value == null || typeof value != "object") return false;
+  if (value == null || typeof value !== "object") return false;
   const children = Array.isArray(value) ? value : Object.values(value);
-  return children.every((child) => child == null || typeof child != "object");
+  return children.every((child) => child == null || typeof child !== "object");
 }
 
 export function base64ToArrayBuffer(base64: string) {
@@ -214,7 +214,7 @@ export function imageDataToUrl(data: Uint8Array | number[] | undefined | null) {
 
 /** Formatted number */
 export function localeFixed2(n: number, digits = 4) {
-  return n && (~~n == n ? n : n.toFixed(digits));
+  return n && (~~n === n ? n : n.toFixed(digits));
 }
 
 export function asMB(n: number) {
@@ -255,7 +255,7 @@ let injectedNumber: string | undefined;
 function injectedBuildNumber(): string {
   if (injectedNumber === undefined) {
     const meta =
-      typeof document == "undefined"
+      typeof document === "undefined"
         ? undefined
         : document.querySelector('meta[name="xpedia-build"]');
     injectedNumber = meta?.getAttribute("content") ?? "";
@@ -292,18 +292,18 @@ export function xpediaBuildStamp(): string {
  * and the ruleset need it, and the ruleset must not import the pack builder.
  */
 export function gameRelativePath(path: string): string {
-  const parts = path.split(/[/\\]/).filter((p) => p != "");
+  const parts = path.split(/[/\\]/).filter((p) => p !== "");
   const lower = parts.map((p) => p.toLowerCase());
 
   for (let i = 0; i < parts.length; i++) {
-    if (lower[i] == "user" && lower[i + 1] == "mods") return parts.slice(i).join("/");
-    if (lower[i] == "standard" || lower[i] == "common" || lower[i] == "mods")
+    if (lower[i] === "user" && lower[i + 1] === "mods") return parts.slice(i).join("/");
+    if (lower[i] === "standard" || lower[i] === "common" || lower[i] === "mods")
       return parts.slice(i).join("/");
   }
 
   // No recognised install folder: a mod that was packed on its own belongs
   // under `user/mods` when extracted next to the game
-  return "user/mods/" + parts.join("/");
+  return `user/mods/${parts.join("/")}`;
 }
 
 /**
@@ -330,7 +330,7 @@ export const last = <T>(list: T[]) => list[list.length - 1];
  * it over the network instead.
  */
 export async function loadData(path: string) {
-  if (typeof fsData != "undefined") {
+  if (typeof fsData !== "undefined") {
     return fsData(path);
   } else {
     return path;

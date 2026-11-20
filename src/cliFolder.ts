@@ -36,7 +36,7 @@ export function listFiles(root: string) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory() && (entry.name.startsWith(".") || skippedDirs.has(entry.name)))
         continue;
-      const rel = prefix ? prefix + "/" + entry.name : entry.name;
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) walk(path.join(dir, entry.name), rel);
       else if (entry.isFile()) out.push(rel);
     }
@@ -80,7 +80,7 @@ export function layoutOf(names: string[]): Layout {
 
 /** The path a folder file is known by while the ruleset is built */
 export function archivePath(rel: string, layout: Layout, modRoot: string) {
-  return layout == "mod" ? `${modRoot}/${rel}` : rel;
+  return layout === "mod" ? `${modRoot}/${rel}` : rel;
 }
 
 /** Extensions whose bytes the ruleset builder actually reads */
@@ -88,11 +88,11 @@ export function isText(name: string) {
   const lower = name.toLowerCase();
   const ext = lower.substring(lower.lastIndexOf(".") + 1);
   // `cfg` is here for `user/options.cfg`, the player's mod activation list
-  if (ext == "rul" || ext == "yml" || ext == "cfg") return true;
+  if (ext === "rul" || ext === "yml" || ext === "cfg") return true;
   // Article bodies may be `Language/STR_ID.<lang>.html` or `.txt`
-  if (ext != "html" && ext != "txt") return false;
+  if (ext !== "html" && ext !== "txt") return false;
   const parts = lower.split("/");
-  return parts.length > 1 && parts[parts.length - 2] == "language";
+  return parts.length > 1 && parts[parts.length - 2] === "language";
 }
 
 /**

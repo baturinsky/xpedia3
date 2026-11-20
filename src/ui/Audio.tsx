@@ -56,7 +56,7 @@ export function showAudio(target: AudioTarget) {
 
 /** The path of a sound slot, or null when the pack does not replace that slot */
 export function soundPath(slot: unknown, field: string, collection?: string) {
-  if (slot == null || slot === "" || String(slot) == "-1") return null;
+  if (slot == null || slot === "" || String(slot) === "-1") return null;
   const cat = soundCat(field, collection);
   return rul.sound(Number(slot), cat);
 }
@@ -81,7 +81,7 @@ const AudioLink = ({ target, children }: { target: AudioTarget; children: React.
  */
 export const MusicRef = ({ entry }: { entry: string | { id?: string } }) => {
   // A music field holds the id; older data may hold the whole entry
-  const id = typeof entry == "string" ? entry : entry?.id;
+  const id = typeof entry === "string" ? entry : entry?.id;
   if (id == null) return null;
 
   const fileName = rul.musics?.[id]?.fileName ?? id;
@@ -93,7 +93,7 @@ export const MusicRef = ({ entry }: { entry: string | { id?: string } }) => {
     <AudioLink
       target={{
         title: name,
-        id: name == id ? undefined : id,
+        id: name === id ? undefined : id,
         paths: musicPaths(fileName),
         hint: rul.tr("xpediaAudioMusicHint") ?? undefined,
       }}
@@ -175,7 +175,7 @@ export function AudioDialog() {
   useEffect(() => {
     if (!target) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key == "Escape") {
+      if (e.key === "Escape") {
         e.preventDefault();
         setTarget(undefined);
       }
@@ -201,7 +201,7 @@ export function AudioDialog() {
     <div
       className="full-screen-centered status-overlay"
       onClick={(e) => {
-        if (e.target == e.currentTarget) setTarget(undefined);
+        if (e.target === e.currentTarget) setTarget(undefined);
       }}
     >
       <div className="audio-dialog" role="dialog" aria-modal="true" aria-label={target.title}>
@@ -230,7 +230,7 @@ export function AudioDialog() {
 
         {/* A track may be stored under another accepted extension, so those are
           offered before giving up on playback */}
-        {status == "failed" && (
+        {status === "failed" && (
           <div className="audio-dialog-missing">
             <Tr text="xpediaAudioNotFound" />
             {target.hint && <span className="audio-dialog-hint"> ({target.hint})</span>}

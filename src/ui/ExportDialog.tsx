@@ -39,7 +39,7 @@ export default function ExportDialog() {
 function describeContents(images: boolean, languagePacks: number) {
   const parts = [
     images ? "every image" : "",
-    languagePacks ? `${languagePacks} language pack${languagePacks == 1 ? "" : "s"}` : "",
+    languagePacks ? `${languagePacks} language pack${languagePacks === 1 ? "" : "s"}` : "",
   ].filter(Boolean);
   return parts.length ? `the page and ${parts.join(" and ")}` : "just the page";
 }
@@ -82,13 +82,13 @@ function ExportDialogBody() {
   /** The page alone, so no archive and no packs */
   const single = !archive;
   /** Languages that become packs when split is on, i.e. everything but English */
-  const languagePacks = selected.filter((lang) => lang != "en-US").length;
+  const languagePacks = selected.filter((lang) => lang !== "en-US").length;
 
   // Escape is the normal way out of a modal, but it must not interrupt an
   // export that is already running
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key == "Escape" && !busy) update({ showExportDialog: false });
+      if (e.key === "Escape" && !busy) update({ showExportDialog: false });
     }
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
@@ -142,7 +142,7 @@ function ExportDialogBody() {
       .then((r) => (r.ok ? r.json() : undefined))
       .then((data) => {
         if (!live) return;
-        setServedBytes(typeof data?.bytes == "number" ? data.bytes : null);
+        setServedBytes(typeof data?.bytes === "number" ? data.bytes : null);
       })
       .catch(() => {
         if (live) setServedBytes(null);
@@ -219,7 +219,7 @@ function ExportDialogBody() {
   }
 
   function toggle(lang: string) {
-    choose(selected.includes(lang) ? selected.filter((n) => n != lang) : [...selected, lang]);
+    choose(selected.includes(lang) ? selected.filter((n) => n !== lang) : [...selected, lang]);
   }
 
   async function run() {
@@ -256,7 +256,7 @@ function ExportDialogBody() {
     <div
       className="full-screen-centered status-overlay"
       onMouseDown={(e) => {
-        if (e.target == e.currentTarget) close();
+        if (e.target === e.currentTarget) close();
       }}
     >
       <div className="export-dialog" role="dialog" aria-modal="true" aria-label="Export">
@@ -289,15 +289,16 @@ function ExportDialogBody() {
         </div>
         {languages.length > 0 && (
           <div className="export-language-buttons">
-            <button onClick={() => choose([...languages])}>
+            <button type="button" onClick={() => choose([...languages])}>
               <Tr text="Select all" />
             </button>
-            <button onClick={() => choose([])}>
+            <button type="button" onClick={() => choose([])}>
               <Tr text="Unselect all" />
             </button>
             {/* The language the user reads is the one they usually export; when
               that is English there is nothing extra to pick */}
             <button
+              type="button"
               onClick={() =>
                 choose(state.lang && languages.includes(state.lang) ? [state.lang] : [])
               }
@@ -350,7 +351,7 @@ function ExportDialogBody() {
             type="checkbox"
             checked={split}
             onChange={() => setSplit(!split)}
-            disabled={languages.length == 0}
+            disabled={languages.length === 0}
           />
           <span>
             <b>Split into language packs</b>
@@ -359,7 +360,7 @@ function ExportDialogBody() {
               The page keeps English and each other language becomes a small script under{" "}
               <code>xpedia-lang/</code>, loaded only when that language is picked. Makes the page
               smaller, and a translation can be fixed by replacing one file.
-              {languages.length == 0 && " The pack has no other translation."}
+              {languages.length === 0 && " The pack has no other translation."}
             </small>
           </span>
         </label>
@@ -384,9 +385,7 @@ function ExportDialogBody() {
           costs, and it happened when the dialog opened or when the
           checkboxes changed */}
         <p
-          className={
-            "export-size" + (showSize != null || sizeUnknown ? "" : " export-size-pending")
-          }
+          className={`export-size${showSize != null || sizeUnknown ? "" : " export-size-pending"}`}
         >
           {showSize != null ? (
             <>
@@ -422,10 +421,10 @@ function ExportDialogBody() {
         {error && <p className="export-error">{error}</p>}
 
         <div className="export-buttons">
-          <button onClick={run} disabled={busy}>
+          <button type="button" onClick={run} disabled={busy}>
             <Tr text="Export" />
           </button>
-          <button onClick={close} disabled={busy}>
+          <button type="button" onClick={close} disabled={busy}>
             <Tr text="Cancel" />
           </button>
         </div>
