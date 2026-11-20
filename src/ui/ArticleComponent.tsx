@@ -837,8 +837,8 @@ export function ArticleComponent() {
   // flight drawn across it.
   const laterMaps = (
     <>
-      {regionMap && mapLast && regionMap}
-      {flightMap && (mapLast || regionMap) && flightMap}
+      {mapLast ? regionMap : null}
+      {flightMap && (mapLast || regionMap) ? flightMap : null}
     </>
   );
 
@@ -869,11 +869,9 @@ export function ArticleComponent() {
             same place: above the columns, full width. When the page is also
             another entry type the map follows that entry's panels instead, see
             `laterMaps`. */}
-          {/* The same conditional shape as `laterMaps`: the map is the value
-            shown when the condition holds, so it is repeated after the
-            `&&` — `{regionMap && !mapLast}` alone would render the boolean
-            `!mapLast`, never the picture. */}
-          {regionMap && !mapLast && regionMap}
+          {/* The same placement rule as `laterMaps`, as a ternary: the map is
+            the value shown when the condition holds */}
+          {regionMap && !mapLast ? regionMap : null}
           {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
           {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
