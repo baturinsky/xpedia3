@@ -104,6 +104,12 @@ export const state = {
    * regardless — showing the nations is what it is for.
    */
   showCountryLabels: false,
+  /**
+   * Show the column picker (the All/None/Default buttons and the field
+   * checkboxes) above a section table. Collapsed by default, and remembered
+   * across articles and reloads, like the other reader preferences.
+   */
+  columnsExpanded: false,
   /** Selected language name, see `Ruleset.selectLang` */
   lang: undefined as string | undefined,
   /**
@@ -182,6 +188,7 @@ export const savedFields = [
   "hugeFont",
   "alphabeticalSort",
   "showCountryLabels",
+  "columnsExpanded",
   "lang",
   "exportLanguages",
   "theme",

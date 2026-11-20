@@ -159,32 +159,35 @@ function waveNotes(wave: MissionWave) {
  *
  * A wave's `timer` is the gap *before* it, which is the number a player cares
  * about: the wave table reads as a schedule, so the delay belongs to the row it
- * delays rather than to the mission as a whole.
+ * delays rather than to the mission as a whole. Its headers are ordinary
+ * `data-table` headers like the deployment and map-block tables — left-aligned
+ * `th`, content-width columns — rather than the large centred `table-header`
+ * row other tables use for a title.
  */
 function WaveTable({ waves }: { waves: MissionWave[] }) {
   if (!waves.length) return null;
   return (
-    <table className="main-table mission-waves">
+    <table className="main-table data-table mission-waves">
       <thead>
-        <tr className="table-header">
-          <td>
+        <tr>
+          <th scope="col">
             <Tr text="xpediaWave" />
-          </td>
-          <td>
+          </th>
+          <th scope="col">
             <Tr text="ufo" />
-          </td>
-          <td>
+          </th>
+          <th scope="col">
             <Tr text="count" />
-          </td>
-          <td>
+          </th>
+          <th scope="col">
             <Tr text="trajectory" />
-          </td>
-          <td>
+          </th>
+          <th scope="col">
             <Tr text="timer" />
-          </td>
-          <td>
+          </th>
+          <th scope="col">
             <Tr text="xpediaWaveGround" />
-          </td>
+          </th>
         </tr>
       </thead>
       <tbody>

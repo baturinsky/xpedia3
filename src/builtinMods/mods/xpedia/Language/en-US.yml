@@ -1981,6 +1981,7 @@ en-US:
   tip_dependencies: "dependencies<br><br>Research projects that unlock access to this one. It becomes available once the whole list is researched, or when any project leads to it."
   tip_deployments: "deployments<br><br>Alien deployments this starting condition may use."
   tip_eventWeights: "eventWeights<br><br>Weighted list of events this script can fire."
+  tip_extraQty: "extraQty<br><br>Random extra aliens spawned on top of the minimum, like dQty: a second independent roll of 0..extraQty on every difficulty."
   tip_files: "files<br><br>Files this mod adds or replaces, listed as id: filename."
   tip_finalBonus: "finalBonus<br><br>Soldier bonus of the last stage of this commendation."
   tip_forbiddenArmors: "forbiddenArmors<br><br>Armors that may not be worn under this starting condition."
@@ -2019,6 +2020,7 @@ en-US:
   tip_maxCount: "maxCount<br><br>How many times this map block may appear in one map. -1 means no limit."
   tip_maxStats: "maxStats<br><br>Upper bounds used to generate starting stats of a crew member. For psi skill it is the minimum of the first month of training."
   tip_meleeAlter: "meleeAlter<br><br>Damage parameters of the melee attack of this item. They are listed under the attack table."
+  tip_medQty: "medQty<br><br>Number of aliens spawned on middle difficulties: more than lowQty, fewer than highQty. When absent, the middle takes the average of the two."
   tip_members: "members<br><br>Units that make up this race, in rank order. A position in this list is the rank number used by deployments; a rank that does not exist is filled in by repeating another unit."
   tip_minStats: "minStats<br><br>Lower bounds used to generate starting stats of a crew member. Psi skill is used as-is rather than generated."
   tip_missionRegion: "missionRegion<br><br>Region this mission runs in instead of the one it is listed under. Used for regions without land."
@@ -2027,6 +2029,9 @@ en-US:
   tip_nextStage: "nextStage<br><br>Deployment used for the next stage of a multi-stage mission."
   tip_oneTimeRandomEvents: "oneTimeRandomEvents<br><br>Events this script may fire once, with their weights."
   tip_percentageOutsideUfo: "percentageOutsideUfo<br><br>Share of the aliens spawned outside the UFO, in per cent."
+  tip_xpediaDeploymentRank: "Rank<br><br>Rank this deployment slot uses, as an index into the member list of the alien race."
+  tip_xpediaDeploymentQuantity: "Quantity<br><br>Aliens spawned for this rank: base count by difficulty (easy..medium..hard, equal neighbours collapsed) plus each random bonus as +🎲0–N (dQty, then extraQty, each an independent roll of 0..N). A missing or zero block is omitted."
+  tip_xpediaDeploymentOutside: "Outside<br><br>Share of the aliens spawned outside the UFO, in per cent."
   tip_raceWeights: "raceWeights<br><br>Races that may carry out this mission and their chance, listed by number of months since the campaign started."
   tip_randomProducedItems: "randomProducedItems<br><br>Alternative results of this project with their chances, used instead of a fixed set of produced items."
   tip_regionWeight: "regionWeight<br><br>Weight of this region when the game picks one for an alien mission."
@@ -2760,6 +2765,7 @@ en-US:
   xpediaRegionsMapNoAreas: such technical regions, which only weight missions and hold zones. Their pages are still in the section list below.
   xpediaRegionsMapLegend: Regions drawn on the map
   xpediaRegionsMapNone: No region in this pack states an area, so there is no map of the regions to draw. The list below is the whole of them.
+  xpediaColumns: Columns
   xpediaColumnsAll: All
   xpediaColumnsNone: None
   xpediaColumnsDefault: Default
@@ -2978,6 +2984,9 @@ en-US:
   lowQty: Quantity at min difficulty
   itemSets: Item sets
   percentageOutsideUfo: Spawned outside, %
+  xpediaDeploymentRank: Rank
+  xpediaDeploymentQuantity: Quantity
+  xpediaDeploymentOutside: Outside
   nextStage: Next stage
   startingCondition: Starting condition
   xcomBaseInCountryTriggers: Base-in-country triggers

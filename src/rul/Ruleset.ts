@@ -1488,22 +1488,49 @@ export default class Ruleset {
 }
 
 /**
- * Collator for every name sort in the pedia.
+ * Collator for every name sort in the pedia, per selected language.
  *
  * `localeCompare` with an options object constructs a collator on each call, and
  * a section sort makes thousands of them: the 2904-article `RESEARCH` section
  * cost ~90 ms, almost all of it in collator setup rather than comparison. One
- * shared collator with the same options gives an order that is identical to the
+ * cached collator per language gives an order that is identical to the
  * `localeCompare` call it replaces and costs a fraction of that.
+ *
+ * The collator must follow the pack's language, not the browser's: the
+ * browser's default locale decides whether Latin letters sort before or after
+ * Cyrillic (and where `«` falls), so two viewers with different browser
+ * languages got different alphabetical orders for the same Russian list.
+ * `Section._sorted` already caches the order per language, so the collator
+ * belongs per language too.
  *
  * `numeric` keeps "Clip 2" before "Clip 10"; `sensitivity: "base"` makes case
  * and accents not decide the order, so a pack's own capitalisation does not
  * scatter its entries.
  */
-const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const nameCollators = new Map<string, Intl.Collator>();
+
+function nameCollatorFor(langName: string | null | undefined): Intl.Collator {
+  const key = langName ?? "";
+  let collator = nameCollators.get(key);
+  if (!collator) {
+    let locales: string | undefined;
+    if (langName) {
+      try {
+        // Validate (and normalize) the tag: a pack language name that is not
+        // a valid BCP 47 tag must not take the whole pedia down with it.
+        locales = new Intl.Collator(langName).resolvedOptions().locale;
+      } catch {
+        locales = undefined;
+      }
+    }
+    collator = new Intl.Collator(locales, { numeric: true, sensitivity: "base" });
+    nameCollators.set(key, collator);
+  }
+  return collator;
+}
 
 export function comparator(a: unknown, b: unknown) {
-  return nameCollator.compare(String(a ?? ""), String(b ?? ""));
+  return nameCollatorFor(rul?.langName).compare(String(a ?? ""), String(b ?? ""));
 }
 
 /** Main class to figure what to do with data in Ruls */

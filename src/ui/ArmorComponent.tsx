@@ -155,8 +155,11 @@ const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) => (
       </header>
       {sortFirstLast(modifiers).all.map(([key, val]) => (
         <React.Fragment key={key}>
-          <div>
-            <Val of={damageTypes[Number(key)]} icon="monospace" />
+          <div className="resist-title">
+            <span className="resist-bar" style={{ width: `${~~(Number(val) * 100) / 50}rem` }} />
+            <span className="resist-label">
+              <Val of={damageTypes[Number(key)]} icon="monospace" />
+            </span>
           </div>
           <div>
             <em>
@@ -217,6 +220,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
     units: ({ val }) => (
       <Val of={(val as string[] | undefined)?.filter((s) => s.substr(0, 8) !== "INV_NULL")} />
     ),
+    recovery: ({ val }) => <RecoveryTable recovery={val as { [stat: string]: BonusMap }} />,
   };
 
   // A unit sheet is an atlas of body parts, not a picture: draw the figure the
@@ -264,12 +268,12 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
           <Val of={seeAlso} />
         </>
       }
+      wide={["recovery"]}
       sort={{
         first: ["builtInWeapons", "size"],
-        last: ["spriteSheet"],
+        last: ["recovery", "spriteSheet"],
         // Drawn by the preview block above, or by the recovery block below
         exclude: [
-          "recovery",
           "type",
           "armor",
           "stats",
@@ -311,14 +315,6 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
       }
       special={special}
       rows={rows}
-      after={
-        <>
-          <Subheader text="recovery" />
-          {/* `RecoveryTable` emits whole `<tr>` rows, so it sits directly in the
-          `<tbody>` rather than inside a `<td>` */}
-          <RecoveryTable recovery={entry.recovery} />
-        </>
-      }
     />
   );
 };

@@ -108,8 +108,17 @@ function NearbyLink(props: {
 }) {
   const { article: target, section: targetSection } = props.target;
   return (
-    <a href={`##${target.id}`} onClick={() => update({ section: targetSection })}>
-      <Tr text={target.id} prefix={props.prefix} postfix={props.postfix} />
+    <a
+      href={`##${target.id}`}
+      aria-label={target.id}
+      title={target.id}
+      onClick={() => update({ section: targetSection })}
+    >
+      {props.prefix && <span className="nav-arrow">{props.prefix}</span>}
+      <span className="nav-name">
+        <Tr text={target.id} />
+      </span>
+      {props.postfix && <span className="nav-arrow">{props.postfix}</span>}
     </a>
   );
 }
@@ -201,9 +210,10 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
   alienRaces: { title: "Race" },
   alienRanks: { title: "Ranks" },
   alienDeployments: {
-    sort: { first: ["startingCondition", "loot"], last: ["data"] },
+    sort: { first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] },
     special: {
       data: deploymentData,
+      briefing: asSubTable,
     },
   },
   startingConditions: StartingConditionsComponent,

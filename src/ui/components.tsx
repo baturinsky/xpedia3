@@ -996,47 +996,60 @@ export function SectionTable(props: SectionTableProps) {
     <>
       <div className="extra-fields">
         <span className="column-buttons">
-          <button type="button" onClick={showAll}>
-            <Val of="xpediaColumnsAll" />
-          </button>
-          <button type="button" onClick={showNone}>
-            <Val of="xpediaColumnsNone" />
-          </button>
-          <button type="button" onClick={showDefault}>
-            <Val of="xpediaColumnsDefault" />
+          <button
+            type="button"
+            aria-expanded={state.columnsExpanded}
+            onClick={() => update({ columnsExpanded: !state.columnsExpanded })}
+          >
+            <Val of="xpediaColumns" /> {state.columnsExpanded ? "▼" : "▶"}
           </button>
         </span>
-        {extraAll.map((field) => {
-          const shown = shownFields.includes(field);
-          // A field whose name has its own article is rendered by `Val` as a link,
-          // and clicking it must keep navigating there. The checkbox is then the
-          // only way to toggle without leaving the table, which is also why it is
-          // drawn at all: it says what the list does. Fields without an article
-          // have no link to follow, so their names still toggle on click.
-          const isLink = !!rul.article(field);
-          return (
-            <React.Fragment key={field}>
-              <Divider />
-              <span className={`extra-field ${shown ? "on" : "off"}`}>
-                <input
-                  type="checkbox"
-                  checked={shown}
-                  aria-label={rul.tr(field) ?? undefined}
-                  onChange={() => toggleField(field)}
-                />
-                {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: the checkbox beside it is the keyboard control for the same toggle; a tab stop and key handler on every field name would slow the section tables down, which are built in batches for exactly that reason */}
-                {/* biome-ignore lint/a11y/useKeyWithClickEvents: the checkbox beside it already takes keyboard input for the same toggle */}
-                {/* biome-ignore lint/a11y/noStaticElementInteractions: the name is a label for the checkbox, not a control of its own */}
-                <span
-                  className={isLink ? "extra-field-name" : "extra-field-name clickable"}
-                  onClick={isLink ? undefined : () => toggleField(field)}
-                >
-                  <Val of={field} />
-                </span>
-              </span>
-            </React.Fragment>
-          );
-        })}
+        {state.columnsExpanded && (
+          <>
+            <span className="column-buttons">
+              <button type="button" onClick={showAll}>
+                <Val of="xpediaColumnsAll" />
+              </button>
+              <button type="button" onClick={showNone}>
+                <Val of="xpediaColumnsNone" />
+              </button>
+              <button type="button" onClick={showDefault}>
+                <Val of="xpediaColumnsDefault" />
+              </button>
+            </span>
+            {extraAll.map((field) => {
+              const shown = shownFields.includes(field);
+              // A field whose name has its own article is rendered by `Val` as a link,
+              // and clicking it must keep navigating there. The checkbox is then the
+              // only way to toggle without leaving the table, which is also why it is
+              // drawn at all: it says what the list does. Fields without an article
+              // have no link to follow, so their names still toggle on click.
+              const isLink = !!rul.article(field);
+              return (
+                <React.Fragment key={field}>
+                  <Divider />
+                  <span className={`extra-field ${shown ? "on" : "off"}`}>
+                    <input
+                      type="checkbox"
+                      checked={shown}
+                      aria-label={rul.tr(field) ?? undefined}
+                      onChange={() => toggleField(field)}
+                    />
+                    {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: the checkbox beside it is the keyboard control for the same toggle; a tab stop and key handler on every field name would slow the section tables down, which are built in batches for exactly that reason */}
+                    {/* biome-ignore lint/a11y/useKeyWithClickEvents: the checkbox beside it already takes keyboard input for the same toggle */}
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: the name is a label for the checkbox, not a control of its own */}
+                    <span
+                      className={isLink ? "extra-field-name" : "extra-field-name clickable"}
+                      onClick={isLink ? undefined : () => toggleField(field)}
+                    >
+                      <Val of={field} />
+                    </span>
+                  </span>
+                </React.Fragment>
+              );
+            })}
+          </>
+        )}
       </div>
       <div className="table-filters">
         {Object.entries(filters).map(([filter, options]) => (

@@ -10,6 +10,8 @@ import { formatNumber, TipScopeProvider, Val } from "./Val";
  * data — `width` and `length` are on every block, `groups` on a third, and
  * the spawn fields on a few percent — so one row per block with one column
  * per field reads better than a card per block repeating the same labels.
+ * The one long list, `randomizedItems`, does not get a column: it spills
+ * under its block on a full-width row, so each spawn keeps the table's width.
  * A column nothing states does not appear at all, so a field like `height`
  * that one pack uses and the next does not gets no empty column, and rows
  * keep the order the file writes them in.
@@ -22,6 +24,12 @@ type MapBlock = { [field: string]: unknown };
  * to write them in. `name` is the first column and never a field column;
  * anything the engine knows about that is not listed here follows in sorted
  * order, so a field added by a future engine still has somewhere to go.
+ *
+ * `randomizedItems` is the one list this table spills under the block it
+ * belongs to, the same way `alienDeployments` puts its `itemSets` on a
+ * full-width row: a spawn is a small block of its own (position, amount,
+ * what it can roll), and as a column it squeezes every spawn into a few
+ * dozen pixels. ExtendedItems stay a column next to it.
  */
 const FIELD_ORDER = [
   "width",
@@ -36,6 +44,9 @@ const FIELD_ORDER = [
   "craftInventoryTile",
 ];
 
+/** Fields drawn as full-width rows under the block's row, not as columns */
+const LIST_ROW_FIELDS = ["randomizedItems"];
+
 /** Whether a field is absent or empty — it has nothing to say */
 function isEmpty(value: unknown): boolean {
   return value == null || value === "" || (Array.isArray(value) && value.length === 0);
@@ -47,15 +58,17 @@ function asItems(value: unknown): unknown[] {
 }
 
 /**
- * The table's columns: every field stated anywhere, in reading order. A
- * field nothing states is left out — a column of blanks would only repeat
- * that the pack did not use it.
+ * The table's columns: every field stated anywhere, in reading order, apart
+ * from the list fields that get a full-width row of their own. A field
+ * nothing states is left out — a column of blanks would only repeat that the
+ * pack did not use it.
  */
 function columnsOf(blocks: MapBlock[]): string[] {
   const seen = new Set<string>();
   for (const block of blocks) {
     for (const field of Object.keys(block)) {
-      if (field !== "name" && !isEmpty(block[field])) seen.add(field);
+      if (field !== "name" && !isEmpty(block[field]) && !LIST_ROW_FIELDS.includes(field))
+        seen.add(field);
     }
   }
   return [
@@ -179,7 +192,7 @@ function RandomizedItems({ value }: { value: unknown }): ReactNode {
     (item): item is MapBlock => typeof item === "object" && item != null,
   );
   return (
-    <ul className="data-nested">
+    <ul className="data-nested mapblock-sets">
       {items.map((item, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a spawn is identified by its position among its siblings
         <li key={i}>
@@ -255,6 +268,7 @@ function MapBlocksView({ blocks }: { blocks: unknown }): ReactNode {
       : ({ name: String(block) } as MapBlock),
   );
   const columns = columnsOf(rows);
+  const colCount = 1 + columns.length;
   return (
     <TipScopeProvider scope="mapBlock">
       <table className="main-table data-table">
@@ -273,16 +287,30 @@ function MapBlocksView({ blocks }: { blocks: unknown }): ReactNode {
         <tbody>
           {rows.map((block, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: a block is identified by its position among its siblings, the order the file writes them
-            <tr key={i}>
-              <th scope="row">
-                <code>{blockName(block)}</code>
-              </th>
-              {columns.map((field) => (
-                <td key={field}>
-                  {isEmpty(block[field]) ? null : <FieldValue field={field} value={block[field]} />}
-                </td>
-              ))}
-            </tr>
+            <Fragment key={i}>
+              <tr>
+                <th scope="row">
+                  <code>{blockName(block)}</code>
+                </th>
+                {columns.map((field) => (
+                  <td key={field}>
+                    {isEmpty(block[field]) ? null : (
+                      <FieldValue field={field} value={block[field]} />
+                    )}
+                  </td>
+                ))}
+              </tr>
+              {!isEmpty(block.randomizedItems) && (
+                <tr>
+                  <td colSpan={colCount}>
+                    <span className="mapblock-row-label">
+                      <Val of="randomizedItems" capital={true} />
+                    </span>
+                    <RandomizedItems value={block.randomizedItems} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
