@@ -82,7 +82,8 @@ function cacheImage(path: string, value: string | null, pack?: string) {
     imageFlushQueued = false;
   }
   pendingPack = state.packName;
-  (pendingImages ??= {})[path] = value;
+  if (pendingImages === undefined) pendingImages = {};
+  pendingImages[path] = value;
   if (imageFlushQueued) return;
   imageFlushQueued = true;
   setTimeout(() => {

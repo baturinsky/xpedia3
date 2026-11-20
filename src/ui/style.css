@@ -71,16 +71,6 @@ body {
 
 /* Common elements */
 
-em,
-em > a {
-  color: var(--em);
-  font-style: normal;
-}
-
-em.bad {
-  color: #f00;
-}
-
 .nobr {
   /*white-space: nowrap;*/
   display: inline-block;
@@ -127,6 +117,16 @@ a:hover {
 a.dead {
   color: var(--dead-link);
   opacity: 0.6;
+}
+
+em,
+em > a {
+  color: var(--em);
+  font-style: normal;
+}
+
+em.bad {
+  color: #f00;
 }
 
 /* A reference that points at the page being read. Two collections can share an
@@ -247,8 +247,10 @@ nav.top .left {
   min-width: 0;
 }
 
-/* Long mod title shrinks instead of stretching the navbar */
-nav.top .left > a {
+/* Long mod title shrinks instead of stretching the navbar.
+   `:where()` keeps the match but drops the priority: the later link rules
+   are on disjoint elements or agree on `display: block`. */
+:where(nav.top) .left > a {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -370,6 +372,15 @@ nav.side {
   background-color: var(--hover);
 }
 
+.flex-horisontal {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
 .navbar-dropdown-container {
   position: relative;
   display: inline-block;
@@ -406,6 +417,22 @@ nav.side {
   align-self: stretch;
   display: flex;
   align-items: stretch;
+}
+
+.select-language .navbar-dropdown {
+  display: grid;
+  grid-template-columns: auto auto;
+}
+
+/* Modpack picker: one modpack per row, long archive names wrap instead of
+   stretching the navbar or the panel. */
+.select-packs .navbar-dropdown {
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  max-width: min(30rem, calc(100vw - 1rem));
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
 }
 
 .navbar-dropdown-container.dropdown-button > .navbar-dropdown {
@@ -496,15 +523,6 @@ nav.side {
   opacity: 0.7;
 }
 
-.flex-horisontal {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: flex-start;
-  width: 100%;
-  flex-wrap: wrap;
-}
-
 .xpedia-icon {
   height: 2rem;
   margin-right: 0.25rem;
@@ -536,27 +554,11 @@ input::placeholder {
   opacity: 20%;
 }
 
-.select-language .navbar-dropdown {
-  display: grid;
-  grid-template-columns: auto auto;
-}
-
-.select-language .navbar-dropdown div {
+:where(.select-language) .navbar-dropdown div {
   padding: 0.2rem 0.4rem;
 }
 
-/* Modpack picker: one modpack per row, long archive names wrap instead of
-   stretching the navbar or the panel. */
-.select-packs .navbar-dropdown {
-  display: flex;
-  flex-direction: column;
-  min-width: 12rem;
-  max-width: min(30rem, calc(100vw - 1rem));
-  max-height: calc(100vh - 3rem);
-  overflow-y: auto;
-}
-
-.select-packs .navbar-dropdown > div {
+:where(.select-packs) .navbar-dropdown > div {
   padding: 0.2rem 0.4rem;
   /* A pack name can be a long file name: allow a break anywhere */
   white-space: normal;
@@ -575,7 +577,7 @@ input::placeholder {
 
 /* The button shows the full title, so let it shrink rather than push the
    search box off the bar */
-.select-packs .navbar-button > span {
+:where(.select-packs .navbar-button) > span {
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1120,12 +1122,12 @@ button:disabled:hover {
   pointer-events: none;
 }
 
-.article-title .left {
+div.article-title .left {
   text-align: left;
   grid-column: 1;
 }
 
-.article-title .right {
+div.article-title .right {
   text-align: right;
   grid-column: 2;
 }
@@ -1169,12 +1171,12 @@ button:disabled:hover {
   gap: 1rem 1.5rem;
 }
 
-.article-main.has-side-map > .article-flow {
+:where(.article-main.has-side-map) > .article-flow {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.article-main.has-side-map > .world-map-block {
+:where(.article-main.has-side-map) > .world-map-block {
   flex: 0 0 100%;
 }
 
@@ -1188,11 +1190,11 @@ button:disabled:hover {
    the map: narrower than this and either the text loses a column or the map
    becomes too small to read the nations on. */
 @media (min-width: 1600px) {
-  .article-main.has-side-map > .article-flow {
+  :where(.article-main.has-side-map) > .article-flow {
     flex: 0 1 auto;
   }
 
-  .article-main.has-side-map > .world-map-block {
+  :where(.article-main.has-side-map) > .world-map-block {
     flex: 1 1 var(--side-map-width);
     min-width: 24rem;
   }
@@ -1334,7 +1336,7 @@ table.thin td {
   background: var(--table-main);
 }
 
-.main-table td {
+table.main-table td {
   padding: 0.1rem 0.25rem;
   vertical-align: top;
   max-width: 90vw;
@@ -1402,7 +1404,7 @@ ol > li:last-child::after {
   content: "";
 }
 
-.articles-list ol > li {
+:where(.articles-list) ol > li {
   display: list-item;
 }
 
@@ -1492,7 +1494,7 @@ ol > li:last-child::after {
   margin: 0;
 }
 
-.attacks-table td {
+table.attacks-table td {
   border-top: solid 1px var(--border);
   border-right: solid 1px var(--lighter);
   vertical-align: top;
@@ -1516,7 +1518,7 @@ ol > li:last-child::after {
   border-collapse: collapse;
 }
 
-.section-table td {
+table.section-table td {
   text-align: center;
 }
 
@@ -1576,7 +1578,7 @@ ol > li:last-child::after {
   align-items: center;
 }
 
-.extra-fields .extra-field input {
+:where(.extra-fields) .extra-field input {
   margin: 0 0.3rem 0 0;
   cursor: pointer;
   accent-color: var(--link);
@@ -1752,11 +1754,11 @@ ol > li:last-child::after {
   cursor: pointer;
 }
 
-.unit-pose:hover > span {
+:where(.unit-pose:hover) > span {
   color: var(--link);
 }
 
-.unit-pose input:checked + span {
+:where(.unit-pose input:checked) + span {
   color: var(--link);
   font-weight: bold;
 }
@@ -2141,7 +2143,7 @@ a.services {
   color: cyan;
 }
 
-.highlight td {
+tr.highlight td {
   background: #685c74;
 }
 
@@ -2370,7 +2372,7 @@ a.services {
 
    The blink and the link cursor belong to the block: the picture is one target,
    not a pile of them. */
-.world-map-mini .area-contour {
+.world-map.world-map-mini .area-contour {
   fill-opacity: 0.6;
   stroke-opacity: 1;
   stroke-width: 2;
@@ -2435,13 +2437,23 @@ a.services {
   }
 }
 
+/* A stop of a flight: a circle in the air, a square on the ground. The shape is
+   the one fact a player plans around — a landing is where a site appears — so it
+   is not left to a colour that already means "which zone". */
+.region-path .region-stop {
+  fill: var(--zone-color, var(--region-color, #ffd24a));
+  stroke: #0d2f52;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
 /* A highlighted stop gets a wider rim rather than a different colour, so its
    zone colour still says which zone it belongs to. */
 .region-overlay .region-stop-hot .region-stop {
   stroke-width: 3.5;
 }
 
-.region-overlay .region-stop-hot .region-stop-label {
+:where(.region-overlay .region-stop-hot) .region-stop-label {
   font-weight: bold;
 }
 
@@ -2617,16 +2629,6 @@ a.services {
     stroke-width: 2;
     transform: scale(1.3);
   }
-}
-
-/* A stop of a flight: a circle in the air, a square on the ground. The shape is
-   the one fact a player plans around — a landing is where a site appears — so it
-   is not left to a colour that already means "which zone". */
-.region-path .region-stop {
-  fill: var(--zone-color, var(--region-color, #ffd24a));
-  stroke: #0d2f52;
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
 }
 
 /* A landing. The thicker rim reads as "this one matters" even where the shape is
@@ -2946,10 +2948,10 @@ a.services {
   stroke: currentColor;
 }
 
-.trajectory-legend-sample .region-stop {
+/*.trajectory-legend-sample .region-stop {
   fill: currentColor;
   stroke: none;
-}
+}*/
 
 /* An "anywhere" stop in the legend: the same dotted ring the map draws, so the
    legend and the picture are one convention rather than two */
@@ -2983,7 +2985,7 @@ a.services {
 }
 
 /* Alien mission wave table */
-.mission-waves td {
+table.mission-waves td {
   vertical-align: top;
 }
 
@@ -3024,7 +3026,7 @@ a.services {
 /* The flight plan: a stop, the move away from it, the next stop, and so on.
    The two kinds of row are told apart by a left rule and a muted band, so the
    alternation reads at a glance rather than needing column headers. */
-.trajectory-plan td {
+table.trajectory-plan td {
   vertical-align: top;
 }
 
@@ -3043,7 +3045,7 @@ a.services {
   width: auto;
 }
 
-.trajectory-table td {
+div.trajectory-table td {
   max-width: 40rem;
 }
 
@@ -3108,7 +3110,7 @@ a.services {
   min-height: 1.35em;
 }
 
-.trajectory-plan-leg td {
+tr.trajectory-plan-leg td {
   padding-top: 0.1rem;
   padding-bottom: 0.1rem;
   opacity: 0.95;
@@ -3222,8 +3224,8 @@ a.services {
      through a section. Their names are often nearly identical, differing only
      in a suffix, so clipping them hides the useful part: let each one wrap and
      stay readable instead. */
-  .article-title .left,
-  .article-title .right {
+  div.article-title .left,
+  div.article-title .right {
     min-width: 0;
     padding: 0.3rem 0;
     font-size: 100%;

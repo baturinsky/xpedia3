@@ -755,7 +755,9 @@ export default class Ruleset {
             // the game root, so the pack's own outer folder is not part of it.
             // That is the same rule images follow, see `gameRelativePath`.
             const full = gameRelativePath((mod.dir ? `${mod.dir}/` : "") + String(path));
-            (this.sounds[cat.toUpperCase()] ||= {})[slot] = full;
+            const category = cat.toUpperCase();
+            if (!this.sounds[category]) this.sounds[category] = {};
+            this.sounds[category][slot] = full;
           }
         }
       }

@@ -74,7 +74,8 @@ export function builtinFile(path: string) {
 let cachedBuiltinFiles: { [name: string]: Uint8Array } | undefined;
 
 function builtinFiles() {
-  return (cachedBuiltinFiles ??= unpackBuiltins());
+  if (cachedBuiltinFiles === undefined) cachedBuiltinFiles = unpackBuiltins();
+  return cachedBuiltinFiles;
 }
 
 /** The builtin mod files that apply to the given modpack */
@@ -104,7 +105,8 @@ export async function mergeBuiltinMods(stored: ProcessedRuleset, packName?: stri
 let wasmCache: ArrayBuffer | undefined;
 
 function unrarWasm() {
-  return (wasmCache ??= base64ToArrayBuffer(wasmRaw));
+  if (wasmCache === undefined) wasmCache = base64ToArrayBuffer(wasmRaw);
+  return wasmCache;
 }
 
 /** Message shown when the user aborts a load from the status window */

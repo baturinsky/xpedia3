@@ -681,7 +681,8 @@ export async function queryDB(
 let legacyPromise: Promise<IDBDatabase | null> | undefined;
 
 function legacy(): Promise<IDBDatabase | null> {
-  return (legacyPromise ??= openLegacy());
+  if (legacyPromise === undefined) legacyPromise = openLegacy();
+  return legacyPromise;
 }
 
 async function openLegacy(): Promise<IDBDatabase | null> {

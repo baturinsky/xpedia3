@@ -183,7 +183,10 @@ const plainProjections = new WeakMap<WorldMap, ReturnType<typeof buildProjection
 function projectMap(map: WorldMap, overlays?: Overlay[]) {
   if (overlays?.length) return buildProjection(map, overlays);
   let cached = plainProjections.get(map);
-  if (!cached) plainProjections.set(map, (cached = buildProjection(map)));
+  if (!cached) {
+    cached = buildProjection(map);
+    plainProjections.set(map, cached);
+  }
   return cached;
 }
 

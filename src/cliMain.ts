@@ -267,7 +267,9 @@ function extractShell(html: string): AppShell {
   const scripts: { attrs: string; content: string }[] = [];
   const scriptRe = /<script([^>]*)>([\s\S]*?)<\/script>/gi;
   let match: RegExpExecArray | null;
-  while ((match = scriptRe.exec(html))) {
+  while (true) {
+    match = scriptRe.exec(html);
+    if (match === null) break;
     const attrs = match[1].trim();
     const content = match[2];
     if (/\bsrc=/.test(attrs) || !content.trim()) continue;
@@ -285,7 +287,9 @@ function extractShell(html: string): AppShell {
 
   const styles: string[] = [];
   const styleRe = /<style([^>]*)>([\s\S]*?)<\/style>/gi;
-  while ((match = styleRe.exec(html))) {
+  while (true) {
+    match = styleRe.exec(html);
+    if (match === null) break;
     const content = (match[2] ?? "").replace(/\/\*# sourceMappingURL=\S+\*\//g, "");
     if (content) styles.push(content);
   }
