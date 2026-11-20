@@ -1,4 +1,4 @@
-import { rul } from "../rul/Ruleset";
+import { rul, type YamlObject } from "../rul/Ruleset";
 
 /**
  * Colours for the world map's land.
@@ -123,7 +123,7 @@ export function readDeclaredCountryColors() {
       const block = file?.xpedia;
       const entries = Array.isArray(block) ? block : block ? [block] : [];
       for (const entry of entries) {
-        const table = entry?.countryColors;
+        const table = (entry as YamlObject | undefined)?.countryColors;
         if (!table || typeof table !== "object") continue;
         for (const [id, color] of Object.entries(table))
           if (id && typeof color === "string") declaredCountryColors[id.toUpperCase()] = color;
@@ -149,7 +149,7 @@ export function readDeclaredColors() {
     for (const file of mod.rul ?? []) {
       const block = file?.xpedia;
       const entries = Array.isArray(block) ? block : block ? [block] : [];
-      for (const entry of entries) addDeclared(entry?.mapColors);
+      for (const entry of entries) addDeclared((entry as YamlObject | undefined)?.mapColors);
     }
   }
 }

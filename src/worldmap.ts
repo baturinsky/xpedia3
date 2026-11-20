@@ -1,7 +1,18 @@
 import { builtinFile } from "./load";
 import { WORLD_DAT } from "./packBuild";
 import { inlineDataFile, resolveImage } from "./packSource";
-import { rul } from "./rul/Ruleset";
+import { rul, type YamlValue } from "./rul/Ruleset";
+
+/** The `globe:` node as this module reads it: textures, polylines and polygons */
+type GlobeNode = {
+  textures?: {
+    id?: number;
+    terrain?: { name?: string; weight?: YamlValue; area?: YamlValue }[];
+  }[];
+  polylines?: YamlValue[];
+  polygons?: unknown;
+  data?: string;
+};
 
 /**
  * The OpenXcom world map, flattened.
@@ -137,7 +148,7 @@ export function looksLikeWorldDat(bytes: Uint8Array) {
 
 /** Reads the terrain criteria of each texture id from the ruleset's `globe:` node */
 export function readTerrains(): { [texture: number]: TerrainCriteria[] } {
-  const globe = rul?.raw?.globe;
+  const globe = rul?.raw?.globe as GlobeNode | undefined;
   const result: { [texture: number]: TerrainCriteria[] } = {};
   if (!globe) return result;
   for (const entry of globe.textures ?? []) {
@@ -203,7 +214,7 @@ export function terrainAt(criteria: TerrainCriteria[] | undefined, lon: number, 
 /** Reads the borders from the ruleset's `globe: polylines:` */
 export function readPolylines(): MapLine[] {
   const lines: MapLine[] = [];
-  for (const raw of rul?.raw?.globe?.polylines ?? []) {
+  for (const raw of (rul?.raw?.globe as GlobeNode | undefined)?.polylines ?? []) {
     if (!Array.isArray(raw)) continue;
     const line: MapLine = [];
     for (let i = 0; i + 1 < raw.length; i += 2) line.push([Number(raw[i]), Number(raw[i + 1])]);
@@ -218,7 +229,7 @@ export function readCountries(): WorldMap["countries"] {
   for (const entry of Object.values(rul?.countries ?? {})) {
     if (!entry?.uid) continue;
     const areas: MapRectangle[] = [];
-    for (const area of entry.areas ?? []) {
+    for (const area of (entry.areas as number[][] | undefined) ?? []) {
       if (!Array.isArray(area) || area.length < 4) continue;
       const [lonMin, lonMax, latMin, latMax] = area.map(Number);
       areas.push({
@@ -249,7 +260,7 @@ export function readCountries(): WorldMap["countries"] {
  * OpenXcom prefers over `data:`. Those are `[texture, lon, lat, ...]`.
  */
 export async function loadWorldMap(): Promise<WorldMap | undefined> {
-  const globe = rul?.raw?.globe;
+  const globe = rul?.raw?.globe as GlobeNode | undefined;
   if (!globe) return;
 
   let polygons = readInlinePolygons(globe.polygons);

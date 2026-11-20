@@ -13,7 +13,7 @@ import { builtinFilesFor } from "./builtin.mjs";
 
 await ensureBuilt();
 
-const { buildPackData, unpackZip, unpackRar, interpretPath } = await import(
+const { buildPackData, mergeBuiltinFiles, modDirs, unpackZip, unpackRar } = await import(
   "../.gen/packbuild.mjs"
 );
 const { default: Ruleset } = await import("../.gen/engine.mjs");
@@ -63,11 +63,7 @@ function rulesetOf(files, builtinDirs) {
  */
 export async function loadBuiltinPack() {
   const files = builtinFilesFor("xpedia");
-  const dirs = new Set(
-    Object.keys(files)
-      .map((name) => interpretPath(name)?.mod)
-      .filter(Boolean),
-  );
+  const dirs = modDirs(files);
   return new Ruleset(rulesetOf(files, dirs));
 }
 
@@ -102,19 +98,12 @@ export async function loadPack(path) {
   const builtin = builtinFilesFor(packName);
 
   // A path the pack brings itself replaces the builtin one at the same path
-  const modDirs = (files) =>
-    new Set(
-      Object.keys(files)
-        .map((n) => interpretPath(n)?.mod)
-        .filter(Boolean),
-    );
-  const packDirs = modDirs(own);
-  const builtinDirs = new Set([...modDirs(builtin)].filter((dir) => !packDirs.has(dir)));
+  const { merged, builtinDirs } = mergeBuiltinFiles(own, builtin);
 
   // The unpacked files are kept on the ruleset so a check can read a file out of
   // the pack with the same bytes an exporter would: the exporters hand
   // `collectDataFiles` a reader over exactly this map
-  const files = { ...builtin, ...own };
+  const files = merged;
   const rul = new Ruleset(rulesetOf(files, builtinDirs));
   rul.packFiles = files;
   return rul;

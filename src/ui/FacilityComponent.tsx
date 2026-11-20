@@ -70,17 +70,18 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
 
   // `MainTableRenderer` hands every renderer its value as `any`, so the shape of
   // a ruleset node is the renderer's own business
-  const buildCostItems: MainTableRenderer = ({ val: prop }) =>
-    !prop
-      ? null
-      : Object.keys(prop)
-          .sort()
-          .map((field, i) => (
-            <span key={field}>
-              {i !== 0 && <br />}
-              <Val of={field} />: {prop[field].build} / {prop[field].refund}
-            </span>
-          ));
+  const buildCostItems: MainTableRenderer = ({ val: prop }) => {
+    if (!prop) return null;
+    const costs = prop as { [item: string]: { build: number; refund: number } };
+    return Object.keys(costs)
+      .sort()
+      .map((field, i) => (
+        <span key={field}>
+          {i !== 0 && <br />}
+          <Val of={field} />: {costs[field].build} / {costs[field].refund}
+        </span>
+      ));
+  };
 
   const storageTiles: MainTableRenderer = ({ val: prop }) =>
     !prop ? null : (
@@ -107,11 +108,11 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
   const sprites: MainTableRenderer = ({ val: prop }) =>
     prop == null ? null : entry.spriteFacility ? (
       <>
-        <FacilitySprite size={size} prop={prop} bottom={true} />
-        <FacilitySprite size={size} prop={entry.spriteFacility} />
+        <FacilitySprite size={size} prop={prop as number} bottom={true} />
+        <FacilitySprite size={size} prop={entry.spriteFacility as number} />
       </>
     ) : (
-      <FacilitySprite size={size} prop={prop} />
+      <FacilitySprite size={size} prop={prop as number} />
     );
 
   return (

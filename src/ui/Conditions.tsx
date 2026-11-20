@@ -1,5 +1,5 @@
 import { sortFirstLast } from "../rul/Ruleset";
-import { LinksPage } from "./components";
+import { type AnyRef, LinksPage } from "./components";
 
 /** Conditions article body, follows old `Conditions.svelte` */
 export default function Conditions({ conditions }: { conditions: { [field: string]: unknown } }) {
@@ -8,7 +8,7 @@ export default function Conditions({ conditions }: { conditions: { [field: strin
     <>
       {sorted.all.map(([key, prop]) => (
         // The key goes through `LinksPage`, whose own `Val` translates it
-        <LinksPage key={key} links={prop} title={key} />
+        <LinksPage key={key} links={prop as AnyRef[]} title={key} />
       ))}
     </>
   );

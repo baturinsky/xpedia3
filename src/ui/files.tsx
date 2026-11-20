@@ -126,18 +126,11 @@ async function erasePack(pack: string) {
   const loaded = next ? await loadPackRul(next) : undefined;
   if (!loaded) {
     await loadBuiltinOnlyPack();
-    update({
-      slowProcessDone: true,
-      slowProcessError: false,
-      slowProcessStatus: `Deleted ${pack}. No modpacks left, showing the builtin pedia.`,
-    });
-  } else {
-    update({
-      slowProcessDone: true,
-      slowProcessError: false,
-      slowProcessStatus: `Deleted ${pack}. Now showing ${next}.`,
-    });
   }
+  // No result window after the deletion: the replacement pack (or the builtin
+  // pedia) is simply shown, without asking for an OK first. A failure above
+  // still reports itself.
+  closeStatus();
   window.dispatchEvent(new CustomEvent("xpedia:loaded"));
 }
 
@@ -238,8 +231,6 @@ function ModpackList() {
             <div
               key={pack.pack}
               className={`modpack-panel${current ? " current" : ""}${permanent ? " permanent" : ""}`}
-              title={current ? "Currently shown" : "Click to show this modpack"}
-              onClick={() => selectPack(pack.pack)}
             >
               {/* The inlined pack comes from the HTML file itself, so it has no
               delete button: there is nothing separate to remove */}
@@ -257,7 +248,14 @@ function ModpackList() {
                   ×
                 </button>
               )}
-              <div className="modpack-name">{pack.pack}</div>
+              <button
+                type="button"
+                className="modpack-name"
+                title={current ? "Currently shown" : "Click to show this modpack"}
+                onClick={() => selectPack(pack.pack)}
+              >
+                {pack.pack}
+              </button>
               <div className="modpack-size">{permanent ? "inlined" : asMB(storedSize(pack))}</div>
               {current && <div className="modpack-current">currently shown</div>}
             </div>
@@ -449,7 +447,10 @@ function UrlPackLoader() {
 
   return (
     <div className="modpack-url">
-      <label title="Fetch a modpack archive from this address and import it as if it had been dropped on the page">
+      <label
+        htmlFor="modpack-url-input"
+        title="Fetch a modpack archive from this address and import it as if it had been dropped on the page"
+      >
         load pack from URL
       </label>
       {examples.length > 0 && (
@@ -468,6 +469,7 @@ function UrlPackLoader() {
         </select>
       )}
       <input
+        id="modpack-url-input"
         type="text"
         value={url}
         spellCheck={false}
@@ -622,6 +624,7 @@ export function ConfirmDialog() {
           <button type="button" className="confirm-ok" onClick={acceptConfirm}>
             OK
           </button>
+          {/* biome-ignore lint/a11y/noAutofocus: a modal must take focus when it opens; focus lands on the safe choice so a destructive action is not one stray Enter away */}
           <button type="button" className="confirm-cancel" autoFocus onClick={cancelConfirm}>
             Cancel
           </button>

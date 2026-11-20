@@ -3,7 +3,7 @@ import { ValueRange } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { MusicRef, SoundRef } from "./Audio";
-import { Divider, fromAnyRef, Img } from "./components";
+import { type AnyRef, Divider, fromAnyRef, Img } from "./components";
 
 /** Polymorphic value view */
 
@@ -15,8 +15,8 @@ export function formatNumber(val: unknown) {
 }
 
 export const Val = ({
-  of: val = null as any,
-  children = null as any,
+  of: val = null as unknown,
+  children = null as unknown,
   /**obs sprite */
   obs = null as string | null,
   /** Maximum depth */
@@ -40,7 +40,7 @@ export const Val = ({
   postfix = undefined as string | undefined,
 }) => {
   if (!rul) {
-    return val;
+    return val as ReactNode;
   }
 
   //Too deep
@@ -63,14 +63,14 @@ export const Val = ({
   }
 
   if (obs) {
-    return <Img src={rul.obsSprite(obs, val)} alt={val} />;
+    return <Img src={rul.obsSprite(obs, Number(val))} alt={String(val)} />;
   }
 
   // Map markers are cells of the `GlobeMarkers` sheet, see Ruleset.globeMarker.
   // Checked before numbers, markers themselves are numeric indices. A pack
   // without the sheet, or a number past its end, keeps showing the number.
   if (field && ["marker", "markerCrash", "markerLand", "markerIcon"].includes(field)) {
-    const marker = rul.globeMarker(val);
+    const marker = rul.globeMarker(Number(val));
     // The sprite is drawn twice the size, as the old globe view did
     if (marker) return <Img src={marker.path} frame={marker} scale={2} alt={`marker ${val}`} />;
   }
@@ -114,7 +114,7 @@ export const Val = ({
   }
 
   // It should be an entry, passed by direct link or id. Converting it to id
-  const id = fromAnyRef(val);
+  const id = fromAnyRef(val as AnyRef);
 
   function tr1(text: string) {
     return (
@@ -136,8 +136,8 @@ export const Val = ({
     // different entries on one article, so the reference is real and stays, but
     // the link would only reload this same page
     if (state.article && state.article.id === id)
-      return <span className="self-ref">{tr1(children ?? id)}</span>;
-    return <a href={`##${id}`}>{tr1(children ?? id)}</a>;
+      return <span className="self-ref">{tr1((children ?? id) as string)}</span>;
+    return <a href={`##${id}`}>{tr1((children ?? id) as string)}</a>;
   }
 
   if (id && rul.hasSprite(id)) {
@@ -261,7 +261,7 @@ interface LinksListProps {
    * array, a set, or an object whose keys are the references. The value itself is
    * inspected to decide how to draw it, so it has no type beyond "some JSON node".
    */
-  items: any;
+  items: unknown;
   cols?: number;
   vertical?: boolean;
   numberTable?: boolean;
@@ -291,25 +291,29 @@ const LinksList: FC<LinksListProps> = ({
 
   const items = initialItems instanceof Set ? [...initialItems] : initialItems;
   const isArray = Array.isArray(items);
-  let keys: any[] = isArray ? items : Object.keys(items);
+  const record = items as { [key: string]: unknown };
+  let keys: unknown[] = isArray ? (items as unknown[]) : Object.keys(record);
 
   // Long lists are sorted unless the caller says otherwise. `keys` holds either
   // the values themselves or an object's keys, and the sorter returns their order
   // as a new list, so it replaces them rather than being called on each use.
-  if (initialSorted ?? keys.length > 9) keys = rul.sortStringsAndNumbers(keys);
+  if (initialSorted ?? keys.length > 9) keys = rul.sortStringsAndNumbers(keys as string[]);
 
   if (cols) {
     return (
       <div className={`cols ${className}`} style={{ columns: cols }}>
         {keys.map((field) => (
-          <div key={field}>
+          <div key={field as string}>
             {state.article && state.article.id === field ? (
               <span className="self-ref">
-                <Tr text={field} />
+                <Tr text={field as string} />
               </span>
             ) : (
-              <a href={`##${field}`} className={rul.article(field) ? undefined : "dead"}>
-                <Tr text={field} />
+              <a
+                href={`##${field as string}`}
+                className={rul.article(field as string) ? undefined : "dead"}
+              >
+                <Tr text={field as string} />
               </a>
             )}
           </div>
@@ -322,14 +326,14 @@ const LinksList: FC<LinksListProps> = ({
     return (
       <table className={`number-table ${className}`}>
         <tbody>
-          {rul.sortStringsAndNumbers(Object.keys(items)).map((field) => (
+          {rul.sortStringsAndNumbers(Object.keys(record)).map((field) => (
             <tr key={field}>
               <td>
                 <Val of={field} />
               </td>
               <td>
                 <em>
-                  <Val of={items[field]} />
+                  <Val of={record[field]} />
                 </em>
               </td>
             </tr>
@@ -340,14 +344,14 @@ const LinksList: FC<LinksListProps> = ({
   }
 
   // Objects holding further objects need one block per key to stay readable
-  if (!isArray && Object.values(items).some((a) => typeof a === "object")) {
+  if (!isArray && Object.values(record).some((a) => typeof a === "object")) {
     return (
       <>
         {keys.map((subfield, j) => (
-          <div key={subfield} className={j > 0 ? "top-border" : undefined}>
+          <div key={subfield as string} className={j > 0 ? "top-border" : undefined}>
             <Val of={subfield} depth={depth - 1} /> :
             <div className="sublist">
-              <Val of={items[subfield]} depth={depth - 1} />
+              <Val of={record[subfield as string]} depth={depth - 1} />
             </div>
           </div>
         ))}
@@ -364,9 +368,9 @@ const LinksList: FC<LinksListProps> = ({
               ? Array.isArray(field)
                 ? field
                 : [field]
-              : [field, items[field]];
+              : [field, record[field as string]];
             return (
-              <tr key={isArray ? String(field) : field}>
+              <tr key={String(field)}>
                 {cells.map((v, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: the cells are the fixed columns of one table row; their values are display text and can repeat within a row
                   <td key={i}>
@@ -386,10 +390,10 @@ const LinksList: FC<LinksListProps> = ({
     return (
       <span className={`links-list ${className}`}>
         {keys.map((field, i) => (
-          <Fragment key={field}>
+          <Fragment key={field as string}>
             {i !== 0 && <Divider vertical={vertical} />}
             <Val of={field} depth={depth - 1} />{" "}
-            <Val of={items[field]} field={field} depth={depth - 1} />
+            <Val of={record[field as string]} field={field as string} depth={depth - 1} />
           </Fragment>
         ))}
       </span>
@@ -408,7 +412,10 @@ const LinksList: FC<LinksListProps> = ({
           // biome-ignore lint/suspicious/noArrayIndexKey: a ruleset reference list; items carry no id and the same reference can appear twice
           <Fragment key={i}>
             {i !== 0 && <Divider vertical={vertical} />}
-            <Val of={item?.type || item} depth={depth - 1} />
+            <Val
+              of={(item as { type?: unknown } | null | undefined)?.type || item}
+              depth={depth - 1}
+            />
           </Fragment>
         ),
       )}

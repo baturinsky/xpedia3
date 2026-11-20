@@ -39,9 +39,8 @@
       "preset": "recommended",
       // Baseline demotions: these fire on existing code but each fix needs a
       // design/behaviour review, so they warn instead of erroring until done.
-      // - a11y: pointer-driven map/diagram elements intentionally take mouse
-      //   events without keyboard equivalents, and buttons have no explicit
-      //   `type` because nothing is ever submitted as a form.
+      // a11y is at zero: the remaining pointer-only sites (map pan, drag-sort
+      // headers, modal backdrops) carry per-site suppressions instead.
       // - useExhaustiveDependencies: changing a dep list re-renders, so every
       //   site must be checked against the store it reads.
       // - noArrayIndexKey: lists here are static (articles, table rows);
@@ -50,7 +49,9 @@
       //   idiom (`while ((m = re.exec(...)))`).
       // - noDescendingSpecificity: the stylesheet's cascade order is load
       //   bearing; reordering selectors needs a visual check.
-      "a11y": "warn",
+      // The whole a11y group is set to `error` rather than left to the
+      // recommended preset, which does not enable every a11y rule.
+      "a11y": "error",
       "correctness": {
         "useExhaustiveDependencies": "warn"
       },

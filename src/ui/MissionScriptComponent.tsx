@@ -262,7 +262,7 @@ function TriggerRows({ entry }: { entry: MissionScript }) {
           return (
             <div key={group.field}>
               <Tr text={group.key} />{" "}
-              {Object.entries(wanted).map(([id, value], i) => (
+              {Object.entries(wanted as { [id: string]: unknown }).map(([id, value], i) => (
                 <span key={id}>
                   {i > 0 && ", "}
                   <Val of={id} />

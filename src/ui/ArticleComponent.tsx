@@ -231,16 +231,17 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
         );
       },
       slots: ({ val }) => {
-        if (!val?.length) return null;
-        const width = Math.max(...val.map((s: [number, number]) => s[0])) + 1;
-        const height = Math.max(...val.map((s: [number, number]) => s[1])) + 1;
+        const slots = val as [number, number][];
+        if (!slots?.length) return null;
+        const width = Math.max(...slots.map((s) => s[0])) + 1;
+        const height = Math.max(...slots.map((s) => s[1])) + 1;
         return (
           <tr>
             <td className="row-name">
               <Val of="slots" capital={true} />
             </td>
             <td>
-              {val.length} <Tr text="xpediaSlotCells" postfix={` (${width} x ${height})`} />
+              {slots.length} <Tr text="xpediaSlotCells" postfix={` (${width} x ${height})`} />
             </td>
           </tr>
         );
@@ -868,7 +869,11 @@ export function ArticleComponent() {
             same place: above the columns, full width. When the page is also
             another entry type the map follows that entry's panels instead, see
             `laterMaps`. */}
-          {regionMap && !mapLast}
+          {/* The same conditional shape as `laterMaps`: the map is the value
+            shown when the condition holds, so it is repeated after the
+            `&&` — `{regionMap && !mapLast}` alone would render the boolean
+            `!mapLast`, never the picture. */}
+          {regionMap && !mapLast && regionMap}
           {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
           {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}

@@ -278,6 +278,7 @@ export function Img(props: {
   const size = natural?.path === path ? natural : undefined;
   const frame = props.frame;
   const element = (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: `onLoad`/`onError` measure and log the bitmap, they are not user interaction
     <img
       className={`x-image${props.className ? ` ${props.className}` : ""}`}
       src={dataImage}
@@ -435,7 +436,7 @@ export const Divider = (props: { vertical?: boolean }) =>
 export const CogAnimation = (props: { size?: number }) => {
   const size = props.size ?? 100;
   return (
-    <svg style={{ width: `${size}px`, height: `${size}px` }}>
+    <svg aria-hidden="true" style={{ width: `${size}px`, height: `${size}px` }}>
       <g transform={`scale(${size / 100}) translate(50 50)`} id="g4">
         <g id="g6" style={{ fill: `#64ccbc`, fillOpacity: 1 }}>
           <animateTransform
@@ -522,7 +523,7 @@ export function RecoveryTable(props: { recovery?: { [stat: string]: BonusMap } }
             <Val of={field} />
           </td>
           <td>
-            <SpecialBonus bonus={bonus} />
+            <SpecialBonus bonus={bonus as BonusMap} />
           </td>
         </tr>
       ))}
@@ -859,7 +860,7 @@ export type SectionRow = {
   /** A commendation's value as a stage range, see `Entry.range` */
   cellValue?(field: string): unknown;
   /** Columns are read by name, whichever the ruleset declared */
-  [field: string]: any;
+  [field: string]: unknown;
 };
 
 export interface SectionTableProps {
@@ -1015,6 +1016,9 @@ export function SectionTable(props: SectionTableProps) {
                   aria-label={rul.tr(field) ?? undefined}
                   onChange={() => toggleField(field)}
                 />
+                {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: the checkbox beside it is the keyboard control for the same toggle; a tab stop and key handler on every field name would slow the section tables down, which are built in batches for exactly that reason */}
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: the checkbox beside it already takes keyboard input for the same toggle */}
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: the name is a label for the checkbox, not a control of its own */}
                 <span
                   className={isLink ? "extra-field-name" : "extra-field-name clickable"}
                   onClick={isLink ? undefined : () => toggleField(field)}
@@ -1076,6 +1080,8 @@ export function SectionTable(props: SectionTableProps) {
             <thead>
               <tr>
                 {shownFields.map((field) => (
+                  // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drag-to-reorder and click-to-sort header; the field checkboxes above are the keyboard control for which columns show
+                  // biome-ignore lint/a11y/useKeyWithClickEvents: drag-to-reorder is a pointer gesture by nature; sorting is also reachable by clicking, and the checkboxes are the keyboard path for the columns
                   <td
                     key={field}
                     id={`thead ${field}`}

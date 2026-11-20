@@ -1,7 +1,7 @@
 import { Fragment, type JSX, type ReactNode } from "react";
 import { rul, type SortFirstLastOptions, sortFirstLast } from "../rul/Ruleset";
 import { isFlat } from "../util";
-import { fromAnyRef } from "./components";
+import { type AnyRef, fromAnyRef } from "./components";
 import { Val } from "./Val";
 
 /**
@@ -11,14 +11,14 @@ import { Val } from "./Val";
  * a whole nested node. A renderer is picked by field name, so it is matched to
  * the value at runtime and cannot be typed by it.
  */
-export type MainTableRenderer = (props: { key: string; val: any; row: number }) => ReactNode;
+export type MainTableRenderer = (props: { key: string; val: unknown; row: number }) => ReactNode;
 
 interface MainTableProps {
   /** The node to draw a row per field of; `Entry`, or a plain ruleset node */
-  of?: any;
+  of?: unknown;
   /** Pre-ordered `[key, value]` rows, rendered instead of sorting `of`. Used
    *  when a caller inserts rows of its own between the fields. */
-  pairs?: [string, any][];
+  pairs?: [string, unknown][];
   sort?: SortFirstLastOptions;
   title?: string;
   subtitle?: string;
@@ -54,24 +54,28 @@ const MainTable = ({
     //return <div>No entry in main table</div>;
   }
 
-  if (of != null && Object.keys(of).length === 1 && "0" in of) {
-    of = of[0];
+  if (of != null && typeof of === "object" && Object.keys(of).length === 1 && "0" in of) {
+    of = (of as { [key: string]: unknown })[0];
   }
 
-  const sorted = pairs != null ? { all: pairs } : sortFirstLast(of, sort);
+  const sorted = pairs != null ? { all: pairs } : sortFirstLast(of as object, sort);
 
-  const subVal = (key: string | undefined, value: any) => {
+  const subVal = (key: string | undefined, value: unknown) => {
     // A field may hold a whole ruleset node rather than a plain value, and some
     // of those are references: `refNode` carries the inherited armour
     // definition but must still be drawn as a link to the node it came from.
     // `Val` already does exactly that, so only a node that is not a reference
     // becomes a table of its own.
-    const ref = fromAnyRef(value);
+    const ref = fromAnyRef(value as AnyRef);
     const isRef = typeof value === "object" && ref != null && rul?.article(ref) != null;
     return value != null && typeof value === "object" && !isFlat(value) && !isRef ? (
       <MainTable of={value} />
     ) : (
-      <Val of={value} field={key} collection={of?.collection} />
+      <Val
+        of={value}
+        field={key}
+        collection={(of as { collection?: string } | undefined)?.collection}
+      />
     );
   };
 
@@ -98,7 +102,7 @@ const MainTable = ({
       )}
       <tbody>
         {before}
-        {sorted.all.map(([key, value]: [string, any], row) => {
+        {sorted.all.map(([key, value]: [string, unknown], row) => {
           // A field that draws its own rows, subheader included. Checked first
           // so a caller can name an internal row such as `_details`.
           if (key in rows) {
@@ -158,7 +162,7 @@ const MainTable = ({
           }
 
           // Default fields - only render if prop has value
-          if (value != null && !(value.length === 0)) {
+          if (value != null && (value as { length?: unknown })?.length !== 0) {
             return (
               <tr key={key}>
                 <td className="row-name">

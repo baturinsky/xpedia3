@@ -198,6 +198,9 @@ export function AudioDialog() {
   };
 
   return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: backdrop click only; keyboard users close with Escape or the focused Close button, and a tab stop on the whole screen would trap focus outside the dialog
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click only; the keyboard equivalent is Escape, handled above
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click only; it is not a control, so it must not be focusable
     <div
       className="full-screen-centered status-overlay"
       onClick={(e) => {
@@ -209,9 +212,14 @@ export function AudioDialog() {
         {target.id && <div className="audio-dialog-id">{target.id}</div>}
 
         <div className="audio-dialog-path">
-          <code onClick={copy} title={rul.tr("xpediaAudioCopyTip") ?? undefined}>
+          <button
+            type="button"
+            className="audio-dialog-path-text"
+            onClick={copy}
+            title={rul.tr("xpediaAudioCopyTip") ?? undefined}
+          >
             {path}
-          </code>
+          </button>
           <button type="button" onClick={copy}>
             <Tr text={copied ? "xpediaAudioCopied" : "xpediaAudioCopy"} />
           </button>
@@ -220,6 +228,7 @@ export function AudioDialog() {
         {/* `metadata` rather than `none`: the player has to make the request to
           know whether the file is there at all, and that answer is the whole
           point of the window. It reads only the header, not the audio. */}
+        {/* biome-ignore lint/a11y/useMediaCaption: game audio files carry no caption track; the dialog states the file's id and path as text instead */}
         <audio
           controls
           preload="metadata"
@@ -251,6 +260,7 @@ export function AudioDialog() {
         </div>
 
         <div className="audio-dialog-buttons">
+          {/* biome-ignore lint/a11y/noAutofocus: a modal must take focus when it opens; this is its only action, so focus lands on the Close button rather than back on the page behind it */}
           <button type="button" autoFocus onClick={() => setTarget(undefined)}>
             <Tr text="xpediaClose" />
           </button>

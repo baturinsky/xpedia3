@@ -7,7 +7,7 @@ import MainTable from "./MainTable";
 const CraftWeaponComponent = ({ entry }: { entry: CraftWeapon }) => (
   <>
     <MainTable of={entry} title="Weapon" sort={{ exclude: ["type"] }} />
-    {entry.launcher && <ItemComponent entry={rul.items[entry.launcher]} />}
+    {entry.launcher && <ItemComponent entry={rul.items[entry.launcher as string]} />}
   </>
 );
 

@@ -259,6 +259,8 @@ function ExportDialogBody() {
   }
 
   return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: backdrop mouse-down only; keyboard users close with the dialog's own buttons, and a tab stop on the whole screen would trap focus outside the dialog
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop mouse-down only; it is not a control, so it must not be focusable
     <div
       className="full-screen-centered status-overlay"
       onMouseDown={(e) => {

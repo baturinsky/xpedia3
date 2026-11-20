@@ -98,12 +98,7 @@ export class Sprite {
   /** Full archive path, matching the name the image was stored under */
   get path() {
     if (this._path == null) return undefined;
-    const rel = this._path.replace(/^[/\\]+/, "");
-    // Resolve to whatever file the ruleset actually provides: an override in a
-    // later mod wins, and `common/` fills in artwork the mod itself omits
-    const resolved = rul?.resourceMap?.[rel.toLowerCase()];
-    if (resolved) return resolved;
-    return this.modDir ? `${this.modDir}/${rel}` : rel;
+    return this.resolveFramePath(this._path);
   }
 
   async data() {

@@ -14,7 +14,7 @@ import { type AppShell, type ExportFile, exportedPackName, zipFiles } from "./ex
 import {
   buildPackData,
   filterBuiltinMods,
-  interpretPath,
+  mergeBuiltinFiles,
   unpackBuiltinMods,
   unpackRar,
   unpackZip,
@@ -176,8 +176,6 @@ function parseArgs(argv: string[]): Options | "help" {
     } else if (arg.startsWith("-") && arg !== "-") throw new UsageError(`Unknown option: ${arg}`);
     else positional.push(arg);
   }
-
-  if (port != null && serve === undefined) throw new UsageError("--port only applies to --serve");
 
   if (serve !== undefined) {
     // The folder is normally named by `--serve=`, but a single positional is
@@ -408,26 +406,11 @@ async function loadPack(file: string, report: ReturnType<typeof makeReporter>) {
 
   const builtinFiles = filterBuiltinMods(unpackBuiltinMods(builtinModsPayload), packName);
 
-  // A pack that ships its own copy of a builtin path keeps it as its own data
-  const packDirs = modDirsOf(files);
-  const builtinDirs = new Set([...modDirsOf(builtinFiles)].filter((dir) => !packDirs.has(dir)));
-
-  const merged: { [name: string]: Uint8Array } = { ...builtinFiles };
-  for (const [name, data] of Object.entries(files)) merged[name] = data;
+  const { merged, builtinDirs } = mergeBuiltinFiles(files, builtinFiles);
 
   report.info(`Building the ruleset of ${packName}`);
   const built = buildPackData(merged, builtinDirs);
   return { packName, files, builtinFiles, merged, ...built };
-}
-
-/** The mod folders a set of archive files belongs to, see `interpretPath` */
-function modDirsOf(files: { [name: string]: Uint8Array }) {
-  const dirs = new Set<string>();
-  for (const name of Object.keys(files)) {
-    const mod = interpretPath(name)?.mod;
-    if (mod) dirs.add(mod);
-  }
-  return dirs;
 }
 
 /** One planned output: where it goes, relative to the target directory */

@@ -700,9 +700,10 @@ function RegionOverlay({
 
   return (
     <g className={`region-overlay${overlay.hot ? " region-hot" : ""}`} style={style}>
-      {overlay.boxes.map((box) => (
+      {overlay.boxes.map((box, i) => (
         <Repeated
-          key={JSON.stringify(box)}
+          // biome-ignore lint/suspicious/noArrayIndexKey: a pack may list the same outline box twice; the index keeps those two distinct, and the boxes never reorder
+          key={`${i}-${JSON.stringify(box)}`}
           points={box}
           render={(points, shift) => (
             <polygon
@@ -725,10 +726,13 @@ function RegionOverlay({
         // again above everything, and marking it in both places would draw it twice
         const className = `region-zone${visited ? " region-zone-visited" : ""}`;
         const extra = visited ? zoneStyle(i) : undefined;
-        return zone.map((box) =>
+        // The key carries both indices because a pack may list the same box in
+        // two zones (or twice in one): geometry alone is not unique here.
+        return zone.map((box, j) =>
           overlay.zoneDots[i] ? (
             <Repeated
-              key={JSON.stringify(box)}
+              // biome-ignore lint/suspicious/noArrayIndexKey: both indices name the box's place in static ruleset data; the geometry is the identity, the indices only break the tie when a pack repeats a box
+              key={`${i}-${j}-${JSON.stringify(box)}`}
               points={box}
               render={(_points, shift) => (
                 <circle
@@ -743,7 +747,8 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={JSON.stringify(box)}
+              // biome-ignore lint/suspicious/noArrayIndexKey: both indices name the box's place in static ruleset data; the geometry is the identity, the indices only break the tie when a pack repeats a box
+              key={`${i}-${j}-${JSON.stringify(box)}`}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -760,12 +765,15 @@ function RegionOverlay({
 
       {/* The highlighted zone, drawn again above the others so its outline is not
         hidden under the many boxes of other zones. This is the answer to "where
-        can this waypoint actually be", so it has to be the last thing drawn. */}
+        can this waypoint actually be", so it has to be the last thing drawn.
+        The `hot-` prefix keeps these keys apart from the base draw above, which
+        passes the same box of the same zone through the same parent. */}
       {hotZone != null &&
-        (overlay.zoneBoxes[hotZone] ?? []).map((box) =>
+        (overlay.zoneBoxes[hotZone] ?? []).map((box, j) =>
           overlay.zoneDots[hotZone] ? (
             <Repeated
-              key={JSON.stringify(box)}
+              // biome-ignore lint/suspicious/noArrayIndexKey: the box index names the box's place in static ruleset data; it only breaks the tie when a pack repeats a box
+              key={`hot-${j}-${JSON.stringify(box)}`}
               points={box}
               render={(_points, shift) => (
                 <circle
@@ -780,7 +788,8 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={JSON.stringify(box)}
+              // biome-ignore lint/suspicious/noArrayIndexKey: the box index names the box's place in static ruleset data; it only breaks the tie when a pack repeats a box
+              key={`hot-${j}-${JSON.stringify(box)}`}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -1193,6 +1202,8 @@ function MapPicture({
   }
 
   return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: pointer pan/zoom gestures on a diagram; the same information is in the article's tables, and keyboard panning would need a new control surface, not a handler
+    // biome-ignore lint/a11y/useSemanticElements: `group` is the correct role for a labelled map diagram; `fieldset` would change its meaning
     <svg
       ref={svgRef}
       className={`world-map${panning ? " panning" : ""}${view.zoom > 1 ? " zoomed" : ""}`}
@@ -1719,9 +1730,10 @@ export function CountryMapArticle({ id }: { id: string }) {
           )}
         />
       ))}
-      {country.areas.map((box) => (
+      {country.areas.map((box, i) => (
         <Repeated
-          key={JSON.stringify(box)}
+          // biome-ignore lint/suspicious/noArrayIndexKey: a pack may list the same outline box twice; the index keeps those two distinct, and the boxes never reorder
+          key={`${i}-${JSON.stringify(box)}`}
           points={box}
           render={(points, shift) => (
             <polygon

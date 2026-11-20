@@ -25,7 +25,7 @@ import {
  * object with an id; the index signature is what keeps an unknown field legal
  * here rather than an error.
  */
-export type RawEntry = { id?: string; [field: string]: any };
+export type RawEntry = { id?: string; [field: string]: unknown };
 
 /**
  * The field a collection names its blocks with, for the collections that do not
@@ -242,7 +242,7 @@ export class Entry {
    * For a value that is unique across the whole pack, use `globalId`.
    */
   declare uid: string;
-  [id: string]: any;
+  [id: string]: unknown;
 
   constructor(collection: string) {
     Object.defineProperty(this, "collection", {
@@ -266,7 +266,7 @@ export class Entry {
     // while the mod rules were merged. It is settled before the copy because the
     // copy must not be able to move it: several collections name their blocks
     // `type`, and copying that field runs `set type`.
-    const uid = raw?.uid ?? entryKey(this.collection, raw);
+    const uid = (raw?.uid as string | undefined) ?? entryKey(this.collection, raw);
     raw = JSON.parse(JSON.stringify(raw));
     for (const k in raw) this[k] = raw[k];
 
@@ -436,8 +436,12 @@ export class EventEntry extends Entry {
 export class EventScript extends Entry {
   _relatedEvents: string[];
   _relatedResearch: string[];
-  /** Weapon/other id -> weight, as declared by the script */
-  eventWeights?: { [id: string]: number } | any[];
+  /**
+   * Month -> event id -> weight, as declared by the script: the game's
+   * `WeightedOptions` per month (`RuleEventScript.cpp`), with the list form
+   * some packs use instead of the map.
+   */
+  eventWeights?: { [month: string]: { [id: string]: number } } | { [id: string]: number }[];
   oneTimeRandomEvents?: { [id: string]: number };
   researchTriggers?: { [id: string]: boolean };
   xcomBaseInCountryTriggers?: { [country: string]: boolean };
@@ -464,7 +468,7 @@ export class EventScript extends Entry {
 function totalSellCost(items: { [key: string]: number } = {}) {
   let c = 0;
   for (const k in items) {
-    c += items[k] * (rul.items[k] || rul.crafts[k])?.costSell || 0;
+    c += items[k] * Number((rul.items[k] || rul.crafts[k])?.costSell) || 0;
   }
   return c || 0;
 }
@@ -472,7 +476,7 @@ function totalSellCost(items: { [key: string]: number } = {}) {
 function totalSize(items: { [key: string]: number } = {}) {
   let c = 0;
   for (const k in items) {
-    c += items[k] * (rul.items[k] || rul.crafts[k])?.size || 0;
+    c += items[k] * Number((rul.items[k] || rul.crafts[k])?.size) || 0;
   }
   return c;
 }
@@ -486,6 +490,10 @@ export class Manufacture extends Entry {
   randomProducedItems?: [number, { [key: string]: number }][];
   chanceSum?: number;
   cost: number = 0;
+  time?: number;
+  profit?: number;
+  profitPerHour?: number;
+  sizeChange?: number;
 
   constructor(raw: RawEntry) {
     super("manufacture");
@@ -494,7 +502,7 @@ export class Manufacture extends Entry {
     this.cost = this.cost || 0;
 
     if (this.category) {
-      rul.addCategory(this.category, this.uid, rul.manufactureCategories);
+      rul.addCategory(this.category as string, this.uid, rul.manufactureCategories);
     }
 
     if (this.requires) {
@@ -541,7 +549,7 @@ export class Manufacture extends Entry {
     this.profit = totalSellCost(this.producedItems) - totalSellCost(this.requiredItems) - this.cost;
     if (Number.isNaN(this.profit))
       console.warn(`${this.uid}: profit is NaN, one of its items has no sell cost`);
-    this.profitPerHour = this.profit / this.time;
+    this.profitPerHour = this.profit / Number(this.time);
     this.sizeChange = totalSize(this.producedItems) - totalSize(this.requiredItems);
 
     backLink(this.uid, Object.keys(this.totalProducedItems), rul.items, "manufacture");
@@ -977,10 +985,12 @@ const stageInternals = ["id", "name", "collection", "stats", "recovery"];
 
 /** The value one stage bonus gives for a column, or undefined when it gives none */
 function stageValue(bonus: Entry, n: string) {
-  if (n.substring(0, 9) === "recovery.") return bonus.recovery?.[n.substring(9)]?.flatOne;
+  if (n.substring(0, 9) === "recovery.")
+    return (bonus.recovery as { [stat: string]: BonusMap } | undefined)?.[n.substring(9)]?.flatOne;
   if (stageInternals.includes(n)) return undefined;
   // A stat the stage omits is not the same as a stat it sets to zero
-  if (bonus.stats && n in bonus.stats) return bonus.stats[n];
+  const stats = bonus.stats as { [stat: string]: unknown } | undefined;
+  if (stats && n in stats) return stats[n];
   return bonus[n];
 }
 
@@ -1162,7 +1172,7 @@ export class Commendation extends Entry {
             } else if (!deed.element) {
               backLink2(
                 this,
-                rul.battleTypes[deed.type].items ?? [],
+                (rul.battleTypes[deed.type].items as string[] | undefined) ?? [],
                 rul.items,
                 "commendations",
                 "items",
@@ -1196,9 +1206,11 @@ export class Commendation extends Entry {
     // empty, as they did before ranges existed.
     const fb = this.lastMeaningfulBonus;
     if (fb && n !== "id" && !stageInternals.includes(n)) {
-      if (statsList.includes(n) || n === "mana") return fb.stats ? fb.stats[n] || 0 : 0;
-      if (fb.recovery && n.substring(0, 9) === "recovery.") {
-        return fb.recovery[n.substring(9)]?.flatOne;
+      const stats = fb.stats as { [stat: string]: unknown } | undefined;
+      if (statsList.includes(n) || n === "mana") return stats ? stats[n] || 0 : 0;
+      const recovery = fb.recovery as { [stat: string]: BonusMap } | undefined;
+      if (recovery && n.substring(0, 9) === "recovery.") {
+        return recovery[n.substring(9)]?.flatOne;
       }
       if (fb[n] != null) return fb[n];
     }
@@ -1250,6 +1262,7 @@ export class AlienDeployment extends Entry {
 
 export class CraftWeapon extends Entry {
   weaponType: string = "";
+  launcher?: string;
   requiresBuyBaseFunc?: string[];
 
   constructor(raw: RawEntry) {
@@ -1267,6 +1280,7 @@ export class Craft extends Entry {
   weaponTypes?: string[][];
   allWeaponTypes?: string[];
   sprite?: number;
+  marker?: number;
 
   constructor(raw: RawEntry) {
     super("crafts");
@@ -1292,6 +1306,8 @@ export class Craft extends Entry {
 export class Facility extends Entry {
   aliens?: number;
   prisonType?: number;
+  spriteFacility?: number;
+  size?: number;
   provideBaseFunc?: string[];
   requiresBaseFunc?: string[];
   forbiddenBaseFunc?: string[];
@@ -1372,7 +1388,7 @@ export class Unit extends Entry {
       }
     }
 
-    const armor = rul.armors[raw.armor];
+    const armor = rul.armors[raw.armor as string];
     if (armor) {
       armor.users = armor.users || [];
       armor.users.push(this.type);
@@ -1400,6 +1416,8 @@ export class Unit extends Entry {
 const defaultRange: { [mode: string]: number } = { snap: 15, auto: 7, aimed: 200 };
 
 export class Attack {
+  /** Columns are read by name, like `Entry`'s index signature */
+  [id: string]: unknown;
   possible = false;
   cost?: { time: number; energy: number };
   flatTime = false;
@@ -1450,13 +1468,13 @@ export class Attack {
 
     const confId = `conf${this.name}`;
     if (confId in item) {
-      const conf = item[confId];
-      if (conf.name) this.name = rul.str(conf.name);
-      if (conf.shots) this.shots = conf.shots;
+      const conf = item[confId] as { name?: string; shots?: number } | undefined;
+      if (conf?.name) this.name = rul.str(conf.name);
+      if (conf?.shots) this.shots = conf.shots;
       delete item[confId];
     }
 
-    if (item[`${mode}AttackName`]) this.name = rul.str(item[`${mode}AttackName`]);
+    if (item[`${mode}AttackName`]) this.name = rul.str(item[`${mode}AttackName`] as string);
 
     if (mode === "melee") this.alter = item.meleeAlter;
 
@@ -1479,16 +1497,19 @@ export class Attack {
       if (((mode === "melee" && item.battleType === 3) || mode !== "melee") && item.flatRate)
         this.flatTime = item.flatRate;
 
-      if (item[`flat${capMode}`] && item[`flat${capMode}`].time) this.flatTime = true;
+      const flat = item[`flat${capMode}`] as { time?: unknown } | undefined;
+      if (flat?.time) this.flatTime = true;
 
       if (capMode === "Psi") capMode = "Use";
 
-      this.cost = this.cost = item[`cost${capMode}`] || {
-        time: item[`tu${capMode}`],
+      this.cost = this.cost = (item[`cost${capMode}`] as
+        | { time: number; energy: number }
+        | undefined) || {
+        time: item[`tu${capMode}`] as number,
         energy: 0,
       };
 
-      this.accuracy = item[`accuracy${capMode}`] || 100;
+      this.accuracy = (item[`accuracy${capMode}`] as number | undefined) || 100;
 
       let accuracyMultiplier =
         mode === "throw"
@@ -1530,9 +1551,9 @@ export class Attack {
     }
 
     let range: number =
-      item[`${mode}Range`] ||
-      item[`${mode.substr(0, 3)}Range`] ||
-      this.alter?.range ||
+      (item[`${mode}Range`] as number | undefined) ||
+      (item[`${mode.substr(0, 3)}Range`] as number | undefined) ||
+      (this.alter?.range as number | undefined) ||
       defaultRange[mode];
     this.range = range;
 
@@ -1701,7 +1722,7 @@ export class Armor extends Entry {
     }
 
     if (n === "allowedIn") {
-      return this.allowedIn?.includes(v as string);
+      return (this.allowedIn as string[] | undefined)?.includes(v as string);
     }
 
     // The identity column is not a field of the armor: `super` answers it with
@@ -1770,6 +1791,11 @@ export class Item extends Entry {
   damageTypes?: number[];
   psiVision?: number;
   invSize: string;
+  weight?: number;
+  clipSize?: number;
+  kneelBonus?: number;
+  turretType?: number;
+  costPrime?: { time: number; [resource: string]: number };
 
   get sprite() {
     if (this.bigSprite) {
@@ -1801,7 +1827,7 @@ export class Item extends Entry {
       if (
         typeof raw[k] === "string" ||
         typeof raw[k] === "number" ||
-        (raw.damageAlter && raw.damageAlter[k] != null)
+        (raw.damageAlter as { [key: string]: unknown } | undefined)?.[k] != null
       ) {
         rul.itemFields.add(k);
       }

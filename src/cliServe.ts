@@ -21,7 +21,12 @@ import {
   exportedPackName,
   zipFiles,
 } from "./exportCore";
-import { buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods } from "./packBuild";
+import {
+  buildPackData,
+  filterBuiltinMods,
+  mergeBuiltinFiles,
+  unpackBuiltinMods,
+} from "./packBuild";
 import { defaultLanguage, type ProcessedRuleset } from "./rul/Ruleset";
 import { gameRelativePath } from "./util";
 
@@ -288,19 +293,7 @@ function makeBuilder(options: ServeOptions) {
 
     // A pack that ships its own copy of a builtin path keeps it as its own data,
     // exactly as `unpackData` and the archive export decide it
-    const packDirs = new Set<string>();
-    for (const name of Object.keys(files)) {
-      const mod = interpretPath(name)?.mod;
-      if (mod) packDirs.add(mod);
-    }
-    const builtinDirs = new Set<string>();
-    for (const name of Object.keys(builtin)) {
-      const mod = interpretPath(name)?.mod;
-      if (mod && !packDirs.has(mod)) builtinDirs.add(mod);
-    }
-
-    const merged: { [name: string]: Uint8Array } = { ...builtin };
-    for (const [name, data] of Object.entries(files)) merged[name] = data;
+    const { merged, builtinDirs } = mergeBuiltinFiles(files, builtin);
 
     // Nothing is stored, so the pack's own half is not asked for
     const { processed } = buildPackData(merged, builtinDirs, false);

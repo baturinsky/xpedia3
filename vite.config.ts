@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import zlib from "node:zlib";
 import react from "@vitejs/plugin-react";
 import type { NormalizedOutputOptions, OutputBundle, PluginContext } from "rollup";
 import { type Connect, defineConfig, type UserConfig, type ViteDevServer } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import topLevelAwait from "vite-plugin-top-level-await";
+import { builtinModsPayload } from "./scripts/builtinMods.mjs";
 import { devBuildNumber as nextDevBuildNumber, versionDefines } from "./scripts/version.mjs";
 
 export default defineConfig(({ mode }) => {
@@ -244,14 +244,8 @@ function examplePacks() {
  * The builtin mods, compiled in from the plain `src/builtinMods` folder.
  *
  * They are authored as ordinary files, so editing a string in a language file
- * needs no repacking, but they are shipped compressed: these language files
- * repeat themselves from one language to the next, and plain text in the
- * bundle would cost roughly a third more than the old `builtinMods.zip` did.
- *
- * The container is a flat binary list of `[name length][data length][name]
- * [data]`, all lengths little-endian, gzipped as a whole. Per-file base64
- * inside JSON was tried first and compresses much worse, because base64 turns
- * every three bytes into four that no longer share their neighbours' structure.
+ * needs no repacking, but they are shipped compressed: see
+ * `scripts/builtinMods.mjs`, the one container implementation.
  */
 function builtinModsFolder() {
   const virtualId = "\0builtin-mods";
@@ -267,29 +261,9 @@ function builtinModsFolder() {
       if (id !== virtualId) return null;
 
       const root = `${__dirname}/src/builtinMods`;
-      const parts: Buffer[] = [];
-      const walk = (dir: string) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-          const full = `${dir}/${entry.name}`;
-          if (entry.isDirectory()) walk(full);
-          else {
-            // Names are stored with forward slashes, as `interpretPath` splits
-            // on both but the archive loader already produces this form
-            const name = Buffer.from(full.substring(root.length + 1).replace(/\\/g, "/"), "utf8");
-            const data = fs.readFileSync(full);
-            const header = Buffer.alloc(8);
-            header.writeUInt32LE(name.length, 0);
-            header.writeUInt32LE(data.length, 4);
-            parts.push(header, name, data);
-            // A change to a file has to rebuild this module, not serve a stale copy
-            this.addWatchFile(full);
-          }
-        }
-      };
-      walk(root);
-
-      const gzipped = zlib.gzipSync(Buffer.concat(parts), { level: 9 });
-      return `export default '${gzipped.toString("base64")}';`;
+      // A change to a file has to rebuild this module, not serve a stale copy
+      const gzipped = builtinModsPayload(root, (full) => this.addWatchFile(full));
+      return `export default '${gzipped}';`;
     },
 
     // A language file has no module of its own to update, so a change to one

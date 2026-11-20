@@ -461,9 +461,11 @@ export function legColor(index: number) {
 export function pathSpeeds(trajectory: UfoTrajectory): { min: number; max: number } | undefined {
   const values: number[] = [];
   for (const mission of rul.missionsFlying(trajectory.uid))
-    for (const wave of rul.alienMissions?.[mission]?.waves ?? []) {
+    for (const wave of (rul.alienMissions?.[mission]?.waves as
+      | { trajectory?: string; ufo?: string }[]
+      | undefined) ?? []) {
       if (wave?.trajectory !== trajectory.uid) continue;
-      const speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
+      const speed = Number(rul.ufos?.[wave?.ufo ?? ""]?.speedMax);
       // A `speedMax` of 0 is a craft that does not move, and packs do carry
       // nonsense values here, so only a positive number is a speed
       if (Number.isFinite(speed) && speed > 0 && speed < 100000) values.push(speed);

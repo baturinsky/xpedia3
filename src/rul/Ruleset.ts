@@ -21,6 +21,7 @@ import {
   Manufacture,
   MissionScript,
   Music,
+  type RawEntry,
   Region,
   Research,
   SimpleEntry,
@@ -40,9 +41,33 @@ export type SortFirstLastOptions = {
   first?: string[];
   last?: string[];
   exclude?: string[];
-  sortBy?: (value: string) => string | number;
+  sortBy?: (value: unknown) => string | number;
 };
-type StringValue = [string, any];
+/**
+ * One value of a parsed YAML file.
+ *
+ * A `rul` file is arbitrary nested data (see `loadYaml`): a table is a list of
+ * blocks or a map keyed by id, a block is a map of fields, and a field is a
+ * scalar, a list or a nested node. The schemas in `vscode-ruleset/schemas`
+ * describe each table's fields, but the pedia reads them field by field as it
+ * goes, so this recursive shape — rather than one type per table — is what the
+ * merged ruleset is stored as.
+ */
+export type YamlValue =
+  | string
+  | number
+  | boolean
+  | null
+  | YamlValue[]
+  | { [key: string]: YamlValue };
+
+/** A YAML mapping: a ruleset file, a table, or one entry block */
+export type YamlObject = { [key: string]: YamlValue };
+
+/** One parsed `rul` file: its top-level keys are the tables it declares */
+export type RulFile = YamlObject;
+
+type StringValue = [string, unknown];
 export const defaultLanguage = "en-US";
 
 export const obsTables: { [pck: string]: string } = {
@@ -83,7 +108,7 @@ export type Mod = {
   meta: ModMeta;
   dir: string;
   /** The parsed `rul` files of the mod, straight from YAML and not yet merged */
-  rul: any[];
+  rul: RulFile[];
   /** The shared `common` folder: languages and resources used by every mod */
   common?: boolean;
   /** Files that came from the builtin mods rather than from the uploaded pack */
@@ -145,11 +170,12 @@ export function mainMod(mods: Mod[]): Mod | undefined {
 }
 
 /** `[key, value]` pairs for the named fields, in the given order */
-function orderedFilteredEntries(item: { [key: string]: any }, fields?: string[]): StringValue[] {
+function orderedFilteredEntries(item: object, fields?: string[]): StringValue[] {
   if (item == null) return [];
+  const record = item as { [key: string]: unknown };
   return fields
     ? fields
-        .map((key) => (item[key] != null ? ([key, item[key]] as StringValue) : null))
+        .map((key) => (record[key] != null ? ([key, record[key]] as StringValue) : null))
         .filter((v) => v != null)
     : [];
 }
@@ -160,7 +186,7 @@ function orderedFilteredEntries(item: { [key: string]: any }, fields?: string[])
  * "misc" in return is everything that is not "first" or "last"
  */
 export function sortFirstLast(
-  item: { [key: string]: any },
+  item: object,
   options: SortFirstLastOptions = {},
 ): {
   first: StringValue[];
@@ -235,7 +261,8 @@ export class Service {
    * The service's lists, added by `Service.add`: `canBuy`, `allowsBuilding` and
    * so on hold the ids of what the service offers.
    */
-  [list: string]: any;
+  /** Service name -> ids of what it offers, see `Service.add`; `id` is the name */
+  [list: string]: string[] | string;
 
   constructor(public id: string) {
     Article.create(id, "SERVICES");
@@ -246,7 +273,7 @@ export class Service {
       for (const s of entries) {
         if (!(s in rul.baseServices)) rul.baseServices[s] = new Service(s);
         if (!(prop in rul.baseServices[s])) rul.baseServices[s][prop] = [];
-        rul.baseServices[s][prop].push(id);
+        (rul.baseServices[s][prop] as string[]).push(id);
       }
     }
   }
@@ -259,7 +286,8 @@ export default class Ruleset {
   sectionsOrder: Section[] = [];
   typeSectionsOrder: Section[] = [];
   sprites: { [key: string]: Sprite } = {};
-  raw: any = {};
+  /** The merged ruleset blocks, keyed by table and then by entry id */
+  raw: { [category: string]: YamlValue } = {};
   search: { [key: string]: Search } = {};
   ourArmors: string[] = [];
   items: { [key: string]: Item } = {};
@@ -436,7 +464,7 @@ export default class Ruleset {
   missionsFlying(trajectory: string) {
     const out: string[] = [];
     for (const mission of Object.values(this.alienMissions ?? {}))
-      for (const wave of mission.waves ?? [])
+      for (const wave of (mission.waves as { trajectory?: string }[] | undefined) ?? [])
         if (wave?.trajectory === trajectory) {
           out.push(mission.uid);
           break;
@@ -480,7 +508,9 @@ export default class Ruleset {
     const seen = new Set<string>(),
       out: UfoTrajectory[] = [];
     for (const { mission } of this.missionsIn(target))
-      for (const wave of this.alienMissions?.[mission]?.waves ?? []) {
+      for (const wave of (this.alienMissions?.[mission]?.waves as
+        | { trajectory?: string; ufo?: string }[]
+        | undefined) ?? []) {
         const id = wave?.trajectory;
         const path = id && this.ufoTrajectories?.[id];
         if (!path || seen.has(path.uid) || !path.fits(target)) continue;
@@ -568,41 +598,6 @@ export default class Ruleset {
     return path || emptyImg;
   }
 
-  combineRuls(ruls: any[], reversed = false) {
-    for (const file of reversed ? ruls.reverse() : ruls) {
-      if (file == null) continue;
-      for (const key in file) {
-        const table = file[key];
-
-        const modDir = file.file.modDir;
-        if (Array.isArray(table))
-          for (const entry of table) {
-            if (typeof entry === "object" && !Array.isArray(entry)) entry.modDir = modDir;
-          }
-
-        if (key.substr(0, 4) === "lang") {
-          Object.assign(this.lang, table);
-        }
-        if (!(key in this.raw)) {
-          this.raw[key] = table;
-        } else {
-          const old = this.raw[key];
-          const adding = table;
-
-          if (old.concat) {
-            this.raw[key] = old.concat(adding);
-          } else {
-            if (Array.isArray(adding))
-              for (const k of adding) {
-                if (k in old && typeof old[k] === "object") Object.assign(old[k], adding[k]);
-                else old[k] = adding[k];
-              }
-          }
-        }
-      }
-    }
-  }
-
   convertLang(langName: string) {
     if (this.convertedLangs[langName]) return false;
 
@@ -634,8 +629,8 @@ export default class Ruleset {
   }
 
   /** Calls the respective class constructor for the entry */
-  parseType(type: string, klass?: new (raw: any, collection?: string) => Entry) {
-    for (const data of Object.values(this.raw[type] ?? {}) as any[]) {
+  parseType(type: string, klass?: new (raw: RawEntry, collection?: string) => Entry) {
+    for (const data of Object.values(this.raw[type] ?? {}) as RawEntry[]) {
       // The constructor registers the entry on `rul`; the value itself is unused
       new (klass || SimpleEntry)(data, type);
     }
@@ -649,23 +644,31 @@ export default class Ruleset {
    */
   parseMusics() {
     this.musics = {};
-    for (const [id, raw] of Object.entries(this.raw.musics ?? {}) as [string, any][]) {
-      if (raw == null || typeof raw !== "object") continue;
-      this.musics[id] = new Music(id, raw);
+    for (const [id, raw] of Object.entries(this.raw.musics ?? {}) as [string, YamlValue][]) {
+      if (raw == null || typeof raw !== "object" || Array.isArray(raw)) continue;
+      this.musics[id] = new Music(
+        id,
+        raw as unknown as {
+          name?: string;
+          catPos?: number | string;
+          normalization?: number | string;
+        },
+      );
     }
   }
 
   deleteModDirs() {
     for (const tableKind in this.raw)
       if (Array.isArray(this.raw[tableKind]))
-        for (const table of this.raw[tableKind]) {
-          if ("modDir" in table) delete table.modDir;
+        for (const table of this.raw[tableKind] as YamlValue[]) {
+          if (table != null && typeof table === "object" && "modDir" in table)
+            delete (table as YamlObject).modDir;
         }
   }
 
   /** Merges every mod's ruleset blocks, keyed by category and then by entry id */
   combineModRuls(mods: Mod[]) {
-    const rul: { [category: string]: { [id: string]: any } } = {};
+    const rul: { [category: string]: { [id: string]: YamlValue } } = {};
     for (const mod of mods) {
       for (const file of mod.rul) {
         for (const categoryName in file) {
@@ -674,15 +677,17 @@ export default class Ruleset {
           const rawCategory = file[categoryName];
           if (Array.isArray(rawCategory)) {
             for (const data of rawCategory) {
+              if (data == null || typeof data !== "object" || Array.isArray(data)) continue;
+              const block = data as YamlObject;
               // Stamped here, before the block is merged or filed, so the guess
               // is made once and the merge key, the entry id and the `uid` the
               // block carries are one value
-              const id = stampUid(categoryName, data);
+              const id = stampUid(categoryName, block);
               // A block that names nothing cannot be merged into the table: it
               // would land under an empty key and the next such block would
               // overwrite it
               if (!id) continue;
-              if (data.delete) {
+              if (block.delete) {
                 delete category[id];
                 continue;
               }
@@ -693,9 +698,9 @@ export default class Ruleset {
                 // A repeat of the same id merges: array data is concatenated,
                 // object data is merged field by field
                 if (Array.isArray(data)) {
-                  category[id] = [...old, ...data];
+                  category[id] = [...(old as YamlValue[]), ...data];
                 } else {
-                  category[id] = { ...old, ...data };
+                  category[id] = { ...(old as YamlObject), ...block };
                 }
               }
             }
@@ -704,18 +709,22 @@ export default class Ruleset {
             // real entry tables are stamped: `ufopaedia`, `globe` and the other
             // object-form singletons are not table rows and have no addressable
             // identity to carry.
-            if (categoryName in entryConstructors)
+            if (
+              categoryName in entryConstructors &&
+              rawCategory != null &&
+              typeof rawCategory === "object"
+            )
               for (const id in rawCategory) {
-                const block = rawCategory[id];
+                const block = (rawCategory as YamlObject)[id];
                 if (
                   block != null &&
                   typeof block === "object" &&
                   !Array.isArray(block) &&
-                  !block.uid
+                  !(block as YamlObject).uid
                 )
-                  stampUid(categoryName, Object.assign(block, { uid: id }));
+                  stampUid(categoryName, Object.assign(block as YamlObject, { uid: id }));
               }
-            Object.assign(category, rawCategory);
+            Object.assign(category, rawCategory as object);
           }
         }
       }
@@ -744,13 +753,19 @@ export default class Ruleset {
       for (const file of mod.rul) {
         const extra = file?.extraSounds;
         if (!extra) continue;
-        const blocks = Array.isArray(extra)
-          ? extra
-          : Object.entries(extra).map(([type, def]: [string, any]) => ({ type, ...def }));
+        const blocks: YamlObject[] = Array.isArray(extra)
+          ? (extra as YamlObject[])
+          : Object.entries(extra as YamlObject).map(([type, def]: [string, YamlValue]) => ({
+              type,
+              ...(def as YamlObject),
+            }));
         for (const block of blocks) {
-          const cat = block?.type;
-          if (!cat || !block?.files) continue;
-          for (const [slot, path] of Object.entries(block.files) as [string, string][]) {
+          const cat = typeof block?.type === "string" ? block.type : undefined;
+          if (!cat || !block?.files || typeof block.files !== "object") continue;
+          for (const [slot, path] of Object.entries(block.files as YamlObject) as [
+            string,
+            string,
+          ][]) {
             if (path == null || path === "") continue;
             // Browsers read forward slashes; a mod folder may contain spaces.
             // The path is stored the way the page must ask for it: relative to
@@ -772,41 +787,47 @@ export default class Ruleset {
         // Modern rulesets list packs in an array and use `delete` to drop a
         // whole pack; the old object form keyed by type is kept for
         // compatibility with hand-written data
-        const entries = Array.isArray(extra)
-          ? extra
-          : Object.entries(extra).map(([type, def]: [string, any]) => ({ type, ...def }));
+        const entries: YamlObject[] = Array.isArray(extra)
+          ? (extra as YamlObject[])
+          : Object.entries(extra as YamlObject).map(([type, def]: [string, YamlValue]) => ({
+              type,
+              ...(def as YamlObject),
+            }));
 
         for (const def of entries) {
           if (def == null || typeof def !== "object") continue;
 
-          if (def.delete) {
+          if (typeof def.delete === "string") {
             delete this.sprites[def.delete];
             const table = this.obs[obsTables[def.delete]];
             if (table) table.length = 0;
             continue;
           }
 
-          if (def.typeSingle) {
+          if (typeof def.typeSingle === "string") {
             new Sprite({
               typeSingle: def.typeSingle,
               dir: mod.dir,
-              fileSingle: def.fileSingle,
-              files: def.files,
+              fileSingle: typeof def.fileSingle === "string" ? def.fileSingle : undefined,
+              files: def.files as unknown as { [key: string]: string } | string[] | undefined,
             });
             continue;
           }
 
-          if (!def.type) continue;
+          if (typeof def.type !== "string") continue;
 
           const obs = obsTables[def.type];
-          if (obs && def.files) {
+          if (obs && def.files != null && typeof def.files === "object") {
             // A known obs table (BIGOBS.PCK, BASEBITS.PCK...) is replaced frame
             // by frame; `files` is a sparse index -> image map
-            for (const [ind, file] of Object.entries(def.files))
+            for (const [ind, file] of Object.entries(def.files as YamlObject))
               new Sprite({ type: obs, ind, dir: mod.dir, fileSingle: file as string });
           }
 
-          new Sprite({ ...def, dir: mod.dir });
+          new Sprite({
+            ...(def as unknown as ConstructorParameters<typeof Sprite>[0]),
+            dir: mod.dir,
+          });
         }
       }
     }
@@ -859,15 +880,18 @@ export default class Ruleset {
     crosslink(
       this.alienMissions,
       (t) =>
-        Object.values((t.raceWeights || {}) as { [key: string]: any }).flatMap((w) =>
-          Object.keys(w),
-        ),
+        // `raceWeights` is month -> weighted race ids, see `WeightedOptions`
+        // in the game source and `RuleAlienMission.json` in the schemas
+        Object.values(
+          (t.raceWeights || {}) as { [month: string]: { [race: string]: number } },
+        ).flatMap((w) => Object.keys(w)),
       "alienRaces",
       "missions",
     );
     crosslink(
       this.ufos,
-      (t) => blockItems(t.battlescapeTerrainData?.mapBlocks),
+      (t) =>
+        blockItems((t.battlescapeTerrainData as { mapBlocks?: unknown } | undefined)?.mapBlocks),
       this.items,
       "ufos",
     );
@@ -981,7 +1005,7 @@ export default class Ruleset {
       for (const sc of Object.values(this.startingConditions)) {
         if (sc[`allowed${option[0]}`])
           sc[`forbidden${option[0]}`] = all[option[0]].filter(
-            (e: string) => !sc[`allowed${option[0]}`].includes(e),
+            (e: string) => !(sc[`allowed${option[0]}`] as string[]).includes(e),
           );
       }
       crosslink(this.startingConditions, `allowed${option[0]}`, option[1], "allowedIn");
@@ -1102,11 +1126,13 @@ export default class Ruleset {
     return [...this.sectionsOrder, ...this.typeSectionOrder(alphabetical)];
   }
 
-  parseArticles(data: object) {
-    if (!data) return;
+  parseArticles(data: YamlValue) {
+    if (data == null || typeof data !== "object") return;
     for (const articleData of Object.values(data)) {
-      if (articleData.id) {
-        const article = new Article(articleData);
+      if (articleData != null && typeof articleData === "object" && !Array.isArray(articleData)) {
+        const block = articleData as YamlObject;
+        if (!block.id) continue;
+        const article = new Article(block as unknown as ConstructorParameters<typeof Article>[0]);
         this.articlesOrder.push(article);
         this.articles[article.id] = article;
       }
@@ -1454,7 +1480,7 @@ export function comparator(a: unknown, b: unknown) {
 
 /** Main class to figure what to do with data in Ruls */
 export const entryConstructors: {
-  [collection: string]: new (raw: any, collection: string) => Entry;
+  [collection: string]: new (raw: RawEntry, collection: string) => Entry;
 } = {
   items: Item,
   // Before `armors`: an `Armor` pushes itself into `rul.soldiers[unit].armors`
@@ -1690,12 +1716,12 @@ export function backLink2(
   field2: string,
 ) {
   backLink(entry.uid, list, to, field);
-  addAllIfNew<unknown>(entry[field2], list);
+  addAllIfNew<unknown>(entry[field2] as unknown[], list);
 }
 
 export function backLink(
   id: string,
-  list: string[] | { [key: string]: unknown } | null,
+  list: unknown,
   to: { [id: string]: Entry } | string,
   field: string,
   collection?: string,
@@ -1719,7 +1745,7 @@ export function backLink(
         );
       }
       if (back == null) continue;
-      addFields(back, field, { [key]: list[key] });
+      addFields(back, field, { [key]: (list as { [key: string]: unknown })[key] });
     }
   } else {
     if (!Array.isArray(list)) list = [list];
@@ -1742,7 +1768,8 @@ function addFields(entry: Entry, field: string, list: string[] | { [key: string]
   if (Array.isArray(list)) {
     entry[field] = entry[field] || [];
     for (const id of list) {
-      if (entry[field].indexOf(id) === -1) entry[field].push(id);
+      const values = entry[field] as string[];
+      if (values.indexOf(id) === -1) values.push(id);
     }
   } else {
     entry[field] = { ...(entry[field] || {}), ...list };
@@ -1751,15 +1778,15 @@ function addFields(entry: Entry, field: string, list: string[] | { [key: string]
 
 /** Adds back links */
 function crosslink(
-  collection1: { [id: string]: any },
-  prop1: string | ((v: { [id: string]: any }) => any),
+  collection1: { [id: string]: Entry },
+  prop1: string | ((v: Entry) => unknown),
   // A collection is either the table itself or the name of one on `rul`, which
   // `backLink` looks up; the named form is how the base-game tables are reached
-  collection2: { [id: string]: any } | string,
+  collection2: { [id: string]: Entry } | string,
   prop2: string,
   prefix?: string,
 ) {
-  const f = typeof prop1 === "function" ? prop1 : (t: any) => t[prop1];
+  const f = typeof prop1 === "function" ? prop1 : (t: Entry) => t[prop1];
   for (const t of [...Object.values(collection1)] as Entry[]) {
     backLink(t.uid, f(t), collection2, prop2, prefix);
   }

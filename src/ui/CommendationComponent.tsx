@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import type { Commendation, ResolvedDeed } from "../rul/Entry";
+import type { BonusMap, Commendation, ResolvedDeed } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import { withoutKeys } from "../util";
 import { RecoveryTable } from "./components";
@@ -78,7 +78,7 @@ export function SoldierBonusesComponent({
         recovery: ({ val: prop }) => (
           <table className="thin">
             <tbody>
-              <RecoveryTable recovery={prop} />
+              <RecoveryTable recovery={prop as { [stat: string]: BonusMap }} />
             </tbody>
           </table>
         ),
@@ -123,11 +123,12 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
           ],
         }}
         special={{
-          killCriteria2: ({ val: prop }) =>
-            prop.length === 0 ? (
+          killCriteria2: ({ val: prop }) => {
+            const groups = prop as ResolvedDeed[][];
+            return groups.length === 0 ? (
               <Val of="See stage descriptions" />
             ) : (
-              prop.map((deeds: ResolvedDeed[], i: number) => (
+              groups.map((deeds: ResolvedDeed[], i: number) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: one group per stage, so the index is the stage number; groups carry no id and identical groups can repeat across stages
                 <span key={i}>
                   {i !== 0 && (
@@ -138,32 +139,40 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
                     </>
                   )}
                   {deeds.map((deed, j) => (
-                    <span key={JSON.stringify(deed)}>
+                    // biome-ignore lint/suspicious/noArrayIndexKey: the same deed can be listed twice within one stage group; the index keeps those entries distinct and the list never reorders
+                    <span key={`${j}-${JSON.stringify(deed)}`}>
                       {j !== 0 && <> {rul.tr("and")} </>}
                       {deedDescription(deed)}
                     </span>
                   ))}
                 </span>
               ))
-            ),
-          finalBonus: ({ val: prop }) => (
-            <>
-              <Val of={withoutKeys(prop, ["stats", "recovery", "id"])} />
-              <br />
-              Stats: <Val of={prop?.stats} />
-              {prop?.recovery && (
-                <>
-                  <br />
-                  Recover per turn:
-                  <table className="thin">
-                    <tbody>
-                      <RecoveryTable recovery={prop.recovery} />
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </>
-          ),
+            );
+          },
+          finalBonus: ({ val: prop }) => {
+            const bonus = prop as {
+              stats?: unknown;
+              recovery?: { [stat: string]: BonusMap };
+            } | null;
+            return (
+              <>
+                <Val of={withoutKeys(prop as object, ["stats", "recovery", "id"])} />
+                <br />
+                Stats: <Val of={bonus?.stats} />
+                {bonus?.recovery && (
+                  <>
+                    <br />
+                    Recover per turn:
+                    <table className="thin">
+                      <tbody>
+                        <RecoveryTable recovery={bonus.recovery} />
+                      </tbody>
+                    </table>
+                  </>
+                )}
+              </>
+            );
+          },
         }}
       />
       <div className="no-break-column">

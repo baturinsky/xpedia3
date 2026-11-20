@@ -6,6 +6,9 @@ import Ruleset, {
   type Langs,
   type Mod,
   type ProcessedRuleset,
+  type RulFile,
+  type YamlObject,
+  type YamlValue,
 } from "./rul/Ruleset";
 import { base64ToArrayBuffer, gameRelativePath as utilGameRelativePath } from "./util";
 
@@ -229,9 +232,11 @@ export function disabledMods(files: { [name: string]: Uint8Array }): Set<string>
   const cfg = Object.values(interpretFiles(files)).find((f) => f.type === "cfg");
   if (!cfg) return off;
   try {
-    const data = loadYaml(new TextDecoder().decode(cfg.data));
-    for (const entry of data?.mods ?? [])
-      if (entry && typeof entry.id === "string" && entry.active === false) off.add(entry.id);
+    const data = loadYaml(new TextDecoder().decode(cfg.data)) as YamlObject;
+    for (const entry of (data?.mods as YamlObject[] | undefined) ?? []) {
+      const id = entry?.id;
+      if (typeof id === "string" && entry.active === false) off.add(id);
+    }
   } catch (e) {
     // A broken options.cfg is not worth failing a whole load over: the mods a
     // player disabled are a preference, and the pedia without it describes the
@@ -244,19 +249,20 @@ export function disabledMods(files: { [name: string]: Uint8Array }): Set<string>
 /**
  * Parses one YAML file of a modpack.
  *
- * There is no type to give the result: a `rul` file is arbitrary nested data
- * that the merge in `Ruleset.combineRuls` copies through untouched, and the
- * pedia only ever reads it field by field. Keeping it untyped here is what lets
- * a pack add a table the pedia does not know about without failing to load.
+ * The result is a `YamlValue`: a `rul` file is arbitrary nested data that the
+ * merge in `Ruleset.combineModRuls` copies through untouched, and the pedia
+ * only ever reads it field by field. The recursive shape — rather than one
+ * type per table — is what lets a pack add a table the pedia does not know
+ * about without failing to load.
  */
-export function loadYaml(text: string): any {
+export function loadYaml(text: string): YamlValue {
   text = text.replace(/!(add|info|remove)/g, "");
   return JSYaml.load(text, {
     json: true,
     onWarning: (e) => {
       console.error(e.message);
     },
-  });
+  }) as YamlValue;
 }
 
 export function loadModsAndLng(
@@ -303,7 +309,7 @@ export function loadModsAndLng(
         if (typeof data === "object" && data != null) {
           // A language file normally declares one language at the top level, but
           // some packs repeat the key; every block is read so none is dropped.
-          const blocks = data as Langs;
+          const blocks = data as unknown as Langs;
           for (const lngName in blocks) addToLng(lngName, blocks[lngName]);
         } else if (typeof data === "string") {
           // Non-yaml translations are named "STR_ID.<lang>.html"
@@ -313,10 +319,10 @@ export function loadModsAndLng(
       }
       if (f.type === "rul") {
         const data = loadYaml(f.text);
-        mods[modName].rul.push(data);
+        mods[modName].rul.push(data as RulFile);
       }
       if (f.type === "meta") {
-        mods[modName].meta = loadYaml(f.text);
+        mods[modName].meta = loadYaml(f.text) as unknown as Mod["meta"];
       }
     } catch (e) {
       console.error(`Error while parsing ${f.path}`, e);
@@ -434,6 +440,40 @@ export function buildPackData(
     ownMods,
     ownResources,
   };
+}
+
+/**
+ * The mod folders a set of archive files belongs to, see `interpretPath`.
+ *
+ * The one place this is spelled out, so the browser loader, the CLI and the
+ * tests agree on which folders a pack owns.
+ */
+export function modDirs(files: { [name: string]: Uint8Array }) {
+  const dirs = new Set<string>();
+  for (const name of Object.keys(files)) {
+    const mod = interpretPath(name)?.mod;
+    if (mod) dirs.add(mod);
+  }
+  return dirs;
+}
+
+/**
+ * Merges the builtin mods underneath a pack's own files.
+ *
+ * A pack that ships its own copy of a builtin path keeps it as its own data,
+ * so the pack's files replace the builtin ones at the same path. Returns the
+ * merged map and the builtin mod folders the pack did not shadow, which is
+ * what `buildPackData` needs to mark the builtin contribution.
+ */
+export function mergeBuiltinFiles(
+  files: { [name: string]: Uint8Array },
+  builtinFiles: { [name: string]: Uint8Array },
+) {
+  const packDirs = modDirs(files);
+  const builtinDirs = new Set([...modDirs(builtinFiles)].filter((dir) => !packDirs.has(dir)));
+  const merged: { [name: string]: Uint8Array } = { ...builtinFiles };
+  for (const [name, data] of Object.entries(files)) merged[name] = data;
+  return { merged, builtinDirs };
 }
 
 /**

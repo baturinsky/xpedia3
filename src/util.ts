@@ -122,8 +122,9 @@ export function addAllIfNew<T>(arr: T[], items: T[] | T) {
   }
 }
 
-export function isAncestorOf(ancestor: Node | null, descendant: Node | null) {
-  let n: Node | null = descendant;
+export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
+  if (!ancestor) return false;
+  let n: Node | null = descendant ?? null;
   while (n) {
     if (n === ancestor) {
       return true;

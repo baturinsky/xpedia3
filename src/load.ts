@@ -14,8 +14,8 @@ import {
 import {
   buildPackData,
   filterBuiltinMods,
-  interpretPath,
   mergeBuiltinMods as mergeBuiltinData,
+  mergeBuiltinFiles,
   unpackBuiltinMods,
   unpackRar as unpackRarFiles,
   unpackZip as unpackZipFiles,
@@ -204,16 +204,6 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   return files;
 }
 
-/** The mod folders a set of archive files belongs to, see `interpretPath` */
-function modDirs(files: { [name: string]: Uint8Array }) {
-  const dirs = new Set<string>();
-  for (const name of Object.keys(files)) {
-    const mod = interpretPath(name)?.mod;
-    if (mod) dirs.add(mod);
-  }
-  return dirs;
-}
-
 /**
  * Loads only the builtin mods shared by every modpack. This is what the app
  * uses when no modpack is loaded, so there is always a ruleset to browse.
@@ -272,10 +262,9 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     // A pack that ships its own copy of a builtin mod path keeps it as its own
     // data, so those files are not mistaken for the builtin contribution
-    const packDirs = modDirs(files);
-    const builtinDirs = new Set([...modDirs(builtinMods)].filter((dir) => !packDirs.has(dir)));
-
-    files = { ...builtinMods, ...files };
+    const mergedPack = mergeBuiltinFiles(files, builtinMods);
+    files = mergedPack.merged;
+    const builtinDirs = mergedPack.builtinDirs;
 
     throwIfCancelled();
 

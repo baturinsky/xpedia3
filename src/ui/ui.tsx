@@ -26,6 +26,8 @@ import {
 } from "../state";
 import { clearHash, xpediaBuildStamp, xpediaVersion } from "../util";
 
+export { isAncestorOf } from "../util";
+
 import "react-data-grid/lib/styles.css";
 import "normalize.css";
 import "./didactGothic.css";
@@ -187,7 +189,7 @@ export function LandingPage() {
       </div>
       <ArchiveFiles />
       {state.devView && <CurrentAssets />}
-      {state.imagePreview && <img src={state.imagePreview}></img>}
+      {state.imagePreview && <img src={state.imagePreview} alt="Sprite preview"></img>}
       <ExportDialog />
     </>
   );
@@ -362,6 +364,7 @@ function NavDropdown() {
             {/* The landing page's own address has no hash, so this is not a link:
               a bare-path `href` would reload the whole page when it is already
               the current URL */}
+            {/* biome-ignore lint/a11y/useValidAnchor: HOME has no hash to point at, so a button would lose the link styling and keyboard behaviour the other menu items share; the click is prevented and handled here instead */}
             <a
               href="#"
               className={`menu-home${onLandingPage() ? " active-section" : ""}`}
@@ -482,13 +485,14 @@ export function NavTop() {
                 style={{ visibility: state.showLanguagesDropdown ? "visible" : "hidden" }}
               >
                 {languages.map((lang) => (
-                  <div
+                  <button
+                    type="button"
                     key={lang}
                     className={`clickable${lang === currentLanguage ? " current" : ""}`}
                     onClick={() => selectLanguage(lang)}
                   >
                     <Val of={lang} nobr />
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -510,6 +514,8 @@ export function NavTop() {
           title="Hold to reveal language keys"
           onMouseOver={() => reveal(true)}
           onMouseOut={() => reveal(false)}
+          onFocus={() => reveal(true)}
+          onBlur={() => reveal(false)}
           onClick={() => revealLock()}
         >
           STR
@@ -552,7 +558,8 @@ function PackDropdown() {
           <div className="packs-empty">No modpacks uploaded yet</div>
         ) : (
           packs.map((pack) => (
-            <div
+            <button
+              type="button"
               key={pack.pack}
               className={`clickable${pack.pack === state.packName ? " current" : ""}`}
               title={pack.pack === state.packName ? "Currently shown" : "Show this modpack"}
@@ -562,7 +569,7 @@ function PackDropdown() {
               }}
             >
               {pack.pack}
-            </div>
+            </button>
           ))
         )}
       </div>
@@ -624,14 +631,11 @@ function SearchBox() {
 
 function SectionsList() {
   if (!rul) return;
-  // The pedia's own sections keep the pack's order; only the categories follow
-  // the `A-Z` toggle, and `sectionOrder` is what both this list and the navbar
-  // use so neither can disagree with the arrows. See `Ruleset.sectionOrder`.
   // The pedia's own sections keep the pack's order (it is authored, and groups
-  // related pages); only the categories follow the `A-Z` toggle. Both this list
-  // and the pedia sections one come from `Ruleset.sectionOrder`-style helpers,
-  // the same the arrows walk, so a category cannot be listed in one order and
-  // stepped through in another.
+  // related pages); only the categories follow the `A-Z` toggle. Both lists
+  // come from the same helpers the `<`/`>` arrows walk (`Ruleset.sectionOrder`
+  // and friends), so a category cannot be listed in one order and stepped
+  // through in another.
   return (
     <div className="sections-list">
       <div>
@@ -731,14 +735,14 @@ export function NavSide() {
 }
 
 export function Clickable(props: {
-  onClick: MouseEventHandler<HTMLDivElement>;
+  onClick: MouseEventHandler<HTMLButtonElement>;
   className?: string;
   children: JSX.Element;
 }) {
   return (
-    <div onClick={props.onClick} className={`link ${props.className ?? ""}`}>
+    <button type="button" onClick={props.onClick} className={`link ${props.className ?? ""}`}>
       {props.children}
-    </div>
+    </button>
   );
 }
 
@@ -805,19 +809,6 @@ function toggleTooltip(text: string | undefined) {
   } else {
     classes.remove("visible");
   }
-}
-
-export function isAncestorOf(ancestor?: Node | null, descendant?: Node | null) {
-  if (!ancestor || !descendant) return false;
-  let n: Node | null = descendant;
-  while (n) {
-    if (n === ancestor) {
-      return true;
-    } else {
-      n = n.parentNode;
-    }
-  }
-  return false;
 }
 
 export function onLandingPage() {

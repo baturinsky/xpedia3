@@ -61,7 +61,7 @@ html {
 }
 
 body {
-  font-family: "Didact Gothic";
+  font-family: "Didact Gothic", sans-serif;
   color: var(--text);
   background: var(--background);
   width: 100%;
@@ -158,6 +158,17 @@ table {
   cursor: pointer;
   display: inline-block;
   color: var(--link);
+}
+
+/* A `Clickable` renders as a button so keyboard users can reach it; strip the
+   default button chrome so it keeps looking like a link */
+button.link {
+  background: none;
+  border: none;
+  color: var(--link);
+  font: inherit;
+  margin: 0;
+  padding: 0;
 }
 
 .link:hover,
@@ -402,6 +413,17 @@ nav.side {
   background-color: var(--table-main);
 }
 
+/* Dropdown items are buttons so keyboard users can pick them; strip the
+   default button chrome so they keep looking like menu rows */
+.navbar-dropdown > button {
+  background-color: var(--table-main);
+  border: none;
+  color: inherit;
+  font: inherit;
+  margin: 0;
+  text-align: left;
+}
+
 /* Main menu (old App.svelte) opens to the left edge, right under the button.
    It shrinks to fit its contents so it stays a compact menu, like the
    language picker on the right side of the navbar. */
@@ -558,7 +580,8 @@ input::placeholder {
   padding: 0.2rem 0.4rem;
 }
 
-:where(.select-packs) .navbar-dropdown > div {
+:where(.select-packs) .navbar-dropdown > div,
+:where(.select-packs) .navbar-dropdown > button {
   padding: 0.2rem 0.4rem;
   /* A pack name can be a long file name: allow a break anywhere */
   white-space: normal;
@@ -689,7 +712,6 @@ button:disabled:hover {
   padding: 0.4rem 1.8rem 0.4rem 0.5rem;
   border: solid 1px var(--border);
   background: var(--table-main);
-  cursor: pointer;
   overflow-wrap: anywhere;
 }
 
@@ -712,6 +734,20 @@ button:disabled:hover {
 
 .modpack-name {
   font-variant: small-caps;
+}
+
+/* The name is a button so keyboard users can pick the pack; strip the default
+   button chrome so it keeps looking like the panel's title */
+button.modpack-name {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-variant: small-caps;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .modpack-size,
@@ -1049,6 +1085,23 @@ button:disabled:hover {
   white-space: nowrap;
   cursor: pointer;
   user-select: all;
+}
+
+/* The path is a button so keyboard users can copy it; it keeps the `code`
+   box styling, only the button chrome goes */
+.audio-dialog-path-text {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--table-main);
+  border: solid 1px var(--border);
+  color: inherit;
+  font: inherit;
+  overflow-x: auto;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: all;
+  text-align: left;
 }
 
 .audio-dialog audio {

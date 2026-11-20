@@ -1,7 +1,14 @@
 import * as fflate from "fflate";
 import { gameRelativePath, WORLD_DAT } from "./packBuild";
 import type Ruleset from "./rul/Ruleset";
-import { type LangMap, type Langs, type Mod, mainMod, type ProcessedRuleset } from "./rul/Ruleset";
+import {
+  type LangMap,
+  type Langs,
+  type Mod,
+  mainMod,
+  type ProcessedRuleset,
+  type YamlObject,
+} from "./rul/Ruleset";
 import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
 
 /**
@@ -221,8 +228,10 @@ export function dataPaths(mods: Mod[] = []): string[] {
   const paths: string[] = [];
   let named: string | undefined;
   for (const mod of mods)
-    for (const file of mod.rul ?? [])
-      if (file?.globe && typeof file.globe.data === "string") named = file.globe.data;
+    for (const file of mod.rul ?? []) {
+      const globe = file?.globe as YamlObject | undefined;
+      if (typeof globe?.data === "string") named = globe.data;
+    }
   // The stock globe is always carried: it is what the reader falls back to when
   // the pack names none, and the builtin copy is not a file they can fetch
   paths.push(WORLD_DAT);

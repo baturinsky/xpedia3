@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { BonusMap } from "../rul/Entry";
 import { damageTypes, rul, sortFirstLast } from "../rul/Ruleset";
 import { state, update } from "../state";
 import { Img, RecoveryTable, SpecialBonus, Subheader } from "./components";
@@ -15,9 +16,15 @@ interface Entry {
   damageModifier?: number[];
   recovery?: { [stat: string]: { flatOne?: number; flatHundred?: number } };
   dollSprites: () => Promise<Record<string, string[]>>;
+  builtInWeapons?: string[];
+  drawingRoutine?: number;
+  forcedTorso?: number;
+  deathFrames?: number;
+  movementType?: number;
+  size?: number;
   // The table walks an entry's fields by name, so anything else it reads is
   // whatever the ruleset put there
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /** Three layers of 40×40 pixels per figure, stacked into one doll */
@@ -156,10 +163,10 @@ const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) => (
               <span
                 style={{
                   fontWeight: "bold",
-                  color: `hsl(${~~(val * 70)}, 100%, 50%)`,
+                  color: `hsl(${~~(Number(val) * 70)}, 100%, 50%)`,
                 }}
               >
-                {~~(val * 100)}
+                {~~(Number(val) * 100)}
               </span>
             </em>
           </div>
@@ -187,7 +194,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
   // it is built around; `-1` means it has none
   const turret = (entry.builtInWeapons ?? []).reduce((found: number, weapon: string) => {
     if (found >= 0) return found;
-    const type = rul?.items?.[weapon]?.turretType;
+    const type = rul?.items?.[weapon]?.turretType as number | undefined;
     return type != null && type >= 0 ? type : -1;
   }, -1);
 
@@ -198,14 +205,18 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
     moveCost: ({ val }) => <MainTable of={val} />,
     // The ruleset stores a one-element list here
     corpseBattle: ({ val }) => <Val of={Array.isArray(val) ? val[0] : val} />,
-    psiDefence: ({ val }) => <SpecialBonus bonus={val} />,
-    meleeDodge: ({ val }) => <SpecialBonus bonus={val} />,
+    psiDefence: ({ val }) => <SpecialBonus bonus={val as BonusMap} />,
+    meleeDodge: ({ val }) => <SpecialBonus bonus={val as BonusMap} />,
     // Placeholder ids for a unit that has no inventory sprite yet
     builtInWeapons: ({ val }) => (
-      <Val of={val?.filter((s: string) => s.substr(0, 8) !== "INV_NULL")} />
+      <Val of={(val as string[] | undefined)?.filter((s) => s.substr(0, 8) !== "INV_NULL")} />
     ),
-    users: ({ val }) => <Val of={val?.filter((s: string) => s.substr(0, 8) !== "INV_NULL")} />,
-    units: ({ val }) => <Val of={val?.filter((s: string) => s.substr(0, 8) !== "INV_NULL")} />,
+    users: ({ val }) => (
+      <Val of={(val as string[] | undefined)?.filter((s) => s.substr(0, 8) !== "INV_NULL")} />
+    ),
+    units: ({ val }) => (
+      <Val of={(val as string[] | undefined)?.filter((s) => s.substr(0, 8) !== "INV_NULL")} />
+    ),
   };
 
   // A unit sheet is an atlas of body parts, not a picture: draw the figure the
@@ -213,7 +224,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
   // image, shown as before. Both need the whole width of the table.
   const rows: { [field: string]: MainTableRenderer } = {
     spriteSheet: ({ key, val }) => {
-      const composable = canComposeUnit(val, entry.drawingRoutine);
+      const composable = canComposeUnit(val as string, entry.drawingRoutine);
       return (
         <tr>
           <td colSpan={2}>
@@ -222,7 +233,7 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
               <div className="unit-sheet">
                 <UnitSheetPreview
                   view={{
-                    sheet: val,
+                    sheet: val as string,
                     routine: entry.drawingRoutine,
                     female: entry.forcedTorso === 2,
                     deathFrames: entry.deathFrames,

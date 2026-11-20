@@ -15,7 +15,11 @@ export default function StartingConditionsComponent({
   // entry, so `forbidden*` was hidden whenever `allowed*` had any entries.
   const exclude: string[] = [];
   for (const k of ["Craft", "SoldierTypes", "Vehicles", "Armors"]) {
-    exclude.push((entry[`allowed${k}`]?.length ?? 0) > 0 ? `forbidden${k}` : `allowed${k}`);
+    exclude.push(
+      ((entry[`allowed${k}`] as string[] | undefined)?.length ?? 0) > 0
+        ? `forbidden${k}`
+        : `allowed${k}`,
+    );
   }
 
   return (

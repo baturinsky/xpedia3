@@ -17,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import * as esbuild from "esbuild";
+import { builtinModsPayload as buildBuiltinModsPayload } from "./builtinMods.mjs";
 import { versionDefines } from "./version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -36,31 +37,11 @@ require(wasmFile, "The unrar binary");
 /**
  * The builtin mods in the same container `vite.config.ts` produces.
  *
- * A flat binary list of `[name length][data length][name][data]`, all lengths
- * little-endian, gzipped as a whole: it compresses far better than base64 inside
- * JSON, and it is the exact format `unpackBuiltinMods` already reads.
+ * The one implementation in `scripts/builtinMods.mjs`, which is also the
+ * format `unpackBuiltinMods` already reads.
  */
 function builtinModsPayload() {
-  const parts = [];
-  const walk = (dir) => {
-    for (const entry of fs
-      .readdirSync(dir, { withFileTypes: true })
-      .sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-        continue;
-      }
-      const name = Buffer.from(path.relative(builtinRoot, full).replace(/\\/g, "/"), "utf8");
-      const data = fs.readFileSync(full);
-      const header = Buffer.alloc(8);
-      header.writeUInt32LE(name.length, 0);
-      header.writeUInt32LE(data.length, 4);
-      parts.push(header, name, data);
-    }
-  };
-  walk(builtinRoot);
-  return zlib.gzipSync(Buffer.concat(parts), { level: 9 }).toString("base64");
+  return buildBuiltinModsPayload(builtinRoot);
 }
 
 /**

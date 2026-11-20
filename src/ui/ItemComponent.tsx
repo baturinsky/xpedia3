@@ -1,5 +1,5 @@
-import React from "react";
-import type { Attack, Item } from "../rul/Entry";
+import React, { Fragment } from "react";
+import type { Attack, BonusMap, Item } from "../rul/Entry";
 import { damageTypes, internalBattleTypes, rul, sortFirstLast } from "../rul/Ruleset";
 import { state, update } from "../state";
 import { SoundRef } from "./Audio";
@@ -96,9 +96,9 @@ const bonusFields = [
 /** Header of the item table: weight, size, shots and battle type */
 const ItemHeader = ({ entry }: { entry: Item }) => (
   <>
-    {entry.weight ? entry.weight + rul.tr("kg") : ""}&nbsp;
+    {entry.weight ? entry.weight + (rul.tr("kg") ?? "") : ""}&nbsp;
     {entry.invSize}&nbsp;
-    {entry.clipSize > 0 ? entry.clipSize + rul.tr("-shot") : ""}&nbsp;
+    {(entry.clipSize ?? 0) > 0 ? (entry.clipSize ?? 0) + (rul.tr("-shot") ?? "") : ""}&nbsp;
     <Val of={entry.internalBattleType} />
     &nbsp;
     <Val of="Item" />
@@ -291,7 +291,8 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
 
   const special: { [field: string]: MainTableRenderer } = {};
 
-  for (const field of bonusFields) special[field] = ({ val }) => <SpecialBonus bonus={val} />;
+  for (const field of bonusFields)
+    special[field] = ({ val }) => <SpecialBonus bonus={val as BonusMap} />;
 
   // Through `Val` so the icon map is applied, like every other damage type on
   // the page. `damageTypeName` returns bare text.
@@ -310,7 +311,7 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
     />
   );
 
-  special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val])}`;
+  special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val as number])}`;
   special.prisonType = ({ val }) => <Val of={`prisonType${val}`} />;
   special.experienceTrainingMode = ({ val }) => (
     <>
@@ -326,10 +327,14 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
   for (const field of ["floorSprite", "handSprite"])
     special[field] = ({ val }) => (
       <>
-        <a style={{ verticalAlign: "top" }} href={rul.obsSprite(field, val)}>
-          {val}
+        <a style={{ verticalAlign: "top" }} href={rul.obsSprite(field, Number(val))}>
+          {String(val)}
         </a>
-        <Img className="item-img sprite" alt={String(val)} src={rul.obsSprite(field, val)} />
+        <Img
+          className="item-img sprite"
+          alt={String(val)}
+          src={rul.obsSprite(field, Number(val))}
+        />
       </>
     );
 
@@ -446,15 +451,15 @@ export const UseCost = ({
       {Object.keys(cost).map((res) => {
         if (res !== "time" && cost[res] !== 0) {
           return (
-            <>
-              <br key={res} />
-              <Nobr key={`${res}-value`}>
+            <Fragment key={res}>
+              <br />
+              <Nobr>
                 <Val of={cost[res]} />
                 <small>
                   <Val of={res} />
                 </small>
               </Nobr>
-            </>
+            </Fragment>
           );
         }
         return null;
