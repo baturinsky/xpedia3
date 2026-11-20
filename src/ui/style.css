@@ -130,9 +130,15 @@ em.bad {
 }
 
 /* A reference that points at the page being read. Two collections can share an
-   id, so the reference is shown, but it would only reload this same page. */
+   id, so the reference is shown, but it would only reload this same page. The
+   marker says it is this page rather than a link; the tooltip says why. */
 .self-ref {
   color: inherit;
+}
+
+.self-ref-mark {
+  opacity: 0.45;
+  font-size: 60%;
 }
 
 .list-divider {

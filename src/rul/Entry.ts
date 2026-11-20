@@ -594,6 +594,7 @@ export class SoldierBonus extends Entry {
 export class DamageType extends Entry {
   items?: string[];
   commendations?: string[];
+  enviroEffects?: string[];
 
   constructor(raw: RawEntry) {
     super("damageTypes");

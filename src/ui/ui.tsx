@@ -640,6 +640,12 @@ function SectionsList() {
   // come from the same helpers the `<`/`>` arrows walk (`Ruleset.sectionOrder`
   // and friends), so a category cannot be listed in one order and stepped
   // through in another.
+  // The `CATEGORIES` page lists the category articles, so it heads this very
+  // list rather than being an entry of it. It stays in the order the arrows
+  // walk (`typeSectionOrder`); only the display skips it.
+  const categories = rul
+    .typeSectionOrder(state.alphabeticalSort)
+    .filter((s) => s.id !== "CATEGORIES");
   return (
     <div className="sections-list">
       <div>
@@ -652,7 +658,7 @@ function SectionsList() {
         <h4>
           <Tr text="Categories" />
         </h4>
-        <Val of={rul.typeSectionOrder(state.alphabeticalSort)} />
+        <Val of={categories} />
       </div>
     </div>
   );

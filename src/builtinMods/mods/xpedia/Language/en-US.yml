@@ -1160,6 +1160,7 @@ en-US:
   tip_score: "score<br><br>Score this object is worth. <ul><li>For a craft: score lost when it is destroyed.</li><li>For a UFO: score gained when it crash lands, double that when it is destroyed.</li></ul>"
   tip_score__crafts: "score<br><br>Score lost when this craft is destroyed."
   tip_score__ufos: "score<br><br>Score gained when this UFO crash lands, doubled when it is destroyed."
+  tip_selfRef: "Self-reference<br><br>Another entry with this name is also on this page, so it is shown as text instead of a link."
   tip_shieldBleedThrough: shieldBleedThrough<br><br>Defines the percent of damage that
     passes the shield when it goes down. A value of 0 means that with even just 1 shield
     point, any single hit will be blocked, while 100 means 100% of the damage left after
@@ -1975,7 +1976,7 @@ en-US:
   tip_criteria: "criteria<br><br>Values of the criteria columns of this commendation, one per stage."
   tip_dQty: "dQty<br><br>Random extra aliens spawned on top of the minimum, the same on every difficulty."
   tip_damageAlter: "damageAlter<br><br>Damage parameters of this attack: multipliers, armor effectiveness, blast radius and so on. They are listed under the attack table."
-  tip_damageTypes: "damageTypes<br><br>Damage types used by this item, or damage types this commendation can be earned with."
+  tip_damageTypes: "damageTypes<br><br><ul><li>Item: damage types this item can deal.</li><li>Commendation: damage types kills can be earned with.</li><li>Enviro effect: damage types the effect deals through its conditions' weapon or ammo.</li></ul>"
   tip_data: "data<br><br>One entry per alien rank on this mission: how many aliens to spawn, which gear sets they use, how many appear outside the UFO and so on."
   tip_dependencies: "dependencies<br><br>Research projects that unlock access to this one. It becomes available once the whole list is researched, or when any project leads to it."
   tip_deployments: "deployments<br><br>Alien deployments this starting condition may use."

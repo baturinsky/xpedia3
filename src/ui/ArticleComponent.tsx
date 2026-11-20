@@ -167,6 +167,11 @@ function collectionEntry(collection: string, id: string): Entry | undefined {
 }
 
 const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig } = {
+  enviroEffects: {
+    special: {
+      environmentalConditions: environmentalConditions,
+    },
+  },
   alienMissions: MissionComponent,
   missionScripts: MissionScriptComponent,
   units: UnitComponent,
@@ -202,11 +207,6 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
     },
   },
   startingConditions: StartingConditionsComponent,
-  enviroEffects: {
-    special: {
-      environmentalConditions: environmentalConditions,
-    },
-  },
   terrains: {
     sort: { last: ["mapBlocks"] },
     special: {

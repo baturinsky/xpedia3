@@ -901,6 +901,34 @@ export default class Ruleset {
     crosslink(this.items, "internalBattleType", "battleTypes", "items");
     crosslink(this.items, "supportedInventorySections", "inventorySections", "items");
     crosslink(this.commendations, "damageTypes", this.damageTypes, "commendations");
+
+    // An enviro effect deals its conditions' damage through the weapon or ammo
+    // item: the engine fires that item's own `damageType` at the unit
+    // (`Battlescape/NextTurnState.cpp`), so the effect's damage types are
+    // exactly what its `weaponOrAmmo` items declare. They are computed once
+    // here so the effect carries the forward list and the damage type carries
+    // the back list, the same way a commendation's `damageTypes` do.
+    for (const t of Object.values(this.enviroEffects)) {
+      const conditions = t.environmentalConditions as
+        | { [faction: string]: { weaponOrAmmo?: unknown } }
+        | undefined;
+      if (conditions == null) continue;
+      const ids = new Set<string>();
+      for (const c of Object.values(conditions)) {
+        const weaponId = c?.weaponOrAmmo;
+        if (typeof weaponId !== "string") continue;
+        const item = this.items[weaponId];
+        if (item == null) continue;
+        const idx = damageTypeIndex(
+          // An item with no stated `damageType` deals high-explosive damage in
+          // the engine (`RuleItem.cpp`), so the same default applies here.
+          item.damageType ?? 3,
+        );
+        if (idx != null) ids.add(damageTypes[idx]);
+      }
+      if (ids.size) t.damageTypes = [...ids];
+    }
+    crosslink(this.enviroEffects, "damageTypes", this.damageTypes, "enviroEffects");
     crosslink(this.events, "researchList", this.research, "events");
     crosslink(this.armors, "builtInWeapons", this.items, "builtIn");
     crosslink(this.armors, "specialWeapon", this.items, "builtIn");

@@ -173,9 +173,27 @@ export const Val = ({
     // A reference to the page being read. Two collections can share an id (a
     // craft and its research entry, a terrain and its map script, ...): they are
     // different entries on one article, so the reference is real and stays, but
-    // the link would only reload this same page
-    if (state.article && state.article.id === id)
-      return <span className="self-ref">{tr1((children ?? id) as string)}</span>;
+    // the link would only reload this same page, so it is kept as text. The
+    // marker and tooltip say why it is not a link.
+    if (state.article && state.article.id === id) {
+      const label = (
+        <Tr
+          text={(children ?? id) as string}
+          icon={icon}
+          nobr={nobr}
+          notip
+          capital={capital}
+          prefix={prefix}
+          postfix={postfix}
+        />
+      );
+      return (
+        <span className="self-ref" data-tooltip="tip_selfRef">
+          {label}
+          <sup className="self-ref-mark">⊙</sup>
+        </span>
+      );
+    }
     return <a href={`##${id}`}>{tr1((children ?? id) as string)}</a>;
   }
 
@@ -347,8 +365,9 @@ const LinksList: FC<LinksListProps> = ({
         {keys.map((field) => (
           <div key={field as string}>
             {state.article && state.article.id === field ? (
-              <span className="self-ref">
-                <Tr text={field as string} />
+              <span className="self-ref" data-tooltip="tip_selfRef">
+                <Tr text={field as string} notip />
+                <sup className="self-ref-mark">⊙</sup>
               </span>
             ) : (
               <a
