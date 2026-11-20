@@ -356,7 +356,8 @@ function StorageSummary({ packs }: { packs: NonNullable<typeof state.packs> }) {
   const stored = packs.length;
 
   // The estimate changes as packs are deleted, which re-renders this component
-  // with a new list, so it is re-read then rather than on a timer
+  // with a new list, so it is re-read then rather than on a timer.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `stored` and `total` are the triggers.
   useEffect(() => {
     storageInfo().then(setInfo);
   }, [stored, total]);
@@ -594,7 +595,9 @@ export function CurrentAssets() {
 export function ConfirmDialog() {
   const request = state.confirmRequest;
 
-  // Escape is the normal way out of a modal, and it means Cancel here
+  // Escape is the normal way out of a modal, and it means Cancel here.
+  // No dependency array: `request` is a module value, and re-registering the
+  // listener after every render is what keeps it in step with the dialog.
   useEffect(() => {
     if (!request) return;
     function onKey(e: KeyboardEvent) {
@@ -605,7 +608,7 @@ export function ConfirmDialog() {
     }
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [!!request]);
+  });
 
   if (!request) return null;
 

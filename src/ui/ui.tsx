@@ -44,14 +44,17 @@ export const StoreContext = createContext({} as StoreType);
 
 /** Applies UI preferences that live on the document root */
 function useDocumentSettings() {
+  // No dependency arrays on purpose: `state` is a module value, and `UI`
+  // re-renders on every store update, so running after every render is what
+  // picks up a preference change. Both writes are idempotent.
   useEffect(() => {
     const root = document.documentElement;
     root.style.fontSize = state.hugeFont ? "24pt" : "12pt";
-  }, [state.hugeFont]);
+  });
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
-  }, [state.theme]);
+  });
 }
 
 /** The sidebar lists the articles of the current section. The front page has
@@ -144,13 +147,15 @@ function UI() {
  * the pack ahead of time costs nothing for the people who never export.
  */
 function ExportButton() {
+  // An empty dependency array: the pack is read at call time, and a changed
+  // pack always comes with `xpedia:loaded`, which this same effect listens to.
   useEffect(() => {
     warmEstimate();
     // Re-uploading a pack replaces its ruleset without changing its name, so the
     // measurement dropped by `xpedia:loaded` has to be retaken here
     addEventListener("xpedia:loaded", warmEstimate);
     return () => removeEventListener("xpedia:loaded", warmEstimate);
-  }, [state.packName]);
+  }, []);
   return (
     <button
       type="button"
@@ -682,6 +687,7 @@ export function NavSide() {
     else box.scrollTop += linkRect.bottom - (boxRect.bottom - margin);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the listed values are the only triggers on purpose; running on every render would re-centre the list after the reader scrolled it away, see `reveal` above.
   useLayoutEffect(reveal, [
     reveal,
     article?.id,

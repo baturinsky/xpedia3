@@ -50,6 +50,9 @@ function ExportDialogBody() {
   // offers everything the pack has and a choice made on another pack does not
   // silently drop a language this one is the only one to carry
   const selected = languages.filter((lang) => state.exportLanguages[lang] !== false);
+  // Content of `selected`, so an effect can depend on what the list holds
+  // rather than on a fresh array identity on every render
+  const selectedKey = selected.join(",");
   const [images, setImages] = useState(false);
   const [split, setSplit] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -94,6 +97,7 @@ function ExportDialogBody() {
     return () => removeEventListener("keydown", onKey);
   }, [busy]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `pack` is a module value, listed only as the trigger; the dialog remounts on every open.
   useEffect(() => {
     // An exported file has nothing to export, so measuring it would be waste
     if (!pack) return;
@@ -125,6 +129,7 @@ function ExportDialogBody() {
   // the two are different, because one is worth waiting for and the other is an
   // answer the dialog has to give rather than spin on forever
   const [servedBytes, setServedBytes] = useState<number | null>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the url and the joined languages are content keys on purpose; object and array identities change on unrelated renders.
   useEffect(() => {
     if (!serverExport) return;
     if (!includeImages) {
@@ -152,6 +157,7 @@ function ExportDialogBody() {
     };
   }, [serverExport?.url, selected.join(","), split, includeImages]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `selectedKey` stands in for `selected`, a fresh array per render; its contents are what the measurement needs.
   useEffect(() => {
     // The server's archive is not measured here, so the local one is not either
     if (!pack || !estimate || !pending || serverSized) {
@@ -177,7 +183,7 @@ function ExportDialogBody() {
     return () => {
       live = false;
     };
-  }, [estimate, pending, archive]);
+  }, [estimate, pending, archive, includeImages, serverSized, selectedKey]);
 
   if (!pack) return null;
 

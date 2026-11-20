@@ -173,6 +173,7 @@ export function useSpriteImages(paths: string[]) {
   const key = paths.join("\n");
   const [broken, setBroken] = useState<string[]>([]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the content of `paths`, listed because a fresh array identity must not restart the loading.
   useEffect(() => {
     let cancelled = false;
     const fails: string[] = [];
@@ -361,6 +362,7 @@ export function Img(props: {
 export function useStateAsync<T>(p: Promise<T>, initialValue?: T) {
   const [getter, setter] = useState(initialValue);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `state.count` is the store tick this hook re-reads on; `p.then` is a stable method reference.
   useEffect(() => {
     p.then((a) => {
       setter(a);
@@ -727,6 +729,7 @@ export function IncrementalList<T>(props: {
     return () => removeEventListener("beforeprint", all);
   }, [items.length]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `count` is the trigger, so a grown batch is checked again even when `more` stays true.
   useEffect(() => {
     if (!more) return;
     const atEnd = (e?: Event) => {
@@ -917,7 +920,7 @@ export function SectionTable(props: SectionTableProps) {
       sortField,
       sortDescending,
     });
-  }, [shownFields, filtersSelected, sortField, sortDescending]);
+  }, [storageKey, shownFields, filtersSelected, sortField, sortDescending]);
 
   let sorted = [...entries];
   for (const k in filtersSelected) {

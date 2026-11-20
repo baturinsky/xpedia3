@@ -697,13 +697,17 @@ export function ArticleComponent() {
   const bodyRef = useRef<HTMLDivElement>(null);
   // Old `Article.svelte` set the document title from `<svelte:head>`. This must
   // run before any early return so the hook order stays stable.
+  // No dependency array on purpose: `article` and `rul` are module values, not
+  // reactive ones, so a listed dependency would never be compared — but the
+  // component re-renders whenever the store changes, so running after every
+  // render is what picks up a new article, and setting the title is idempotent.
   useEffect(() => {
     // The tab title names the article, and falls back to XPedia on the landing
     // page. The version belongs to that fallback only: an article's own name
     // is already the pack's, and a pack's articles are not XPedia's version.
     const name = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
     document.title = article?.id ? name : `${name} ${xpediaVersion()}`;
-  }, [article?.id]);
+  });
   const oneColumn = useColumnFit(bodyRef, article?.id ?? "", state.hugeFont);
 
   // Full text search results replace the article view

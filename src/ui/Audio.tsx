@@ -182,7 +182,7 @@ export function AudioDialog() {
     }
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [!!target]);
+  }, [target]);
 
   if (!target) return null;
 

@@ -898,7 +898,7 @@ export function UnitSprite(props: {
       [...new Set(Object.values(sprite?.frames ?? {}))]
         .map((path) => sprite?.resolveFramePath(path))
         .filter((path): path is string => !!path),
-    [props.view.sheet],
+    [sprite?.frames, sprite?.resolveFramePath],
   );
   const { urls, settled } = useSpriteImages(sources);
 
@@ -909,6 +909,7 @@ export function UnitSprite(props: {
   const turretDirection = (((props.turretDirection ?? direction) % 8) + 8) % 8;
   const hasRealData = sources.length > 0 && settled && urls.size === sources.length;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: callers pass `view` as an inline object, so a whole-view dependency would restart painting and image loading on every render; the fields, `hasRealData` and the stable sprite methods are the intended triggers.
   useEffect(() => {
     const element = canvas.current;
     if (!element || !hasRealData || !sprite?.grid) return;
@@ -1030,6 +1031,7 @@ export function UnitSprite(props: {
  * able to ask for "kneeling, facing west" is the point of it.
  */
 export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the caller passes `view` inline, so the fields are listed instead of the object.
   const poses = useMemo(
     () => unitPoses(props.view),
     [

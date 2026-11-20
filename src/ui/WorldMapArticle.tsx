@@ -1082,8 +1082,11 @@ function MapPicture({
   // handler that has to ignore the click a drag ends with
   const drag = useRef<{ moved: boolean }>(undefined);
 
-  // A new pack means a new picture, so the old magnification is meaningless
-  useEffect(() => setView({ zoom: 1, x: 0, y: 0 }), [map]);
+  // A new map means a new picture, so the old magnification is meaningless.
+  // An empty dependency array: the view starts at the default, and it cannot
+  // be changed while the map has not loaded, since the picture only renders
+  // once the map is known.
+  useEffect(() => setView({ zoom: 1, x: 0, y: 0 }), []);
 
   // The wheel listener has to be native and non-passive: React's `onWheel` is
   // passive, so `preventDefault` there would not stop the page from scrolling
@@ -1485,6 +1488,7 @@ export function RegionsMapArticle() {
   // has moved off. It is a remembered choice, so it survives leaving the page.
   const chosen = state.selection.regionsMap;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `rul` is a module value, listed only as the trigger.
   const regions = useMemo(() => projectRegions(Object.values(rul.regions ?? {})), [rul]);
   const pick = (id: string) => {
     setHovered(undefined);
@@ -2101,6 +2105,7 @@ export function TrajectoryMapArticle({ trajectory }: { trajectory: UfoTrajectory
   );
   // A radio choice changes the region, and a zone number means something else
   // there, so the highlight must not survive the switch
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `region` is the trigger; `reset` is a new function on every highlight change, so depending on it would reset on hover.
   useEffect(() => {
     focus?.reset();
   }, [region]);
