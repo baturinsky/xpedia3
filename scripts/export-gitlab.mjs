@@ -3,6 +3,11 @@
  *
  * Usage: node scripts/export-gitlab.mjs <commit name>
  *
+ * The commit name may also be `currentVersion`, an alias for the version in
+ * `package.json`. That is what `npm run export-gitlab` passes, so a release
+ * export commits as the release it is without the package command having to
+ * be edited each time the version is bumped.
+ *
  * The site repo holds the exports as loose files: the page, the language scripts
  * beside it and every image the pedia can show, laid out the way the game expects.
  * Those are build products, not sources, so each run rewrites them in place and
@@ -17,6 +22,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { version } from "./version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const cli = path.join(root, "cli", "xpedia-cli.mjs");
@@ -83,8 +89,11 @@ function run(command, args, { cwd, tolerate = false } = {}) {
 }
 
 // The commit name is everything after the script's own path, so a name with
-// spaces works whether the shell passed it as one argument or as several
-const commitName = process.argv.slice(2).join(" ").trim();
+// spaces works whether the shell passed it as one argument or as several.
+// `currentVersion` stands for the version in `package.json` (see `version.mjs`),
+// resolved here rather than in the package command so the bump needs no edit there.
+let commitName = process.argv.slice(2).join(" ").trim();
+if (commitName === "currentVersion") commitName = version();
 if (!commitName) fail('A commit name is required: node scripts/export-gitlab.mjs "<commit name>"');
 
 // Checked before anything is written, so a missing archive is not discovered

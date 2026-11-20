@@ -1,6 +1,6 @@
 {
   "name": "xpedia3",
-  "version": "3.0.0-alpha.6",
+  "version": "3.0.0-alpha.7",
   "description": "A simple tactics engine",
   "main": "main.js",
   "type": "module",
@@ -13,7 +13,8 @@
     "check": "tsc -p src/tsconfig.json --noEmit && tsc -p tsconfig.tools.json",
     "format": "biome format --write .",
     "lint": "biome check .",
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs",
+    "export-gitlab": "npm run cli && node scripts/export-gitlab.mjs currentVersion"
   },
   "//pinned": "React, its renderer and the data grid are held at the versions the tables were written against. A caret range would pull React 19.3 and react-data-grid beta.64 on the next install, which is a large unrequested change to the section tables.",
   "//resolutions": "Security pins for dependencies we only pull in at build time. Each is the first version patched for an advisory; they stay inside the major the parent tool already asks for, so nothing downstream changes.",
