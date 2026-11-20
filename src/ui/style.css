@@ -1457,6 +1457,123 @@ ol > li:last-child::after {
   content: "";
 }
 
+/*
+ * The map script commands, in execution order, and the map blocks of a
+ * terrain, a pool picked by size and group.
+ *
+ * The command list is ordered because the order is the program: a command
+ * is drawn here exactly as the engine runs it. The block list is unordered
+ * because the order means nothing — the engine picks by size and group.
+ * The global `ol > li` rules above make an ordered list read inline, so
+ * the list overrides them back to one command per row, numbered from 1.
+ * It sits before the `.articles-list` rules below because those have
+ * higher specificity and would otherwise be overridden.
+ */
+.mapscript-commands {
+  list-style: decimal;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  padding-inline-start: 1.6rem;
+}
+
+.mapscript-type,
+.terrain-name {
+  font-weight: bold;
+}
+
+/*
+ * Tabular nested data: map blocks, deployment data, environmental
+ * conditions. Header and row-name cells are `th`, so they need the padding
+ * `td` gets from `.main-table`, and a table this tall has to be allowed to
+ * break across the article's columns — `.main-table` avoids breaking so a
+ * small table stays one box, which would pin 125 rows into a single
+ * column.
+ */
+.data-table {
+  break-inside: auto;
+}
+
+.data-table th {
+  padding: 0.1rem 0.25rem;
+  text-align: left;
+}
+
+/*
+ * Every column but the last is only as wide as its content, so the numbers
+ * stop being padded out across the page and the last column takes the
+ * remaining width. `width: 1%` makes table layout give a column only what
+ * its content needs, the same trick as `.row-name` — without it, `width:
+ * 100%` on the table splits the spare width over every column, and a
+ * `Groups` of one digit fills a third of the page.
+ */
+.data-table > thead > tr > :not(:last-child),
+.data-table > tbody > tr > :not(:last-child) {
+  width: 1%;
+}
+
+.data-table thead th {
+  font-variant: small-caps;
+  /*
+   * Headers never wrap, so the tooltip `?` stays on the header's own line.
+   * The word is an inline-block and the `?` a separate inline box after
+   * it: in a column squeezed to the word's width (the content-width
+   * columns above) the `?` would wrap to a second line at the left
+   * instead. `Name` only escaped because its column is wide enough for
+   * the block names below it. `nowrap` makes the column fit word and
+   * mark together, the same way `.row-name` does for its labels.
+   */
+  white-space: nowrap;
+}
+
+/*
+ * One command's fields, as a definition list so the field names are
+ * semantics rather than table chrome. Two columns, like a table's label and
+ * value cells, without the borders. Nested rows in the data tables (a
+ * block's spawns, an inline terrain's other fields) read the same way.
+ */
+.mapscript-fields,
+.data-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  margin-block-start: 0.15rem;
+  margin-block-end: 0.4rem;
+  margin-inline-start: 0.5rem;
+}
+
+.mapscript-nested,
+.data-nested {
+  list-style: none;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  padding-inline-start: 1rem;
+}
+
+.mapscript-commands > li {
+  display: list-item;
+}
+
+.mapscript-fields > dt,
+.data-fields > dt {
+  text-align: right;
+  padding-inline-end: 0.5rem;
+  font-variant: small-caps;
+}
+
+.mapscript-fields > dd,
+.data-fields > dd {
+  margin-inline-start: 0;
+}
+
+.mapscript-nested > li,
+.data-nested > li {
+  display: list-item;
+}
+
+.mapscript-commands > li::after {
+  content: "";
+}
+
+/* biome-ignore lint/style/noDescendingSpecificity: `:where()` carries no specificity on purpose, so this reads as descending; the mapscript lists never occur inside `.articles-list`, so the two rules never compete on one element */
 :where(.articles-list) ol > li {
   display: list-item;
 }

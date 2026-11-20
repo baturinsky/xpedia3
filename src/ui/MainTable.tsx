@@ -2,7 +2,7 @@ import { Fragment, type JSX, type ReactNode } from "react";
 import { rul, type SortFirstLastOptions, sortFirstLast } from "../rul/Ruleset";
 import { isFlat } from "../util";
 import { type AnyRef, fromAnyRef } from "./components";
-import { Val } from "./Val";
+import { TipScopeProvider, Val } from "./Val";
 
 /**
  * Draws one row of a `MainTable`.
@@ -60,6 +60,12 @@ const MainTable = ({
 
   const sorted = pairs != null ? { all: pairs } : sortFirstLast(of as object, sort);
 
+  // The entry's collection names the scope: nested plain nodes have no
+  // collection of their own and keep this one (the provider passes through
+  // when it is given none), while a special renderer may replace it with
+  // the kind of object it draws.
+  const scope = (of as { collection?: string } | undefined)?.collection;
+
   const subVal = (key: string | undefined, value: unknown) => {
     // A field may hold a whole ruleset node rather than a plain value, and some
     // of those are references: `refNode` carries the inherited armour
@@ -80,104 +86,106 @@ const MainTable = ({
   };
 
   return (
-    <table className={"main-table"}>
-      {(title !== undefined || header != null) && (
-        <thead>
-          <tr>
-            <td colSpan={2}>
-              {header ?? (
-                <>
-                  <Val of={title} />
-                  {subtitle && (
-                    <>
-                      {" "}
-                      <Val of={subtitle} />
-                    </>
-                  )}
-                </>
-              )}
-            </td>
-          </tr>
-        </thead>
-      )}
-      <tbody>
-        {before}
-        {sorted.all.map(([key, value]: [string, unknown], row) => {
-          // A field that draws its own rows, subheader included. Checked first
-          // so a caller can name an internal row such as `_details`.
-          if (key in rows) {
-            const render = rows[key];
-            if (typeof render !== "function") {
-              console.error(`Row renderer for '${key}' is not a function`);
+    <TipScopeProvider scope={scope}>
+      <table className={"main-table"}>
+        {(title !== undefined || header != null) && (
+          <thead>
+            <tr>
+              <td colSpan={2}>
+                {header ?? (
+                  <>
+                    <Val of={title} />
+                    {subtitle && (
+                      <>
+                        {" "}
+                        <Val of={subtitle} />
+                      </>
+                    )}
+                  </>
+                )}
+              </td>
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {before}
+          {sorted.all.map(([key, value]: [string, unknown], row) => {
+            // A field that draws its own rows, subheader included. Checked first
+            // so a caller can name an internal row such as `_details`.
+            if (key in rows) {
+              const render = rows[key];
+              if (typeof render !== "function") {
+                console.error(`Row renderer for '${key}' is not a function`);
+                return null;
+              }
+              return <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
+            }
+
+            // Skip keys starting with underscore
+            if (key.charAt(0) === "_") {
               return null;
             }
-            return <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
-          }
 
-          // Skip keys starting with underscore
-          if (key.charAt(0) === "_") {
-            return null;
-          }
-
-          // Wide field - the renderer returns its own table rows, like the
-          // `wide` slot of old `MainTable.svelte`. Checked before `special`
-          // because a wide field looks its renderer up in the same map.
-          if (wide.includes(key)) {
-            const render = special[key];
-            let content: JSX.Element;
-            if (typeof render !== "function") {
-              content = subVal(key, value);
-            } else {
-              content = <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
+            // Wide field - the renderer returns its own table rows, like the
+            // `wide` slot of old `MainTable.svelte`. Checked before `special`
+            // because a wide field looks its renderer up in the same map.
+            if (wide.includes(key)) {
+              const render = special[key];
+              let content: JSX.Element;
+              if (typeof render !== "function") {
+                content = subVal(key, value);
+              } else {
+                content = <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
+              }
+              return (
+                <Fragment key={key}>
+                  <tr>
+                    <td colSpan={2} className="table-subheader">
+                      <Val of={key} />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={2}>{content}</td>
+                  </tr>
+                </Fragment>
+              );
             }
-            return (
-              <Fragment key={key}>
-                <tr>
-                  <td colSpan={2} className="table-subheader">
-                    <Val of={key} />
+
+            // Special field - custom renderer for the value only
+            if (key in special) {
+              const render = special[key];
+              if (typeof render !== "function") {
+                console.error(`Special table function for '${key}' is not a function`);
+                return null;
+              }
+              return (
+                <tr key={key}>
+                  <td className="row-name">
+                    <Val of={key} capital={true} />
                   </td>
+                  <td>{render({ key, val: value, row })}</td>
                 </tr>
-                <tr>
-                  <td colSpan={2}>{content}</td>
-                </tr>
-              </Fragment>
-            );
-          }
-
-          // Special field - custom renderer for the value only
-          if (key in special) {
-            const render = special[key];
-            if (typeof render !== "function") {
-              console.error(`Special table function for '${key}' is not a function`);
-              return null;
+              );
             }
-            return (
-              <tr key={key}>
-                <td className="row-name">
-                  <Val of={key} capital={true} />
-                </td>
-                <td>{render({ key, val: value, row })}</td>
-              </tr>
-            );
-          }
 
-          // Default fields - only render if prop has value
-          if (value != null && (value as { length?: unknown })?.length !== 0) {
-            return (
-              <tr key={key}>
-                <td className="row-name">
-                  <Val of={key} capital={true} />
-                </td>
-                <td>{subVal(key, value)}</td>
-              </tr>
-            );
-          }
+            // Default fields - only render if prop has value
+            if (value != null && (value as { length?: unknown })?.length !== 0) {
+              return (
+                <tr key={key}>
+                  <td className="row-name">
+                    <Val of={key} capital={true} />
+                  </td>
+                  <td>{subVal(key, value)}</td>
+                </tr>
+              );
+            }
 
-          return null;
-        })}
-        {after}
-      </tbody>
-    </table>
+            return null;
+          })}
+          {after}
+        </tbody>
+      </table>
+    </TipScopeProvider>
   );
 };
 

@@ -27,14 +27,19 @@ import CountriesComponent from "./CountryComponent";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
 import { BaseService, Img, LinksPage, type SectionRow, SectionTable } from "./components";
+import { deploymentData } from "./DeploymentDataComponent";
+import { environmentalConditions } from "./EnviroConditionsComponent";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
 import MainTable, { type MainTableRenderer } from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
+import { mapBlocks } from "./MapBlockComponent";
+import { mapScriptCommands } from "./MapScriptComponent";
 import MissionComponent from "./MissionComponent";
 import MissionScriptComponent from "./MissionScriptComponent";
 import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
+import { battlescapeTerrainData } from "./TerrainDataComponent";
 import TrajectoryComponent from "./TrajectoryComponent";
 import { TrajectoryFocusProvider } from "./trajectoryFocus";
 import UnitComponent from "./UnitComponent";
@@ -182,23 +187,35 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
   soldierBonuses: SoldierBonusesComponent,
   soldierTransformation: {},
   soldiers: { sort: { first: ["statCaps"], last: ["armors"] } },
-  ufos: { sort: { first: ["modSprite"], last: ["battlescapeTerrainData"] } },
+  ufos: {
+    sort: { first: ["modSprite"], last: ["battlescapeTerrainData"] },
+    special: {
+      battlescapeTerrainData: battlescapeTerrainData,
+    },
+  },
   alienRaces: { title: "Race" },
   alienRanks: { title: "Ranks" },
   alienDeployments: {
     sort: { first: ["startingCondition", "loot"], last: ["data"] },
+    special: {
+      data: deploymentData,
+    },
   },
   startingConditions: StartingConditionsComponent,
-  enviroEffects: {},
+  enviroEffects: {
+    special: {
+      environmentalConditions: environmentalConditions,
+    },
+  },
   terrains: {
     sort: { last: ["mapBlocks"] },
     special: {
-      mapBlocks: asSubTable,
+      mapBlocks: mapBlocks,
     },
   },
   mapScripts: {
     special: {
-      commands: asSubTable,
+      commands: mapScriptCommands,
     },
   },
   events: {},

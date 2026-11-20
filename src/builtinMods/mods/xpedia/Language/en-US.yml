@@ -1158,6 +1158,8 @@ en-US:
   tip_repairRate: repairRate<br><br>Amount of damage restored every hour while Repairing
     in hideout.
   tip_score: "score<br><br>Score this object is worth. <ul><li>For a craft: score lost when it is destroyed.</li><li>For a UFO: score gained when it crash lands, double that when it is destroyed.</li></ul>"
+  tip_score__crafts: "score<br><br>Score lost when this craft is destroyed."
+  tip_score__ufos: "score<br><br>Score gained when this UFO crash lands, doubled when it is destroyed."
   tip_shieldBleedThrough: shieldBleedThrough<br><br>Defines the percent of damage that
     passes the shield when it goes down. A value of 0 means that with even just 1 shield
     point, any single hit will be blocked, while 100 means 100% of the damage left after
@@ -1246,7 +1248,14 @@ en-US:
     after dogfight and cannot be forced to land by a tractor beam. They fight until
     0% HP (not 50% HP).
   tip_armor: "armor<br><br><ul><li>For items: how much damage is needed to destroy the item lying on the ground.</li><li>For UFOs: amount of damage blocked per hit.</li><li>For units and soldiers: string ID of the armor worn by default.</li></ul>"
+  tip_armor__items: "armor<br><br>How much damage is needed to destroy this item lying on the ground."
+  tip_armor__ufos: "armor<br><br>Amount of damage blocked per hit on this UFO."
+  tip_armor__units: "armor<br><br>String ID of the armor this unit wears by default."
+  tip_armor__soldiers: "armor<br><br>String ID of the armor this soldier wears by default."
   tip_stats: "stats<br><br><ul><li>For units: the battlescape stats of this unit.</li><li>For armors: stat bonuses the wearer receives, on top of the soldier's own stats.</li><li>For craft weapons and modules: stat changes applied to the craft while equipped.</li></ul>"
+  tip_stats__units: "stats<br><br>The battlescape stats of this unit."
+  tip_stats__armors: "stats<br><br>Stat bonuses the wearer receives, on top of the soldier's own stats."
+  tip_stats__craftWeapons: "stats<br><br>Stat changes applied to the craft while this weapon or module is equipped."
   tip_allowInv: allowInv<br><br>Can the inventory of this armor be accessed or not?
   tip_allowsKneeling: allowsKneeling<br><br>Does this armor allow kneeling?
   tip_allowsMoving: allowsMoving<br><br>Does this armor allow moving?
@@ -1338,6 +1347,8 @@ en-US:
     armor see during the day.
   tip_zombiImmune: "zombiImmune<br><br>Is this unit immune to zombification? The default depends on size: false for 1x1 units, true for 2x2 units. Only works for 1x1 units; 2x2 units are always immune."
   tip_cost: "cost<br><br><ul><li>Research: number of man-days needed to complete the project (the actual time is 50-150% of this).</li><li>Manufacture: money deducted per produced item.</li></ul>Note that the two are different numbers."
+  tip_cost__research: "cost<br><br>Number of man-days needed to complete this project (the actual time is 50-150% of this)."
+  tip_cost__manufacture: "cost<br><br>Money deducted per produced item. This is a different number from the research cost."
   tip_ArmorEffectiveness: ArmorEffectiveness<br><br>How effective is a unit's front/side/rear/bottom
     armor against this damage. 1.0 is 100%.
   tip_FireBlastCalc: FireBlastCalc<br><br>Vanilla fire/incendiary blast radius has a
@@ -1630,6 +1641,10 @@ en-US:
     the percent of pellets after the first that will hit the same tile/target as the
     first.
   tip_size: "size<br><br><ul><li>Item: space occupied in Stores.</li><li>Craft: unused; see maxItems.</li><li>Armor: size of the unit in battlescape grid units; 1 = 1x1, 2 = 2x2.</li><li>Facility: side of the square the facility occupies in base grid units.</li></ul>"
+  tip_size__items: "size<br><br>Space this item occupies in Stores."
+  tip_size__armors: "size<br><br>Size of the unit in battlescape grid units; 1 = 1x1, 2 = 2x2."
+  tip_size__facilities: "size<br><br>Side of the square this facility occupies in base grid units."
+  tip_size__mapScriptCommand: "size<br><br>The size of the area this map script command applies to."
   tip_snapRange: snapRange<br><br>Maximum effective range with snap shot before which
     range-based dropoff occurs.
   tip_spawnUnitFaction: spawnUnitFaction <ul><li> -1 = same faction as item user;</li>
@@ -1976,6 +1991,8 @@ en-US:
   tip_getOneFree: "getOneFree<br><br>Bonus research this project may grant when completed, for example a live alien handing over information about other races. Only applies to living aliens."
   tip_groundTimer: "groundTimer<br><br>Seconds the UFO spends on ground waypoints."
   tip_height: "height<br><br><ul><li>Map block: height in battlescape grid units.</li><li>Deployment: height of the battlescape map.</li><li>Sprite: height in pixels.</li></ul>"
+  tip_height__mapBlock: "height<br><br>Height of this map block, in battlescape grid units."
+  tip_height__alienDeployments: "height<br><br>Height of the battlescape map for this deployment, in tiles."
   tip_heldBy: "heldBy<br><br>Units that have this item in their hands by default."
   tip_hemisphere: "hemisphere<br><br>Geoscape hemisphere of this terrain:<ul><li>-1 = northern;</li><li>0 = both;</li><li>1 = southern.</li></ul>"
   tip_highQty: "highQty<br><br>Number of aliens spawned on the hardest difficulty. Middle difficulties take the value in between."
@@ -1991,6 +2008,8 @@ en-US:
   tip_layersDefinition: "layersDefinition<br><br>Paper-doll layers drawn over the inventory background for a unit wearing this armor, so one body sprite can be recoloured and combined."
   tip_leadsTo: "leadsTo<br><br>Research projects this one unlocks directly."
   tip_length: "length<br><br><ul><li>Map block: length in battlescape grid units.</li><li>Deployment: length of the battlescape map.</li></ul>"
+  tip_length__mapBlock: "length<br><br>Length of this map block, in battlescape grid units."
+  tip_length__alienDeployments: "length<br><br>Length of the battlescape map for this deployment, in tiles."
   tip_loftemps: "loftemps<br><br>Deprecated hitbox definition that only works for 1x1 units. Use loftempsSet instead."
   tip_loot: "loot<br><br>Items carried by the aliens of this mission, and therefore recoverable after the battle."
   tip_lowQty: "lowQty<br><br>Number of aliens spawned on the easiest difficulties."
@@ -2038,11 +2057,15 @@ en-US:
   tip_totalProducedItems: "totalProducedItems<br><br>Average items produced per run, counting the random results by their chance."
   tip_trajectory: "trajectory<br><br>Flight path this UFO follows when it enters the atmosphere."
   tip_type: "type<br><br>Kind of this entry:<ul><li>Most entries: a string ID, the same as the id.</li><li>Inventory section: 0 = slot, 1 = hand, 2 = ground.</li><li>Map block: -1 = undefined, 0 = default, 1 = landing zone, 2 = east-west road, 3 = north-south road, 4 = crossing, 5 = dirt, 6 = spawn point, 7 = alien base target, 8 = Cydonia target.</li></ul>"
+  tip_type__inventorySections: "type<br><br>Kind of inventory slot: 0 = slot, 1 = hand, 2 = ground."
+  tip_type__mapBlock: "type<br><br>Kind of map block: -1 = undefined, 0 = default, 1 = landing zone, 2 = east-west road, 3 = north-south road, 4 = crossing, 5 = dirt, 6 = spawn point, 7 = alien base target, 8 = Cydonia target."
   tip_ufo: "ufo<br><br>UFO spawned in this wave."
   tip_unlocks: "unlocks<br><br>Research projects this one unlocks when completed, regardless of their other dependencies."
   tip_waves: "waves<br><br>UFO waves spawned as this mission progresses, in order."
   tip_weapon: "weapon<br><br>Weapon this HWP article talks about. Only used on HWP articles."
   tip_width: "width<br><br><ul><li>Map block: width in battlescape grid units.</li><li>Deployment: width of the battlescape map.</li><li>Sprite: width in pixels.</li></ul>"
+  tip_width__mapBlock: "width<br><br>Width of this map block, in battlescape grid units."
+  tip_width__alienDeployments: "width<br><br>Width of the battlescape map for this deployment, in tiles."
   tip_xcomBaseInCountryTriggers: "xcomBaseInCountryTriggers<br><br>Countries that must, or must not, hold a Hideout of yours for this script to run."
   #==================================================================================================================
   tip_abortCutscene: 'abortCutscene<br><br>Cutscene played when the mission is aborted. "winGame" and "loseGame" both return the player to the main menu afterwards.'
@@ -2097,6 +2120,7 @@ en-US:
   tip_escapeType: "escapeType<br><br>Which tiles count as escape tiles:<ul><li>0 = none;</li><li>1 = exit tiles;</li><li>2 = entry tiles;</li><li>3 = either.</li></ul>"
   tip_events: "events<br><br>Events fired by this entry, filled in from their own triggers."
   tip_executionOdds: "executionOdds<br><br>Chance in per cent that this script command runs."
+  tip_executionChances: "executionChances<br><br>Chance in per cent that this map script command runs."
   tip_explodeInventory: "explodeInventory<br><br>How primed items in the inventory behave:<ul><li>-1 = use the global setting;</li><li>0 = never explode in the inventory;</li><li>1 = explode in the inventory, except in the hands;</li><li>2 = explode in the inventory anywhere.</li></ul>"
   tip_facilityTriggers: "facilityTriggers<br><br>Facilities in any Hideout that enable or forbid this script. true requires one to be built, false requires it not to be."
   tip_femaleFrequency: "femaleFrequency<br><br>Chance in per cent that a newly hired crew member is female."
@@ -3139,6 +3163,7 @@ en-US:
   everyItemList: Items all transferred
   everyMultiItemList: Item sets all transferred
   executionOdds: Execution chance, %
+  executionChances: Execution chance, %
   explodeInventory: Primed items go off
   facilityTriggers: Facility triggers
   femaleFrequency: Chance of female, %

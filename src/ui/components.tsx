@@ -2,6 +2,7 @@ import React, {
   type CSSProperties,
   type JSX,
   type ReactNode,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -14,7 +15,7 @@ import type { AlterMap, BonusMap } from "../rul/Entry";
 import { rul, sortFirstLast } from "../rul/Ruleset";
 import { state, update } from "../state";
 import { allFieldValuesOf, imageDataToUrl } from "../util";
-import { Tr, Val } from "./Val";
+import { TipScopeContext, Tr, tipKeyFor, Val } from "./Val";
 
 export async function viewImage(path: string) {
   const img = await resolveImage(path);
@@ -549,6 +550,10 @@ export function SecondaryTable(props: { text: string; children: JSX.Element }) {
 }
 
 export function AlterList(props: { items: AlterMap }) {
+  // This list builds its own tooltip span rather than going through `Tr`, so
+  // it resolves the scoped key the same way `Tr` does and falls back to the
+  // plain field key when the language has no scoped one.
+  const scope = useContext(TipScopeContext);
   return (
     <tr>
       <td colSpan={4} className="attacks-alter">
@@ -560,9 +565,12 @@ export function AlterList(props: { items: AlterMap }) {
                 {i !== 0 && <Divider />}
                 &nbsp;
                 <Nobr>
-                  <span data-tooltip={`tip_${field}`}>
+                  <span data-tooltip={tipKeyFor(field, scope)}>
                     <Val of={field} />
-                    {rul.lang && `tip_${field}` in rul.lang && <sup className="tipmark">?</sup>}:
+                    {rul.lang && tipKeyFor(field, scope) in rul.lang && (
+                      <sup className="tipmark">?</sup>
+                    )}
+                    :
                   </span>
 
                   <Val of={props.items[field]} />

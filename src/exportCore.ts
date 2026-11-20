@@ -1,4 +1,5 @@
 import * as fflate from "fflate";
+import { favicon } from "./imgPlaceholders";
 import { gameRelativePath, WORLD_DAT } from "./packBuild";
 import type Ruleset from "./rul/Ruleset";
 import {
@@ -370,7 +371,7 @@ export async function renderPage(
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Offline reference for an OpenXCom modpack" />
   <title>${escapeHtml(title)}</title>
-  <link rel="icon" href="data:;base64,iVBORwOKGO=" />
+  <link rel="icon" href="${favicon}" />
   ${styles.map((css) => `<style>${css}</style>`).join("\n  ")}
   <script data-xpedia-export>window.xpedia = ${scriptJson(payload)};</script>
   ${scripts.map((js) => `<script ${js.attrs}>${js.content}</script>`).join("\n  ")}

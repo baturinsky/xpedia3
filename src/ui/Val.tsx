@@ -1,9 +1,48 @@
-import { type FC, Fragment, type ReactNode } from "react";
+import { createContext, type FC, Fragment, type ReactNode, useContext } from "react";
 import { ValueRange } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
 import { MusicRef, SoundRef } from "./Audio";
 import { type AnyRef, Divider, fromAnyRef, Img } from "./components";
+
+/**
+ * The semantic type of the object currently being drawn: a collection name
+ * at article level (`items`, `armors`, …), or a nested object's kind inside
+ * a special renderer (`mapBlock`, `mapScriptCommand`, …).
+ *
+ * A tooltip is looked up by field name, but the same name means different
+ * things on different objects — `width` is a block's size in battlescape
+ * grid units, a deployment's map extent, a sprite's pixels. Carrying the
+ * scope as context lets `Tr` pick `tip_<field>__<scope>` where one exists
+ * and fall back to `tip_<field>` elsewhere, without threading a prop
+ * through every renderer and list. A provider that is given no scope
+ * renders no provider at all, so a nested plain node keeps the scope of
+ * the article around it instead of losing it.
+ */
+export const TipScopeContext = createContext<string | undefined>(undefined);
+
+/** Gives every `Val` underneath this scope's naming for its tooltips */
+export function TipScopeProvider({
+  scope,
+  children,
+}: {
+  scope: string | undefined;
+  children: ReactNode;
+}): ReactNode {
+  if (scope == null) return <>{children}</>;
+  return <TipScopeContext.Provider value={scope}>{children}</TipScopeContext.Provider>;
+}
+
+/**
+ * The `tip_` language key a field's tooltip reads under a scope: the scoped
+ * key when the language has one, otherwise the plain field key. The plain
+ * key is never absent where a tooltip exists at all, so a scope that names
+ * nothing and a language that translates nothing behave as before.
+ */
+export function tipKeyFor(text: string, scope: string | undefined): string {
+  const scoped = scope != null ? `tip_${text}__${scope}` : undefined;
+  return scoped != null && rul != null && scoped in rul.lang ? scoped : `tip_${text}`;
+}
 
 /** Polymorphic value view */
 
@@ -185,6 +224,8 @@ export function Tr({
   prefix = undefined as string | undefined,
   postfix = undefined as string | undefined,
 }) {
+  const scope = useContext(TipScopeContext);
+
   if (text == null) return null;
 
   // Before any mod pack is loaded there is no ruleset to translate through, so
@@ -243,9 +284,10 @@ export function Tr({
     </span>
   );
 
-  if (!notip && text && `tip_${text}` in rul.lang) {
+  const tipKey = text != null ? tipKeyFor(text, scope) : undefined;
+  if (!notip && tipKey != null && tipKey in rul.lang) {
     element = (
-      <span data-tooltip={`tip_${text}`}>
+      <span data-tooltip={tipKey}>
         {element}
         <sup className="tipmark">?</sup>
       </span>

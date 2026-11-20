@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { favicon } from "../imgPlaceholders";
 import { goToLanding } from "../navigation";
 import {
   article,
@@ -344,7 +345,10 @@ function NavDropdown() {
         title="Sections"
         onClick={() => dropdownButtonClick("showDropdown", current ? `##${current}` : "##HOME")}
       >
-        {/*<img src={favicon} alt="XPedia" className="xpedia-icon" />*/}
+        {/* The icon is shown with XPedia's own name, not with a section's:
+          it marks the fallback label, so it appears exactly when the label
+          falls back to XPedia — the same condition as the version below. */}
+        {(!section?.id || onLandingPage()) && <img src={favicon} alt="" className="xpedia-icon" />}
         {/* The version is added only where XPedia itself is named: a loaded pack
           replaces this label with its own name and version, and appending
           XPedia's there would say two versions in one place. It stays visible
