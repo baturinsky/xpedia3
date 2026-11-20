@@ -287,7 +287,7 @@ function TriggerRows({ entry }: { entry: MissionScript }) {
 
 /** The score, funds and difficulty windows the script is limited by */
 function LimitsRow({ entry }: { entry: MissionScript }) {
-  const parts: { key: string; field: string; format: (v: any) => any }[] = [
+  const parts: { key: string; field: string; format: (v: unknown) => unknown }[] = [
     { key: "xpediaScriptMinScore", field: "minScore", format: (v) => v },
     { key: "xpediaScriptMaxScore", field: "maxScore", format: (v) => v },
     { key: "xpediaScriptMinFunds", field: "minFunds", format: (v) => v },

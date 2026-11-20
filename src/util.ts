@@ -152,19 +152,20 @@ export function unique<T>(a: T[]) {
   return [...new Set(a)];
 }
 
-export function withoutKeys<T extends { [key: string]: any }>(o: T, keys: string[]) {
-  const copy = { ...o };
+export function withoutKeys<T extends object>(o: T, keys: string[]) {
+  const copy: { [key: string]: unknown } = { ...(o as { [key: string]: unknown }) };
   for (const k of keys) {
     delete copy[k];
   }
   return copy;
 }
 
-export function allFieldValuesOf(objects: { [key: string]: any }[], field: string) {
+export function allFieldValuesOf<T extends object>(objects: T[], field: string) {
   const s = new Set<unknown>();
 
   for (const o of objects) {
-    if (o[field] !== undefined) s.add(o[field]);
+    const value = (o as { [key: string]: unknown })[field];
+    if (value !== undefined) s.add(value);
   }
   return [...s];
 }

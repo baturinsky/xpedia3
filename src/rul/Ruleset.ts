@@ -73,7 +73,9 @@ export type ModMeta = {
   active?: boolean;
   name?: string;
   version?: string;
-  [key: string]: any;
+  author?: string;
+  description?: string;
+  [key: string]: unknown;
 };
 
 export type Mod = {
@@ -215,9 +217,9 @@ export class Search {
     for (const a of Object.values(rul.articles)) {
       // The fields are looked up by name: `title` and `text` are getters, and a
       // pack may add others
-      const fields = a as { [key: string]: any };
+      const fields = a as unknown as { [key: string]: unknown };
       const texts = ["id", "type", "title", "text"]
-        .map((key) => `${fields[key]}`.toLowerCase())
+        .map((key) => String(fields[key]).toLowerCase())
         .join(" ");
       this.articles.indexDocument(a.id, texts);
     }
@@ -295,7 +297,7 @@ export default class Ruleset {
   private _missionReach?: Map<string, Set<string>>;
   terrains: { [key: string]: Entry } = {};
   mapScripts: { [key: string]: Entry } = {};
-  obs = { big: [], floor: [], hand: [], base: [], icon: [] } as { [id: string]: any[] };
+  obs = { big: [], floor: [], hand: [], base: [], icon: [] } as { [id: string]: Sprite[] };
   /** Relative resource path (lowercased) -> full archive path, see `getFilePath` */
   resourceMap: { [rel: string]: string } = {};
   /**
@@ -309,7 +311,7 @@ export default class Ruleset {
   sounds: { [cat: string]: { [slot: string]: string } } = {};
   /** Music id -> track, see `Music`. A lookup, not a set of articles */
   musics: { [id: string]: Music } = {};
-  config: any;
+  config: unknown;
   baseServices: { [key: string]: Service } = {};
   redirect: { [key: string]: string } = {};
   attacks: Attack[] = [];
@@ -1181,7 +1183,7 @@ export default class Ruleset {
     return this.sprites[id];
   }
 
-  async sprite(id: string | Promise<any>, onlyIfExists = false) {
+  async sprite(id: string | Promise<string>, onlyIfExists = false) {
     if (id instanceof Promise) return id;
     if (id in this.sprites) return this.sprites[id].data();
 
@@ -1446,8 +1448,8 @@ export default class Ruleset {
  */
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
-export function comparator(a: any, b: any) {
-  return nameCollator.compare(a ?? "", b ?? "");
+export function comparator(a: unknown, b: unknown) {
+  return nameCollator.compare(String(a ?? ""), String(b ?? ""));
 }
 
 /** Main class to figure what to do with data in Ruls */
@@ -1543,7 +1545,7 @@ export function soundCat(field: string, collection?: string) {
  * accepted. Only the ids matter here, since the pedia shows who can be chosen
  * rather than how the odds evolve over time.
  */
-export function regionNamesOf(weights: any) {
+export function regionNamesOf(weights: unknown) {
   const out = new Set<string>();
   if (weights == null || typeof weights !== "object") return out;
   for (const block of Array.isArray(weights) ? weights : Object.values(weights))
@@ -1623,7 +1625,7 @@ export const internalDamageTypes = [
  * `DT_AP`). Returns null for anything that does not name a known damage type, so
  * callers do not create a bogus entry with an `undefined` id.
  */
-export function damageTypeIndex(value: any): number | null {
+export function damageTypeIndex(value: unknown): number | null {
   if (value == null) return null;
 
   if (typeof value === "string") {
@@ -1682,19 +1684,19 @@ export { entryKey, rawId, stampUid, unknownIdFields } from "./Entry";
 
 export function backLink2(
   entry: Entry,
-  list: string[] | { [key: string]: any },
-  to: any,
+  list: string[] | { [key: string]: unknown },
+  to: { [id: string]: Entry } | string,
   field: string,
   field2: string,
 ) {
   backLink(entry.uid, list, to, field);
-  addAllIfNew(entry[field2], list as any);
+  addAllIfNew<unknown>(entry[field2], list);
 }
 
 export function backLink(
   id: string,
-  list: string[] | { [key: string]: any } | null,
-  to: any,
+  list: string[] | { [key: string]: unknown } | null,
+  to: { [id: string]: Entry } | string,
   field: string,
   collection?: string,
 ) {
@@ -1702,8 +1704,9 @@ export function backLink(
     collection = to;
     // Tables are registered on `rul` under their collection name, so the lookup
     // and the fallback both have to use it rather than the overwritten `to`
-    to = (rul as any)[collection];
-    if (!to) to = (rul as any)[collection] = {};
+    const tables = rul as unknown as { [collection: string]: { [id: string]: Entry } };
+    to = tables[collection];
+    if (!to) to = tables[collection] = {};
   }
   if (list == null) return;
   if (typeof list === "object" && !Array.isArray(list)) {
@@ -1721,7 +1724,7 @@ export function backLink(
   } else {
     if (!Array.isArray(list)) list = [list];
 
-    for (const key of list as any[]) {
+    for (const key of list as string[]) {
       // A missing key used to create an entry with an `undefined` id, which
       // then showed up as a blank article in a section
       if (key == null || key === "") continue;
@@ -1734,7 +1737,7 @@ export function backLink(
   }
 }
 
-function addFields(entry: Entry, field: string, list: string[] | { [key: string]: any }) {
+function addFields(entry: Entry, field: string, list: string[] | { [key: string]: unknown }) {
   if (entry == null || field == null || list == null) return;
   if (Array.isArray(list)) {
     entry[field] = entry[field] || [];

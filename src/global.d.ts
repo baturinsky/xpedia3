@@ -26,7 +26,11 @@ declare const __XPEDIA_DEV_PACKS__: string;
  */
 interface Window {
   /** The loaded ruleset, so it can be inspected from the console */
-  rul?: any;
+  rul?: unknown;
+  /** The inlined payload of an exported page, see `InlinePayload` */
+  xpedia?: unknown;
+  /** Language name -> the strings a split export carries for it */
+  xpediaLangPacks?: { [lang: string]: { [id: string]: string } };
 }
 
 /**

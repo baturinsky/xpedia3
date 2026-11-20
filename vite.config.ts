@@ -1,9 +1,10 @@
 import fs from "node:fs";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import zlib from "node:zlib";
 import react from "@vitejs/plugin-react";
-import type { PluginContext } from "rollup";
-import { defineConfig, type UserConfig } from "vite";
+import type { NormalizedOutputOptions, OutputBundle, PluginContext } from "rollup";
+import { type Connect, defineConfig, type UserConfig, type ViteDevServer } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import topLevelAwait from "vite-plugin-top-level-await";
 import { devBuildNumber as nextDevBuildNumber, versionDefines } from "./scripts/version.mjs";
@@ -66,8 +67,8 @@ function outputName() {
     // After `vite-plugin-singlefile`, which builds the page in its own
     // `generateBundle`; renaming earlier would have it re-emit `index.html`
     enforce: "post" as const,
-    generateBundle(_: any, bundle: any) {
-      for (const [key, asset] of Object.entries<any>(bundle)) {
+    generateBundle(_options: NormalizedOutputOptions, bundle: OutputBundle) {
+      for (const [key, asset] of Object.entries(bundle)) {
         if (asset.fileName !== "index.html") continue;
         asset.fileName = "xpedia.html";
         delete bundle[key];
@@ -125,8 +126,8 @@ function builtPage() {
   return {
     name: "built-page",
     apply: "serve" as const,
-    configureServer(server: any) {
-      server.middlewares.use("/xpedia-built.html", (_req: any, res: any) => {
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use("/xpedia-built.html", (_req: IncomingMessage, res: ServerResponse) => {
         const file = `${__dirname}/build/xpedia.html`;
         if (!fs.existsSync(file)) {
           res.statusCode = 404;
@@ -143,7 +144,7 @@ function builtPage() {
 function base64Loader() {
   return {
     name: "base64-loader",
-    transform(_: any, id: string) {
+    transform(_code: string, id: string) {
       const [path, query] = id.split("?");
       if (query !== "base64") return null;
 
@@ -185,52 +186,56 @@ function examplePacks() {
       return { define };
     },
 
-    configureServer(server: any) {
+    configureServer(server: ViteDevServer) {
       const root = `${__dirname}/misc/modpackExamples`;
-      server.middlewares.use(prefix, (req: any, res: any, next: any) => {
-        const name = decodeURIComponent(String(req.url ?? "").split("?")[0]).replace(/^\/+/, "");
+      server.middlewares.use(
+        prefix,
+        (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
+          const name = decodeURIComponent(String(req.url ?? "").split("?")[0]).replace(/^\/+/, "");
 
-        // The examples are not part of the repository, so a fresh clone has no
-        // folder to list. That is not an error: the developer view simply has
-        // nothing to offer, and the file name can still be typed by hand once
-        // the folder is filled.
-        const present = fs.existsSync(root);
+          // The examples are not part of the repository, so a fresh clone has no
+          // folder to list. That is not an error: the developer view simply has
+          // nothing to offer, and the file name can still be typed by hand once
+          // the folder is filled.
+          const present = fs.existsSync(root);
 
-        // The bare prefix lists what is available, so the developer view can
-        // offer the packs by name instead of making the file name be typed from
-        // memory. Archives only: the folder also holds extracted copies.
-        if (!name) {
-          const listing = !present
-            ? []
-            : (fs.readdirSync(root, { withFileTypes: true }) as any[])
-                .filter((entry) => entry.isFile() && /\.(zip|rar)$/i.test(entry.name))
-                .map((entry) => ({
-                  name: entry.name,
-                  size: fs.statSync(path.join(root, entry.name)).size,
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name));
-          res.setHeader("Content-Type", "application/json");
+          // The bare prefix lists what is available, so the developer view can
+          // offer the packs by name instead of making the file name be typed from
+          // memory. Archives only: the folder also holds extracted copies.
+          if (!name) {
+            const listing = !present
+              ? []
+              : fs
+                  .readdirSync(root, { withFileTypes: true })
+                  .filter((entry) => entry.isFile() && /\.(zip|rar)$/i.test(entry.name))
+                  .map((entry) => ({
+                    name: entry.name,
+                    size: fs.statSync(path.join(root, entry.name)).size,
+                  }))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+            res.setHeader("Content-Type", "application/json");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(JSON.stringify(listing));
+            return;
+          }
+
+          if (!present) return next();
+
+          // `misc/modpackExamples` is outside the dev server's root, so this route
+          // is the only way to reach it — but it still must not serve anything
+          // else on disk, hence the containment check
+          const file = path.resolve(root, name);
+          if (!file.startsWith(path.resolve(root) + path.sep)) return next();
+          const stat = fs.statSync(file, { throwIfNoEntry: false });
+          if (!stat?.isFile()) return next();
+          res.setHeader("Content-Type", "application/octet-stream");
+          res.setHeader("Content-Length", stat.size);
+          // The page is served from the same origin, so no CORS header is needed;
+          // `no-store` keeps a rebuilt archive from being served from cache
           res.setHeader("Cache-Control", "no-store");
-          res.end(JSON.stringify(listing));
-          return;
-        }
-
-        if (!present) return next();
-
-        // `misc/modpackExamples` is outside the dev server's root, so this route
-        // is the only way to reach it — but it still must not serve anything
-        // else on disk, hence the containment check
-        const file = path.resolve(root, name);
-        if (!file.startsWith(path.resolve(root) + path.sep)) return next();
-        const stat = fs.statSync(file, { throwIfNoEntry: false });
-        if (!stat?.isFile()) return next();
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Length", stat.size);
-        // The page is served from the same origin, so no CORS header is needed;
-        // `no-store` keeps a rebuilt archive from being served from cache
-        res.setHeader("Cache-Control", "no-store");
-        fs.createReadStream(file).pipe(res);
-      });
+          fs.createReadStream(file).pipe(res);
+        },
+      );
     },
   };
 }
@@ -298,7 +303,7 @@ function builtinModsFolder() {
     // brand new `Ruleset/Xpedia.rul` was silently left out of the container
     // until the dev server restarted. Watching the folder itself covers both,
     // so the container is rebuilt and the page reloaded.
-    configureServer(server: any) {
+    configureServer(server: ViteDevServer) {
       const root = `${__dirname}/src/builtinMods`;
       server.watcher.add(root);
       server.watcher.on("add", (file: string) => {

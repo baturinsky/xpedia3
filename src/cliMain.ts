@@ -453,7 +453,7 @@ function readManifest(dir: string): Manifest | undefined {
     const text = fs.readFileSync(path.join(dir, manifestName), "utf8");
     const data = JSON.parse(text);
     if (Array.isArray(data?.files))
-      return { files: data.files.filter((f: any) => typeof f === "string") };
+      return { files: data.files.filter((f: unknown): f is string => typeof f === "string") };
   } catch {
     // A missing or unreadable manifest is not an error: the directory may simply
     // never have been exported into

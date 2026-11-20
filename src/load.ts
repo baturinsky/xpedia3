@@ -20,7 +20,7 @@ import {
   unpackRar as unpackRarFiles,
   unpackZip as unpackZipFiles,
 } from "./packBuild";
-import type { ProcessedRuleset } from "./rul/Ruleset";
+import type { Mod, ProcessedRuleset } from "./rul/Ruleset";
 import Ruleset from "./rul/Ruleset";
 import {
   autoCloseStatus,
@@ -351,7 +351,7 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     applySavedLanguage(rul);
 
     const names = Object.values(rul.mods ?? {})
-      .map((m: any) => [m.meta?.name, m.meta?.version].filter(Boolean).join(" "))
+      .map((m: Mod) => [m.meta?.name, m.meta?.version].filter(Boolean).join(" "))
       .filter(Boolean);
 
     update({

@@ -75,7 +75,7 @@ export class Article {
     text?: string;
     title?: string;
     image_id?: string;
-    requires?: any;
+    requires?: string | string[];
   }) {
     this.id = raw.id;
     this._text = raw.text;

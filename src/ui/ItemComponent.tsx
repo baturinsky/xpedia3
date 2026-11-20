@@ -371,7 +371,7 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
 
   // The "See details" button splits the fields in two, so the rows are built
   // here: the first block, the button, then the rest once it is expanded
-  const pairs: [string, any][] =
+  const pairs: [string, unknown][] =
     hidden.length === 0
       ? sorted.first
       : [...sorted.first, ["_details", null], ...(state.anal ? hidden : [])];

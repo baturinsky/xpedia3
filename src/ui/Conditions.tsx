@@ -2,7 +2,7 @@ import { sortFirstLast } from "../rul/Ruleset";
 import { LinksPage } from "./components";
 
 /** Conditions article body, follows old `Conditions.svelte` */
-export default function Conditions({ conditions }: { conditions: { [field: string]: any } }) {
+export default function Conditions({ conditions }: { conditions: { [field: string]: unknown } }) {
   const sorted = sortFirstLast(conditions, { exclude: ["type"] });
   return (
     <>

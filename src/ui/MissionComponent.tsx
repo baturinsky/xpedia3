@@ -63,7 +63,7 @@ export type MissionWave = {
  * `waves` is a list of `MissionWave`s. The rest of the entry is whatever the
  * ruleset states, so the index signature keeps the type honest.
  */
-export type AlienMission = { waves?: MissionWave[]; [field: string]: any };
+export type AlienMission = { waves?: MissionWave[]; [field: string]: unknown };
 
 /** The label for an objective number, or nothing when the pack states none */
 export function objectiveName(value: unknown) {

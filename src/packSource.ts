@@ -91,7 +91,7 @@ function databaseSource(pack: string): PackSource {
     kind: "database",
     permanent: false,
     async stats() {
-      const records = (await idb.getStats()) as any[];
+      const records = await idb.getStats();
       const record = records?.find((r) => r.pack === pack);
       return {
         pack,
@@ -153,7 +153,7 @@ export type InlinePayload = {
 };
 
 function readInlinePayload(): InlinePayload | undefined {
-  const payload = (window as any).xpedia;
+  const payload = window.xpedia as InlinePayload | undefined;
   if (!payload || typeof payload !== "object" || typeof payload.rul !== "string") return;
   return payload;
 }
@@ -226,7 +226,7 @@ export function loadLanguagePack(lang: string): Promise<{ [id: string]: string }
   const load = new Promise<{ [id: string]: string } | undefined>((resolve) => {
     const script = document.createElement("script");
     script.src = path;
-    script.onload = () => resolve((window as any).xpediaLangPacks?.[lang]);
+    script.onload = () => resolve(window.xpediaLangPacks?.[lang]);
     script.onerror = () => resolve(undefined);
     document.head.appendChild(script);
   }).then((strings) => {

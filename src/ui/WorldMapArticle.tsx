@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
@@ -536,7 +536,7 @@ function fitLabel(label: { x: number; y: number }, text: string, fontSize: numbe
  */
 function Repeated(props: {
   points: [number, number][];
-  render: (points: string, shift: number) => any;
+  render: (points: string, shift: number) => ReactNode;
 }) {
   const serialized = props.points.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   return (
@@ -688,10 +688,10 @@ function RegionOverlay({
   onPinLeg?: (leg: number) => void;
 }) {
   const color = overlay.color ?? "#ffd24a";
-  const style = { "--region-color": color } as any;
+  const style = { "--region-color": color } as CSSProperties;
   // A zone is coloured by its index, so the same zone is the same colour on
   // every path drawn in this region, and on the zone box itself
-  const zoneStyle = (index: number) => ({ "--zone-color": zoneColor(index) }) as any;
+  const zoneStyle = (index: number) => ({ "--zone-color": zoneColor(index) }) as CSSProperties;
   // Stops are numbered only when one flight is drawn: the number is a stop's
   // place in that flight, so with several paths on one picture the numbers of
   // different flights would be indistinguishable. Region pages draw none now, so

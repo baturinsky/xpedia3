@@ -88,8 +88,8 @@ export class Sprite {
     if (!this.id || this._path == null) return;
 
     if (raw.ind != null) {
-      const table = rul.obs[this.id] as any;
-      if (table) table[raw.ind] = this;
+      const table = rul.obs[this.id];
+      if (table) table[Number(raw.ind)] = this;
     } else {
       rul.sprites[this.id] = this;
     }

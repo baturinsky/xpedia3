@@ -1008,7 +1008,7 @@ export type ResolvedDeed = {
   race?: string;
   unit?: string;
   item?: string;
-  [field: string]: any;
+  [field: string]: unknown;
 };
 
 export class Commendation extends Entry {
@@ -1231,7 +1231,7 @@ export class Research extends Entry {
 
 export class AlienDeployment extends Entry {
   startingCondition?: string;
-  data?: any[];
+  data?: { itemSets?: unknown }[];
   loot: string[];
 
   constructor(raw: RawEntry) {
@@ -1273,7 +1273,7 @@ export class Craft extends Entry {
     this.from(raw);
     this.allWeaponTypes = this.allWeaponTypes || [];
     if (this.weaponTypes) {
-      const weaponTypes = this.weaponTypes as unknown as { [slot: string]: any };
+      const weaponTypes = this.weaponTypes as unknown as { [slot: string]: unknown };
       for (const slot in weaponTypes) {
         if (!Array.isArray(weaponTypes[slot])) weaponTypes[slot] = [weaponTypes[slot]];
         weaponTypes[slot] = (weaponTypes[slot] as string[]).map((n) => {
@@ -1541,7 +1541,7 @@ export class Attack {
       this.range = range;
     }
 
-    if (this.alter && item.maxRange != null && item.maxRange < +this.alter.range)
+    if (this.alter && item.maxRange != null && item.maxRange < Number(this.alter.range))
       this.alter.range = `${item.maxRange}`;
 
     this.possible = true;
@@ -1584,7 +1584,7 @@ export class Attack {
 
     // Columns are looked up by name, so a column the class does not declare
     // reads as absent rather than an error
-    return (this as any)[n];
+    return (this as unknown as { [field: string]: unknown })[n];
   }
 }
 
@@ -1648,7 +1648,7 @@ export class Armor extends Entry {
           const name = layersDef[layer];
           if (name?.length) {
             const id = `${prefix}__${layer}__${name}`;
-            layers.push(await rul.sprite(id));
+            layers.push((await rul.sprite(id)) ?? id);
           }
         }
         ds[body] = layers;
@@ -1679,7 +1679,7 @@ export class Armor extends Entry {
           const sprite = rul.sprites[s];
           if (sprite.subX || sprite.subY) continue;
           const body = s.substring(name.length).replace(/\.[^./\\]+$/, "");
-          ds[body] = [await rul.sprite(s)];
+          ds[body] = [(await rul.sprite(s)) ?? s];
         }
       }
     }
@@ -1728,7 +1728,7 @@ export type BonusMap = { [stat: string]: BonusValue };
  * The field names are the engine's and a pack picks which of them it sets, so
  * this stays a plain map; `AlterList` prints whatever it finds.
  */
-export type AlterMap = { [field: string]: any };
+export type AlterMap = { [field: string]: unknown };
 
 export class Item extends Entry {
   //sprite: string;
@@ -1811,10 +1811,13 @@ export class Item extends Entry {
 
     if (this.damageType) this.addDamageType(this.damageType);
 
-    const t = this as any;
+    const t = this as unknown as {
+      flatThrow?: { time?: number };
+      flatThrowTime?: number;
+    };
 
     if ("flatThrow" in t) {
-      t.flatThrowTime = t.flatThrow.time;
+      t.flatThrowTime = t.flatThrow?.time;
       delete t.flatThrow;
     }
 

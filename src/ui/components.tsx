@@ -383,7 +383,7 @@ export function MyTable<T extends MyTableRow>(props: {
     key: string;
     name?: string;
     cellClass?: string;
-    renderCell?: (data: { row: T; column: any }) => ReactNode;
+    renderCell?: (data: { row: T; column: unknown }) => ReactNode;
     maxWidth?: number;
     minWidth?: number;
   }[];
