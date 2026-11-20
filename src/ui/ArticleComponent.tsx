@@ -799,56 +799,44 @@ export function ArticleComponent() {
   // all regions (`RegionsMapArticle`) instead.
   const region = !table && article.id !== "REGIONS" ? rul.regions?.[article.id] : undefined;
 
-  // The map that belongs beside the article rather than in it.
+  // One placement decision for every map on the page. A page that is nothing
+  // but a map keeps it where it has always been: beside the text (or above the
+  // columns for a region). A page that also draws entry panels puts the map
+  // after them, full width — the panels are what the page is asked about.
+  // Old `Article.svelte` put the map above the columns, because it is a wide
+  // picture; on a wide screen there is room to set it beside the page instead,
+  // and below that the stylesheet stacks it at the bottom.
   //
-  // Old `Article.svelte` put the map above the columns, full width, because it
-  // is a wide picture. On a wide screen there is room to set it beside the page
-  // instead, where it stays in sight while the tables are read; below that the
-  // stylesheet stacks it at the bottom, which is where it read best there.
-  //
-  // The gate on `COUNTRIES` is the id alone rather than `article.section`: that
-  // getter is the *first* section the article was filed under, which for a
-  // pack's own COUNTRIES article is a pedia category, not the table page.
-  // A pack with no `globe:` node has no map to draw, so the block is left out
-  // rather than reporting a missing feature.
-  let sideMap = article?.id === "COUNTRIES" && rul?.raw.globe && <WorldMapArticle />;
-
-  // Two entry types may share a uid — a region or a flight is often also a
-  // research project or a pedia page — and then one page is both. The panels
-  // are what the page is asked about, so they come first and the map follows
-  // them, full width. A page that is nothing but the map keeps it where it has
-  // always been: beside the text, or above the columns when the picture is of a
-  // region. Deciding that here keeps the two arrangements from being written
-  // out twice further down.
-  const mapLast = bodyPanels.length > 0;
-
-  const regionMap = region && <RegionMapArticle key={`${article.id}-region-map`} region={region} />;
-  // A flight is a picture of part of the globe too, and its block holds the
-  // region picker and the numbered stop list as well as the map, so the whole
-  // of it moves: splitting it would leave the reader with the choices in one
-  // place and the picture they are choosing for in another.
-  const flightMap = trajectory && (
+  // Region and flight are looked up by collection, not `article.section`: that
+  // getter is the first section the article was filed under, and a uid naming
+  // both kinds files the region under the section its other kind named first.
+  // `REGIONS` itself leads with `RegionsMapArticle` instead, so it has no
+  // region map of its own.
+  const hasPanels = bodyPanels.length > 0;
+  const regionMap = region ? (
+    <RegionMapArticle key={`${article.id}-region-map`} region={region} />
+  ) : null;
+  const flightMap = trajectory ? (
     <TrajectoryMapArticle key={`${article.id}-map`} trajectory={trajectory} />
-  );
-  if (flightMap && !mapLast && !regionMap) sideMap = flightMap;
+  ) : null;
+  // The Countries map sits beside the page. Gated on the id alone rather than
+  // `article.section`, for the reason above, and left out when the pack has no
+  // `globe:` node rather than reporting a missing feature.
+  const countriesMap = article.id === "COUNTRIES" && rul?.raw.globe ? <WorldMapArticle /> : null;
+  // A flight block holds the region picker and stop list as well as the map,
+  // so the whole of it moves: splitting it would leave the choices in one
+  // place and the picture they are choosing for in another. Alone on its page
+  // it sits beside the text; otherwise it follows the page's own blocks.
+  const flightOnSide = flightMap != null && !hasPanels && region == null;
 
-  // The maps that follow the page's own blocks, in the order they are read: the
-  // region first, since it is the whole of what the page is about, then the
-  // flight drawn across it.
-  const laterMaps = (
-    <>
-      {mapLast ? regionMap : null}
-      {flightMap && (mapLast || regionMap) ? flightMap : null}
-    </>
-  );
+  const topMap = !hasPanels ? regionMap : null;
+  const sideMap = flightOnSide ? flightMap : countriesMap;
+  const laterMaps = [hasPanels ? regionMap : null, flightOnSide ? null : flightMap];
 
   // A trajectory page puts the map on the side sooner than the Countries page:
   // its article column is a narrow flight table, so there is room beside it well
   // before a full country table and two columns of text would leave any.
-  const mainClass =
-    "article-main" +
-    (sideMap ? " has-side-map" : "") +
-    (sideMap && sideMap === flightMap ? " narrow-side-map" : "");
+  const mainClass = `article-main${sideMap ? " has-side-map" : ""}${flightOnSide ? " narrow-side-map" : ""}`;
 
   const main = article && (
     <>
@@ -865,13 +853,9 @@ export function ArticleComponent() {
             because the pedia is readable with the sidebar hidden, where that
             list is the only way to reach those pages. */}
           {article.id === "REGIONS" && <RegionsMapArticle />}
-          {/* A region is a picture of part of the globe, so its map belongs in the
-            same place: above the columns, full width. When the page is also
-            another entry type the map follows that entry's panels instead, see
-            `laterMaps`. */}
-          {/* The same placement rule as `laterMaps`, as a ternary: the map is
-            the value shown when the condition holds */}
-          {regionMap && !mapLast ? regionMap : null}
+          {/* A region's map heads its page (`topMap`); when the page also
+            draws entry panels it follows them instead, see `laterMaps`. */}
+          {topMap}
           {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
           {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
