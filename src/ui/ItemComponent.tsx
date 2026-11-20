@@ -191,10 +191,10 @@ const AttacksTable = ({
       </tr>
     </thead>
     <tbody>
-      {attacks.map((attack, idx) => {
+      {attacks.map((attack) => {
         if (!attack) return "";
         return (
-          <React.Fragment key={idx}>
+          <React.Fragment key={`${attack.mode}-${attack.item.type}`}>
             <tr>
               {attack?.mode === "ammo" ? (
                 <>
@@ -345,8 +345,8 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
       ) : (
         <table className="item-manufacture">
           <tbody>
-            {val.map((man: string, i: number) => (
-              <ManufactureRows key={i} entry={entry} man={man} />
+            {val.map((man: string) => (
+              <ManufactureRows key={man} entry={entry} man={man} />
             ))}
           </tbody>
         </table>

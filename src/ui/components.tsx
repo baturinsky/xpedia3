@@ -611,7 +611,7 @@ export const SpecialBonus = ({ bonus, plus = false }: { bonus?: BonusMap; plus?:
       {flat.map((b, i) => {
         const [type, value, kind, power = 1] = b;
         return (
-          <span className="num" key={i}>
+          <span className="num" key={`${type}-${power}`}>
             {i !== 0 && " +"}
             {kind === "flatHundred" ? (
               value * 100
@@ -825,6 +825,7 @@ export function LinksPage(props: {
           <div className="cols" style={{ columns: props.cols }}>
             <ol>
               {items.map((option, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: a link list can repeat an id and can be re-sorted; the links themselves are stateless
                 <li key={i}>
                   <Val of={option} />
                 </li>
@@ -836,6 +837,7 @@ export function LinksPage(props: {
         <PaginatedList items={items} pageSize={600}>
           {(shown) =>
             shown.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a link list can repeat an id and can be re-sorted; the links themselves are stateless
               <React.Fragment key={i}>
                 {i !== 0 && <Divider />}
                 <Val of={item} />

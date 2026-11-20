@@ -10,8 +10,8 @@ export default function ManufactureComponent({ entry }: { entry: Manufacture }) 
     val ? (
       <table className="number-table" style={{ width: "100%", margin: 0 }}>
         <tbody>
-          {entry.randomProducedItems?.map((chance, i) => (
-            <tr key={i}>
+          {entry.randomProducedItems?.map((chance) => (
+            <tr key={JSON.stringify(chance)}>
               <td>{((chance[0] / (entry.chanceSum ?? 0)) * 100).toFixed(2)}%</td>
               <td>
                 {Object.keys(chance[1]).length === 0 ? (

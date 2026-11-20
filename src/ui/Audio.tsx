@@ -130,7 +130,7 @@ export const SoundRef = ({
         const path = soundPath(slot, field, collection);
         const cat = soundCat(field, collection);
         return (
-          <span className="audio-slot" key={i}>
+          <span className="audio-slot" key={String(slot)}>
             {i > 0 && <span className="list-divider">&nbsp;· </span>}
             {path ? (
               <AudioLink

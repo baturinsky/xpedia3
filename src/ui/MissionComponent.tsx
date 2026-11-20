@@ -194,6 +194,7 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
             : undefined;
           const notes = waveNotes(wave);
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a wave is identified by its number, the position the row prints; waves carry no id
             <tr key={i}>
               <td className="mission-wave-number">
                 <Val of={i + 1} />

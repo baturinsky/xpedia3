@@ -230,10 +230,10 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
   return (
     <table className="main-table trajectory-plan region-overlay region-path">
       <tbody>
-        {steps.map((step, i) =>
+        {steps.map((step) =>
           step.kind === "stop" ? (
             <tr
-              key={`s${i}`}
+              key={`s${step.stop.index}`}
               className="trajectory-plan-stop"
               style={{ "--zone-color": zoneColor(step.stop.zone) } as CSSProperties}
             >
@@ -290,7 +290,7 @@ function FlightPlan({ trajectory, focus }: { trajectory: UfoTrajectory; focus?: 
             </tr>
           ) : (
             <tr
-              key={`l${i}`}
+              key={`l${step.leg.index}`}
               className="trajectory-plan-leg"
               style={{ "--leg-color": legColor(step.leg.index) } as CSSProperties}
             >
@@ -371,6 +371,7 @@ function LineTable({ trajectory }: { trajectory: UfoTrajectory }) {
           const zone = Number(line?.[0]);
           const place = zonePlace(trajectory, zone);
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a line is identified by its number, the position the row prints; lines are ruleset text and can repeat verbatim
             <tr key={i}>
               <td className="mission-wave-number">
                 <Val of={i} />

@@ -18,30 +18,32 @@ function deedLink(id?: string) {
 }
 
 function deedDescription(deed: ResolvedDeed) {
-  const parts: (JSX.Element | string)[] = [
-    <Tr key="status" text={deed.status} />,
+  // Each part is named by the field it prints: the name is its key, so the
+  // list needs no positional index
+  const parts: { id: string; node: JSX.Element | string }[] = [
+    { id: "status", node: <Tr text={deed.status} /> },
     // The repeat count, e.g. "3"; `Tr` takes strings
-    <Tr key="times" text={String(deed.times)} />,
-    deedLink(deed.race),
-    deedLink(deed.unit),
-    deedLink(deed.faction),
+    { id: "times", node: <Tr text={String(deed.times)} /> },
+    { id: "race", node: deedLink(deed.race) },
+    { id: "unit", node: deedLink(deed.unit) },
+    { id: "faction", node: deedLink(deed.faction) },
   ];
   if (deed.element || deed.type || deed.item) {
     parts.push(
-      <Tr key="with" text="commendationWith" />,
-      deedLink(deed.item),
-      deedLink(deed.type),
-      deedLink(deed.element),
+      { id: "with", node: <Tr text="commendationWith" /> },
+      { id: "item", node: deedLink(deed.item) },
+      { id: "type", node: deedLink(deed.type) },
+      { id: "element", node: deedLink(deed.element) },
     );
   }
   return (
     <>
       {parts
-        .filter((p) => p !== "" && p != null)
-        .map((p, i) => (
-          <span key={i}>
+        .filter((p) => p.node !== "" && p.node != null)
+        .map(({ id, node }, i) => (
+          <span key={id}>
             {i !== 0 && " "}
-            {p}
+            {node}
           </span>
         ))}
     </>
@@ -126,6 +128,7 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
               <Val of="See stage descriptions" />
             ) : (
               prop.map((deeds: ResolvedDeed[], i: number) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: one group per stage, so the index is the stage number; groups carry no id and identical groups can repeat across stages
                 <span key={i}>
                   {i !== 0 && (
                     <>
@@ -135,7 +138,7 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
                     </>
                   )}
                   {deeds.map((deed, j) => (
-                    <span key={j}>
+                    <span key={JSON.stringify(deed)}>
                       {j !== 0 && <> {rul.tr("and")} </>}
                       {deedDescription(deed)}
                     </span>
@@ -167,6 +170,7 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
         {bonuses.map(
           (bonus, i) =>
             bonus && (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the index is the stage number, and holes are kept so later stages do not shift down
               <SoldierBonusesComponent key={i} entry={bonus} title="Stage" subtitle={`${i + 1}`} />
             ),
         )}

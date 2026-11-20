@@ -92,8 +92,8 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
             }}
           >
             {shouldShowAll && <div className="armor-variant">{bodyName(body)}</div>}
-            {sprites[body].map((url, j) => (
-              <Img key={`${body}-${j}`} src={url} alt={body} className="armor-layer" />
+            {sprites[body].map((url) => (
+              <Img key={`${body}-${url}`} src={url} alt={body} className="armor-layer" />
             ))}
           </div>
         );
@@ -117,8 +117,8 @@ const ArmorPreview = ({ entry }: { entry: Entry }) => {
                   <header>
                     <Val of={prop} />
                   </header>
-                  {sortFirstLast(entry[prop]).all.map(([key, val], i) => (
-                    <React.Fragment key={i}>
+                  {sortFirstLast(entry[prop]).all.map(([key, val]) => (
+                    <React.Fragment key={key}>
                       <div>
                         <Val of={key} icon="monospace" />
                       </div>
@@ -146,8 +146,8 @@ const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) => (
       <header>
         <Val of="damageModifier" />
       </header>
-      {sortFirstLast(modifiers).all.map(([key, val], i) => (
-        <React.Fragment key={i}>
+      {sortFirstLast(modifiers).all.map(([key, val]) => (
+        <React.Fragment key={key}>
           <div>
             <Val of={damageTypes[Number(key)]} icon="monospace" />
           </div>

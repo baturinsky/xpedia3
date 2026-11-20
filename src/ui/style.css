@@ -1012,7 +1012,7 @@ button:disabled:hover {
 
 /** Modal window with a path and a player, see `AudioDialog` */
 .audio-dialog {
-  max-width: min(34rem, 92vw);
+  max-width: min(40rem, 92vw);
   background: var(--background);
   border: solid 1px var(--border);
   box-shadow: 0 0 1rem var(--shadow);

@@ -180,6 +180,21 @@ function splitPoles(points: [number, number][]) {
  */
 const plainProjections = new WeakMap<WorldMap, ReturnType<typeof buildProjection>>();
 
+// A projected shape carries no id of its own, so its identity is the object
+// itself: the first draw gives it a number and every later draw finds the
+// same one. The entries die with the shapes, like the projection cache.
+const shapeKeys = new WeakMap<object, number>();
+let nextShapeKey = 0;
+
+function shapeKey(shape: object) {
+  let key = shapeKeys.get(shape);
+  if (key === undefined) {
+    key = nextShapeKey++;
+    shapeKeys.set(shape, key);
+  }
+  return key;
+}
+
 function projectMap(map: WorldMap, overlays?: Overlay[]) {
   if (overlays?.length) return buildProjection(map, overlays);
   let cached = plainProjections.get(map);
@@ -299,9 +314,9 @@ function AreaShapes({
   return (
     <>
       {areas.map((area) =>
-        area.areas.map((points, i) => (
+        area.areas.map((points) => (
           <Repeated
-            key={area.id + i}
+            key={`${area.id}-${JSON.stringify(points)}`}
             points={points}
             render={(serialized, shift) => {
               const shape = (
@@ -685,9 +700,9 @@ function RegionOverlay({
 
   return (
     <g className={`region-overlay${overlay.hot ? " region-hot" : ""}`} style={style}>
-      {overlay.boxes.map((box, i) => (
+      {overlay.boxes.map((box) => (
         <Repeated
-          key={`a${i}`}
+          key={JSON.stringify(box)}
           points={box}
           render={(points, shift) => (
             <polygon
@@ -710,10 +725,10 @@ function RegionOverlay({
         // again above everything, and marking it in both places would draw it twice
         const className = `region-zone${visited ? " region-zone-visited" : ""}`;
         const extra = visited ? zoneStyle(i) : undefined;
-        return zone.map((box, j) =>
+        return zone.map((box) =>
           overlay.zoneDots[i] ? (
             <Repeated
-              key={`z${i}_${j}`}
+              key={JSON.stringify(box)}
               points={box}
               render={(_points, shift) => (
                 <circle
@@ -728,7 +743,7 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={`z${i}_${j}`}
+              key={JSON.stringify(box)}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -747,10 +762,10 @@ function RegionOverlay({
         hidden under the many boxes of other zones. This is the answer to "where
         can this waypoint actually be", so it has to be the last thing drawn. */}
       {hotZone != null &&
-        (overlay.zoneBoxes[hotZone] ?? []).map((box, j) =>
+        (overlay.zoneBoxes[hotZone] ?? []).map((box) =>
           overlay.zoneDots[hotZone] ? (
             <Repeated
-              key={`hot${j}`}
+              key={JSON.stringify(box)}
               points={box}
               render={(_points, shift) => (
                 <circle
@@ -765,7 +780,7 @@ function RegionOverlay({
             />
           ) : (
             <Repeated
-              key={`hot${j}`}
+              key={JSON.stringify(box)}
               points={box}
               render={(points, shift) => (
                 <polygon
@@ -855,7 +870,7 @@ function RegionOverlay({
                 const arrow = arrowAt(spread[i].a, spread[i].b, 1 / zoom, STOP_RADIUS / zoom);
                 return (
                   <g
-                    key={`leg${i}`}
+                    key={`leg${leg.leg}`}
                     style={{ "--leg-color": legColor(leg.leg) } as CSSProperties}
                     className={
                       "region-leg-group" +
@@ -912,9 +927,9 @@ function RegionOverlay({
                   </g>
                 );
               })}
-              {groups.map((group, i) => (
+              {groups.map((group) => (
                 <g
-                  key={`stop${i}`}
+                  key={`stop${group.zone}`}
                   style={zoneStyle(group.zone)}
                   className={
                     "region-stop-group" +
@@ -1212,9 +1227,9 @@ function MapPicture({
       <rect width={WIDTH} height={HEIGHT} fill="#0d2f52" />
       <g clipPath="url(#world-map-clip)">
         <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
-          {projected.polygons.map((polygon, i) => (
+          {projected.polygons.map((polygon) => (
             <Repeated
-              key={i}
+              key={shapeKey(polygon)}
               points={polygon.points}
               render={(points, shift) => {
                 // A polygon is a plain shape, not a link. Every shape of one terrain
@@ -1242,9 +1257,9 @@ function MapPicture({
               }}
             />
           ))}
-          {projected.lines.map((line, i) => (
+          {projected.lines.map((line) => (
             <Repeated
-              key={i}
+              key={shapeKey(line)}
               points={line}
               render={(points, shift) => (
                 <polyline
@@ -1678,9 +1693,9 @@ export function CountryMapArticle({ id }: { id: string }) {
       {/* The name is in the panel above already, so it is a tooltip and a label
         rather than something written on the picture */}
       <title>{rul?.tr(id) ?? id}</title>
-      {projected.polygons.map((polygon, i) => (
+      {projected.polygons.map((polygon) => (
         <Repeated
-          key={i}
+          key={shapeKey(polygon)}
           points={polygon.points}
           render={(points, shift) => (
             <polygon
@@ -1691,9 +1706,9 @@ export function CountryMapArticle({ id }: { id: string }) {
           )}
         />
       ))}
-      {projected.lines.map((line, i) => (
+      {projected.lines.map((line) => (
         <Repeated
-          key={i}
+          key={shapeKey(line)}
           points={line}
           render={(points, shift) => (
             <polyline
@@ -1704,9 +1719,9 @@ export function CountryMapArticle({ id }: { id: string }) {
           )}
         />
       ))}
-      {country.areas.map((box, i) => (
+      {country.areas.map((box) => (
         <Repeated
-          key={`a${i}`}
+          key={JSON.stringify(box)}
           points={box}
           render={(points, shift) => (
             <polygon
@@ -2037,7 +2052,7 @@ function FlightStrip({ stops, focus }: { stops: PathStop[]; focus?: TrajectoryFo
         // spawn point, which nothing arrives at
         const arrives = i > 0 && !samePlace(stops[i - 1], stop);
         return (
-          <Fragment key={i}>
+          <Fragment key={stop.leg}>
             {arrives && (
               <button
                 type="button"

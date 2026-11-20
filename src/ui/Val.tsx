@@ -89,7 +89,7 @@ export const Val = ({
       return (
         <>
           {ids.map((musicId, i) => (
-            <Fragment key={i}>
+            <Fragment key={musicId}>
               {i > 0 && <span className="list-divider">&nbsp;· </span>}
               <MusicRef entry={musicId} />
             </Fragment>
@@ -368,6 +368,7 @@ const LinksList: FC<LinksListProps> = ({
             return (
               <tr key={isArray ? String(field) : field}>
                 {cells.map((v, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: the cells are the fixed columns of one table row; their values are display text and can repeat within a row
                   <td key={i}>
                     <Val of={v} depth={depth - 1} />
                   </td>
@@ -399,10 +400,12 @@ const LinksList: FC<LinksListProps> = ({
     <span className={`links-list ${className}`}>
       {keys.map((item, i) =>
         Array.isArray(item) ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a ruleset reference list; items carry no id and the same reference can appear twice
           <div key={i} className="sublist">
             <LinksList items={item} depth={depth - 1} />
           </div>
         ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a ruleset reference list; items carry no id and the same reference can appear twice
           <Fragment key={i}>
             {i !== 0 && <Divider vertical={vertical} />}
             <Val of={item?.type || item} depth={depth - 1} />
