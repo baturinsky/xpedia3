@@ -1,5 +1,5 @@
 es-ES:
- # UI
+  # UI
   BootyPedia: "BotínPedia"
   ITEMS: "OBJETOS"
   CONDITIONS: "CONDICIONES"
@@ -8,7 +8,7 @@ es-ES:
   RESEARCH: "INVESTIGAR"
   SERVICES: "SERVICIOS"
 
- #Tables
+  #Tables
   Craft: "Nave"
   Weapon: "Arma"
   Armor: "Armadura"
@@ -35,7 +35,7 @@ es-ES:
   Allowed armors: "Armaduras permitidas"
   Allowed auxilia: "Auxiliar permitidos"
   Deployments: "Misiones"
- #Subheaders
+  #Subheaders
   dependencies: "Depende de:" #STR_DEPENDS_ON
   seeAlso: "Objeto requerido:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Servicios requeridos" #STR_SERVICES_REQUIRED
@@ -56,7 +56,7 @@ es-ES:
   Lang: "Idioma" #mobile, five letters max!
   Download (forum link): "Descargar (enlace del foro)"
   Download (from mod.io): "Descargar (desde mod.io)"
- # intro
+  # intro
   # Pt.1
   Welcome onboard, seagal! Take your bunk at da orlop and have some X-Grog, yarrr!: "¡Bienvenido a bordo marinero! ¡Toma tu litera en la cubierta inferior y agarra uno X-Grog, yarrr!"
   # Pt.2
@@ -97,7 +97,7 @@ es-ES:
   Read or Die.: "Lee o muere."
   Contains riddles. Not everything is what it seems.: "Contiene acertijos. No todo es lo que parece."
   A single campaign might take as much as 400 hours.: "Una sola campaña puede tomar hasta 400 horas."
- #External Links
+  #External Links
   #Block1
   mod author, the Grand Master: "autor del mod, el Gran Maestro"
   You can send your donations through PayPal to: "Puedes enviar tus donaciones a través de PayPal a"
@@ -112,7 +112,7 @@ es-ES:
   Community & support: "Comunidad y soporte"
   Here you can ask any questions associated with this site.: "Aquí puede hacer cualquier pregunta relacionada con este sitio."
   Ping @Kato_guardian and we will hear you.: "Ping @Kato_guardian y te escucharemos."
- #Credits
+  #Credits
   Thanks to: "¡Gracias a"
   for translating the homepage and interfaces into non-English languages: "por traducir la página de inicio y las interfaces a idiomas que no están en inglés"
   Wiki is powered by: "Wiki es impulsado por"

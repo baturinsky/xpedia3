@@ -16,7 +16,9 @@ import { examplePack, loadBuiltinPack, loadPack } from "../helpers/packs.mjs";
 
 /** Counts the boxes and lists everything wrong with them */
 function survey(rul, label) {
-  let boxes = 0, zones = 0, bad = [];
+  let boxes = 0,
+    zones = 0,
+    bad = [];
 
   // A `MapArea` is `[lon1, lon2, lat1, lat2, textureId?, cityId?]`: the leading
   // five are numeric when present, the sixth is a city id
@@ -33,17 +35,16 @@ function survey(rul, label) {
       bad.push(`${where}[5] is not a city id: ${JSON.stringify(area)}`);
   }
 
-  for (let region of Object.values(rul.regions ?? {})) {
-    for (let [i, area] of (region.areas ?? []).entries())
+  for (const region of Object.values(rul.regions ?? {})) {
+    for (const [i, area] of (region.areas ?? []).entries())
       checkArea(area, `${region.id} area ${i}`);
-    for (let [zi, zone] of (region.missionZones ?? []).entries()) {
+    for (const [zi, zone] of (region.missionZones ?? []).entries()) {
       zones++;
       if (!Array.isArray(zone)) {
         bad.push(`${region.id} zone ${zi} is not a list: ${JSON.stringify(zone)}`);
         continue;
       }
-      for (let [ai, area] of zone.entries())
-        checkArea(area, `${region.id} zone ${zi} box ${ai}`);
+      for (const [ai, area] of zone.entries()) checkArea(area, `${region.id} zone ${zi} box ${ai}`);
     }
   }
 
@@ -51,16 +52,22 @@ function survey(rul, label) {
   return { boxes, zones };
 }
 
-let checked = [survey(await loadBuiltinPack(), "builtins")];
+const checked = [survey(await loadBuiltinPack(), "builtins")];
 
 // The pack that actually quotes a coordinate: TFTD's inline `globe:` ruleset
 // writes most of its zone numbers as strings, so it is the case worth having
-for (let name of ["tftdvanillaplus-dhf2.zip", "Dioxine_XPiratez_noimages.rar", "openxcom_xfiles_42.zip"]) {
-  let path = examplePack(name);
-  if (path)
-    checked.push(survey(await loadPack(path), name.replace(/\.(zip|rar)$/i, "")));
+for (const name of [
+  "tftdvanillaplus-dhf2.zip",
+  "Dioxine_XPiratez_noimages.rar",
+  "openxcom_xfiles_42.zip",
+]) {
+  const path = examplePack(name);
+  if (path) checked.push(survey(await loadPack(path), name.replace(/\.(zip|rar)$/i, "")));
 }
 
-ok(checked.some(c => c.zones > 0), "at least one pack declares mission zones");
+ok(
+  checked.some((c) => c.zones > 0),
+  "at least one pack declares mission zones",
+);
 
 report();

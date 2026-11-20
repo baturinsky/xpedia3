@@ -7,8 +7,8 @@
  * keeps the payload shape it has always had.
  */
 import "./../helpers/page.mjs";
-import { eq, ok, report } from "../helpers/check.mjs";
 import { ensureBuilt } from "../build.mjs";
+import { eq, ok, report } from "../helpers/check.mjs";
 
 await ensureBuilt();
 const { renderPage } = await import("../.gen/exportcore.mjs");
@@ -18,7 +18,7 @@ const processed = { mods: [], langs: { "en-US": {} }, resources: {} };
 
 /** The payload the page starts with, read back out of the HTML */
 function payloadOf(html) {
-  let match = /window\.xpedia = (\{.*?\});<\/script>/s.exec(html);
+  const match = /window\.xpedia = (\{.*?\});<\/script>/s.exec(html);
   ok(!!match, "the page carries a payload");
   return JSON.parse(match[1]);
 }
@@ -26,8 +26,8 @@ function payloadOf(html) {
 // An ordinary export says nothing about being served: a page that was written
 // to disk and shipped is an export, and its images do sit beside it
 {
-  let html = await renderPage("Pack.zip", processed, "", shell);
-  let payload = payloadOf(html);
+  const html = await renderPage("Pack.zip", processed, "", shell);
+  const payload = payloadOf(html);
   eq("served" in payload, false, "an export is not marked as served");
   eq(payload.pack, "Pack.inline", "the pack keeps its .inline name");
 }
@@ -35,8 +35,8 @@ function payloadOf(html) {
 // The served page is marked, which is the only thing the export dialog has to go
 // on when it decides that its images cannot be bundled
 {
-  let html = await renderPage("Pack.zip", processed, "", shell, undefined, undefined, true);
-  let payload = payloadOf(html);
+  const html = await renderPage("Pack.zip", processed, "", shell, undefined, undefined, true);
+  const payload = payloadOf(html);
   eq(payload.served, true, "a served page is marked as served");
   eq(payload.pack, "Pack.inline", "a served page is named like an export");
 }

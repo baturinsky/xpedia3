@@ -1,5 +1,5 @@
 cs:
- # UI
+  # UI
   BootyPedia: "Kořisťopedie"
   ITEMS: "PŘEDMĚTY"
   CONDITIONS: "PODMÍNKY"
@@ -8,7 +8,7 @@ cs:
   RESEARCH: "BÁDÁNÍ"
   SERVICES: "SLUŽBY"
 
- #Tables
+  #Tables
   Craft: "Plavidlo"
   Weapon: "Zbraň"
   Armor: "Zbroj"
@@ -35,7 +35,7 @@ cs:
   Allowed armors: "Povolené zbroje"
   Allowed auxilia: "Povolené pomocné jednotky"
   Deployments: "Mise"
- #Subheaders
+  #Subheaders
   dependencies: "Závisí na:" #STR_DEPENDS_ON
   seeAlso: "Potřebný předmět:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Požadované služby" #STR_SERVICES_REQUIRED
@@ -56,7 +56,7 @@ cs:
   Lang: "Jazyk" #mobile, five letters max!
   Download (forum link): "Stáhnout (odkaz na fóru)"
   Download (from mod.io): "Stáhnout (mod.io)"
- # intro
+  # intro
   # Pt.1
   Welcome onboard, seagal! Take your bunk at da orlop and have some X-Grog, yarrr!: "Vítej na palubě, plavčice! Vyber si kavalec někde na spodní palubě a dej si na uvítanou trochu X-Grogu!"
   # Pt.2
@@ -97,7 +97,7 @@ cs:
   Read or Die.: "Čti, nebo zemřeš."
   Contains riddles. Not everything is what it seems.: "Ne vše ve hře je tím, čím se zprvu zdá."
   A single campaign might take as much as 400 hours.: "Dohrání kampaně může zabrat i 400 hodin."
- #External Links
+  #External Links
   #Block1
   mod author, the Grand Master: "autor modu a Velmistr"
   You can send your donations through PayPal to: "Můžete poslat své dary přes PayPal na"
@@ -112,7 +112,7 @@ cs:
   Community & support: "Komunita a podpora"
   Here you can ask any questions associated with this site.: "Zde si můžete položit jakékoli dotazy spojené s tímto webem."
   Ping @Kato_guardian and we will hear you.: "Přidejte do své zprávy @Kato_guardian a my vás uslyšíme."
- #Credits
+  #Credits
   Thanks to: "Děkujeme"
   for translating the homepage and interfaces into non-English languages: "za překlad domovské stránky a rozhraní do neanglických jazyků"
   Wiki is powered by: "Wiki využívá technologii"

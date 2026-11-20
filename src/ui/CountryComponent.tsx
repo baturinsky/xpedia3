@@ -1,5 +1,5 @@
-import { rul } from "../rul/Ruleset";
 import type { Entry } from "../rul/Entry";
+import { rul } from "../rul/Ruleset";
 import MainTable from "./MainTable";
 import { CountryMapArticle } from "./WorldMapArticle";
 
@@ -19,16 +19,22 @@ import { CountryMapArticle } from "./WorldMapArticle";
  * answer and an error message would not be.
  */
 const CountriesComponent = ({ entry }: { entry: Entry }) => {
-  let areas = entry.areas;
-  let draw = rul?.raw?.globe && Array.isArray(areas) && Array.isArray(areas[0]);
+  const areas = entry.areas;
+  const draw = rul?.raw?.globe && Array.isArray(areas) && Array.isArray(areas[0]);
 
-  return <MainTable
-    of={entry}
-    title="Country"
-    special={draw ? {
-      areas: () => <CountryMapArticle id={entry.uid} />,
-    } : undefined}
-  />;
+  return (
+    <MainTable
+      of={entry}
+      title="Country"
+      special={
+        draw
+          ? {
+              areas: () => <CountryMapArticle id={entry.uid} />,
+            }
+          : undefined
+      }
+    />
+  );
 };
 
 export default CountriesComponent;

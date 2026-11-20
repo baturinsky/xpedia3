@@ -1,21 +1,19 @@
-import { initUI } from './ui/ui';
-import { makeDropzone } from './dropzone';
-import { clearHash } from './util';
-import { article, section, state, update } from './state';
-import { initDB, getRul } from './idb';
-import { uploadUsersFiles, loadBuiltinOnlyPack } from './load';
-import { inlinePack, loadPackRul } from './packSource';
-import { loadPackFromLocation } from './packUrl';
-import { rul } from './rul/Ruleset';
-import { AnyRef, fromAnyRef } from './ui/components';
-import { Section } from './rul/Section';
-import { goToLanding } from './navigation';
-
+import { makeDropzone } from "./dropzone";
+import { getRul, initDB } from "./idb";
+import { loadBuiltinOnlyPack, uploadUsersFiles } from "./load";
+import { goToLanding } from "./navigation";
+import { inlinePack, loadPackRul } from "./packSource";
+import { loadPackFromLocation } from "./packUrl";
+import { rul } from "./rul/Ruleset";
+import type { Section } from "./rul/Section";
+import { article, section, state, update } from "./state";
+import { type AnyRef, fromAnyRef } from "./ui/components";
+import { initUI } from "./ui/ui";
+import { clearHash } from "./util";
 
 export function goToArticle(href?: AnyRef) {
-  if (!rul)
-    return;
-  let ref = fromAnyRef(href);
+  if (!rul) return;
+  const ref = fromAnyRef(href);
   // The landing page is the bare page, with no hash. `HOME` is its name in
   // links, and `MAIN` is an older name for the same page; both are accepted,
   // but the URL is rewritten to the hash-less form. `null` (or a missing href)
@@ -24,7 +22,7 @@ export function goToArticle(href?: AnyRef) {
     goToLanding();
     return;
   }
-  let article = rul.article(ref);
+  const article = rul.article(ref);
   if (article) {
     if (article.sections && !article.sections.includes(section as Section)) {
       // Same rule as old `App.svelte`: keep the section the user is browsing
@@ -35,8 +33,7 @@ export function goToArticle(href?: AnyRef) {
     } else {
       update({ article });
     }
-    if ("##" + ref != location.hash)
-      location.hash = "##" + ref;
+    if ("##" + ref != location.hash) location.hash = "##" + ref;
   }
 }
 
@@ -46,23 +43,23 @@ export function goToArticle(href?: AnyRef) {
  * The behaviour lives in `navigation.ts`, because the navbar needs the same
  * thing and `main.ts` already imports the UI.
  */
-export { goToLanding } from './navigation';
+export { goToLanding } from "./navigation";
 
 function goToHash() {
-  let hash = decodeURI(document.location.hash);
+  const hash = decodeURI(document.location.hash);
   // No hash at all is the landing page, so it is not an error to have none
   if (hash && hash.substring(0, 2) != "##") return;
   // Any navigation closes the navbar dropdowns, mirrors old `checkHash`
   update({ showDropdown: false, showLanguagesDropdown: false, showPacksDropdown: false });
-  let id = hash.substring(2);
+  const id = hash.substring(2);
 
   // `##SEARCH::query` shows full text search results instead of an article
-  let separator = id.indexOf("::");
+  const separator = id.indexOf("::");
   if (separator != -1) {
-    let query = id.substring(separator + 2);
+    const query = id.substring(separator + 2);
     update({ searchQuery: query, found: undefined, article: undefined, section: undefined });
     if (query.length >= 2)
-      Promise.resolve(rul?.findArticles(query)).then(found => update({ found }));
+      Promise.resolve(rul?.findArticles(query)).then((found) => update({ found }));
     return;
   }
 
@@ -75,7 +72,7 @@ async function init() {
   await initDB();
   // An exported HTML file carries its pack, so there is nothing to choose and
   // nothing stored in the database to restore: open it straight away
-  let inlined = inlinePack();
+  const inlined = inlinePack();
   if (inlined) {
     try {
       // `loadPackRul` also settles the opening language: the reader's own choice,
@@ -104,12 +101,15 @@ async function init() {
     }
   }
   if (!loaded && !inlined) {
-    let missingPack = state.packName;
+    const missingPack = state.packName;
     if (missingPack) {
       update({
-        slowProcessStatus: `${missingPack} is no longer stored. ` +
+        slowProcessStatus:
+          `${missingPack} is no longer stored. ` +
           `Showing the builtin pedia — upload the modpack again to rebuild it.`,
-        slowProcessDone: true, slowProcessError: true, slowProcessCancellable: false
+        slowProcessDone: true,
+        slowProcessError: true,
+        slowProcessCancellable: false,
       });
     }
     await loadBuiltinOnlyPack();
@@ -119,7 +119,7 @@ async function init() {
 
   makeDropzone(document.body, uploadUsersFiles);
 
-  onhashchange = goToHash;
+  window.onhashchange = goToHash;
   // A fresh ruleset always lands on the landing page: whatever the URL named
   // belongs to the previous pack, and the same id means something else (or
   // nothing) in this one. This fires on upload, on switching packs and after
@@ -136,56 +136,60 @@ async function init() {
   loadPackFromLocation();
 
   goToHash();
-
 }
 
 init();
 
 /** Elements that consume their own keystrokes: typing in these must not navigate */
 function isEditable(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement))
-    return false;
-  return target.isContentEditable
-    || target.tagName == "INPUT"
-    || target.tagName == "TEXTAREA"
-    || target.tagName == "SELECT";
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName == "INPUT" ||
+    target.tagName == "TEXTAREA" ||
+    target.tagName == "SELECT"
+  );
 }
 
 const upAndDownKeysEnabled = false;
 
-addEventListener("keydown", e => {
+addEventListener("keydown", (e) => {
   // The load status window is modal, so navigation must wait for it
-  if (state.slowProcessStatus)
-    return;
+  if (state.slowProcessStatus) return;
   // The confirmation window is modal too
-  if (state.confirmRequest)
-    return;
+  if (state.confirmRequest) return;
   // The search field (and any other form control) edits text with the same keys
   // that page through the pedia, so it keeps its own keystrokes
-  if (isEditable(e.target))
-    return;
-  let pageSwitch = {
-    "KeyA": -1, "ArrowLeft": -1,
-    "KeyD": 1, "ArrowRight": 1,
-    "KeyW": "up", "ArrowUp": "up",
-    "KeyS": "down", "ArrowDown": "down",
+  if (isEditable(e.target)) return;
+  const pageSwitch = {
+    KeyA: -1,
+    ArrowLeft: -1,
+    KeyD: 1,
+    ArrowRight: 1,
+    KeyW: "up",
+    ArrowUp: "up",
+    KeyS: "down",
+    ArrowDown: "down",
   }[e.code];
   if (pageSwitch) {
-    if (upAndDownKeysEnabled && (pageSwitch == "up")) {
+    if (upAndDownKeysEnabled && pageSwitch == "up") {
       if (section) {
-        if (section.id == article?.id)
-          goToLanding();
-        else
-          goToArticle(section);
+        if (section.id == article?.id) goToLanding();
+        else goToArticle(section);
       }
-    } else if (upAndDownKeysEnabled && (pageSwitch == "down")) {
+    } else if (upAndDownKeysEnabled && pageSwitch == "down") {
       history.go(-1);
-    } else if(pageSwitch==1 || pageSwitch==-1){
+    } else if (pageSwitch == 1 || pageSwitch == -1) {
       if (article && section) {
         // The step may cross into a neighbouring section, and the reader carries
         // on browsing there: going to the article alone would leave the sidebar
         // and the next step in the section they just left. See `nearbyArticle`.
-        let nearby = rul.nearbyArticle(article, pageSwitch as number, section, state.alphabeticalSort);
+        const nearby = rul.nearbyArticle(
+          article,
+          pageSwitch as number,
+          section,
+          state.alphabeticalSort,
+        );
         if (nearby) {
           update({ section: nearby.section });
           goToArticle(nearby.article);

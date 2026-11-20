@@ -7,8 +7,9 @@
  * it would show up as a missing label in the pedia rather than as an error, so
  * the files are re-parsed from the text and compared with what the build reads.
  */
-import { ok, eq, report } from "../helpers/check.mjs";
+
 import { builtinFiles } from "../helpers/builtin.mjs";
+import { eq, ok, report } from "../helpers/check.mjs";
 
 const { loadYaml } = await import("../.gen/packbuild.mjs");
 
@@ -25,14 +26,28 @@ const interfaceFiles = ["pl", "cs", "es-ES"];
 
 /** The VooDoo and score labels the pack needs from the helper */
 const packLabels = [
-  "points", "psi", "psiSkill", "psiStrength", "psiDefence", "psiAttackName",
-  "psiRequired", "psiLabs", "psiWeapon", "hitMissSound",
+  "points",
+  "psi",
+  "psiSkill",
+  "psiStrength",
+  "psiDefence",
+  "psiAttackName",
+  "psiRequired",
+  "psiLabs",
+  "psiWeapon",
+  "hitMissSound",
 ];
 
 /** The interface labels every translation has to provide */
 const interfaceLabels = [
-  "BootyPedia", "ITEMS", "CONDITIONS", "CATEGORIES", "MANUFACTURE", "RESEARCH",
-  "SERVICES", "HOME",
+  "BootyPedia",
+  "ITEMS",
+  "CONDITIONS",
+  "CATEGORIES",
+  "MANUFACTURE",
+  "RESEARCH",
+  "SERVICES",
+  "HOME",
 ];
 
 /**
@@ -45,21 +60,19 @@ const interfaceLabels = [
  */
 function declaredKey(line) {
   // A commented-out key is not declared; `  #and: "i na"` must not count
-  if (/^ *#/.test(line))
-    return undefined;
-  let match = /^ {2}(?:'([^']*)'|"([^"]*)"|(\S.*?)):(?:[ \t]|$)/.exec(line);
+  if (/^ *#/.test(line)) return undefined;
+  const match = /^ {2}(?:'([^']*)'|"([^"]*)"|(\S.*?)):(?:[ \t]|$)/.exec(line);
   return match ? (match[1] ?? match[2] ?? match[3]) : undefined;
 }
 
-let files = builtinFiles();
-let decoder = new TextDecoder();
-let tables = {};
+const files = builtinFiles();
+const decoder = new TextDecoder();
+const tables = {};
 
-for (let language of [...packOverrides, ...interfaceFiles]) {
-  let raw = files[`mods/xhelper-xpiratez/Language/${language}.yml`];
-  if (!ok(raw != null, `${language}: the file is in the builtin mods`))
-    continue;
-  let text = decoder.decode(raw);
+for (const language of [...packOverrides, ...interfaceFiles]) {
+  const raw = files[`mods/xhelper-xpiratez/Language/${language}.yml`];
+  if (!ok(raw != null, `${language}: the file is in the builtin mods`)) continue;
+  const text = decoder.decode(raw);
 
   let table;
   try {
@@ -70,48 +83,54 @@ for (let language of [...packOverrides, ...interfaceFiles]) {
   }
 
   // One language block, keyed by the language it translates
-  let blocks = Object.keys(table);
+  const blocks = Object.keys(table);
   eq(blocks, [language], `${language}: exactly one language block, named after the file`);
-  let block = table[blocks[0]] ?? {};
+  const block = table[blocks[0]] ?? {};
   tables[language] = block;
   ok(Object.keys(block).length > 0, `${language}: the block has keys`);
 
   // A key written twice keeps only its last copy, silently: read the text to
   // find them, since the parser cannot tell
-  let seen = new Set();
-  let duplicates = [];
-  for (let line of text.split(/\r?\n/)) {
-    let key = declaredKey(line);
-    if (key == null)
-      continue;
-    if (seen.has(key))
-      duplicates.push(key);
+  const seen = new Set();
+  const duplicates = [];
+  for (const line of text.split(/\r?\n/)) {
+    const key = declaredKey(line);
+    if (key == null) continue;
+    if (seen.has(key)) duplicates.push(key);
     seen.add(key);
   }
-  ok(duplicates.length == 0, `${language}: no key is defined twice`, duplicates.slice(0, 10).join(", "));
+  ok(
+    duplicates.length == 0,
+    `${language}: no key is defined twice`,
+    duplicates.slice(0, 10).join(", "),
+  );
 
   // Indentation is what makes the block a block; a tab is not an indentation
-  let tabs = text.split(/\r?\n/).filter(line => /^\t/.test(line));
+  const tabs = text.split(/\r?\n/).filter((line) => /^\t/.test(line));
   ok(tabs.length == 0, `${language}: no tab-indented line`, String(tabs.length));
 
   // Every key the text declares is a key the parse actually kept. A quoted key
   // is the parser's own string, so `'true'` and `true` are the same key here.
-  let missing = [...seen].filter(key => !(key in block));
-  ok(missing.length == 0, `${language}: every declared key survived the parse`, missing.slice(0, 10).join(", "));
+  const missing = [...seen].filter((key) => !(key in block));
+  ok(
+    missing.length == 0,
+    `${language}: every declared key survived the parse`,
+    missing.slice(0, 10).join(", "),
+  );
 
-  let labels = packOverrides.includes(language) ? packLabels : interfaceLabels;
-  let absent = labels.filter(key => !(key in block));
+  const labels = packOverrides.includes(language) ? packLabels : interfaceLabels;
+  const absent = labels.filter((key) => !(key in block));
   ok(absent.length == 0, `${language}: carries its labels`, absent.join(", "));
 
   // The paperdoll names are what label the armor variants, so they have to stay
   if (packOverrides.includes(language)) {
-    let dolls = Object.keys(block).filter(key => /^[MF]\d+$/.test(key));
+    const dolls = Object.keys(block).filter((key) => /^[MF]\d+$/.test(key));
     ok(dolls.length > 0, `${language}: keeps the paperdoll names`, String(dolls.length));
   }
 }
 
 // The strings that were removed on purpose must not come back
-for (let dead of ["STR_DLC_0", "dlc_id", "zzauthor", "CITIES"])
+for (const dead of ["STR_DLC_0", "dlc_id", "zzauthor", "CITIES"])
   ok(!(dead in (tables["en-US"] ?? {})), `en-US: ${dead} stays removed`);
 
 report();

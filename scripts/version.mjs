@@ -38,14 +38,14 @@ const buildNumberFile = path.join(root, "build-number.txt");
 
 /** The version in `package.json`, which is the single source of truth */
 export function version() {
-  let pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   return String(pkg.version ?? "0.0.0");
 }
 
 /** The last build number produced, or 0 before the first one */
 export function buildNumber() {
   try {
-    let stored = parseInt(fs.readFileSync(buildNumberFile, "utf8").trim(), 10);
+    const stored = parseInt(fs.readFileSync(buildNumberFile, "utf8").trim(), 10);
     return Number.isFinite(stored) && stored > 0 ? stored : 0;
   } catch {
     return 0;
@@ -59,7 +59,7 @@ export function buildNumber() {
  * rather than failing the build.
  */
 export function nextBuildNumber() {
-  let next = buildNumber() + 1;
+  const next = buildNumber() + 1;
   fs.writeFileSync(buildNumberFile, `${next}\n`);
   return next;
 }
@@ -119,8 +119,7 @@ export function buildStamp() {
 export function versionDefines({ bump = false, dev = false } = {}) {
   return {
     __XPEDIA_VERSION__: JSON.stringify(version()),
-    __XPEDIA_BUILD__: JSON.stringify(
-      dev ? "" : String(bump ? nextBuildNumber() : buildNumber())),
+    __XPEDIA_BUILD__: JSON.stringify(dev ? "" : String(bump ? nextBuildNumber() : buildNumber())),
     __XPEDIA_STAMP__: JSON.stringify(buildStamp()),
   };
 }

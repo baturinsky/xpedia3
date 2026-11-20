@@ -1,6 +1,6 @@
-import { rul, stripPediaMarkup } from './Ruleset';
-import { Section } from './Section';
-import { xpediaVersion } from '../util';
+import { xpediaVersion } from "../util";
+import { rul, stripPediaMarkup } from "./Ruleset";
+import { Section } from "./Section";
 
 /**
  * A `${...}` placeholder in an article body, see `Article.text`.
@@ -25,8 +25,7 @@ function placeholderText(id: string): string | undefined {
   // The version is not a language string but the number this build prints
   // beside XPedia's name, so it is taken from the same place that label is. An
   // article must not disagree with the navbar about which build it belongs to.
-  if (id == "xpediaVersion")
-    return xpediaVersion();
+  if (id == "xpediaVersion") return xpediaVersion();
 
   // Anything else has to be a real string in the selected language. `rul.lang`
   // is already the merged table for that language, so this is the same lookup
@@ -35,7 +34,7 @@ function placeholderText(id: string): string | undefined {
   // Only plain strings are used: a value can be a number, and OXCE plural forms
   // are objects (`STR_DAY: { one: ..., other: ... }`), neither of which belongs
   // inside a sentence. Those fall through as an unknown id.
-  let value = rul.lang[id];
+  const value = rul.lang[id];
   return typeof value == "string" ? value : undefined;
 }
 
@@ -58,10 +57,10 @@ export class Article {
     }
 
     if (id in rul.articles) {
-      let article = rul.articles[id];
+      const article = rul.articles[id];
       // A section page shows its own article as a header (pedia text and
       // illustration), not as a link inside its own list, so never add it there
-      if (section && id != section && !article.sections.find(s => s.id == section)) {
+      if (section && id != section && !article.sections.find((s) => s.id == section)) {
         article.addToSection(section);
         rul.sections[section].add(article);
       }
@@ -70,17 +69,23 @@ export class Article {
     return new Article({ id, section });
   }
 
-  constructor(raw: { id: string, section: string, text?: string, title?: string, image_id?: string, requires?: any }) {
+  constructor(raw: {
+    id: string;
+    section: string;
+    text?: string;
+    title?: string;
+    image_id?: string;
+    requires?: any;
+  }) {
     this.id = raw.id;
     this._text = raw.text;
     this._title = raw.title || raw.id;
     this.image_id = raw.image_id;
-    if (raw.requires)
-      this.requires = Array.isArray(raw.requires) ? raw.requires : [raw.requires];
+    if (raw.requires) this.requires = Array.isArray(raw.requires) ? raw.requires : [raw.requires];
 
     rul.articles[this.id] = this;
 
-    let id = raw.id;
+    const id = raw.id;
 
     rul.articles[id] = this;
 
@@ -96,21 +101,26 @@ export class Article {
 
     if (this.id != section.id) section.add(this);
 
-    if (!this.sections.includes(section))
-      this.sections.push(section);
+    if (!this.sections.includes(section)) this.sections.push(section);
 
     return section;
   }
 
   get text() {
-    let t = rul.lang[this._text ?? ''] || rul.lang[this.id + "_UFOPEDIA"] || rul.lang[rul.research[this.id]?.lookup as string];
+    let t =
+      rul.lang[this._text ?? ""] ||
+      rul.lang[this.id + "_UFOPEDIA"] ||
+      rul.lang[rul.research[this.id]?.lookup as string];
     // Before the markup, not after: `stripPediaMarkup` deletes every `{...}`
     // token, and the braces are part of a placeholder, so expanding afterwards
     // would leave only a stray `$` behind. Doing it here also means every reader
     // of the body sees the same expanded text: the page, an exported copy of it,
     // and anything else that prints `article.text`.
     if (t != null && t.indexOf("${") != -1)
-      t = t.replace(placeholder, (match, id: string) => placeholderText(id.trim()) ?? match.substring(1));
+      t = t.replace(
+        placeholder,
+        (match, id: string) => placeholderText(id.trim()) ?? match.substring(1),
+      );
     t = stripPediaMarkup(t);
     return t;
   }
@@ -118,5 +128,4 @@ export class Article {
   get title() {
     return rul.tr(this._title, { icon: "none" });
   }
-
 }

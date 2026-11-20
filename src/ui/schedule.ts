@@ -28,12 +28,12 @@
  * optional because the ruleset does not require any of them.
  */
 export type MissionScriptTiming = {
-  firstMonth?: number,
-  lastMonth?: number,
-  startDelay?: number,
-  randomDelay?: number,
-  maxRuns?: number,
-  researchTriggers?: { [topic: string]: boolean },
+  firstMonth?: number;
+  lastMonth?: number;
+  startDelay?: number;
+  randomDelay?: number;
+  maxRuns?: number;
+  researchTriggers?: { [topic: string]: boolean };
 };
 
 /**
@@ -45,22 +45,20 @@ export type MissionScriptTiming = {
  * lastMonth == -1)`.
  */
 export type MonthWindow = {
-  first: number
+  first: number;
   /** -1 when the script never stops */
-  last: number
+  last: number;
   /** The whole window is one month, so the script can run only once */
-  single: boolean
+  single: boolean;
   /** The window is open-ended */
-  open: boolean
-}
+  open: boolean;
+};
 
 export function monthWindow(entry: MissionScriptTiming): MonthWindow {
   let first = Number(entry?.firstMonth ?? 0);
   let last = entry?.lastMonth == null ? -1 : Number(entry.lastMonth);
-  if (!Number.isFinite(first))
-    first = 0;
-  if (!Number.isFinite(last))
-    last = -1;
+  if (!Number.isFinite(first)) first = 0;
+  if (!Number.isFinite(last)) last = -1;
   return { first, last, single: last >= 0 && first == last, open: last < 0 };
 }
 
@@ -73,15 +71,15 @@ export function monthWindow(entry: MissionScriptTiming): MonthWindow {
  * a bare `0` cannot tell them apart.
  */
 export type ScriptDelay = {
-  min: number
-  max: number
+  min: number;
+  max: number;
   /** No delay stated: the mission's own first-wave timer decides */
-  delegates: boolean
-}
+  delegates: boolean;
+};
 
 export function scriptDelay(entry: MissionScriptTiming): ScriptDelay {
-  let base = Math.max(0, Number(entry?.startDelay ?? 0) || 0);
-  let extra = Math.max(0, Number(entry?.randomDelay ?? 0) || 0);
+  const base = Math.max(0, Number(entry?.startDelay ?? 0) || 0);
+  const extra = Math.max(0, Number(entry?.randomDelay ?? 0) || 0);
   return { min: base, max: base + extra, delegates: base == 0 && extra == 0 };
 }
 
@@ -93,10 +91,9 @@ export function scriptDelay(entry: MissionScriptTiming): ScriptDelay {
  * the count of missions actually created, and the calendar is the stricter of the
  * two when both are set.
  */
-export function runLimit(entry: MissionScriptTiming): { maxRuns: number, limited: boolean } {
+export function runLimit(entry: MissionScriptTiming): { maxRuns: number; limited: boolean } {
   let maxRuns = entry?.maxRuns == null ? -1 : Number(entry.maxRuns);
-  if (!Number.isFinite(maxRuns))
-    maxRuns = -1;
+  if (!Number.isFinite(maxRuns)) maxRuns = -1;
   return { maxRuns, limited: maxRuns >= 0 };
 }
 
@@ -109,20 +106,17 @@ export function runLimit(entry: MissionScriptTiming): { maxRuns: number, limited
  * *not* have been made. The engine compares each against `isResearched`.
  */
 export type ResearchGate = {
-  needed: string[]
-  forbidden: string[]
-}
+  needed: string[];
+  forbidden: string[];
+};
 
 export function researchGate(entry: MissionScriptTiming): ResearchGate | undefined {
-  let triggers = entry?.researchTriggers;
-  if (triggers == null || typeof triggers != "object")
-    return undefined;
-  let needed: string[] = [];
-  let forbidden: string[] = [];
-  for (let [topic, wanted] of Object.entries(triggers))
-    (wanted ? needed : forbidden).push(topic);
-  if (!needed.length && !forbidden.length)
-    return undefined;
+  const triggers = entry?.researchTriggers;
+  if (triggers == null || typeof triggers != "object") return undefined;
+  const needed: string[] = [];
+  const forbidden: string[] = [];
+  for (const [topic, wanted] of Object.entries(triggers)) (wanted ? needed : forbidden).push(topic);
+  if (!needed.length && !forbidden.length) return undefined;
   return { needed, forbidden };
 }
 

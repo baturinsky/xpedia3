@@ -1,7 +1,7 @@
-import { rul } from "./rul/Ruleset";
-import { inlineDataFile, resolveImage } from "./packSource";
-import { WORLD_DAT } from "./packBuild";
 import { builtinFile } from "./load";
+import { WORLD_DAT } from "./packBuild";
+import { inlineDataFile, resolveImage } from "./packSource";
+import { rul } from "./rul/Ruleset";
 
 /**
  * The OpenXcom world map, flattened.
@@ -44,29 +44,29 @@ export const ORIGIN = 190;
  * position decide. `getRandomTerrain` in the game picks one of these by weight.
  */
 export type TerrainCriteria = {
-  name: string,
-  weight: number,
-  lonMin: number,
-  lonMax: number,
-  latMin: number,
-  latMax: number,
+  name: string;
+  weight: number;
+  lonMin: number;
+  lonMax: number;
+  latMin: number;
+  latMax: number;
 };
 
 /** A polygon of land, with the terrain name its texture resolved to */
-export type MapPolygon = { texture: number, terrain?: string, points: [number, number][] };
+export type MapPolygon = { texture: number; terrain?: string; points: [number, number][] };
 
 /** A single border or coastline stroke */
 export type MapLine = [number, number][];
 
 /** A nation's label anchor */
-export type MapLabel = { text: string, lon: number, lat: number };
+export type MapLabel = { text: string; lon: number; lat: number };
 
-export type MapRectangle = { lonMin: number, lonMax: number, latMin: number, latMax: number };
+export type MapRectangle = { lonMin: number; lonMax: number; latMin: number; latMax: number };
 
 export type WorldMap = {
   polygons: MapPolygon[];
   lines: MapLine[];
-  countries: { id: string, label?: { lon: number, lat: number }, areas: MapRectangle[] }[];
+  countries: { id: string; label?: { lon: number; lat: number }; areas: MapRectangle[] }[];
   /** Terrain criteria per texture id, as the pack's own `globe: textures:` declares them */
   terrains: { [texture: number]: TerrainCriteria[] };
 };
@@ -87,15 +87,13 @@ export type WorldMap = {
  * longitude, so anything outside is treated as "not a globe" and dropped.
  */
 export function parseWorldDat(bytes: Uint8Array): MapPolygon[] {
-  let view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let polygons: MapPolygon[] = [];
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const polygons: MapPolygon[] = [];
   for (let offset = 0; offset + 20 <= bytes.byteLength; offset += 20) {
-    let value: number[] = [];
-    for (let i = 0; i < 10; i++)
-      value.push(view.getInt16(offset + i * 2, true));
-    let polygon = recordToPolygon(value);
-    if (polygon)
-      polygons.push(polygon);
+    const value: number[] = [];
+    for (let i = 0; i < 10; i++) value.push(view.getInt16(offset + i * 2, true));
+    const polygon = recordToPolygon(value);
+    if (polygon) polygons.push(polygon);
   }
   return polygons;
 }
@@ -104,75 +102,62 @@ export function parseWorldDat(bytes: Uint8Array): MapPolygon[] {
 function recordToPolygon(value: number[]): MapPolygon | undefined {
   // A record is three or four vertices plus a texture id; an HTML page read as
   // one gives negative, huge or mismatched values
-  let count = value[6] != -1 ? 4 : 3;
-  let points: [number, number][] = [];
+  const count = value[6] != -1 ? 4 : 3;
+  const points: [number, number][] = [];
   for (let i = 0; i < count; i++) {
-    let lon = value[i * 2] * 0.125;
-    let lat = value[i * 2 + 1] * 0.125;
-    if (!Number.isFinite(lon) || !Number.isFinite(lat))
-      return;
-    if (lat < -90 || lat > 90)
-      return;
+    const lon = value[i * 2] * 0.125;
+    const lat = value[i * 2 + 1] * 0.125;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+    if (lat < -90 || lat > 90) return;
     // Longitudes may legitimately run past a whole turn (368 is 8 degrees), but
     // not by more than the game's own map data ever does
-    if (lon < -360 || lon > 720)
-      return;
+    if (lon < -360 || lon > 720) return;
     points.push([lon, lat]);
   }
-  let texture = value[8];
-  if (!Number.isInteger(texture) || texture < -64 || texture > 1024)
-    return;
+  const texture = value[8];
+  if (!Number.isInteger(texture) || texture < -64 || texture > 1024) return;
   // Three points is the minimum that can be drawn
-  if (points.length < 3)
-    return;
+  if (points.length < 3) return;
   return { texture, points };
 }
 
 /** Whether these bytes look like a globe file rather than some other file */
 export function looksLikeWorldDat(bytes: Uint8Array) {
-  if (bytes.byteLength < 20 || bytes.byteLength % 20 != 0)
-    return false;
+  if (bytes.byteLength < 20 || bytes.byteLength % 20 != 0) return false;
   let points = 0;
   for (let offset = 0; offset + 20 <= bytes.byteLength && offset < 400; offset += 20) {
-    let view = new DataView(bytes.buffer, bytes.byteOffset + offset, 20);
-    let value: number[] = [];
-    for (let i = 0; i < 10; i++)
-      value.push(view.getInt16(i * 2, true));
-    if (recordToPolygon(value))
-      points++;
-    else
-      return false;
+    const view = new DataView(bytes.buffer, bytes.byteOffset + offset, 20);
+    const value: number[] = [];
+    for (let i = 0; i < 10; i++) value.push(view.getInt16(i * 2, true));
+    if (recordToPolygon(value)) points++;
+    else return false;
   }
   return points > 0;
 }
 
 /** Reads the terrain criteria of each texture id from the ruleset's `globe:` node */
 export function readTerrains(): { [texture: number]: TerrainCriteria[] } {
-  let globe = rul?.raw?.globe;
-  let result: { [texture: number]: TerrainCriteria[] } = {};
-  if (!globe)
-    return result;
-  for (let entry of globe.textures ?? []) {
-    if (entry?.id == null || !entry.terrain?.length)
-      continue;
-    let criteria: TerrainCriteria[] = [];
-    for (let raw of entry.terrain) {
-      if (!raw?.name)
-        continue;
+  const globe = rul?.raw?.globe;
+  const result: { [texture: number]: TerrainCriteria[] } = {};
+  if (!globe) return result;
+  for (const entry of globe.textures ?? []) {
+    if (entry?.id == null || !entry.terrain?.length) continue;
+    const criteria: TerrainCriteria[] = [];
+    for (const raw of entry.terrain) {
+      if (!raw?.name) continue;
       // `area` is optional and defaults to the whole globe, exactly as
       // `TerrainCriteria` does in the game
-      let area = Array.isArray(raw.area) ? raw.area.map(Number) : [];
+      const area = Array.isArray(raw.area) ? raw.area.map(Number) : [];
       criteria.push({
         name: raw.name,
         weight: raw.weight == null ? 1 : Number(raw.weight),
         lonMin: area[0] ?? 0,
         lonMax: area[1] ?? 360,
         latMin: area[2] ?? -90,
-        latMax: area[3] ?? 90
+        latMax: area[3] ?? 90,
       });
     }
-    if (criteria.length)
-      result[entry.id] = criteria;
+    if (criteria.length) result[entry.id] = criteria;
   }
   return result;
 }
@@ -186,13 +171,14 @@ export function readTerrains(): { [texture: number]: TerrainCriteria[] } {
  * own target positions amount to.
  */
 function circularMeanLongitude(lons: number[]) {
-  let x = 0, y = 0;
-  for (let lon of lons) {
-    let rad = lon * Math.PI / 180;
+  let x = 0,
+    y = 0;
+  for (const lon of lons) {
+    const rad = (lon * Math.PI) / 180;
     x += Math.cos(rad);
     y += Math.sin(rad);
   }
-  let deg = Math.atan2(y, x) * 180 / Math.PI;
+  const deg = (Math.atan2(y, x) * 180) / Math.PI;
   return ((deg % 360) + 360) % 360;
 }
 
@@ -206,49 +192,49 @@ function circularMeanLongitude(lons: number[]) {
  * representative rather than an arbitrary draw.
  */
 export function terrainAt(criteria: TerrainCriteria[] | undefined, lon: number, lat: number) {
-  if (!criteria?.length)
-    return undefined;
-  let candidates = criteria.filter(t =>
-    t.weight > 0 &&
-    lon >= t.lonMin && lon < t.lonMax &&
-    lat >= t.latMin && lat < t.latMax);
-  if (!candidates.length)
-    candidates = criteria.filter(t => t.weight > 0);
+  if (!criteria?.length) return undefined;
+  let candidates = criteria.filter(
+    (t) => t.weight > 0 && lon >= t.lonMin && lon < t.lonMax && lat >= t.latMin && lat < t.latMax,
+  );
+  if (!candidates.length) candidates = criteria.filter((t) => t.weight > 0);
   return [...candidates].sort((a, b) => b.weight - a.weight)[0]?.name;
 }
 
 /** Reads the borders from the ruleset's `globe: polylines:` */
 export function readPolylines(): MapLine[] {
-  let lines: MapLine[] = [];
-  for (let raw of rul?.raw?.globe?.polylines ?? []) {
-    if (!Array.isArray(raw))
-      continue;
-    let line: MapLine = [];
-    for (let i = 0; i + 1 < raw.length; i += 2)
-      line.push([Number(raw[i]), Number(raw[i + 1])]);
-    if (line.length > 1)
-      lines.push(line);
+  const lines: MapLine[] = [];
+  for (const raw of rul?.raw?.globe?.polylines ?? []) {
+    if (!Array.isArray(raw)) continue;
+    const line: MapLine = [];
+    for (let i = 0; i + 1 < raw.length; i += 2) line.push([Number(raw[i]), Number(raw[i + 1])]);
+    if (line.length > 1) lines.push(line);
   }
   return lines;
 }
 
 /** Reads the nations, whose areas are plain rectangles rather than borders */
 export function readCountries(): WorldMap["countries"] {
-  let countries: WorldMap["countries"] = [];
-  for (let entry of Object.values(rul?.countries ?? {})) {
-    if (!entry?.uid)
-      continue;
-    let areas: MapRectangle[] = [];
-    for (let area of entry.areas ?? []) {
-      if (!Array.isArray(area) || area.length < 4)
-        continue;
-      let [lonMin, lonMax, latMin, latMax] = area.map(Number);
-      areas.push({ lonMin, lonMax, latMin: Math.min(latMin, latMax), latMax: Math.max(latMin, latMax) });
+  const countries: WorldMap["countries"] = [];
+  for (const entry of Object.values(rul?.countries ?? {})) {
+    if (!entry?.uid) continue;
+    const areas: MapRectangle[] = [];
+    for (const area of entry.areas ?? []) {
+      if (!Array.isArray(area) || area.length < 4) continue;
+      const [lonMin, lonMax, latMin, latMax] = area.map(Number);
+      areas.push({
+        lonMin,
+        lonMax,
+        latMin: Math.min(latMin, latMax),
+        latMax: Math.max(latMin, latMax),
+      });
     }
     countries.push({
       id: entry.uid,
-      label: entry.labelLon != null ? { lon: Number(entry.labelLon), lat: Number(entry.labelLat) } : undefined,
-      areas
+      label:
+        entry.labelLon != null
+          ? { lon: Number(entry.labelLon), lat: Number(entry.labelLat) }
+          : undefined,
+      areas,
     });
   }
   return countries;
@@ -263,61 +249,56 @@ export function readCountries(): WorldMap["countries"] {
  * OpenXcom prefers over `data:`. Those are `[texture, lon, lat, ...]`.
  */
 export async function loadWorldMap(): Promise<WorldMap | undefined> {
-  let globe = rul?.raw?.globe;
-  if (!globe)
-    return;
+  const globe = rul?.raw?.globe;
+  if (!globe) return;
 
   let polygons = readInlinePolygons(globe.polygons);
   if (!polygons) {
     // `globe.data` is a path relative to the mod folder, the same form the
     // resource index keys; `WORLD_DAT` is the stock one it usually names
-    let bytes = await readDat(globe.data ?? WORLD_DAT);
-    if (bytes)
-      polygons = parseWorldDat(bytes);
+    const bytes = await readDat(globe.data ?? WORLD_DAT);
+    if (bytes) polygons = parseWorldDat(bytes);
   }
 
-  if (!polygons?.length)
-    return;
+  if (!polygons?.length) return;
 
-  let terrains = readTerrains();
+  const terrains = readTerrains();
 
   // Resolve each polygon's texture once, at its own centre, so the renderer and
   // the legend agree on what every shape is
-  for (let polygon of polygons)
-    polygon.terrain = terrainAt(terrains[polygon.texture],
-      circularMeanLongitude(polygon.points.map(p => p[0])),
-      polygon.points.reduce((a, p) => a + p[1], 0) / polygon.points.length);
+  for (const polygon of polygons)
+    polygon.terrain = terrainAt(
+      terrains[polygon.texture],
+      circularMeanLongitude(polygon.points.map((p) => p[0])),
+      polygon.points.reduce((a, p) => a + p[1], 0) / polygon.points.length,
+    );
 
   return {
     polygons,
     lines: readPolylines(),
     countries: readCountries(),
-    terrains
+    terrains,
   };
 }
 
 /** The inline replacement form, `[texture, lon, lat, ...]` */
 function readInlinePolygons(raw: unknown): MapPolygon[] | undefined {
-  if (!Array.isArray(raw) || !raw.length)
-    return;
-  let polygons: MapPolygon[] = [];
-  for (let entry of raw) {
-    if (!Array.isArray(entry) || entry.length < 7)
-      continue;
-    let points: [number, number][] = [];
+  if (!Array.isArray(raw) || !raw.length) return;
+  const polygons: MapPolygon[] = [];
+  for (const entry of raw) {
+    if (!Array.isArray(entry) || entry.length < 7) continue;
+    const points: [number, number][] = [];
     for (let i = 1; i + 1 < entry.length; i += 2)
       points.push([Number(entry[i]), Number(entry[i + 1])]);
-    if (points.length >= 3)
-      polygons.push({ texture: Number(entry[0]), points });
+    if (points.length >= 3) polygons.push({ texture: Number(entry[0]), points });
   }
   return polygons.length ? polygons : undefined;
 }
 
 /** The full archive path of a globe DAT file, resolved the way `FileMap` does */
 export function findDatPath(rel?: string) {
-  if (!rel)
-    return;
-  let key = rel.replace(/^[/\\]+/, "").toLowerCase();
+  if (!rel) return;
+  const key = rel.replace(/^[/\\]+/, "").toLowerCase();
   return rul?.resourceMap?.[key];
 }
 
@@ -332,14 +313,12 @@ export function findDatPath(rel?: string) {
  * bundle, for a pack that ships no globe of its own.
  */
 async function readDat(rel: string) {
-  let inline = await inlineDataFile(rel);
-  if (inline)
-    return looksLikeWorldDat(inline) ? inline : undefined;
+  const inline = await inlineDataFile(rel);
+  if (inline) return looksLikeWorldDat(inline) ? inline : undefined;
 
-  let path = findDatPath(rel) ?? rel;
-  let resolved = await resolveImage(path);
-  if (resolved?.data)
-    return looksLikeWorldDat(resolved.data) ? resolved.data : undefined;
+  const path = findDatPath(rel) ?? rel;
+  const resolved = await resolveImage(path);
+  if (resolved?.data) return looksLikeWorldDat(resolved.data) ? resolved.data : undefined;
 
   // An older export has no payload of its own, only files beside the page, so
   // the URL is tried as a fallback. The stock globe usually is not there, which
@@ -350,12 +329,13 @@ async function readDat(rel: string) {
   // is a few megabytes of HTML which parses as tens of thousands of polygons.
   if (resolved?.url) {
     try {
-      let response = await fetch(resolved.url);
+      const response = await fetch(resolved.url);
       if (response.ok) {
-        let bytes = new Uint8Array(await response.arrayBuffer());
-        if (looksLikeWorldDat(bytes))
-          return bytes;
-        console.warn(`${resolved.url} is not a globe file (${bytes.byteLength} bytes), ignoring it`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (looksLikeWorldDat(bytes)) return bytes;
+        console.warn(
+          `${resolved.url} is not a globe file (${bytes.byteLength} bytes), ignoring it`,
+        );
       }
     } catch (e) {
       console.debug(`Can't read ${resolved.url}`, e);
@@ -365,9 +345,8 @@ async function readDat(rel: string) {
   // The builtin copy, read straight from the compiled-in payload. Only the
   // stock globe has one; a pack that names a file it does not ship gets no map
   // rather than a different one.
-  let builtinPath = findDatPath(rel);
-  if (builtinPath && /^mods\//i.test(builtinPath))
-    return builtinFile(builtinPath);
+  const builtinPath = findDatPath(rel);
+  if (builtinPath && /^mods\//i.test(builtinPath)) return builtinFile(builtinPath);
   if (rel.replace(/^[/\\]+/, "").toLowerCase() == WORLD_DAT)
     return builtinFile("mods/xpedia/GEODATA/WORLD.DAT");
 }

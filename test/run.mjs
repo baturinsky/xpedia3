@@ -15,13 +15,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, root } from "./build.mjs";
 
-let checksDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "checks");
-let filters = process.argv.slice(2);
+const checksDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "checks");
+const filters = process.argv.slice(2);
 
-let checks = readdirSync(checksDir)
-  .filter(name => name.endsWith(".mjs"))
+const checks = readdirSync(checksDir)
+  .filter((name) => name.endsWith(".mjs"))
   .sort()
-  .filter(name => !filters.length || filters.some(f => name.includes(f)));
+  .filter((name) => !filters.length || filters.some((f) => name.includes(f)));
 
 if (!checks.length) {
   console.error(`no check matches ${filters.join(", ")}`);
@@ -30,26 +30,24 @@ if (!checks.length) {
 
 await build();
 
-let failed = [];
-let started = Date.now();
+const failed = [];
+const started = Date.now();
 
-for (let name of checks) {
+for (const name of checks) {
   console.log(`\n=== ${name}`);
-  let result = spawnSync(process.execPath, [path.join(checksDir, name)], {
+  const result = spawnSync(process.execPath, [path.join(checksDir, name)], {
     cwd: root,
     // The check's own helpers would otherwise rebuild what has just been built
     env: { ...process.env, XPEDIA_TEST_BUILT: "1" },
     stdio: "inherit",
   });
-  if (result.status !== 0)
-    failed.push(name);
+  if (result.status !== 0) failed.push(name);
 }
 
-let seconds = ((Date.now() - started) / 1000).toFixed(1);
+const seconds = ((Date.now() - started) / 1000).toFixed(1);
 if (failed.length) {
   console.error(`\n${failed.length} of ${checks.length} check(s) failed in ${seconds}s:`);
-  for (let name of failed)
-    console.error(`  ${name}`);
+  for (const name of failed) console.error(`  ${name}`);
   process.exit(1);
 }
 

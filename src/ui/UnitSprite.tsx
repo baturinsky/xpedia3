@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef } from "react";
 import { rul } from "../rul/Ruleset";
 import type { Sprite } from "../rul/Sprite";
 import { remembered, rememberSelection, state } from "../state";
-import { usePixelRatio, useSpriteImages, spriteScale } from "./components";
+import { spriteScale, usePixelRatio, useSpriteImages } from "./components";
 
 /**
  * A unit drawn out of its `spriteSheet`.
@@ -134,27 +134,43 @@ type RoutineFrames = {
 function routineFrames(routine: number): RoutineFrames {
   if (routine <= 10)
     return {
-      die: 264, maleTorso: TORSO, femaleTorso: 267, legsFloat: 275, kneelY: 4,
+      die: 264,
+      maleTorso: TORSO,
+      femaleTorso: 267,
+      legsFloat: 275,
+      kneelY: 4,
       // A muton carries a wide charge on its back and bobs differently
-      yoffWalk: routine == 10 ? MUTON_YOFF_WALK : YOFF_WALK
+      yoffWalk: routine == 10 ? MUTON_YOFF_WALK : YOFF_WALK,
     };
   if (routine == 13)
     // Aquanauts on land. The sources keep a second table for the underwater
     // `_helmet` layer, which the pedia has no way to tell apart from this one.
     return {
-      die: 256, maleTorso: 270, femaleTorso: 262, legsFloat: 294, kneelY: 5,
+      die: 256,
+      maleTorso: 270,
+      femaleTorso: 262,
+      legsFloat: 294,
+      kneelY: 5,
       // TFTD torsos are stubby, so they sit one pixel lower
-      yoffWalk: YOFF_WALK.map(v => v + 1)
+      yoffWalk: YOFF_WALK.map((v) => v + 1),
     };
   if (routine == 15)
     return {
-      die: 256, maleTorso: TORSO, femaleTorso: 262, legsFloat: 294, kneelY: 4,
-      yoffWalk: AQUATOID_YOFF_WALK
+      die: 256,
+      maleTorso: TORSO,
+      femaleTorso: 262,
+      legsFloat: 294,
+      kneelY: 4,
+      yoffWalk: AQUATOID_YOFF_WALK,
     };
   // Routine 14, and anything else that ends up on the TFTD table
   return {
-    die: 256, maleTorso: TORSO, femaleTorso: 262, legsFloat: 294, kneelY: 4,
-    yoffWalk: YOFF_WALK.map(v => v + 1)
+    die: 256,
+    maleTorso: TORSO,
+    femaleTorso: 262,
+    legsFloat: 294,
+    kneelY: 4,
+    yoffWalk: YOFF_WALK.map((v) => v + 1),
   };
 }
 
@@ -162,12 +178,12 @@ function routineFrames(routine: number): RoutineFrames {
 export type UnitPose = "standing" | "walking" | "kneeling" | "floating" | "dying";
 
 /** Poses in the order they are offered, with the label used by the picker */
-export const UNIT_POSES: { id: UnitPose, label: string }[] = [
+export const UNIT_POSES: { id: UnitPose; label: string }[] = [
   { id: "standing", label: "Standing" },
   { id: "walking", label: "Walking" },
   { id: "kneeling", label: "Kneeling" },
   { id: "floating", label: "Floating" },
-  { id: "dying", label: "Dying" }
+  { id: "dying", label: "Dying" },
 ];
 
 /**
@@ -188,7 +204,7 @@ const UNIT_DIRECTIONAL: UnitPose[] = ["standing", "walking", "kneeling", "floati
  *
  * `short` is what the compass shows, `title` spells the meaning out.
  */
-export const UNIT_DIRECTIONS: { dir: number, short: string, title: string }[] = [
+export const UNIT_DIRECTIONS: { dir: number; short: string; title: string }[] = [
   { dir: 0, short: "N", title: "North — up and to the right" },
   { dir: 1, short: "NE", title: "North-east — to the right" },
   { dir: 2, short: "E", title: "East — down and to the right" },
@@ -196,7 +212,7 @@ export const UNIT_DIRECTIONS: { dir: number, short: string, title: string }[] = 
   { dir: 4, short: "S", title: "South — down and to the left" },
   { dir: 5, short: "SW", title: "South-west — to the left" },
   { dir: 6, short: "W", title: "West — up and to the left" },
-  { dir: 7, short: "NW", title: "North-west — up, seen from behind" }
+  { dir: 7, short: "NW", title: "North-west — up, seen from behind" },
 ];
 
 /** `MT_FLY` in `MapData.h`: the unit hovers rather than walks */
@@ -224,7 +240,7 @@ const DRAW_ORDER: { [dir: number]: string[] } = {
   4: ["g", "r", "t", "l"],
   5: ["r", "g", "t", "l"],
   6: ["r", "g", "t", "l"],
-  7: ["l", "r", "g", "t"]
+  7: ["l", "r", "g", "t"],
 };
 
 /**
@@ -240,7 +256,7 @@ const DRAW_ORDER_6: { [dir: number]: string[] } = {
   4: ["r", "g", "t", "l"],
   5: ["r", "g", "t", "l"],
   6: ["r", "g", "t", "l"],
-  7: ["l", "r", "g", "t"]
+  7: ["l", "r", "g", "t"],
 };
 
 /**
@@ -255,7 +271,7 @@ const DRAW_ORDER_1: { [dir: number]: string[] } = {
   4: ["t", "l", "r"],
   5: ["r", "t", "l"],
   6: ["r", "t", "l"],
-  7: ["r", "l", "t"]
+  7: ["r", "l", "t"],
 };
 
 /** Which drawing routine an armor uses, when the pedia can draw it */
@@ -267,23 +283,19 @@ type RoutineKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 12 | 16 | 19 | 20 | 21 | 
  * 3 with the propulsion drawn in front of the hull instead of behind it.
  */
 function routineKind(routine?: number): RoutineKind | undefined {
-  let n = routine ?? 0;
-  if (n == 0 || n in ROUTINE0_ALIASES)
-    return 0;
-  if ([1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 19, 20, 21, 22].includes(n))
-    return n as RoutineKind;
+  const n = routine ?? 0;
+  if (n == 0 || n in ROUTINE0_ALIASES) return 0;
+  if ([1, 2, 3, 4, 5, 6, 8, 9, 12, 16, 19, 20, 21, 22].includes(n)) return n as RoutineKind;
   return undefined;
 }
 
 /** How many floor tiles a unit covers, and so how many parts it is drawn from */
 function unitTiles(view: UnitView) {
-  let kind = routineKind(view.routine);
+  const kind = routineKind(view.routine);
   // Routines with a two-by-two picture always use all four cells
-  if (kind != null && FOUR_TILE_ROUTINES.includes(kind))
-    return 2;
+  if (kind != null && FOUR_TILE_ROUTINES.includes(kind)) return 2;
   // A tank is only split when it is over two tiles; a one-tile pillbox is not
-  if (kind != 2)
-    return 1;
+  if (kind != 2) return 1;
   return view.size == 2 ? 2 : 1;
 }
 
@@ -295,16 +307,15 @@ function unitTiles(view: UnitView) {
  * basis from `Camera::convertMapToScreen`.
  */
 function partOffset(tile: number) {
-  let x = tile & 1;
-  let y = tile >> 1;
+  const x = tile & 1;
+  const y = tile >> 1;
   return { x: (x - y) * (TILE_W / 2), y: (x + y) * (TILE_H / 2) };
 }
 
 /** True when this sheet can be composed into a figure */
 export function canComposeUnit(sheet?: string, routine?: number) {
-  let sprite = sheet ? rul?.sprites[sheet] : undefined;
-  if (!sprite?.grid || !sprite.subX || !sprite.subY)
-    return false;
+  const sprite = sheet ? rul?.sprites[sheet] : undefined;
+  if (!sprite?.grid || !sprite.subX || !sprite.subY) return false;
   return routine == null || routineKind(+routine) != null;
 }
 
@@ -317,29 +328,28 @@ export function canComposeUnit(sheet?: string, routine?: number) {
  * where a soldier has eight, so the eight steps of the cycle are squeezed onto
  * them by `walkPhase / 1.6`, which lands as 0, 0, 1, 1, 2, 3, 3, 4.
  */
-function floaterFrame(view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying")
-    return { parts: { t: { frame: 64 + phase } }, order: ["t"] };
+function floaterFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
+  if (pose == "dying") return { parts: { t: { frame: 64 + phase } }, order: ["t"] };
 
-  let order = DRAW_ORDER_1[dir];
+  const order = DRAW_ORDER_1[dir];
   if (pose == "walking")
     return {
       parts: {
         // A floater's arms do not walk: only the torso has a walk sequence
         l: { frame: 8 + dir },
         r: { frame: 0 + dir },
-        t: { frame: 24 + 5 * dir + Math.floor(phase / 1.6) }
+        t: { frame: 24 + 5 * dir + Math.floor(phase / 1.6) },
       },
-      order
+      order,
     };
 
   return {
     parts: {
       l: { frame: 8 + dir },
       r: { frame: 0 + dir },
-      t: { frame: 16 + dir }
+      t: { frame: 16 + dir },
     },
-    order
+    order,
   };
 }
 
@@ -350,10 +360,8 @@ function floaterFrame(view: UnitView, pose: UnitPose, dir: number, phase: number
  * not move their parts, so the facing is the whole animation.
  */
 function tentaculatFrame(pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying")
-    return { parts: { t: { frame: 16 + phase } }, order: ["t"] };
-  if (pose == "walking")
-    return { parts: { t: { frame: 8 + dir } }, order: ["t"] };
+  if (pose == "dying") return { parts: { t: { frame: 16 + phase } }, order: ["t"] };
+  if (pose == "walking") return { parts: { t: { frame: 8 + dir } }, order: ["t"] };
   return { parts: { t: { frame: 0 + dir } }, order: ["t"] };
 }
 
@@ -362,11 +370,11 @@ function tentaculatFrame(pose: UnitPose, dir: number, phase: number): PoseFrame 
  * out along the row for a facing, and a four-step walk on top of that.
  */
 function trisceneFrame(dir: number, phase: number, walking: boolean): PoseFrame {
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    let name = "p" + tile;
+    const name = "p" + tile;
     // `phase` is the walk picture itself, 0-3, so a standing unit holds picture 0
     parts[name] = { frame: tile * 5 + (walking ? phase : 0) + 20 * dir };
     partTiles[name] = tile;
@@ -380,11 +388,11 @@ function trisceneFrame(dir: number, phase: number, walking: boolean): PoseFrame 
  * pictures, which animate on their own.
  */
 function xarquidFrame(dir: number, phase: number): PoseFrame {
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    let name = "p" + tile;
+    const name = "p" + tile;
     parts[name] = { frame: tile * 4 + dir * 16 + phase };
     partTiles[name] = tile;
     order.push(name);
@@ -397,11 +405,11 @@ function xarquidFrame(dir: number, phase: number): PoseFrame {
  * of their own, with no facing and no walk.
  */
 function fourTileCycleFrame(phase: number): PoseFrame {
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
   for (let tile = 0; tile < 4; tile++) {
-    let name = "p" + tile;
+    const name = "p" + tile;
     parts[name] = { frame: tile * 8 + phase };
     partTiles[name] = tile;
     order.push(name);
@@ -421,7 +429,7 @@ function blobFrame(kind: number, pose: UnitPose, phase: number): PoseFrame {
     return { parts: { t: { frame: BLOB_DEATH_START[kind] + phase } }, order: ["t"] };
   // A silacoid pulses 0-1-2-3-4-3-2-1 rather than running through the row, and
   // it has five pictures rather than eight
-  let step = kind == 8 ? SILACOID_PULSE[phase % 8] : phase % 8;
+  const step = kind == 8 ? SILACOID_PULSE[phase % 8] : phase % 8;
   return { parts: { t: { frame: step } }, order: ["t"] };
 }
 
@@ -433,16 +441,16 @@ function blobFrame(kind: number, pose: UnitPose, phase: number): PoseFrame {
  * hull for a disc, which hovers on it, and in front of it for a rotor.
  */
 function propellantFrame(kind: number, dir: number, phase: number): PoseFrame {
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
   // A helicopter's rotor covers the hull, a disc's plume sits under it
-  let rotorAbove = kind == 22;
+  const rotorAbove = kind == 22;
 
   for (let tile = 0; tile < 4; tile++) {
-    let hull = "b" + tile;
-    let plume = "e" + tile;
-    let hasPlume = tile > 0;
+    const hull = "b" + tile;
+    const plume = "e" + tile;
+    const hasPlume = tile > 0;
     if (hasPlume && !rotorAbove) {
       parts[plume] = { frame: 32 + (tile - 1) * 8 + phase };
       partTiles[plume] = tile;
@@ -463,27 +471,23 @@ function propellantFrame(kind: number, dir: number, phase: number): PoseFrame {
 
 /** How many frames a pose plays; 1 means it stands still */
 function posePhases(pose: UnitPose, view: UnitView) {
-  let kind = routineKind(view.routine);
+  const kind = routineKind(view.routine);
   if (pose == "walking") {
     // A sectopod's and a triscene's walk cycles hold four pictures each, and the
     // game picks one picture per two steps, so there are four to choose from
-    if (kind == 5 || kind == 20)
-      return 4;
+    if (kind == 5 || kind == 20) return 4;
     // A tentaculat has one picture per facing, so its walk has nothing to step
     // through
-    if (kind == 19)
-      return 1;
+    if (kind == 19) return 1;
     return WALK_PHASES;
   }
   // The collapsing sequence stops on its last frame once the unit is down
-  if (pose == "dying")
-    return Math.max(1, view.deathFrames ?? 3);
+  if (pose == "dying") return Math.max(1, view.deathFrames ?? 3);
   // A hovering tank's exhaust, a silacoid's pulse and a biodrone's wobble all
   // run while the unit stands still
   if (pose == "standing" && kind != null && STILL_CYCLES[kind]) {
     // Only a tank that flies has an exhaust to animate
-    if (kind == 2 && view.movementType != MT_FLY)
-      return 1;
+    if (kind == 2 && view.movementType != MT_FLY) return 1;
     return STILL_CYCLES[kind];
   }
   return 1;
@@ -509,7 +513,7 @@ const STILL_CYCLES: { [kind: number]: number } = {
   16: 8,
   // A hallucinoid and an xarquid turn on the spot
   12: 8,
-  21: 4
+  21: 4,
 };
 
 /**
@@ -521,8 +525,7 @@ const STILL_CYCLES: { [kind: number]: number } = {
  */
 function poseLoops(pose: UnitPose, view: UnitView) {
   // A fall plays once and stops on its last frame
-  if (pose == "dying")
-    return false;
+  if (pose == "dying") return false;
   return pose == "walking" || posePhases(pose, view) > 1;
 }
 
@@ -557,9 +560,15 @@ const SILACOID_PULSE = [0, 1, 2, 3, 4, 3, 2, 1];
  */
 const BLOB_DEATH_START: { [kind: number]: number } = { 8: 6, 9: 25, 16: 8 };
 
-function poseFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: number, phase: number,
-  turretDir = dir): PoseFrame {
-  let kind = routineKind(view.routine);
+function poseFrame(
+  sprite: Sprite,
+  view: UnitView,
+  pose: UnitPose,
+  dir: number,
+  phase: number,
+  turretDir = dir,
+): PoseFrame {
+  const kind = routineKind(view.routine);
   switch (kind) {
     case 1:
       return floaterFrame(view, pose, dir, phase);
@@ -595,13 +604,19 @@ function poseFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: number, 
  * Routine 0: the ordinary humanoid, built from two arms, a pair of legs and a
  * torso, each 8 frames wide with one frame per facing.
  */
-function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  let frames = routineFrames(view.routine ?? 0);
+function humanoidFrame(
+  sprite: Sprite,
+  view: UnitView,
+  pose: UnitPose,
+  dir: number,
+  phase: number,
+): PoseFrame {
+  const frames = routineFrames(view.routine ?? 0);
   // A short sheet may run out before the female torso: those armors fall back
   // to the male one rather than losing the whole figure
-  let female = view.female && !!sprite.frameSource(frames.femaleTorso + dir);
-  let torso = (female ? frames.femaleTorso : frames.maleTorso) + dir;
-  let order = DRAW_ORDER[dir];
+  const female = view.female && !!sprite.frameSource(frames.femaleTorso + dir);
+  const torso = (female ? frames.femaleTorso : frames.maleTorso) + dir;
+  const order = DRAW_ORDER[dir];
 
   switch (pose) {
     case "walking":
@@ -611,9 +626,9 @@ function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: numb
           r: { frame: RARM_WALK + WALK_STRIDE * dir + phase },
           g: { frame: LEGS_WALK + WALK_STRIDE * dir + phase },
           // Only the torso bobs: the walk arms are drawn at their own height
-          t: { frame: torso, offY: frames.yoffWalk[phase] ?? 0 }
+          t: { frame: torso, offY: frames.yoffWalk[phase] ?? 0 },
         },
-        order
+        order,
       };
     case "kneeling":
       return {
@@ -622,9 +637,9 @@ function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: numb
           r: { frame: RARM_STAND + dir, offY: frames.kneelY },
           g: { frame: LEGS_KNEEL + dir },
           // Everything but the legs drops, or the body would float above them
-          t: { frame: torso, offY: frames.kneelY }
+          t: { frame: torso, offY: frames.kneelY },
         },
-        order
+        order,
       };
     case "floating":
       return {
@@ -632,9 +647,9 @@ function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: numb
           l: { frame: LARM_STAND + dir },
           r: { frame: RARM_STAND + dir },
           g: { frame: frames.legsFloat + dir },
-          t: { frame: torso }
+          t: { frame: torso },
         },
-        order
+        order,
       };
     case "dying":
       // A collapsing unit is a single frame: the body already contains the pose
@@ -645,9 +660,9 @@ function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: numb
           l: { frame: LARM_STAND + dir },
           r: { frame: RARM_STAND + dir },
           g: { frame: LEGS_STAND + dir },
-          t: { frame: torso }
+          t: { frame: torso },
         },
-        order
+        order,
       };
   }
 }
@@ -657,20 +672,18 @@ function humanoidFrame(sprite: Sprite, view: UnitView, pose: UnitPose, dir: numb
  * numbers differ and the legs are the only part that moves while walking - the
  * torso and arms just bob and shift sideways over them.
  */
-function snakemanFrame(view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying")
-    return { parts: { t: { frame: 96 + phase } }, order: ["t"] };
+function snakemanFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
+  if (pose == "dying") return { parts: { t: { frame: 96 + phase } }, order: ["t"] };
 
-  let order = DRAW_ORDER_6[dir];
-  let bob = 0, shift = 0;
+  const order = DRAW_ORDER_6[dir];
+  let bob = 0,
+    shift = 0;
   if (pose == "walking") {
     bob = SNAKEMAN_YOFF_WALK[phase] ?? 0;
     // The body leans into the step: right while heading east, left while
     // heading west, and neither straight up nor straight down
-    if (dir < 3)
-      shift = SNAKEMAN_XOFF_A[phase] ?? 0;
-    else if (dir > 3 && dir < 7)
-      shift = SNAKEMAN_XOFF_B[phase] ?? 0;
+    if (dir < 3) shift = SNAKEMAN_XOFF_A[phase] ?? 0;
+    else if (dir > 3 && dir < 7) shift = SNAKEMAN_XOFF_B[phase] ?? 0;
   }
 
   return {
@@ -678,9 +691,9 @@ function snakemanFrame(view: UnitView, pose: UnitPose, dir: number, phase: numbe
       l: { frame: 0 + dir, offX: shift, offY: bob },
       r: { frame: 8 + dir, offX: shift, offY: bob },
       g: { frame: pose == "walking" ? 32 + 8 * dir + phase : 16 + dir },
-      t: { frame: 24 + dir, offX: shift, offY: bob }
+      t: { frame: 24 + dir, offX: shift, offY: bob },
     },
-    order
+    order,
   };
 }
 
@@ -688,11 +701,9 @@ function snakemanFrame(view: UnitView, pose: UnitPose, dir: number, phase: numbe
  * Routine 4: civilians and animals. The simplest of the lot - one sprite per
  * facing, and a walk sequence of eight frames behind it.
  */
-function civilianFrame(view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  if (pose == "dying")
-    return { parts: { t: { frame: 72 + phase } }, order: ["t"] };
-  if (pose == "walking")
-    return { parts: { t: { frame: 8 + 8 * dir + phase } }, order: ["t"] };
+function civilianFrame(_view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
+  if (pose == "dying") return { parts: { t: { frame: 72 + phase } }, order: ["t"] };
+  if (pose == "walking") return { parts: { t: { frame: 8 + 8 * dir + phase } }, order: ["t"] };
   return { parts: { t: { frame: 0 + dir } }, order: ["t"] };
 }
 
@@ -701,17 +712,15 @@ function civilianFrame(view: UnitView, pose: UnitPose, dir: number, phase: numbe
  * a four-step walk.
  */
 function fourPartFrame(view: UnitView, pose: UnitPose, dir: number, phase: number): PoseFrame {
-  let tiles = unitTiles(view);
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+  const tiles = unitTiles(view);
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
 
   for (let tile = 0; tile < tiles * tiles; tile++) {
-    let name = "p" + tile;
+    const name = "p" + tile;
     parts[name] = {
-      frame: pose == "walking"
-        ? 32 + tile * 4 + dir * 16 + phase
-        : 0 + tile * 8 + dir
+      frame: pose == "walking" ? 32 + tile * 4 + dir * 16 + phase : 0 + tile * 8 + dir,
     };
     partTiles[name] = tile;
     order.push(name);
@@ -728,19 +737,25 @@ function fourPartFrame(view: UnitView, pose: UnitPose, dir: number, phase: numbe
  * sits on the front tile so it covers the rest of the hull, and it turns
  * independently of the hull.
  */
-function tankFrame(view: UnitView, _pose: UnitPose, dir: number, phase: number, turretDir: number): PoseFrame {
-  let hover = view.movementType == MT_FLY;
-  let turret = view.turret ?? -1;
-  let tiles = unitTiles(view);
-  let parts: { [part: string]: PosePart } = {};
-  let partTiles: { [part: string]: number } = {};
-  let order: string[] = [];
+function tankFrame(
+  view: UnitView,
+  _pose: UnitPose,
+  dir: number,
+  phase: number,
+  turretDir: number,
+): PoseFrame {
+  const hover = view.movementType == MT_FLY;
+  const turret = view.turret ?? -1;
+  const tiles = unitTiles(view);
+  const parts: { [part: string]: PosePart } = {};
+  const partTiles: { [part: string]: number } = {};
+  const order: string[] = [];
 
   for (let tile = 0; tile < tiles * tiles; tile++) {
-    let name = "b" + tile;
+    const name = "b" + tile;
     // The plume goes under the hull, so it is blitted first
     if (hover && tile > 0) {
-      let plume = "e" + tile;
+      const plume = "e" + tile;
       parts[plume] = { frame: 104 + (tile - 1) * 8 + phase };
       partTiles[plume] = tile;
       order.push(plume);
@@ -756,7 +771,7 @@ function tankFrame(view: UnitView, _pose: UnitPose, dir: number, phase: number, 
     parts.gun = {
       frame: 64 + turret * 8 + turretDir,
       offX: hover ? TANK_SWAY_X[dir] : 0,
-      offY: (hover ? TANK_SWAY_Y[dir] : 0) - 4
+      offY: (hover ? TANK_SWAY_Y[dir] : 0) - 4,
     };
     partTiles.gun = 3;
     order.push("gun");
@@ -784,7 +799,7 @@ const ROUTINE_POSES: { [kind: number]: UnitPose[] } = {
   19: ["standing", "walking", "dying"],
   20: ["standing", "walking"],
   21: ["standing"],
-  22: ["standing"]
+  22: ["standing"],
 };
 
 /**
@@ -794,35 +809,31 @@ const ROUTINE_POSES: { [kind: number]: UnitPose[] } = {
  * changes nothing for them and the compass is only in the way.
  */
 function poseIsDirectional(pose: UnitPose, view: UnitView) {
-  let kind = routineKind(view.routine);
-  if (kind == 8 || kind == 9 || kind == 12 || kind == 16)
-    return false;
+  const kind = routineKind(view.routine);
+  if (kind == 8 || kind == 9 || kind == 12 || kind == 16) return false;
   return UNIT_DIRECTIONAL.includes(pose);
 }
 
 /** The poses this sheet actually holds frames for */
 export function unitPoses(view: UnitView): UnitPose[] {
-  let sprite = rul?.sprites[view.sheet];
-  let kind = routineKind(view.routine);
-  if (!sprite?.grid || kind == null)
-    return [];
+  const sprite = rul?.sprites[view.sheet];
+  const kind = routineKind(view.routine);
+  if (!sprite?.grid || kind == null) return [];
   // A turreted tank can be verified for every gun facing, not just its own
-  let turretDirs = kind == 2 && (view.turret ?? -1) >= 0 ? 8 : 1;
+  const turretDirs = kind == 2 && (view.turret ?? -1) >= 0 ? 8 : 1;
 
-  return (ROUTINE_POSES[kind] ?? [])
-    .filter(id => {
-      for (let dir = 0; dir < 8; dir++) {
-        for (let phase = 0; phase < posePhases(id, view); phase++) {
-          for (let t = 0; t < turretDirs; t++) {
-            let frame = poseFrame(sprite, view, id, dir, phase, t);
-            for (let part in frame.parts)
-              if (!sprite.frameSource(frame.parts[part].frame))
-                return false;
-          }
+  return (ROUTINE_POSES[kind] ?? []).filter((id) => {
+    for (let dir = 0; dir < 8; dir++) {
+      for (let phase = 0; phase < posePhases(id, view); phase++) {
+        for (let t = 0; t < turretDirs; t++) {
+          const frame = poseFrame(sprite, view, id, dir, phase, t);
+          for (const part in frame.parts)
+            if (!sprite.frameSource(frame.parts[part].frame)) return false;
         }
       }
-      return true;
-    });
+    }
+    return true;
+  });
 }
 
 /**
@@ -834,9 +845,9 @@ export function unitPoses(view: UnitView): UnitPose[] {
  * hovering tank rides above that.
  */
 export function unitLayout(view: UnitView) {
-  let sprite = rul?.sprites[view.sheet];
-  let w = sprite?.subX ?? TILE_W;
-  let h = sprite?.subY ?? 40;
+  const sprite = rul?.sprites[view.sheet];
+  const w = sprite?.subX ?? TILE_W;
+  const h = sprite?.subY ?? 40;
   if (unitTiles(view) == 2) {
     // The four parts fan out half a tile each way, so the unit is one tile wider
     // and one tile taller than a single part; part 0 starts at (16, 0)
@@ -847,7 +858,7 @@ export function unitLayout(view: UnitView) {
 
 /** Pixel size of a composed figure, before any magnification */
 export function unitSpriteSize(view: UnitView) {
-  let { w, h } = unitLayout(view);
+  const { w, h } = unitLayout(view);
   return { w, h };
 }
 
@@ -876,81 +887,86 @@ export function UnitSprite(props: {
   alt?: string;
   className?: string;
 }) {
-  let sprite = rul?.sprites[props.view.sheet];
-  let canvas = useRef<HTMLCanvasElement>(null);
-  let pixelRatio = usePixelRatio();
+  const sprite = rul?.sprites[props.view.sheet];
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const pixelRatio = usePixelRatio();
 
   // A set may be split over several images, and a figure can take parts from
   // more than one of them, so all of them are loaded up front
-  let sources = useMemo(() =>
-    [...new Set(Object.values(sprite?.frames ?? {}))]
-      .map(path => sprite?.resolveFramePath(path))
-      .filter((path): path is string => !!path), [props.view.sheet]);
-  let { urls, settled } = useSpriteImages(sources);
+  const sources = useMemo(
+    () =>
+      [...new Set(Object.values(sprite?.frames ?? {}))]
+        .map((path) => sprite?.resolveFramePath(path))
+        .filter((path): path is string => !!path),
+    [props.view.sheet],
+  );
+  const { urls, settled } = useSpriteImages(sources);
 
-  let { w: width, h: height } = unitSpriteSize(props.view);
-  let scale = spriteScale(props.scale ?? 2, pixelRatio);
-  let pose = props.pose ?? "standing";
-  let direction = (((props.direction ?? 2) % 8) + 8) % 8;
-  let turretDirection = (((props.turretDirection ?? direction) % 8) + 8) % 8;
-  let hasRealData = sources.length > 0 && settled && urls.size == sources.length;
+  const { w: width, h: height } = unitSpriteSize(props.view);
+  const scale = spriteScale(props.scale ?? 2, pixelRatio);
+  const pose = props.pose ?? "standing";
+  const direction = (((props.direction ?? 2) % 8) + 8) % 8;
+  const turretDirection = (((props.turretDirection ?? direction) % 8) + 8) % 8;
+  const hasRealData = sources.length > 0 && settled && urls.size == sources.length;
 
   useEffect(() => {
-    let element = canvas.current;
-    if (!element || !hasRealData || !sprite?.grid)
-      return;
+    const element = canvas.current;
+    if (!element || !hasRealData || !sprite?.grid) return;
 
-    let context = element.getContext("2d");
-    if (!context)
-      return;
+    const context = element.getContext("2d");
+    if (!context) return;
 
     let cancelled = false;
     let timer: number | undefined;
-    let images = new Map<string, HTMLImageElement>();
-    let phases = posePhases(pose, props.view);
+    const images = new Map<string, HTMLImageElement>();
+    const phases = posePhases(pose, props.view);
     // A step chosen by the caller is held; without one the pose plays
-    let held = props.frame ? Math.min(Math.max(1, props.frame), phases) - 1 : undefined;
+    const held = props.frame ? Math.min(Math.max(1, props.frame), phases) - 1 : undefined;
     let frame = held ?? 0;
-    let tiles = unitTiles(props.view);
-    let layout = unitLayout(props.view);
+    const tiles = unitTiles(props.view);
+    const layout = unitLayout(props.view);
 
     // Paint one frame of the pose, or the still pose when it does not animate
-    let paint = () => {
+    const paint = () => {
       context.clearRect(0, 0, element.width, element.height);
       // Keep the crisp pixel-art look the rest of the pedia has
       context.imageSmoothingEnabled = false;
 
-      let model = poseFrame(sprite, props.view, pose, direction, frame, turretDirection);
+      const model = poseFrame(sprite, props.view, pose, direction, frame, turretDirection);
 
-      for (let part of model.order) {
-        let placed = model.parts[part];
-        if (!placed)
-          continue;
-        let source = sprite.frameSource(placed.frame);
-        let image = source ? images.get(source.path) : undefined;
-        if (!source || !image)
-          continue;
+      for (const part of model.order) {
+        const placed = model.parts[part];
+        if (!placed) continue;
+        const source = sprite.frameSource(placed.frame);
+        const image = source ? images.get(source.path) : undefined;
+        if (!source || !image) continue;
         // One part of a multi-tile unit is shifted onto its own tile, and the
         // whole is centred in the canvas
-        let tile = model.tiles?.[part] ?? 0;
-        let spot = tiles == 2 ? partOffset(tile) : { x: 0, y: 0 };
-        let baseX = tiles == 2 ? layout.x : SPRITE_OFFSET;
-        let baseY = tiles == 2 ? layout.y : 0;
-        context.drawImage(image, source.x, source.y, source.w, source.h,
-          baseX + spot.x + (placed.offX ?? 0), baseY + spot.y + (placed.offY ?? 0),
-          source.w, source.h);
+        const tile = model.tiles?.[part] ?? 0;
+        const spot = tiles == 2 ? partOffset(tile) : { x: 0, y: 0 };
+        const baseX = tiles == 2 ? layout.x : SPRITE_OFFSET;
+        const baseY = tiles == 2 ? layout.y : 0;
+        context.drawImage(
+          image,
+          source.x,
+          source.y,
+          source.w,
+          source.h,
+          baseX + spot.x + (placed.offX ?? 0),
+          baseY + spot.y + (placed.offY ?? 0),
+          source.w,
+          source.h,
+        );
       }
     };
 
     let loaded = 0;
-    for (let source of sources) {
-      let url = urls.get(source);
-      if (!url)
-        continue;
-      let image = new Image();
+    for (const source of sources) {
+      const url = urls.get(source);
+      if (!url) continue;
+      const image = new Image();
       image.onload = () => {
-        if (cancelled)
-          return;
+        if (cancelled) return;
         images.set(source, image);
         // Start once the whole set is in; before that a part would be missing
         if (++loaded == sources.length) {
@@ -960,12 +976,10 @@ export function UnitSprite(props: {
               frame++;
               // A walk cycle and a hovering tank's exhaust repeat; a fall plays
               // once and holds its last frame
-              if (poseLoops(pose, props.view))
-                frame %= phases;
+              if (poseLoops(pose, props.view)) frame %= phases;
               else if (frame >= phases - 1) {
                 frame = phases - 1;
-                if (timer != null)
-                  window.clearInterval(timer);
+                if (timer != null) window.clearInterval(timer);
               }
               paint();
             }, ANIM_SPEED);
@@ -976,24 +990,36 @@ export function UnitSprite(props: {
 
     return () => {
       cancelled = true;
-      if (timer != null)
-        window.clearInterval(timer);
+      if (timer != null) window.clearInterval(timer);
     };
-  }, [hasRealData, props.view.sheet, props.view.female, props.view.routine, props.view.deathFrames,
-    props.view.movementType, props.view.turret, props.view.size,
-  pose, direction, turretDirection, props.frame, urls.size]);
+  }, [
+    hasRealData,
+    props.view.sheet,
+    props.view.female,
+    props.view.routine,
+    props.view.deathFrames,
+    props.view.movementType,
+    props.view.turret,
+    props.view.size,
+    pose,
+    direction,
+    turretDirection,
+    props.frame,
+    urls.size,
+  ]);
 
-  if (!sprite?.grid || !hasRealData)
-    return null;
+  if (!sprite?.grid || !hasRealData) return null;
 
-  return <canvas
-    ref={canvas}
-    className={"unit-sprite" + (props.className ? " " + props.className : "")}
-    width={width}
-    height={height}
-    aria-label={props.alt ?? `${props.view.sheet} ${pose}`}
-    style={{ width: width * scale, height: height * scale, imageRendering: "pixelated" }}
-  />;
+  return (
+    <canvas
+      ref={canvas}
+      className={"unit-sprite" + (props.className ? " " + props.className : "")}
+      width={width}
+      height={height}
+      aria-label={props.alt ?? `${props.view.sheet} ${pose}`}
+      style={{ width: width * scale, height: height * scale, imageRendering: "pixelated" }}
+    />
+  );
 }
 
 /**
@@ -1003,121 +1029,164 @@ export function UnitSprite(props: {
  * look completely different depending on which parts the game blits, so being
  * able to ask for "kneeling, facing west" is the point of it.
  */
-export function UnitSheetPreview(props: { view: UnitView, scale?: number }) {
-  let poses = useMemo(() => unitPoses(props.view),
-    [props.view.sheet, props.view.routine, props.view.female, props.view.deathFrames,
-      props.view.movementType, props.view.turret, props.view.size]);
+export function UnitSheetPreview(props: { view: UnitView; scale?: number }) {
+  const poses = useMemo(
+    () => unitPoses(props.view),
+    [
+      props.view.sheet,
+      props.view.routine,
+      props.view.female,
+      props.view.deathFrames,
+      props.view.movementType,
+      props.view.turret,
+      props.view.size,
+    ],
+  );
   // One picker can appear on many articles, so each radio group needs a name
   // that is unique to this instance
-  let group = useId();
-  let poseGroup = useId();
-  let turretGroup = useId();
+  const group = useId();
+  const poseGroup = useId();
+  const turretGroup = useId();
 
-  if (!poses.length)
-    return null;
+  if (!poses.length) return null;
 
   // Every choice here is remembered (`state.selection`), because it describes the
   // reader rather than the armor: wanting to see how one armor kneels is a fact
   // about the armor, but wanting to see everything kneeling is a fact about the
   // reader, and the second is what a picker is for.
-  let pose = remembered(poses, p => p == state.selection.pose, poses[0]);
+  const pose = remembered(poses, (p) => p == state.selection.pose, poses[0]);
   // Every facing is always offered, so a remembered one is nearly always usable;
   // it is still looked up among the eight the compass draws, so a value from an
   // older build cannot leave the compass with nothing lit. The compass is hidden
   // for a pose drawn from a single side, and the remembered facing then simply
   // waits for a pose that can use it.
-  let facings = UNIT_DIRECTIONS.map(d => d.dir);
-  let direction = remembered(facings, dir => dir == state.selection.direction, 2);
+  const facings = UNIT_DIRECTIONS.map((d) => d.dir);
+  const direction = remembered(facings, (dir) => dir == state.selection.direction, 2);
   // A gun that turns on its own starts out following the hull
-  let turretDirection = remembered(facings, dir => dir == state.selection.turretDirection, 2);
+  const turretDirection = remembered(facings, (dir) => dir == state.selection.turretDirection, 2);
 
-  let { w, h } = unitSpriteSize(props.view);
+  const { w, h } = unitSpriteSize(props.view);
 
-  let phases = posePhases(pose, props.view);
-  let holdsFrames = phases > 1;
+  const phases = posePhases(pose, props.view);
+  const holdsFrames = phases > 1;
   // A held step belongs to one pose's animation: a step of a long walk does not
   // exist on a two-picture kneel. The step drops to "play" there, while the
   // memory keeps it, so going back to the walk resumes where it was left. A pose
   // that does not animate has no steps at all, only "play".
-  let steps = holdsFrames ? Array.from({ length: phases + 1 }, (_, step) => step) : [0];
-  let heldFrame = remembered(steps, step => step == state.selection.frame, 0);
-  let directional = poseIsDirectional(pose, props.view);
+  const steps = holdsFrames ? Array.from({ length: phases + 1 }, (_, step) => step) : [0];
+  const heldFrame = remembered(steps, (step) => step == state.selection.frame, 0);
+  const directional = poseIsDirectional(pose, props.view);
   // Only a turreted tank draws its gun separately, and only when it is drawn
   // as four tiles - which is where the game puts the gun
-  let hasTurret = routineKind(props.view.routine) == 2 && (props.view.turret ?? -1) >= 0
-    && unitTiles(props.view) == 2;
+  const hasTurret =
+    routineKind(props.view.routine) == 2 &&
+    (props.view.turret ?? -1) >= 0 &&
+    unitTiles(props.view) == 2;
 
-  return <div className="unit-picker">
-    <div className="unit-picker-controls">
-      <div className="unit-picker-row">
-        <div className="unit-poses" role="radiogroup">
-          {/* The poses read as a short column beside the compass, so the two
+  return (
+    <div className="unit-picker">
+      <div className="unit-picker-controls">
+        <div className="unit-picker-row">
+          <div className="unit-poses" role="radiogroup">
+            {/* The poses read as a short column beside the compass, so the two
               choices sit side by side instead of stacking into a long list */}
-          {UNIT_POSES.filter(p => poses.includes(p.id)).map(p =>
-            <label key={p.id} className="unit-pose">
-              <input type="radio" name={poseGroup} value={p.id}
-                checked={pose == p.id}
-                onChange={() => rememberSelection("pose", p.id)} />
-              <span>{p.label}</span>
-            </label>
-          )}
-        </div>
+            {UNIT_POSES.filter((p) => poses.includes(p.id)).map((p) => (
+              <label key={p.id} className="unit-pose">
+                <input
+                  type="radio"
+                  name={poseGroup}
+                  value={p.id}
+                  checked={pose == p.id}
+                  onChange={() => rememberSelection("pose", p.id)}
+                />
+                <span>{p.label}</span>
+              </label>
+            ))}
+          </div>
 
-        {/* A collapsing unit is a single frame that already contains the pose,
+          {/* A collapsing unit is a single frame that already contains the pose,
             and a blob is one picture that shimmers on the spot: for those the
             facing changes nothing, so the compass is not offered at all. Left
             in place, dimmed, it still had a facing lit in it, which read as
             "this is the side you are looking at" when the side makes no
             difference. The remembered facing is untouched and comes back with
             the next pose that can use it. */}
-        {directional && <div className="unit-directions">
-          <div className="unit-compass">
-            {!hasTurret ? null : <span className="unit-compass-centre">hull</span>}
-            {UNIT_DIRECTIONS.map(d =>
-              <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
-                <input type="radio" name={group} value={d.dir}
-                  checked={direction == d.dir}
-                  onChange={() => rememberSelection("direction", d.dir)} />
-                <span>{d.short}</span>
-              </label>
-            )}
-          </div>
-        </div>}
+          {directional && (
+            <div className="unit-directions">
+              <div className="unit-compass">
+                {!hasTurret ? null : <span className="unit-compass-centre">hull</span>}
+                {UNIT_DIRECTIONS.map((d) => (
+                  <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+                    <input
+                      type="radio"
+                      name={group}
+                      value={d.dir}
+                      checked={direction == d.dir}
+                      onChange={() => rememberSelection("direction", d.dir)}
+                    />
+                    <span>{d.short}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {hasTurret ? <div className="unit-directions">
-          {/* The gun turns on its own, so it gets its own ring */}
-          <div className="unit-compass">
-            <span className="unit-compass-centre">gun</span>
-            {UNIT_DIRECTIONS.map(d =>
-              <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
-                <input type="radio" name={turretGroup} value={d.dir}
-                  checked={turretDirection == d.dir}
-                  onChange={() => rememberSelection("turretDirection", d.dir)} />
-                <span>{d.short}</span>
-              </label>
-            )}
-          </div>
-        </div> : null}
+          {hasTurret ? (
+            <div className="unit-directions">
+              {/* The gun turns on its own, so it gets its own ring */}
+              <div className="unit-compass">
+                <span className="unit-compass-centre">gun</span>
+                {UNIT_DIRECTIONS.map((d) => (
+                  <label key={d.dir} className={"unit-dir unit-dir-" + d.dir} title={d.title}>
+                    <input
+                      type="radio"
+                      name={turretGroup}
+                      value={d.dir}
+                      checked={turretDirection == d.dir}
+                      onChange={() => rememberSelection("turretDirection", d.dir)}
+                    />
+                    <span>{d.short}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <label className={"unit-frame" + (holdsFrames ? "" : " disabled")}>
+          <input
+            type="range"
+            min={0}
+            max={phases}
+            step={1}
+            value={heldFrame}
+            disabled={!holdsFrames}
+            title={
+              holdsFrames
+                ? heldFrame
+                  ? `Holding step ${heldFrame} of ${phases}`
+                  : "Playing the animation"
+                : "This pose has a single frame"
+            }
+            onChange={(e) => rememberSelection("frame", +e.target.value)}
+          />
+          <span className="unit-frame-value">
+            {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
+          </span>
+        </label>
       </div>
 
-      <label className={"unit-frame" + (holdsFrames ? "" : " disabled")}>
-        <input type="range" min={0} max={phases} step={1}
-          value={heldFrame} disabled={!holdsFrames}
-          title={holdsFrames
-            ? (heldFrame ? `Holding step ${heldFrame} of ${phases}` : "Playing the animation")
-            : "This pose has a single frame"}
-          onChange={e => rememberSelection("frame", +e.target.value)} />
-        <span className="unit-frame-value">
-          {!holdsFrames ? "1 / 1" : heldFrame ? `${heldFrame} / ${phases}` : `play · ${phases}`}
-        </span>
-      </label>
+      <div className="unit-picker-preview">
+        <UnitSprite
+          view={props.view}
+          pose={pose}
+          direction={direction}
+          turretDirection={turretDirection}
+          frame={heldFrame}
+          scale={props.scale ?? 3}
+        />
+        <span className="unit-picker-size">{[w, h].join(" × ")} px</span>
+      </div>
     </div>
-
-    <div className="unit-picker-preview">
-      <UnitSprite view={props.view} pose={pose} direction={direction}
-        turretDirection={turretDirection} frame={heldFrame} scale={props.scale ?? 3} />
-      <span className="unit-picker-size">{[w, h].join(" × ")} px</span>
-    </div>
-
-  </div>;
+  );
 }

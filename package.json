@@ -11,6 +11,8 @@
     "min": "vite build --mode=min",
     "cli": "vite build && node scripts/build-cli.mjs",
     "check": "tsc -p src/tsconfig.json --noEmit && tsc -p tsconfig.tools.json",
+    "format": "biome format --write .",
+    "lint": "biome check .",
     "test": "node test/run.mjs"
   },
   "//pinned": "React, its renderer and the data grid are held at the versions the tables were written against. A caret range would pull React 19.3 and react-data-grid beta.64 on the next install, which is a large unrequested change to the section tables.",
@@ -30,6 +32,7 @@
     "vite-plugin-top-level-await/uuid": "^11.1.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

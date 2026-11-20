@@ -72,7 +72,7 @@ body {
 /* Common elements */
 
 em,
-em>a {
+em > a {
   color: var(--em);
   font-style: normal;
 }
@@ -126,7 +126,7 @@ a:hover {
 
 a.dead {
   color: var(--dead-link);
-  opacity: .6;
+  opacity: 0.6;
 }
 
 /* A reference that points at the page being read. Two collections can share an
@@ -138,7 +138,7 @@ a.dead {
 .list-divider {
   opacity: 30%;
   color: var(--link);
-  margin: 0 -.15rem 0 -.1rem;
+  margin: 0 -0.15rem 0 -0.1rem;
 }
 
 button {
@@ -186,7 +186,6 @@ hr {
   border: solid 1px red;
 }
 
-
 /* Page Layout */
 
 .all {
@@ -205,7 +204,7 @@ hr {
   overflow: auto;
   grid-row: 2;
   grid-column: 2;
-  padding: 0 .5rem;
+  padding: 0 0.5rem;
   /* Prevent wide tables from stretching the grid column */
   min-width: 0;
 }
@@ -233,7 +232,7 @@ nav.top {
 }
 
 nav.top .left * {
-  margin-right: .5rem;
+  margin-right: 0.5rem;
 }
 
 nav.top .left {
@@ -249,7 +248,7 @@ nav.top .left {
 }
 
 /* Long mod title shrinks instead of stretching the navbar */
-nav.top .left>a {
+nav.top .left > a {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -257,12 +256,11 @@ nav.top .left>a {
   white-space: nowrap;
 }
 
-
 nav.top .right {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: .25rem;
+  gap: 0.25rem;
   height: 100%;
   text-align: right;
   flex-shrink: 0;
@@ -290,7 +288,7 @@ nav.side {
   /* No horizontal scrolling in the sidebar; long labels wrap instead */
   overflow-x: hidden;
   border-right: solid 1px var(--border);
-  padding: 0 .25rem;
+  padding: 0 0.25rem;
   min-width: 0;
 }
 
@@ -303,7 +301,7 @@ nav.side {
 .side-link {
   white-space: normal;
   overflow-wrap: anywhere;
-  padding: .05rem .25rem;
+  padding: 0.05rem 0.25rem;
 }
 
 /* `Tr` marks a label `nobr` when its *translation key* is short, but the
@@ -332,7 +330,7 @@ nav.side {
   top: 2.5rem;
   left: 12rem;
   z-index: 5;
-  padding: 0 .3rem;
+  padding: 0 0.3rem;
 }
 
 .side-hide-button.collapsed {
@@ -344,7 +342,7 @@ nav.side {
   border: none;
   color: var(--text);
   font-size: 90%;
-  padding: 0 .4rem;
+  padding: 0 0.4rem;
   margin: 0;
   height: 100%;
   display: flex;
@@ -389,7 +387,7 @@ nav.side {
   border: solid 1px var(--border);
 }
 
-.navbar-dropdown>div {
+.navbar-dropdown > div {
   background-color: var(--table-main);
 }
 
@@ -410,7 +408,7 @@ nav.side {
   align-items: stretch;
 }
 
-.navbar-dropdown-container.dropdown-button>.navbar-dropdown {
+.navbar-dropdown-container.dropdown-button > .navbar-dropdown {
   left: 0;
   right: auto;
   width: max-content;
@@ -425,15 +423,15 @@ nav.side {
   font-size: 90%;
 }
 
-.navbar-dropdown>.flex-horisontal {
+.navbar-dropdown > .flex-horisontal {
   /* Pedia sections in one column on the left, type sections in a compact
      2-column grid on the right, so the menu stays narrow */
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-start;
   width: auto;
-  gap: .75rem;
-  padding: .25rem;
+  gap: 0.75rem;
+  padding: 0.25rem;
 }
 
 .navbar-dropdown a {
@@ -463,7 +461,7 @@ nav.side {
   grid-template-columns: auto auto;
   justify-content: left;
   align-content: start;
-  gap: 0 .75rem;
+  gap: 0 0.75rem;
 }
 
 .navbar-auto a,
@@ -494,8 +492,8 @@ nav.side {
    so it can't push the label past the column width */
 .table-marker {
   float: right;
-  margin-left: .25rem;
-  opacity: .7;
+  margin-left: 0.25rem;
+  opacity: 0.7;
 }
 
 .flex-horisontal {
@@ -509,7 +507,7 @@ nav.side {
 
 .xpedia-icon {
   height: 2rem;
-  margin-right: .25rem;
+  margin-right: 0.25rem;
 }
 
 /* Search box in the navbar */
@@ -528,8 +526,8 @@ nav.side {
   color: var(--text);
   border: solid 1px var(--border);
   font-size: 80%;
-  padding: 0 .25rem;
-  margin: .1rem;
+  padding: 0 0.25rem;
+  margin: 0.1rem;
 }
 
 input::placeholder {
@@ -538,14 +536,13 @@ input::placeholder {
   opacity: 20%;
 }
 
-
 .select-language .navbar-dropdown {
   display: grid;
   grid-template-columns: auto auto;
 }
 
 .select-language .navbar-dropdown div {
-  padding: .2rem .4rem;
+  padding: 0.2rem 0.4rem;
 }
 
 /* Modpack picker: one modpack per row, long archive names wrap instead of
@@ -559,32 +556,31 @@ input::placeholder {
   overflow-y: auto;
 }
 
-.select-packs .navbar-dropdown>div {
-  padding: .2rem .4rem;
+.select-packs .navbar-dropdown > div {
+  padding: 0.2rem 0.4rem;
   /* A pack name can be a long file name: allow a break anywhere */
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
-.select-packs .navbar-dropdown>.current {
+.select-packs .navbar-dropdown > .current {
   background: var(--lighter);
 }
 
-.select-packs .navbar-dropdown>.packs-empty {
+.select-packs .navbar-dropdown > .packs-empty {
   font-style: italic;
-  opacity: .7;
+  opacity: 0.7;
   cursor: default;
 }
 
 /* The button shows the full title, so let it shrink rather than push the
    search box off the bar */
-.select-packs .navbar-button>span {
+.select-packs .navbar-button > span {
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 
 /* RDGrid */
 
@@ -598,7 +594,6 @@ input::placeholder {
   background: var(--table-header);
   color: var(--title);
 }
-
 
 .rdg-row {
   background: var(--background);
@@ -1110,13 +1105,13 @@ button:disabled:hover {
   display: grid;
   font-size: 120%;
   line-height: 140%;
-  margin: .5rem 2rem;
+  margin: 0.5rem 2rem;
   max-width: 100vw;
 }
 
 .article-title div {
   grid-row: 1;
-  grid-column: 1/3;
+  grid-column: 1 / 3;
   text-align: center;
 }
 
@@ -1138,10 +1133,9 @@ button:disabled:hover {
 .article-title .sections {
   font-size: 70%;
   grid-row: 2;
-  grid-column: 1/3;
-  margin: -.3rem 0 -.6rem 0;
+  grid-column: 1 / 3;
+  margin: -0.3rem 0 -0.6rem 0;
 }
-
 
 /* The section's article list is one flowing list of links across the whole
    page width, as in old `Article.svelte`; it must not be split into narrow
@@ -1251,11 +1245,11 @@ button:disabled:hover {
   flex-direction: row;
   align-items: center;
   border: 0;
-  margin-bottom: .25rem;
+  margin-bottom: 0.25rem;
 }
 
-.main-text>div {
-  padding: .3rem;
+.main-text > div {
+  padding: 0.3rem;
 }
 
 .main-text .article-text-image {
@@ -1271,8 +1265,7 @@ button:disabled:hover {
   display: block;
 }
 
-
-.sections-list {  
+.sections-list {
   display: flex;
   flex-direction: row;
 
@@ -1281,7 +1274,7 @@ button:disabled:hover {
 }
 
 /* Multi-column lists on the landing page */
-.sections-list>div {
+.sections-list > div {
   min-width: 15rem;
   flex: 1;
 }
@@ -1291,7 +1284,6 @@ button:disabled:hover {
 .mods-list .builtin-mod {
   opacity: 0.55;
 }
-
 
 /** Image */
 
@@ -1315,7 +1307,9 @@ button:disabled:hover {
   transition: .2s;*/
 }
 
-table.thin, table.thin td, table.thin td{
+table.thin,
+table.thin td,
+table.thin td {
   border: none;
   padding: 0;
   margin: 0;
@@ -1331,7 +1325,6 @@ table.thin, table.thin td, table.thin td{
   break-inside: avoid-column;
   margin-bottom: 3px;
 }
-
 
 .main-table tbody tr:nth-child(even) {
   background: var(--table-secondary);
@@ -1370,13 +1363,12 @@ table.thin, table.thin td, table.thin td{
  * whose first column holds data (`2` for a size, a date, a name) wants the
  * spare width as much as one holding a list, so shrinking it would be wrong.
  */
-.main-table>tbody>tr>td.row-name {
+.main-table > tbody > tr > td.row-name {
   width: 1%;
   white-space: nowrap;
 }
 
-
-.main-table>thead,
+.main-table > thead,
 .table-header,
 .table-subheader {
   background-color: var(--table-header);
@@ -1385,7 +1377,7 @@ table.thin, table.thin td, table.thin td{
   font-variant: small-caps;
 }
 
-.main-table>thead,
+.main-table > thead,
 .table-header {
   font-size: larger;
   padding-bottom: 0.2rem;
@@ -1396,22 +1388,21 @@ ol {
   padding-inline-start: 0;
 }
 
-ol>li {
+ol > li {
   display: inline-block;
 }
 
-ol>li::after {
+ol > li::after {
   content: "·";
   opacity: 30%;
   padding: 0 0.1rem;
 }
 
-ol>li:last-child::after {
+ol > li:last-child::after {
   content: "";
 }
 
-
-.articles-list ol>li {
+.articles-list ol > li {
   display: list-item;
 }
 
@@ -1419,18 +1410,18 @@ ol>li:last-child::after {
   padding-inline-start: 2rem;
 }
 
-.articles-list ol>li::after {
+.articles-list ol > li::after {
   content: "";
 }
 
-@media (width <=1000px) {
+@media (width <= 1000px) {
   .article-title {
     display: grid;
   }
 
   .article-title .central {
     grid-row: 2;
-    grid-column: 1/3;
+    grid-column: 1 / 3;
   }
 
   .article-title .left {
@@ -1445,7 +1436,7 @@ ol>li:last-child::after {
 
   .article-title .sections {
     grid-row: 3;
-    grid-column: 1/3;
+    grid-column: 1 / 3;
   }
 
   .article-body {
@@ -1475,7 +1466,6 @@ ol>li:last-child::after {
   font-size: 50%;
 }
 
-
 .fadein.visible {
   visibility: visible;
   opacity: 1;
@@ -1488,7 +1478,6 @@ ol>li:last-child::after {
   opacity: 0;
 }
 
-
 .attacks-table {
   width: 100%;
   margin: 0;
@@ -1497,7 +1486,7 @@ ol>li:last-child::after {
   border-bottom: solid 1px var(--border);
 }
 
-.td-attacks-table>div {
+.td-attacks-table > div {
   display: flex;
   align-items: flex-start;
   margin: 0;
@@ -1545,15 +1534,15 @@ ol>li:last-child::after {
   text-align: center;
 }
 
-.section-table>tbody>tr:nth-child(even) {
+.section-table > tbody > tr:nth-child(even) {
   background: var(--table-secondary);
 }
 
-.section-table>thead {
+.section-table > thead {
   background-color: var(--table-secondary);
 }
 
-.section-table>thead td {
+.section-table > thead td {
   cursor: move;
   border: solid 1px var(--border);
   padding: 0.1rem;
@@ -1763,11 +1752,11 @@ ol>li:last-child::after {
   cursor: pointer;
 }
 
-.unit-pose:hover>span {
+.unit-pose:hover > span {
   color: var(--link);
 }
 
-.unit-pose input:checked+span {
+.unit-pose input:checked + span {
   color: var(--link);
   font-weight: bold;
 }
@@ -1843,7 +1832,7 @@ ol>li:last-child::after {
   height: 0;
 }
 
-.unit-dir>span {
+.unit-dir > span {
   width: 100%;
   height: 100%;
   display: flex;
@@ -1853,15 +1842,17 @@ ol>li:last-child::after {
   border-radius: 50%;
   font-size: 0.75em;
   opacity: 0.75;
-  transition: background 0.1s, opacity 0.1s;
+  transition:
+    background 0.1s,
+    opacity 0.1s;
 }
 
-.unit-dir:hover>span {
+.unit-dir:hover > span {
   background: var(--hover);
   opacity: 1;
 }
 
-.unit-dir input:checked+span {
+.unit-dir input:checked + span {
   border-color: var(--link);
   color: var(--link);
   font-weight: bold;
@@ -1869,7 +1860,7 @@ ol>li:last-child::after {
 }
 
 /* Keyboard focus has to be visible, since the radio itself is hidden */
-.unit-dir input:focus-visible+span {
+.unit-dir input:focus-visible + span {
   outline: solid 2px var(--link);
   outline-offset: 1px;
 }
@@ -1974,11 +1965,11 @@ ol>li:last-child::after {
   grid-template-columns: auto auto;
 }
 
-.armor-column>div:nth-child(odd) {
+.armor-column > div:nth-child(odd) {
   margin-right: 10px;
 }
 
-.armor-column>div:nth-child(even) {
+.armor-column > div:nth-child(even) {
   margin-right: 30px;
 }
 
@@ -1994,8 +1985,8 @@ ol>li:last-child::after {
   width: 100%;
 }
 
-.item-manufacture>tr:nth-child(4n+1),
-.item-manufacture>tr:nth-child(4n+2) {
+.item-manufacture > tr:nth-child(4n + 1),
+.item-manufacture > tr:nth-child(4n + 2) {
   background: var(--table-secondary);
 }
 
@@ -2162,7 +2153,7 @@ a.services {
 
 /* Author and description of the pack's main mod, under the landing page title */
 .pack-meta {
-  margin: .25rem 2rem 1rem 2rem;
+  margin: 0.25rem 2rem 1rem 2rem;
   text-align: center;
   line-height: 140%;
 }
@@ -2174,8 +2165,8 @@ a.services {
 
 .pack-author {
   font-size: 85%;
-  opacity: .7;
-  margin-top: -.5rem;
+  opacity: 0.7;
+  margin-top: -0.5rem;
   margin-bottom: 1rem;
 }
 
@@ -2195,7 +2186,7 @@ a.services {
 .world-map-block {
   display: flex;
   flex-direction: column;
-  gap: .5rem;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
@@ -2235,22 +2226,21 @@ a.services {
    underneath. Only the outline belongs to the area. */
 .world-map .area-contour {
   fill: var(--area-color, var(--border));
-  fill-opacity: .25;
+  fill-opacity: 0.25;
   stroke: var(--area-color, var(--border));
-  stroke-opacity: .3;
+  stroke-opacity: 0.3;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   pointer-events: stroke;
 }
 
 .world-map .area-hot .area-contour {
-  fill-opacity: .35;
+  fill-opacity: 0.35;
   stroke-opacity: 1;
-  animation: area-contour-blink .2s steps(1, end) infinite;
+  animation: area-contour-blink 0.2s steps(1, end) infinite;
 }
 
 @keyframes area-contour-blink {
-
   0%,
   50% {
     stroke-width: 1;
@@ -2300,7 +2290,7 @@ a.services {
   flex-direction: row;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: .25rem .75rem;
+  gap: 0.25rem 0.75rem;
 }
 
 .world-map-legend-title {
@@ -2311,7 +2301,7 @@ a.services {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: .25rem 1rem;
+  gap: 0.25rem 1rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2321,23 +2311,23 @@ a.services {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: .3rem;
+  gap: 0.3rem;
 }
 
 .world-map-swatch {
   display: inline-block;
-  width: .9rem;
-  height: .9rem;
+  width: 0.9rem;
+  height: 0.9rem;
   border: solid 1px var(--border);
 }
 
 .world-map-count {
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .world-map-note {
   font-size: 85%;
-  opacity: .7;
+  opacity: 0.7;
   max-width: 60rem;
   margin: 0;
 }
@@ -2355,7 +2345,7 @@ a.services {
    `max-width` keeps a tall crop from taking the whole column. */
 
 .world-map-mini-block {
-  margin: .25rem 0;
+  margin: 0.25rem 0;
 }
 
 .world-map-mini {
@@ -2381,7 +2371,7 @@ a.services {
    The blink and the link cursor belong to the block: the picture is one target,
    not a pile of them. */
 .world-map-mini .area-contour {
-  fill-opacity: .6;
+  fill-opacity: 0.6;
   stroke-opacity: 1;
   stroke-width: 2;
   cursor: pointer;
@@ -2416,15 +2406,14 @@ a.services {
    class that rule wins on order and the highlight stays invisible. */
 .region-zone.region-zone-hot {
   fill: var(--zone-color, var(--region-color, #ffd24a));
-  fill-opacity: .22;
+  fill-opacity: 0.22;
   stroke: var(--zone-color, var(--region-color, #ffd24a));
   stroke-opacity: 1;
   stroke-dasharray: none;
-  animation: region-zone-blink .24s steps(1, end) infinite;
+  animation: region-zone-blink 0.24s steps(1, end) infinite;
 }
 
 @keyframes region-zone-blink {
-
   0%,
   50% {
     stroke-width: 2;
@@ -2440,7 +2429,6 @@ a.services {
    where the blink is suppressed: the fill and the full-opacity stroke do that on
    their own. */
 @media (prefers-reduced-motion: reduce) {
-
   .region-zone.region-zone-hot {
     animation: none;
     stroke-width: 4;
@@ -2459,9 +2447,9 @@ a.services {
 
 .region-area {
   fill: var(--region-color, #ffd24a);
-  fill-opacity: .22;
+  fill-opacity: 0.22;
   stroke: var(--region-color, #ffd24a);
-  stroke-opacity: .95;
+  stroke-opacity: 0.95;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
@@ -2471,9 +2459,9 @@ a.services {
    path rather than compete with it. */
 .region-zone {
   fill: var(--region-color, #ffd24a);
-  fill-opacity: .08;
+  fill-opacity: 0.08;
   stroke: var(--region-color, #ffd24a);
-  stroke-opacity: .45;
+  stroke-opacity: 0.45;
   stroke-width: 1;
   stroke-dasharray: 6 4;
   vector-effect: non-scaling-stroke;
@@ -2482,7 +2470,7 @@ a.services {
 /* A point zone is a city: one dot, no box. */
 .region-zone-point {
   fill: var(--region-color, #ffd24a);
-  fill-opacity: .55;
+  fill-opacity: 0.55;
   stroke: var(--region-color, #ffd24a);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
@@ -2492,14 +2480,14 @@ a.services {
    zone, so the box under a stop and the stop itself read as one thing. */
 .region-zone-visited {
   fill: var(--zone-color, var(--region-color, #ffd24a));
-  fill-opacity: .16;
+  fill-opacity: 0.16;
   stroke: var(--zone-color, var(--region-color, #ffd24a));
-  stroke-opacity: .8;
+  stroke-opacity: 0.8;
 }
 
 .region-zone-visited.region-zone-point {
   fill: var(--zone-color, var(--region-color, #ffd24a));
-  fill-opacity: .85;
+  fill-opacity: 0.85;
   stroke: var(--zone-color, var(--region-color, #ffd24a));
 }
 
@@ -2569,7 +2557,7 @@ a.services {
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-  opacity: .55;
+  opacity: 0.55;
 }
 
 /* A highlighted leg blinks its halo, the way a highlighted nation blinks its
@@ -2578,32 +2566,30 @@ a.services {
    invented again: a colour change alone would be invisible, because the leg
    already has a colour of its own and a brighter one would still be some colour. */
 .region-overlay .region-leg-hot .region-leg-halo {
-  animation: region-leg-blink .24s steps(1, end) infinite;
+  animation: region-leg-blink 0.24s steps(1, end) infinite;
 }
 
 .region-overlay .region-leg-hot .region-leg-arrow {
-  animation: region-leg-arrow-blink .24s steps(1, end) infinite;
+  animation: region-leg-arrow-blink 0.24s steps(1, end) infinite;
 }
 
 @keyframes region-leg-blink {
-
   0%,
   50% {
     stroke-width: 6;
-    opacity: .4;
+    opacity: 0.4;
   }
 
   50.01%,
   100% {
     stroke-width: 14;
-    opacity: .75;
+    opacity: 0.75;
   }
 }
 
 /* The arrow grows with the line, and its dark rim is what keeps it visible over
    the thicker stroke, so the rim blinks up too rather than staying hairline. */
 @keyframes region-leg-arrow-blink {
-
   0%,
   50% {
     stroke-width: 1;
@@ -2620,11 +2606,10 @@ a.services {
 /* A highlight has to survive printing and reduced motion, where the blink is
    suppressed: a static wide band and a larger arrow do that on their own. */
 @media (prefers-reduced-motion: reduce) {
-
   .region-overlay .region-leg-hot .region-leg-halo {
     animation: none;
     stroke-width: 11;
-    opacity: .6;
+    opacity: 0.6;
   }
 
   .region-overlay .region-leg-hot .region-leg-arrow {
@@ -2657,7 +2642,7 @@ a.services {
    means "which zone". The marker itself stays solid — a dashed marker inside a
    dashed ring is two rings and reads as neither. */
 .region-path .region-stop-anywhere .region-stop {
-  fill-opacity: .55;
+  fill-opacity: 0.55;
 }
 
 .region-stop-ring {
@@ -2694,11 +2679,11 @@ a.services {
 
 .trajectory-missions ul {
   list-style: none;
-  margin: .25rem 0;
+  margin: 0.25rem 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: .1rem .9rem;
+  gap: 0.1rem 0.9rem;
 }
 
 /* The flight-path list under a region map */
@@ -2710,39 +2695,39 @@ a.services {
 .region-paths ul,
 .region-missions ul {
   list-style: none;
-  margin: .25rem 0;
+  margin: 0.25rem 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: .25rem 1rem;
+  gap: 0.25rem 1rem;
 }
 
 .region-paths li,
 .region-missions li {
   display: flex;
   align-items: baseline;
-  gap: .35rem;
+  gap: 0.35rem;
 }
 
 /* The missions a region can host are a longer list than its flight paths, so
    they stack one per line rather than wrapping */
 .region-missions ul {
   flex-direction: column;
-  gap: .15rem;
+  gap: 0.15rem;
 }
 
 /* How many regions share a mission. Muted, because it qualifies the name rather
    than competing with it. */
 .region-mission-count {
-  opacity: .75;
+  opacity: 0.75;
   font-size: 90%;
 }
 
 .region-missions-more {
-  margin: .35rem 0 .1rem;
+  margin: 0.35rem 0 0.1rem;
   font: inherit;
   font-size: 90%;
-  padding: .1rem .5rem;
+  padding: 0.1rem 0.5rem;
   cursor: pointer;
 }
 
@@ -2755,7 +2740,7 @@ a.services {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: .3rem .9rem;
+  gap: 0.3rem 0.9rem;
   font-size: 95%;
 }
 
@@ -2763,14 +2748,14 @@ a.services {
   /* A float takes the legend out of the flex flow, so it lines up with the
      choices instead of sitting on its own line */
   float: left;
-  margin-right: .9rem;
+  margin-right: 0.9rem;
   padding: 0;
 }
 
 .trajectory-region-choice {
   display: flex;
   align-items: center;
-  gap: .3rem;
+  gap: 0.3rem;
   cursor: pointer;
 }
 
@@ -2790,8 +2775,8 @@ a.services {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: .35rem .1rem;
-  padding: .1rem 0 .2rem;
+  gap: 0.35rem 0.1rem;
+  padding: 0.1rem 0 0.2rem;
   min-width: 0;
 }
 
@@ -2801,7 +2786,7 @@ a.services {
 .trajectory-flight-foot {
   display: flex;
   align-items: center;
-  gap: .2rem;
+  gap: 0.2rem;
 }
 
 .trajectory-flight-foot .trajectory-flight {
@@ -2812,7 +2797,7 @@ a.services {
 
 .trajectory-footnote-mark {
   flex: none;
-  opacity: .7;
+  opacity: 0.7;
   font-size: 85%;
 }
 
@@ -2821,7 +2806,7 @@ a.services {
 .trajectory-notes {
   display: flex;
   flex-direction: column;
-  gap: .2rem;
+  gap: 0.2rem;
 }
 
 /* A button, because pressing a stop pins its zone on the map: a touch screen has
@@ -2872,7 +2857,7 @@ a.services {
   /* Taller than it is drawn, so there is something to hit: the visible mark is a
      hairline inside a band as high as the stop plates beside it */
   height: 1.55em;
-  margin: 0 .1em;
+  margin: 0 0.1em;
   padding: 0;
   background: none;
   /* The visible mark is the border, so the band itself must not draw anything */
@@ -2881,7 +2866,10 @@ a.services {
   border-bottom: none;
   cursor: pointer;
   /* The mark sits in the middle of the band */
-  background-image: linear-gradient(var(--leg-color, var(--border)), var(--leg-color, var(--border)));
+  background-image: linear-gradient(
+    var(--leg-color, var(--border)),
+    var(--leg-color, var(--border))
+  );
   background-size: 100% 2px;
   background-position: 0 50%;
   background-repeat: no-repeat;
@@ -2892,18 +2880,17 @@ a.services {
 .trajectory-flight-leg:hover,
 .trajectory-flight-leg-hot {
   border-color: var(--leg-color, var(--border));
-  background-color: hsla(0, 0%, 50%, .16);
+  background-color: hsla(0, 0%, 50%, 0.16);
 }
 
 /* A highlighted leg blinks here too, matching the map's blink. A colour change
    would not be enough: the sample already has its own colour, so a brighter one
    is still just some colour. */
 .trajectory-flight-leg-hot {
-  animation: trajectory-flight-leg-blink .24s steps(1, end) infinite;
+  animation: trajectory-flight-leg-blink 0.24s steps(1, end) infinite;
 }
 
 @keyframes trajectory-flight-leg-blink {
-
   0%,
   50% {
     background-size: 100% 2px;
@@ -2916,7 +2903,6 @@ a.services {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .trajectory-flight-leg-hot {
     animation: none;
     background-size: 100% 5px;
@@ -2933,15 +2919,15 @@ a.services {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: .1rem .9rem;
+  gap: 0.1rem 0.9rem;
   font-size: 85%;
-  opacity: .85;
+  opacity: 0.85;
 }
 
 .trajectory-legend-item {
   display: flex;
   align-items: center;
-  gap: .35rem;
+  gap: 0.35rem;
   /* A sentence is allowed to be the last thing on its row; the sample beside it
      stays next to the words it explains rather than at the far end of the gap */
   flex: 0 1 auto;
@@ -2980,9 +2966,9 @@ a.services {
 .world-map-toggle {
   display: flex;
   align-items: center;
-  gap: .35rem;
+  gap: 0.35rem;
   font-size: 90%;
-  opacity: .85;
+  opacity: 0.85;
   cursor: pointer;
   width: fit-content;
 }
@@ -3005,7 +2991,7 @@ a.services {
 .mission-wave-number {
   width: 2rem;
   text-align: center;
-  opacity: .7;
+  opacity: 0.7;
 }
 
 /* A derived figure the article adds, such as a delay in days */
@@ -3016,18 +3002,18 @@ a.services {
 /* The ruleset's own number, kept next to the derived one */
 .mission-raw {
   font-size: 85%;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .mission-notes {
-  margin-top: .15rem;
+  margin-top: 0.15rem;
   font-size: 80%;
-  opacity: .8;
+  opacity: 0.8;
 }
 
 .mission-note {
   font-size: 80%;
-  opacity: .8;
+  opacity: 0.8;
 }
 
 /* An id that resolves to nothing: the wave names no UFO the pack has */
@@ -3107,11 +3093,11 @@ a.services {
    than a remark about it, and the plan is the only place a flight's actions can
    be read as actions. */
 .trajectory-plan-what-happens {
-  margin-top: .15rem;
+  margin-top: 0.15rem;
 }
 
 .trajectory-plan-stop {
-  background: hsla(0, 0%, 50%, .08);
+  background: hsla(0, 0%, 50%, 0.08);
 }
 
 /* A leg row has no number in its first cell now, so give the cell a height of its
@@ -3123,9 +3109,9 @@ a.services {
 }
 
 .trajectory-plan-leg td {
-  padding-top: .1rem;
-  padding-bottom: .1rem;
-  opacity: .95;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
+  opacity: 0.95;
 }
 
 .trajectory-plan-flight {
@@ -3135,17 +3121,16 @@ a.services {
 /* A zone that the pack names, e.g. "0 STR_NEW_YORK". The name is the same in
    every region that can fly the path, or it would not be printed. */
 .trajectory-zone-name {
-  opacity: .85;
+  opacity: 0.85;
 }
 
 /* The explanation of why N lines are N legs, which is the one thing about
    trajectories that a ruleset cannot say by itself */
 .trajectory-note {
   font-size: 85%;
-  opacity: .8;
+  opacity: 0.8;
   max-width: 60rem;
 }
-
 
 /* ---- Narrow screens (phones) ---- */
 
@@ -3162,14 +3147,14 @@ a.services {
      further 2-column grid inside. That needs more width than a phone has, so
      the panel would scroll sideways inside itself. Stack it into one column
      and let a long section name wrap instead. */
-  .navbar-dropdown-container.dropdown-button>.navbar-dropdown {
+  .navbar-dropdown-container.dropdown-button > .navbar-dropdown {
     max-width: calc(100vw - 1rem);
     overflow-x: hidden;
   }
 
-  .navbar-dropdown>.flex-horisontal {
+  .navbar-dropdown > .flex-horisontal {
     flex-direction: column;
-    gap: .25rem;
+    gap: 0.25rem;
     max-width: 100%;
   }
 
@@ -3200,7 +3185,7 @@ a.services {
     min-width: 0;
   }
 
-  nav.top .left .navbar-button>span {
+  nav.top .left .navbar-button > span {
     display: block;
     max-width: 100%;
     overflow: hidden;
@@ -3219,13 +3204,13 @@ a.services {
   /* The article title stacks its three parts, so the section links don't sit
      in a 128px column next to the title. */
   .article-title {
-    margin: .5rem 0;
+    margin: 0.5rem 0;
   }
 
   /* The landing page metadata keeps the title's side margins, which a phone
      cannot spare */
   .pack-meta {
-    margin: .25rem 0 1rem 0;
+    margin: 0.25rem 0 1rem 0;
   }
 
   .article-title .central {
@@ -3240,7 +3225,7 @@ a.services {
   .article-title .left,
   .article-title .right {
     min-width: 0;
-    padding: .3rem 0;
+    padding: 0.3rem 0;
     font-size: 100%;
     overflow-wrap: anywhere;
     white-space: normal;
@@ -3280,7 +3265,6 @@ a.services {
     overflow-x: auto;
   }
 
-
   .main-table td,
   .section-table td {
     max-width: none;
@@ -3292,7 +3276,7 @@ a.services {
 
   .sections-list {
     flex-direction: column;
-    gap: .5rem;
+    gap: 0.5rem;
   }
 
   .modpack-panel {
@@ -3311,11 +3295,11 @@ a.services {
   }
 
   .armor-column {
-    margin-right: .5rem;
+    margin-right: 0.5rem;
   }
 
-  .armor-column>div:nth-child(even) {
-    margin-right: .5rem;
+  .armor-column > div:nth-child(even) {
+    margin-right: 0.5rem;
   }
 
   /* A sprite sheet is wider than the screen by design; let it scroll inside
@@ -3332,7 +3316,7 @@ a.services {
   }
 
   .world-map-legend ul {
-    gap: .25rem .5rem;
+    gap: 0.25rem 0.5rem;
   }
 
   /* A turreted tank has two facing rings side by side, which is wider than a

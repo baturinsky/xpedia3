@@ -1,14 +1,26 @@
 import * as fflate from "fflate";
-import { state } from "./state";
+import {
+  type AppShell,
+  base64Length,
+  buildAssetFiles,
+  buildLanguagePack,
+  buildPageHtml,
+  collectDataFiles,
+  type ExportFile,
+  exportedPackName,
+  languagePackPath,
+  onlyTranslated,
+  prepareRul,
+  referencedPaths,
+  renderPage,
+  type TagCopy,
+  zipFiles,
+} from "./exportCore";
 import { readImgSizes } from "./idb";
 import { inlineDataFiles, packSource } from "./packSource";
-import { base64ToArrayBuffer } from "./util";
 import type { Langs, ProcessedRuleset } from "./rul/Ruleset";
-import {
-  base64Length, buildAssetFiles, buildLanguagePack, buildPageHtml, collectDataFiles,
-  exportedPackName, gzipText, languagePackPath, onlyTranslated, prepareRul, referencedPaths,
-  renderPage, zipFiles, type AppShell, type ExportFile, type TagCopy
-} from "./exportCore";
+import { state } from "./state";
+import { base64ToArrayBuffer } from "./util";
 
 /**
  * Exports the currently shown modpack as a standalone reference.
@@ -27,20 +39,20 @@ import {
  * inputs — the stored ruleset, the stored images and the app's own shell.
  */
 
-export { exportedPackName };
 export type { ExportFile };
+export { exportedPackName };
 
 /** The export settings chosen in the modal dialog */
 export type ExportOptions = {
   /** Language names to keep besides `en-US`, which is always exported */
-  languages: string[],
+  languages: string[];
   /** Bundle every image the pedia can show, so the game is not needed at all */
-  images: boolean,
+  images: boolean;
   /**
    * Keep English in the page and write each other language as a script under
    * `xpedia-lang/`, loaded when the reader picks it.
    */
-  split: boolean,
+  split: boolean;
   /**
    * Write one ZIP instead of loose files.
    *
@@ -49,14 +61,14 @@ export type ExportOptions = {
    * what goes *in* is decided by `images` and `split` alone. Asking for language
    * packs must never drag the images along.
    */
-  archive: boolean,
+  archive: boolean;
   /** Stage text and 0..1 progress, for the dialog */
-  onProgress?: (status: string, progress?: number) => void,
+  onProgress?: (status: string, progress?: number) => void;
 };
 
 export type ExportResult = {
-  name: string,
-  data: Blob
+  name: string;
+  data: Blob;
 };
 
 /**
@@ -68,36 +80,34 @@ export type ExportResult = {
  * between pieces, so the dialog keeps painting.
  */
 async function gzipTextInPieces(text: string) {
-  let bytes = new TextEncoder().encode(text);
-  if (typeof CompressionStream == "undefined")
-    return fflate.gzipSync(bytes);
-  let source = new ReadableStream<Uint8Array<ArrayBuffer>>({
+  const bytes = new TextEncoder().encode(text);
+  if (typeof CompressionStream == "undefined") return fflate.gzipSync(bytes);
+  const source = new ReadableStream<Uint8Array<ArrayBuffer>>({
     start(controller) {
-      for (let i = 0; i < bytes.length; i += 65536)
-        controller.enqueue(bytes.slice(i, i + 65536));
+      for (let i = 0; i < bytes.length; i += 65536) controller.enqueue(bytes.slice(i, i + 65536));
       controller.close();
-    }
+    },
   });
-  let stream = source.pipeThrough(new CompressionStream("gzip"));
+  const stream = source.pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 /** Inline scripts and styles of a document, as they must be copied out */
 function collectTags(root: ParentNode) {
-  let scripts: TagCopy[] = [...root.querySelectorAll("script")]
-    .filter(s => !s.getAttribute("src") && s.textContent?.trim())
+  const scripts: TagCopy[] = [...root.querySelectorAll("script")]
+    .filter((s) => !s.getAttribute("src") && s.textContent?.trim())
     // An exported page carries its own ruleset in a script; copying that one
     // would nest one exported pedia inside another
-    .filter(s => !s.hasAttribute("data-xpedia-export"))
-    .map(s => ({
-      attrs: [...s.attributes].map(a => `${a.name}="${a.value}"`).join(" "),
+    .filter((s) => !s.hasAttribute("data-xpedia-export"))
+    .map((s) => ({
+      attrs: [...s.attributes].map((a) => `${a.name}="${a.value}"`).join(" "),
       // The dev build points at `bundle.js.map`, which is not part of the
       // export: dropping the comment keeps the file fully standalone
-      content: s.textContent!.replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, "\n")
+      content: s.textContent!.replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, "\n"),
     }));
-  let styles = [...root.querySelectorAll("style")]
+  const styles = [...root.querySelectorAll("style")]
     // Same reason as above: the map is not part of the export
-    .map(s => (s.textContent ?? "").replace(/\/\*# sourceMappingURL=\S+\*\//g, ""))
+    .map((s) => (s.textContent ?? "").replace(/\/\*# sourceMappingURL=\S+\*\//g, ""))
     .filter(Boolean);
   return { scripts, styles };
 }
@@ -108,7 +118,7 @@ function collectTags(root: ParentNode) {
  * `src=` references, which cannot be copied into a standalone file.
  */
 function isWholeApp(tags: ReturnType<typeof collectTags>) {
-  return tags.scripts.some(s => s.content.length > 50_000);
+  return tags.scripts.some((s) => s.content.length > 50_000);
 }
 
 /**
@@ -120,20 +130,19 @@ function isWholeApp(tags: ReturnType<typeof collectTags>) {
  * (`vite.config.ts` serves `build/xpedia.html` under `/xpedia-built.html`).
  */
 async function readAppAssets(): Promise<AppShell> {
-  let own = collectTags(document);
-  if (isWholeApp(own))
-    return own;
+  const own = collectTags(document);
+  if (isWholeApp(own)) return own;
 
-  let response = await fetch("/xpedia-built.html").catch((): undefined => undefined);
-  let text = response?.ok ? await response.text() : "";
+  const response = await fetch("/xpedia-built.html").catch((): undefined => undefined);
+  const text = response?.ok ? await response.text() : "";
   if (text) {
-    let built = collectTags(new DOMParser().parseFromString(text, "text/html"));
-    if (isWholeApp(built))
-      return built;
+    const built = collectTags(new DOMParser().parseFromString(text, "text/html"));
+    if (isWholeApp(built)) return built;
   }
 
-  throw new Error("The single-file build is not available. " +
-    "Run `npm run build` once, then export again.");
+  throw new Error(
+    "The single-file build is not available. " + "Run `npm run build` once, then export again.",
+  );
 }
 
 /**
@@ -146,34 +155,34 @@ async function readAppAssets(): Promise<AppShell> {
  */
 export type ExportEstimate = {
   /** HTML around the ruleset payload, measured with an empty payload */
-  shellBytes: number,
+  shellBytes: number;
   /**
    * What that shell compresses to, which is what the archive stores.
    *
    * Only measured when the archive format is chosen, because a single-file
    * export never needs it.
    */
-  shellGzipBytes?: number,
+  shellGzipBytes?: number;
   /** Compressed ruleset with only the English strings */
-  englishBytes: number,
+  englishBytes: number;
   /**
    * Compressed size each language's own strings add on top of English.
    *
    * Filled in on demand: most exports carry no extra language at all, so
    * compressing all of them up front would be wasted work.
    */
-  languageBytes: { [name: string]: number },
+  languageBytes: { [name: string]: number };
   /** Live language maps the on-demand sizes are cut from */
-  langs: Langs,
+  langs: Langs;
   /**
    * Bytes of the images the archive format would bundle, also measured on demand.
    *
    * Only the images the pedia can actually show travel, not every image the
    * pack stored, which can be several times more.
    */
-  imageBytes?: number,
+  imageBytes?: number;
   /** The measured page, kept so the archive size can be taken from it later */
-  html: string
+  html: string;
 };
 
 /**
@@ -186,17 +195,16 @@ export type ExportEstimate = {
  * the compression put together.
  */
 function liveRulData() {
-  let rul = state.rul;
-  if (!rul)
-    return;
-  let langs = rul.langs ?? {};
+  const rul = state.rul;
+  if (!rul) return;
+  const langs = rul.langs ?? {};
   return {
     mods: rul.mods ?? [],
     // The language maps are already exactly what `prepareRul` expects: `en-US`
     // and `icon` whole, the rest a full copy of English with translations
     // written over it, which `onlyTranslated` trims back down
     langs,
-    resources: rul.resourceMap ?? {}
+    resources: rul.resourceMap ?? {},
   };
 }
 
@@ -208,7 +216,7 @@ function liveRulData() {
  * time. `xpedia:loaded` drops it, because that fires when the shown pack changes
  * or is re-uploaded.
  */
-let estimateCache: { pack: string, value: Promise<ExportEstimate | undefined> } | undefined;
+let estimateCache: { pack: string; value: Promise<ExportEstimate | undefined> } | undefined;
 
 addEventListener("xpedia:loaded", () => {
   estimateCache = undefined;
@@ -221,27 +229,26 @@ addEventListener("xpedia:loaded", () => {
  * they cannot even open.
  */
 export function warmEstimate() {
-  if (state.packName)
-    void prepareEstimate();
+  if (state.packName) void prepareEstimate();
 }
 
 /** Everything an estimate needs, measured once per shown pack */
 export function prepareEstimate(): Promise<ExportEstimate | undefined> {
-  let pack = state.packName;
-  if (!pack)
-    return Promise.resolve(undefined);
-  if (estimateCache?.pack == pack)
-    return estimateCache.value;
-  let value = measureEstimate(pack);
+  const pack = state.packName;
+  if (!pack) return Promise.resolve(undefined);
+  if (estimateCache?.pack == pack) return estimateCache.value;
+  const value = measureEstimate(pack);
   estimateCache = { pack, value };
   // A failed measurement must not be remembered: the next open tries again
-  value.catch(() => { if (estimateCache?.pack == pack) estimateCache = undefined; });
+  value.catch(() => {
+    if (estimateCache?.pack == pack) estimateCache = undefined;
+  });
   return value;
 }
 
 /** Lets the page paint between two heavy steps, as the loader does */
 function nextPaint() {
-  return new Promise<void>(resolve => setTimeout(resolve, 0));
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 /**
@@ -249,19 +256,18 @@ function nextPaint() {
  * measurement, and the only part every export needs, so it happens first.
  */
 async function measureEstimate(pack: string): Promise<ExportEstimate | undefined> {
-  let processed = liveRulData();
-  if (!processed)
-    return;
+  const processed = liveRulData();
+  if (!processed) return;
 
-  let english = englishOnly(processed);
+  const english = englishOnly(processed);
   // `renderPage` puts the base64 in `"rul":"..."`. Measuring with an empty
   // payload keeps the two quotes, so the shell is everything except the base64
   // characters themselves, which `estimateSize` adds back.
-  let html = await renderPage(pack, english, "", await readAppAssets());
-  let shellBytes = html.length;
+  const html = await renderPage(pack, english, "", await readAppAssets());
+  const shellBytes = html.length;
   await nextPaint();
 
-  let englishBytes = (await gzipTextInPieces(JSON.stringify(english))).length;
+  const englishBytes = (await gzipTextInPieces(JSON.stringify(english))).length;
 
   // The archive details are only needed by that format, so they wait until it
   // is actually chosen
@@ -290,10 +296,9 @@ export async function measureArchive(estimate: ExportEstimate, pack: string, wit
     // The archive carries only the images the pedia can show, so the referenced
     // paths are looked up rather than taking the pack's whole image total, which
     // is usually much larger
-    let sizes = await readImgSizes(pack);
+    const sizes = await readImgSizes(pack);
     let imageBytes = 0;
-    for (let path of referencedPaths(state.rul))
-      imageBytes += sizes?.get(path) ?? 0;
+    for (const path of referencedPaths(state.rul)) imageBytes += sizes?.get(path) ?? 0;
     estimate.imageBytes = imageBytes;
   }
 }
@@ -305,11 +310,10 @@ export async function measureArchive(estimate: ExportEstimate, pack: string, wit
  * milliseconds, so this is cheap enough to run when a checkbox is ticked.
  */
 export async function measureLanguages(estimate: ExportEstimate, names: string[]) {
-  let english = estimate.langs["en-US"] ?? {};
-  for (let name of names) {
-    if (name in estimate.languageBytes)
-      continue;
-    let own = onlyTranslated(english, estimate.langs[name] ?? {});
+  const english = estimate.langs["en-US"] ?? {};
+  for (const name of names) {
+    if (name in estimate.languageBytes) continue;
+    const own = onlyTranslated(english, estimate.langs[name] ?? {});
     estimate.languageBytes[name] = (await gzipTextInPieces(JSON.stringify(own))).length;
     // A big translation is a few hundred milliseconds of compression, so the
     // page gets a chance to paint the progress line between two of them
@@ -339,12 +343,16 @@ function englishOnly(processed: ProcessedRuleset) {
  * ignores the compression they could share, so the estimate errs slightly high —
  * the safe direction for a file size.
  */
-export function estimateSize(estimate: ExportEstimate, languages: string[], archive: boolean, images = false) {
+export function estimateSize(
+  estimate: ExportEstimate,
+  languages: string[],
+  archive: boolean,
+  images = false,
+) {
   let ruleset = estimate.englishBytes;
-  for (let name of languages)
-    ruleset += estimate.languageBytes[name] ?? 0;
+  for (const name of languages) ruleset += estimate.languageBytes[name] ?? 0;
   if (archive)
-    return (estimate.shellGzipBytes ?? 0) + ruleset + (images ? estimate.imageBytes ?? 0 : 0);
+    return (estimate.shellGzipBytes ?? 0) + ruleset + (images ? (estimate.imageBytes ?? 0) : 0);
   return estimate.shellBytes + base64Length(ruleset);
 }
 
@@ -355,12 +363,14 @@ export function estimateSize(estimate: ExportEstimate, languages: string[], arch
  * without them waits for the shell alone, so ticking "Split" does not sit on a
  * progress line measuring sprites it will never write.
  */
-export function estimatePending(estimate: ExportEstimate | undefined,
-  languages: string[], archive: boolean, images = false) {
-  if (!estimate)
-    return true;
-  if (languages.some(name => !(name in estimate.languageBytes)))
-    return true;
+export function estimatePending(
+  estimate: ExportEstimate | undefined,
+  languages: string[],
+  archive: boolean,
+  images = false,
+) {
+  if (!estimate) return true;
+  if (languages.some((name) => !(name in estimate.languageBytes))) return true;
   return archive && (estimate.shellGzipBytes == null || (images && estimate.imageBytes == null));
 }
 
@@ -377,43 +387,46 @@ export function estimatePending(estimate: ExportEstimate | undefined,
  * what the page cannot avoid for a download, but the bytes never make a round
  * trip through the ruleset the way a browser export's would.
  */
-async function exportThroughServer(url: string, pack: string, options: ExportOptions,
-  report: (status: string, progress?: number) => void): Promise<ExportResult> {
+async function exportThroughServer(
+  url: string,
+  pack: string,
+  options: ExportOptions,
+  report: (status: string, progress?: number) => void,
+): Promise<ExportResult> {
   // English always travels, and every export writes a page, so the CLI's own
   // defaults decide the rest: no `lang` means every language the folder has
-  let query = new URLSearchParams();
-  if (options.languages.length)
-    query.set("lang", options.languages.join(","));
-  if (options.split)
-    query.set("split", "1");
-  if (options.images)
-    query.set("images", "1");
+  const query = new URLSearchParams();
+  if (options.languages.length) query.set("lang", options.languages.join(","));
+  if (options.split) query.set("split", "1");
+  if (options.images) query.set("images", "1");
 
-  let endpoint = `${url}?${query}`;
+  const endpoint = `${url}?${query}`;
   report(`Asking the server to export ${pack}...`, 0.1);
 
   let response: Response;
   try {
     response = await fetch(endpoint);
   } catch (e) {
-    throw new Error(`The server that serves ${pack} is not reachable any more: ` +
-      `${e?.message ?? e}. Export the folder with \`xpedia-cli\` instead.`);
+    throw new Error(
+      `The server that serves ${pack} is not reachable any more: ` +
+        `${e?.message ?? e}. Export the folder with \`xpedia-cli\` instead.`,
+    );
   }
 
   if (!response.ok) {
     // The server sends a plain-text explanation, which is written for a modder
-    let detail = await response.text().catch(() => "");
+    const detail = await response.text().catch(() => "");
     throw new Error(detail.trim() || `The server refused to export ${pack} (${response.status})`);
   }
 
   report("Downloading the archive...", 0.7);
-  let blob = await response.blob();
+  const blob = await response.blob();
   report("Downloaded the archive", 1);
 
   // The server names the file, so the dialog and the saved file agree
-  let disposition = response.headers.get("Content-Disposition") ?? "";
-  let match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
-  let name = match ? decodeURIComponent(match[1]) : `${exportedPackName(pack)}.zip`;
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  const name = match ? decodeURIComponent(match[1]) : `${exportedPackName(pack)}.zip`;
   return { name, data: blob };
 }
 
@@ -423,12 +436,11 @@ async function exportThroughServer(url: string, pack: string, options: ExportOpt
  * the game being installed.
  */
 export async function exportPedia(options: ExportOptions): Promise<ExportResult> {
-  let pack = state.packName;
-  if (!pack)
-    throw new Error("Nothing to export: no modpack is selected");
+  const pack = state.packName;
+  if (!pack) throw new Error("Nothing to export: no modpack is selected");
 
-  let source = packSource(pack);
-  let report = options.onProgress ?? (() => { });
+  const source = packSource(pack);
+  const report = options.onProgress ?? (() => {});
   report(`Preparing ${pack}...`, 0);
 
   // A served pack is a folder with a server behind it, and the browser never
@@ -439,7 +451,7 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   if (source?.serveExport && options.images)
     return exportThroughServer(source.serveExport.url, pack, options, report);
 
-  let processed = await source?.rulData();
+  const processed = await source?.rulData();
   if (!processed)
     throw new Error(`The ruleset of ${pack} is missing, so there is nothing to export`);
 
@@ -447,25 +459,31 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   // exported page has no stored copy of it, and a page opened from `file://`
   // cannot fetch its neighbours. `inlineDataFiles` is empty for a database pack,
   // which then reads the file the way every other asset is read.
-  let carried = inlineDataFiles() ?? {};
+  const carried = inlineDataFiles() ?? {};
 
   report("Building the page...", 0.1);
-  let name = exportedPackName(pack);
-  let pairs = options.split ? options.languages.filter(lang => lang != "en-US") : [];
-  let html = await buildPageHtml({
-    pack, processed,
+  const name = exportedPackName(pack);
+  const pairs = options.split ? options.languages.filter((lang) => lang != "en-US") : [];
+  const html = await buildPageHtml({
+    pack,
+    processed,
     // A split page carries English alone; the others travel beside it
     languages: options.split ? [] : options.languages,
     shell: await readAppAssets(),
-    page: options.split ? { packs: Object.fromEntries(pairs.map(lang => [lang, languagePackPath(lang)])) } : undefined,
+    page: options.split
+      ? { packs: Object.fromEntries(pairs.map((lang) => [lang, languagePackPath(lang)])) }
+      : undefined,
     // The world map's globe travels inside the page: it is far too small to need
     // a file beside it, and a page opened from `file://` cannot read one anyway
-    data: await collectDataFiles(processed.resources, async (archivePath, rel) => {
-      let own = carried[rel];
-      if (own)
-        return fflate.gunzipSync(new Uint8Array(base64ToArrayBuffer(own)));
-      return source?.fileData(archivePath);
-    }, processed.mods)
+    data: await collectDataFiles(
+      processed.resources,
+      async (archivePath, rel) => {
+        const own = carried[rel];
+        if (own) return fflate.gunzipSync(new Uint8Array(base64ToArrayBuffer(own)));
+        return source?.fileData(archivePath);
+      },
+      processed.mods,
+    ),
   });
 
   // A single HTML file is only possible when nothing else is asked for; the
@@ -482,16 +500,19 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
   // A pack whose images are not in the page has none here to bundle: an exported
   // page keeps them as files beside it, and a served folder's were answered above
   // by the server that owns them.
-  let bundleImages = options.images && !source?.imagesUnavailable;
+  const bundleImages = options.images && !source?.imagesUnavailable;
   let files: ExportFile[] = [{ path: `${name}.html`, data: new TextEncoder().encode(html) }];
   let images = 0;
   if (bundleImages) {
     // Images go under the paths the game uses, next to the HTML file
-    let withImages = await buildAssetFiles({
-      pack, page: `${name}.html`, html, rul: state.rul,
-      readImage: path => source?.fileData(path) ?? Promise.resolve(undefined),
-      onProgress: (done, total) => report(`Bundling images... ${done}/${total}`,
-        0.1 + 0.8 * done / (total || 1))
+    const withImages = await buildAssetFiles({
+      pack,
+      page: `${name}.html`,
+      html,
+      rul: state.rul,
+      readImage: (path) => source?.fileData(path) ?? Promise.resolve(undefined),
+      onProgress: (done, total) =>
+        report(`Bundling images... ${done}/${total}`, 0.1 + (0.8 * done) / (total || 1)),
     });
     files = withImages;
     images = files.length - 1;
@@ -499,29 +520,34 @@ export async function exportPedia(options: ExportOptions): Promise<ExportResult>
 
   // The language packs are tiny next to the images, and they change the page
   // very little, so they are built after it but reported with it
-  for (let lang of pairs)
-    files.push({ path: languagePackPath(lang), data: new TextEncoder().encode(buildLanguagePack(processed, lang)) });
+  for (const lang of pairs)
+    files.push({
+      path: languagePackPath(lang),
+      data: new TextEncoder().encode(buildLanguagePack(processed, lang)),
+    });
 
   report("Compressing the archive...", 0.95);
-  let zipped = zipFiles(files);
-  let contents = [
+  const zipped = zipFiles(files);
+  const contents = [
     images ? `${images} images` : "",
-    pairs.length ? `${pairs.length} language packs` : ""
-  ].filter(Boolean).join(" and ");
+    pairs.length ? `${pairs.length} language packs` : "",
+  ]
+    .filter(Boolean)
+    .join(" and ");
   report(`Exported ${name}.zip` + (contents ? ` with ${contents}` : ""), 1);
   return { name: name + ".zip", data: new Blob([zipped], { type: "application/zip" }) };
 }
 
 /** Languages provided by the shown pack, for the dialog checkboxes */
 export function exportableLanguages() {
-  let names = state.rul?.langNames ?? [];
-  return names.filter(name => name != "en-US" && name != "icon");
+  const names = state.rul?.langNames ?? [];
+  return names.filter((name) => name != "en-US" && name != "icon");
 }
 
 /** Saves an exported file through a browser download */
 export function downloadExport(result: ExportResult) {
-  let url = URL.createObjectURL(result.data);
-  let element = document.createElement("a");
+  const url = URL.createObjectURL(result.data);
+  const element = document.createElement("a");
   element.href = url;
   element.download = result.name;
   element.style.display = "none";

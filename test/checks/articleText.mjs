@@ -13,18 +13,20 @@
 import { eq, ok, report } from "../helpers/check.mjs";
 import { loadBuiltinPack } from "../helpers/packs.mjs";
 
-let rul = await loadBuiltinPack();
+const rul = await loadBuiltinPack();
 
 // `Article.text` is a getter over the entry's `text` id, so a probe body is put
 // into the language table and an article pointed at it. The constructor is
 // reached through a real article, which is the only way to get the class.
-let Article = Object.getPrototypeOf(rul.articles["STR_ABOUT_XPEDIA"]).constructor;
+const Article = Object.getPrototypeOf(rul.articles["STR_ABOUT_XPEDIA"]).constructor;
 let probes = 0;
 
 function bodyOf(text) {
-  let id = "STR_PROBE_" + (++probes);
+  const id = "STR_PROBE_" + ++probes;
   rul.lang[id] = text;
-  return String(new Article({ id: "STR_PROBE_ARTICLE_" + probes, section: "SERVICES", text: id }).text);
+  return String(
+    new Article({ id: "STR_PROBE_ARTICLE_" + probes, section: "SERVICES", text: id }).text,
+  );
 }
 
 // --- a real id expands --------------------------------------------------------
@@ -35,12 +37,16 @@ eq(bodyOf("v ${xpediaVersion}"), "v 0-test", "${xpediaVersion} is the printed ve
 // --- an unknown id keeps the old behaviour -----------------------------------
 // The whole point of the `$`: it must come out exactly as the `$`-less token
 // does, so a pack's `${NEWLINE}` typo still becomes a line break
-for (let token of ["NEWLINE", "ALT", "STR_NOT_A_REAL_KEY"]) {
-  eq(bodyOf(`a \${${token}} b`), bodyOf(`a {${token}} b`), `unknown \${${token}} matches {${token}}`);
+for (const token of ["NEWLINE", "ALT", "STR_NOT_A_REAL_KEY"]) {
+  eq(
+    bodyOf(`a \${${token}} b`),
+    bodyOf(`a {${token}} b`),
+    `unknown \${${token}} matches {${token}}`,
+  );
 }
 
 // --- nothing is left unexpanded in the real page -----------------------------
-let about = String(rul.articles["STR_ABOUT_XPEDIA"].text);
+const about = String(rul.articles["STR_ABOUT_XPEDIA"].text);
 ok(about.length > 0, "the About article has a body");
 ok(!about.includes("${"), "no placeholder survives in the About body");
 ok(about.includes("0-test"), "the About body carries the version");

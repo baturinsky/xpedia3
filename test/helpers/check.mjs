@@ -12,9 +12,9 @@ let total = 0;
 /** Whether `actual` and `expected` print the same, naming the case when they do not */
 export function eq(actual, expected, what) {
   total++;
-  let a = JSON.stringify(actual), e = JSON.stringify(expected);
-  if (a === e)
-    return true;
+  const a = JSON.stringify(actual),
+    e = JSON.stringify(expected);
+  if (a === e) return true;
   failures++;
   console.log(`  FAIL ${what}: ${a} != ${e}`);
   return false;
@@ -23,8 +23,7 @@ export function eq(actual, expected, what) {
 /** The same, for a bare condition */
 export function ok(condition, what, detail) {
   total++;
-  if (condition)
-    return true;
+  if (condition) return true;
   failures++;
   console.log(`  FAIL ${what}${detail == null ? "" : ": " + detail}`);
   return false;

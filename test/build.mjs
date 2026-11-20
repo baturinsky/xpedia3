@@ -6,9 +6,10 @@
  * into an ESM module Node can import, which keeps the checks dependent on the
  * real sources rather than on a copy of them.
  */
-import * as esbuild from "esbuild";
+
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, "..");
@@ -42,18 +43,22 @@ const nodeInterop = {
 };
 
 export async function build() {
-  await Promise.all(modules.map(([entry, outfile]) => esbuild.build({
-    entryPoints: [path.join(root, entry)],
-    absWorkingDir: root,
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    outfile: path.join(gen, outfile),
-    external: ["node-unrar-js"],
-    plugins: [redirectSearch],
-    banner: nodeInterop,
-    logLevel: "warning",
-  })));
+  await Promise.all(
+    modules.map(([entry, outfile]) =>
+      esbuild.build({
+        entryPoints: [path.join(root, entry)],
+        absWorkingDir: root,
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        outfile: path.join(gen, outfile),
+        external: ["node-unrar-js"],
+        plugins: [redirectSearch],
+        banner: nodeInterop,
+        logLevel: "warning",
+      }),
+    ),
+  );
   console.log(`built ${modules.map(([, out]) => out).join(", ")}`);
 }
 
@@ -67,8 +72,7 @@ export async function build() {
  */
 let pending;
 export function ensureBuilt() {
-  if (process.env.XPEDIA_TEST_BUILT)
-    return Promise.resolve();
+  if (process.env.XPEDIA_TEST_BUILT) return Promise.resolve();
   pending ??= build();
   return pending;
 }

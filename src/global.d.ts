@@ -1,4 +1,4 @@
-declare module "*.css"
+declare module "*.css";
 
 /**
  * Constants the build replaces with literals, see `scripts/version.mjs`.

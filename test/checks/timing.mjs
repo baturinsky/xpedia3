@@ -5,8 +5,9 @@
  * "9000" — so the interesting part is the wording at each unit boundary, which
  * is what is pinned here.
  */
-import { eq, report } from "../helpers/check.mjs";
+
 import { formatDelay, formatMinutes, formatSeconds, waveDelay } from "../.gen/timing.mjs";
+import { eq, report } from "../helpers/check.mjs";
 
 // --- minutes to a readable span ---------------------------------------------
 eq(formatMinutes(0), "0 min", "zero");

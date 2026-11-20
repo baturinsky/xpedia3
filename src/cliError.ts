@@ -5,4 +5,4 @@
  * such a problem: the message is printed on its own, without the stack a real
  * bug would need, so both have to agree on the same class.
  */
-export class UsageError extends Error { }
+export class UsageError extends Error {}

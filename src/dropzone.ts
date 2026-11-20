@@ -2,19 +2,19 @@ import { state } from "./state";
 
 export function makeDropzone(dropZone: HTMLElement, onDrop: (files: FileList) => void) {
   if (dropZone) {
-    let hoverClassName = 'hover';
+    const hoverClassName = "hover";
 
-    dropZone.addEventListener("dragenter", function (e) {
+    dropZone.addEventListener("dragenter", (e) => {
       e.preventDefault();
       dropZone.classList.add(hoverClassName);
     });
 
-    dropZone.addEventListener("dragover", function (e) {
+    dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropZone.classList.add(hoverClassName);
     });
 
-    dropZone.addEventListener("dragleave", function (e) {
+    dropZone.addEventListener("dragleave", (e) => {
       e.preventDefault();
       dropZone.classList.remove(hoverClassName);
     });
@@ -23,16 +23,13 @@ export function makeDropzone(dropZone: HTMLElement, onDrop: (files: FileList) =>
       e.preventDefault();
       dropZone.classList.remove(hoverClassName);
 
-      if (!e.dataTransfer)
-        return;
+      if (!e.dataTransfer) return;
 
       // The status window is modal, so a second drop must not start a
       // concurrent load on top of the running one
-      if (state.slowProcessStatus || state.confirmRequest)
-        return;
+      if (state.slowProcessStatus || state.confirmRequest) return;
 
       onDrop(e.dataTransfer.files);
     });
   }
-
 }

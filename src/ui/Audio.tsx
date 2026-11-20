@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { audioExtensions, rul, soundCat } from '../rul/Ruleset';
-import { Tr } from './Val';
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { audioExtensions, rul, soundCat } from "../rul/Ruleset";
+import { Tr } from "./Val";
 
 /**
  * Music and sound references.
@@ -42,11 +43,11 @@ function trackPath(fileName: string, ext = audioExtensions[0]) {
  * ones the engine accepts are offered instead.
  */
 export function musicPaths(fileName: string) {
-  return audioExtensions.map(ext => trackPath(fileName, ext));
+  return audioExtensions.map((ext) => trackPath(fileName, ext));
 }
 
 /** One shared window, so a list of sounds opens one at a time */
-let openAudio: (target: AudioTarget) => void = () => { };
+let openAudio: (target: AudioTarget) => void = () => {};
 
 /** Opens the audio window for a track or a sound slot */
 export function showAudio(target: AudioTarget) {
@@ -55,18 +56,22 @@ export function showAudio(target: AudioTarget) {
 
 /** The path of a sound slot, or null when the pack does not replace that slot */
 export function soundPath(slot: unknown, field: string, collection?: string) {
-  if (slot == null || slot === "" || String(slot) == "-1")
-    return null;
-  let cat = soundCat(field, collection);
+  if (slot == null || slot === "" || String(slot) == "-1") return null;
+  const cat = soundCat(field, collection);
   return rul.sound(Number(slot), cat);
 }
 
 /** A clickable audio reference: the name in the page, the detail in the window */
-const AudioLink = ({ target, children }: { target: AudioTarget, children: React.ReactNode }) =>
-  <button type="button" className="audio-link" title={target.paths[0]}
-    onClick={() => showAudio(target)}>
+const AudioLink = ({ target, children }: { target: AudioTarget; children: React.ReactNode }) => (
+  <button
+    type="button"
+    className="audio-link"
+    title={target.paths[0]}
+    onClick={() => showAudio(target)}
+  >
     {children}
-  </button>;
+  </button>
+);
 
 /**
  * One music track: the pack's name for it, or the derived file name.
@@ -76,23 +81,26 @@ const AudioLink = ({ target, children }: { target: AudioTarget, children: React.
  */
 export const MusicRef = ({ entry }: { entry: string | { id?: string } }) => {
   // A music field holds the id; older data may hold the whole entry
-  let id = typeof entry == "string" ? entry : entry?.id;
-  if (id == null)
-    return null;
+  const id = typeof entry == "string" ? entry : entry?.id;
+  if (id == null) return null;
 
-  let fileName = rul.musics?.[id]?.fileName ?? id;
+  const fileName = rul.musics?.[id]?.fileName ?? id;
   // A pack's language file may name the track. The derived file name is the
   // fallback, and it is what the engine itself would use
-  let name = rul.lang[id] ? (rul.tr(id) ?? id) : fileName;
+  const name = rul.lang[id] ? (rul.tr(id) ?? id) : fileName;
 
-  return <AudioLink target={{
-    title: name,
-    id: name == id ? undefined : id,
-    paths: musicPaths(fileName),
-    hint: rul.tr("xpediaAudioMusicHint") ?? undefined
-  }}>
-    {name}
-  </AudioLink>;
+  return (
+    <AudioLink
+      target={{
+        title: name,
+        id: name == id ? undefined : id,
+        paths: musicPaths(fileName),
+        hint: rul.tr("xpediaAudioMusicHint") ?? undefined,
+      }}
+    >
+      {name}
+    </AudioLink>
+  );
 };
 
 /**
@@ -102,28 +110,46 @@ export const MusicRef = ({ entry }: { entry: string | { id?: string } }) => {
  * still live inside the game's `.CAT` archive, which the pedia does not unpack,
  * so those keep their number and say which CAT they belong to.
  */
-export const SoundRef = ({ value, field, collection }: {
-  value: unknown, field: string, collection?: string
+export const SoundRef = ({
+  value,
+  field,
+  collection,
+}: {
+  value: unknown;
+  field: string;
+  collection?: string;
 }) => {
-  let slots = (Array.isArray(value) ? value : [value]).filter(s => s != null && s !== "");
+  const slots = (Array.isArray(value) ? value : [value]).filter((s) => s != null && s !== "");
   // The field name is a ruleset key such as `meleeHitSound`; the page shows the
   // translated label, so the window has to use the same one
-  let label = rul.tr(field) ?? field;
+  const label = rul.tr(field) ?? field;
 
-  return <>{slots.map((slot, i) => {
-    let path = soundPath(slot, field, collection);
-    let cat = soundCat(field, collection);
-    return <span className="audio-slot" key={i}>
-      {i > 0 && <span className="list-divider">&nbsp;· </span>}
-      {path
-        ? <AudioLink target={{ title: `${label} ${slot}`, paths: [path], hint: rul.tr(cat) ?? cat }}>
-          <Tr text={field} />&nbsp;<em className="num">{String(slot)}</em>
-        </AudioLink>
-        : <>
-          <Tr text={field} />&nbsp;<em className="num">{String(slot)}</em>
-        </>}
-    </span>;
-  })}</>;
+  return (
+    <>
+      {slots.map((slot, i) => {
+        const path = soundPath(slot, field, collection);
+        const cat = soundCat(field, collection);
+        return (
+          <span className="audio-slot" key={i}>
+            {i > 0 && <span className="list-divider">&nbsp;· </span>}
+            {path ? (
+              <AudioLink
+                target={{ title: `${label} ${slot}`, paths: [path], hint: rul.tr(cat) ?? cat }}
+              >
+                <Tr text={field} />
+                &nbsp;<em className="num">{String(slot)}</em>
+              </AudioLink>
+            ) : (
+              <>
+                <Tr text={field} />
+                &nbsp;<em className="num">{String(slot)}</em>
+              </>
+            )}
+          </span>
+        );
+      })}
+    </>
+  );
 };
 
 /**
@@ -133,9 +159,9 @@ export const SoundRef = ({ value, field, collection }: {
  * cannot reach the file and the reader wants to find it themselves.
  */
 export function AudioDialog() {
-  let [target, setTarget] = useState<AudioTarget>();
-  let [status, setStatus] = useState<"idle" | "loading" | "failed" | "ok">("idle");
-  let [copied, setCopied] = useState(false);
+  const [target, setTarget] = useState<AudioTarget>();
+  const [status, setStatus] = useState<"idle" | "loading" | "failed" | "ok">("idle");
+  const [copied, setCopied] = useState(false);
 
   openAudio = useCallback((next: AudioTarget) => {
     setTarget(next);
@@ -147,8 +173,7 @@ export function AudioDialog() {
 
   // Escape closes the window, as in the other modals
   useEffect(() => {
-    if (!target)
-      return;
+    if (!target) return;
     function onKey(e: KeyboardEvent) {
       if (e.key == "Escape") {
         e.preventDefault();
@@ -159,55 +184,78 @@ export function AudioDialog() {
     return () => removeEventListener("keydown", onKey);
   }, [!!target]);
 
-  if (!target)
-    return null;
+  if (!target) return null;
 
-  let path = target.paths[0];
+  const path = target.paths[0];
 
-  let copy = () => {
-    navigator.clipboard?.writeText(path).then(() => {
-      setCopied(true);
-    }).catch(() => { });
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(path)
+      .then(() => {
+        setCopied(true);
+      })
+      .catch(() => {});
   };
 
-  return <div className="full-screen-centered status-overlay"
-    onClick={e => { if (e.target == e.currentTarget) setTarget(undefined); }}>
-    <div className="audio-dialog" role="dialog" aria-modal="true" aria-label={target.title}>
-      <div className="audio-dialog-title">{target.title}</div>
-      {target.id && <div className="audio-dialog-id">{target.id}</div>}
+  return (
+    <div
+      className="full-screen-centered status-overlay"
+      onClick={(e) => {
+        if (e.target == e.currentTarget) setTarget(undefined);
+      }}
+    >
+      <div className="audio-dialog" role="dialog" aria-modal="true" aria-label={target.title}>
+        <div className="audio-dialog-title">{target.title}</div>
+        {target.id && <div className="audio-dialog-id">{target.id}</div>}
 
-      <div className="audio-dialog-path">
-        <code onClick={copy} title={rul.tr("xpediaAudioCopyTip") ?? undefined}>{path}</code>
-        <button type="button" onClick={copy}>
-          <Tr text={copied ? "xpediaAudioCopied" : "xpediaAudioCopy"} />
-        </button>
-      </div>
+        <div className="audio-dialog-path">
+          <code onClick={copy} title={rul.tr("xpediaAudioCopyTip") ?? undefined}>
+            {path}
+          </code>
+          <button type="button" onClick={copy}>
+            <Tr text={copied ? "xpediaAudioCopied" : "xpediaAudioCopy"} />
+          </button>
+        </div>
 
-      {/* `metadata` rather than `none`: the player has to make the request to
+        {/* `metadata` rather than `none`: the player has to make the request to
           know whether the file is there at all, and that answer is the whole
           point of the window. It reads only the header, not the audio. */}
-      <audio controls preload="metadata" src={path}
-        onLoadedMetadata={() => setStatus("ok")}
-        onError={() => setStatus("failed")} />
+        <audio
+          controls
+          preload="metadata"
+          src={path}
+          onLoadedMetadata={() => setStatus("ok")}
+          onError={() => setStatus("failed")}
+        />
 
-      {/* A track may be stored under another accepted extension, so those are
+        {/* A track may be stored under another accepted extension, so those are
           offered before giving up on playback */}
-      {status == "failed" && <div className="audio-dialog-missing">
-        <Tr text="xpediaAudioNotFound" />
-        {target.hint && <span className="audio-dialog-hint"> ({target.hint})</span>}
-        {target.paths.length > 1 &&
-          <ul className="audio-dialog-paths">
-            {target.paths.map(other => <li key={other}><code>{other}</code></li>)}
-          </ul>}
-      </div>}
+        {status == "failed" && (
+          <div className="audio-dialog-missing">
+            <Tr text="xpediaAudioNotFound" />
+            {target.hint && <span className="audio-dialog-hint"> ({target.hint})</span>}
+            {target.paths.length > 1 && (
+              <ul className="audio-dialog-paths">
+                {target.paths.map((other) => (
+                  <li key={other}>
+                    <code>{other}</code>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-      <div className="audio-dialog-note"><Tr text="xpediaAudioNote" /></div>
+        <div className="audio-dialog-note">
+          <Tr text="xpediaAudioNote" />
+        </div>
 
-      <div className="audio-dialog-buttons">
-        <button type="button" autoFocus onClick={() => setTarget(undefined)}>
-          <Tr text="xpediaClose" />
-        </button>
+        <div className="audio-dialog-buttons">
+          <button type="button" autoFocus onClick={() => setTarget(undefined)}>
+            <Tr text="xpediaClose" />
+          </button>
+        </div>
       </div>
     </div>
-  </div>;
+  );
 }

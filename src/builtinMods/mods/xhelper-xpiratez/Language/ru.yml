@@ -32,7 +32,7 @@ ru:
     патриотичного настроя Революции, но только потому, что местные вожди боятся растревожить
     этот огромный бестелесный муравейник. Если хотя бы один голос их разозлит - миллионы
     ответят так, что в Революции больше никогда не будет военных парадов.
-  STR_LONDON_UFOPEDIA: 'Спектрал - город света, город врат. В общем-то не самое плохое
+  STR_LONDON_UFOPEDIA: "Спектрал - город света, город врат. В общем-то не самое плохое
     место для жизни, если привыкнуть в ежедневной возможности умереть, а также к грохоту
     пушек и пронзительным паровозным гудкам. Кроме того, можно завести себе заводного
     дворецкого, который будет убираться в доме, ходить по магазинам и притаскивать тебя
@@ -41,14 +41,14 @@ ru:
     А еще здесь очень красиво: все эти латунные плетения, шестеренки, диковинные механизмы
     - не город, а шкатулка музыкальная. Особенно когда из порталов ничего не лезет,
     а вы не обращаете внимание на трущобы, где живут те, кому повезло меньше, вынужденные
-    вращать эти шестеренки.'
-  STR_JAKARTA_UFOPEDIA: 'Чтобы вы не питали иллюзий: дворцом здесь называется огромная
+    вращать эти шестеренки."
+  STR_JAKARTA_UFOPEDIA: "Чтобы вы не питали иллюзий: дворцом здесь называется огромная
     развалюха в центре города, который сам целиком состоит из таких же развалюх калибром
     поменьше. Зато свободы хоть отбавляй: в городе царит полная анархия, что вполне
     обычно для поселений в Пиратских Проливах. Сказать, что здесь каждый сам за себя,
     все же преувеличение, но уровень организованности не поднимается выше ватаг типа
-    ''двор на двор''. С другой стороны, если вас много и вы сами хорошо организованы,
-    то все будет хорошо, вряд ли<br/>кто-то рискнет с вами связываться.'
+    'двор на двор'. С другой стороны, если вас много и вы сами хорошо организованы,
+    то все будет хорошо, вряд ли<br/>кто-то рискнет с вами связываться."
   STR_CANBERRA_UFOPEDIA: Казалось бы, для такой страны, как Долина Смерти, тайная<br/>арена
     - это оксюморон. Данная же Тайная Арена - оксюморон вдвойне, так как это целый город,
     построенный вокруг тайной арены. В общем, хрен этих жителей Долины поймешь. А арена
@@ -181,8 +181,8 @@ ru:
   SERVICES: ФУНКЦИИ
   STARTING BONUSES: СТАРТОВЫЕ БОНУСЫ
   A-Z: А-Я
-  'true': ДА
-  'false': НЕТ
+  "true": ДА
+  "false": НЕТ
   HOME: НА ГЛАВНУЮ
   Search...: Поиск...
   Searching: Ищем
@@ -580,7 +580,7 @@ ru:
   turretType: Вид башни
   tuSnap: ОД на выстрел навскидку, %
   tuUse: Расход ОД
-  twoHanded: 'Категория: двуручное?'
+  twoHanded: "Категория: двуручное?"
   unprimeActionName: Название действия для дезактивации
   vaporColor: Цвет трассировки
   vaporColorSurface: Цвет трассировки на суше
@@ -673,17 +673,17 @@ ru:
   Forbidden armors: Недопустимая броня
   Allowed auxilia: Допустимая поддержка
   Deployments: Миссии
-  dependencies: 'Зависит от:'
-  seeAlso: 'Необходимо:'
-  requiresBaseFunc: 'Необходимые функции:'
-  freeFrom: 'Получить бесплатно от:'
-  leadsTo: 'Ведет к:'
-  unlocks: 'Открывает:'
-  unlockBy: 'Открывается через:'
-  disables: 'Блокирует:'
-  getOneFree: 'Дает бесплатно:'
-  getOneFreeProtected: 'Дает бесплатно при выполнении условия:'
-  manufacture: 'Производственный процесс:'
+  dependencies: "Зависит от:"
+  seeAlso: "Необходимо:"
+  requiresBaseFunc: "Необходимые функции:"
+  freeFrom: "Получить бесплатно от:"
+  leadsTo: "Ведет к:"
+  unlocks: "Открывает:"
+  unlockBy: "Открывается через:"
+  disables: "Блокирует:"
+  getOneFree: "Дает бесплатно:"
+  getOneFreeProtected: "Дает бесплатно при выполнении условия:"
+  manufacture: "Производственный процесс:"
   randomProducedItems: Случайный результат!
   Starting bonus: Стартовый бонус
   everyItemList: Список предметов (поштучно)
@@ -707,7 +707,8 @@ ru:
     пожаловать на борт, матрос! Займи койку на нижней палубе да выпей немного Икс-Грога,
     йаррр!
   Arrr, what da FLUFF is X-Piratez stuff?: Аррр, тысяча чертей, что еще за X-Piratez?
-  X-Piratez is a total conversion mod designed for OpenXcom, a free open-source reimplementation of UFO: X-Piratez
+  X-Piratez is a total conversion mod designed for OpenXcom, a free open-source reimplementation of UFO:
+    X-Piratez
     - это глобальный мод для OpenXcom - распространяемого на бесплатной основе переосмысления
     UFO
   Enemy Unknown (1994) and X-Com: Enemy Unknown (1994) и X-Com
@@ -729,9 +730,10 @@ ru:
   Anna Zemlina: Анне Землиной
   for her fantastic artworks created for the X-Piratez Universe.: за потрясающие иллюстрации,
     сделанные для Пиратовселенной.
-  Current mod version is: 'Свежайшая версия мода:'
+  Current mod version is: "Свежайшая версия мода:"
   PC Installation & Update Guide: Установка и обновление для ПК
-  Download the X-Piratez archive via the forum link (the main one) or from moddb.com (alternatively.): Загрузите
+  Download the X-Piratez archive via the forum link (the main one) or from moddb.com (alternatively.):
+    Загрузите
     архив с X-Piratez по ссылке на форуме (основная) или с moddb.com (альтернативная).
   ? Unzip the archive to a NEW folder. It strongly recommended not merging the contents
     with your existing Dioxine_XPiratez folder, as this can lead to various problems.
@@ -741,7 +743,8 @@ ru:
   You need your files of the original UFO: Для запуска необходимы файлы оригинальной
     игры UFO
   Enemy Unknown or X-Com: Enemy Unknown или X-Com
-  UFO Defense game (either DOS or Steam version) to launch the mod. Copy them to the Dioxine_XPiratez\UFO folder.: UFO
+  UFO Defense game (either DOS or Steam version) to launch the mod. Copy them to the Dioxine_XPiratez\UFO folder.:
+    UFO
     Defense (DOS или Steam версия). Скопируйте их в папку Dioxine_XPiratez\UFO.
   ? X-Piratez is distributed with the compatible OXCE engine version. There is no need
     to replace or upgrade OXCE, as other builds may not be compatible with your version
@@ -763,10 +766,12 @@ ru:
     версией X-Piratez. По этой причине рекомендуем выключить в игре опцию 'Автопроверка
     обновлений' (параметры\дополнительно\общие). Эта опция не проверяет обновления самого
     мода.
-  If you already have X-Piratez saves, you can copy them from the old Dioxine_XPiratez\user\piratez folder to the new one.: Если
+  If you already have X-Piratez saves, you can copy them from the old Dioxine_XPiratez\user\piratez folder to the new one.:
+    Если
     у вас уже есть сохранения X-Piratez, их можно скопировать из старой папки Dioxine_XPiratez\user\piratez
     в новую.
-  Optionally, you can also copy user settings from the old Dioxine_XPiratez\user folder to the new one (options.cfg file.): По
+  Optionally, you can also copy user settings from the old Dioxine_XPiratez\user folder to the new one (options.cfg file.):
+    По
     желанию можете также скопировать пользовательские настройки из старой папки Dioxine_XPiratez\user
     в новую (файл options.cfg).
   Optionally, don't delete your outdated version. Just in case.: На всякий случай не
@@ -779,7 +784,8 @@ ru:
     any porn-quality T&A since it's not a porn game.
   : Есть немного мужской и женской ОБНАЖЕНКИ. Вы предупреждены. Учтите, что здесь нет
     прелестей порнографического качества, поскольку это не порноигра.
-  Do not install OpenXcom nightlies! They are not compatible with X-Piratez. (Requires OXCE version.): Не
+  Do not install OpenXcom nightlies! They are not compatible with X-Piratez. (Requires OXCE version.):
+    Не
     устанавливайте Nightly-сборки OpenXcom! Они несовместимы с X-Piratez. (Требуется
     использовать только OXCE).
   ? If you absolutely can't stand bikini babes fighting Nazis with chainsaws, you may
@@ -795,8 +801,8 @@ ru:
   A single campaign might take as much as 400 hours.: Одно прохождение может занять
     до 400 часов.
   mod author, the Grand Master: автор мода, Великий Магистр
-  You can send your donations through PayPal to: 'Вы можете сделать пожертвование на
-    PayPal:'
+  You can send your donations through PayPal to: "Вы можете сделать пожертвование на
+    PayPal:"
   chief OXCE programmer, the Wise Alchemist: ведущий программист OXCE, Мудрый Алхимик
   Join the Transifex team!: Вступите в команду Transifex!
   All mods are translated by the players: Все моды переведены игроками

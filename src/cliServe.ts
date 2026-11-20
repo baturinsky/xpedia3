@@ -1,18 +1,30 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import {
-  buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods
-} from "./packBuild";
-import {
-  archivePath, folderFiles, isDat, isText, layoutOf, listFiles, readFolderPack, type Layout
-} from "./cliFolder";
-import { buildExport } from "./cliExport";
-import { buildAssetFiles, buildPageHtml, collectDataFiles, exportedPackName, zipFiles, type AppShell, type ExportFile } from "./exportCore";
-import { defaultLanguage, type ProcessedRuleset } from "./rul/Ruleset";
-import { resolveLanguages } from "./cliLanguages";
-import { gameRelativePath } from "./util";
 import { UsageError } from "./cliError";
+import { buildExport } from "./cliExport";
+import {
+  archivePath,
+  folderFiles,
+  isDat,
+  isText,
+  type Layout,
+  layoutOf,
+  listFiles,
+  readFolderPack,
+} from "./cliFolder";
+import { resolveLanguages } from "./cliLanguages";
+import {
+  type AppShell,
+  buildPageHtml,
+  collectDataFiles,
+  type ExportFile,
+  exportedPackName,
+  zipFiles,
+} from "./exportCore";
+import { buildPackData, filterBuiltinMods, interpretPath, unpackBuiltinMods } from "./packBuild";
+import { defaultLanguage, type ProcessedRuleset } from "./rul/Ruleset";
+import { gameRelativePath } from "./util";
 
 /**
  * Serves a modpack folder as a live pedia, so a modder can see the result
@@ -33,16 +45,16 @@ import { UsageError } from "./cliError";
 
 export type ServeOptions = {
   /** Folder to serve as the modpack */
-  root: string,
+  root: string;
   /** First port to try; the next free one is used when it is taken */
-  port: number,
+  port: number;
   /** Language names to embed; every language in the folder when omitted */
-  languages?: string[],
+  languages?: string[];
   /** The app shell, embedded in the CLI at build time */
-  shell: AppShell,
+  shell: AppShell;
   /** The builtin mods, embedded in the CLI at build time */
-  builtinModsPayload: string,
-  info: (message: string) => void,
+  builtinModsPayload: string;
+  info: (message: string) => void;
 };
 
 /**
@@ -54,15 +66,14 @@ export type ServeOptions = {
  * so nothing is served from memory any more.
  */
 function buildFileIndex(root: string, names: string[], layout: Layout, modRoot: string) {
-  let index = new Map<string, string>();
-  let register = (key: string, file: string) => {
-    let lower = key.replace(/^\/+/, "").toLowerCase();
-    if (lower && !index.has(lower))
-      index.set(lower, file);
+  const index = new Map<string, string>();
+  const register = (key: string, file: string) => {
+    const lower = key.replace(/^\/+/, "").toLowerCase();
+    if (lower && !index.has(lower)) index.set(lower, file);
   };
-  for (let rel of names) {
-    let full = path.join(root, rel);
-    let archive = archivePath(rel, layout, modRoot);
+  for (const rel of names) {
+    const full = path.join(root, rel);
+    const archive = archivePath(rel, layout, modRoot);
     register(gameRelativePath(archive), full);
     register(archive, full);
     register(rel, full);
@@ -80,11 +91,10 @@ function buildFileIndex(root: string, names: string[], layout: Layout, modRoot: 
  * page carries its bytes, so editing it has to rebuild the page.
  */
 function fingerprint(root: string, names: string[]) {
-  let parts: string[] = [];
-  for (let rel of names) {
-    if (!isText(rel) && !isDat(rel))
-      continue;
-    let stat = fs.statSync(path.join(root, rel), { throwIfNoEntry: false });
+  const parts: string[] = [];
+  for (const rel of names) {
+    if (!isText(rel) && !isDat(rel)) continue;
+    const stat = fs.statSync(path.join(root, rel), { throwIfNoEntry: false });
     parts.push(`${rel}:${stat?.size ?? -1}:${stat?.mtimeMs ?? -1}`);
   }
   return parts.join("\n");
@@ -107,7 +117,7 @@ const contentTypes: { [ext: string]: string } = {
 };
 
 function contentTypeOf(file: string) {
-  let ext = file.substring(file.lastIndexOf(".") + 1).toLowerCase();
+  const ext = file.substring(file.lastIndexOf(".") + 1).toLowerCase();
   return contentTypes[ext] ?? "application/octet-stream";
 }
 
@@ -119,25 +129,25 @@ function contentTypeOf(file: string) {
  * reload the track from the start.
  */
 function sendFile(res: http.ServerResponse, file: string, req: http.IncomingMessage) {
-  let stat = fs.statSync(file, { throwIfNoEntry: false });
+  const stat = fs.statSync(file, { throwIfNoEntry: false });
   if (!stat?.isFile()) {
     res.statusCode = 404;
     res.end("Not found");
     return;
   }
-  let size = stat.size;
-  let type = contentTypeOf(file);
+  const size = stat.size;
+  const type = contentTypeOf(file);
 
   // A reload must show the files as they are, so nothing is cached
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", type);
   res.setHeader("Accept-Ranges", "bytes");
 
-  let match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+  const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
   if (match) {
-    let start = match[1] ? Number(match[1]) : 0;
+    const start = match[1] ? Number(match[1]) : 0;
     // An open-ended range means "to the end", which is what a player asks for
-    let end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+    const end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
     if (start >= size || start > end) {
       res.statusCode = 416;
       res.setHeader("Content-Range", `bytes */${size}`);
@@ -166,8 +176,8 @@ function sendFile(res: http.ServerResponse, file: string, req: http.IncomingMess
 /** Binds the first free port at or after `start` */
 function listen(server: http.Server, start: number, tries = 25) {
   return new Promise<number>((resolve, reject) => {
-    let attempt = (port: number, left: number) => {
-      let onError = (error: NodeJS.ErrnoException) => {
+    const attempt = (port: number, left: number) => {
+      const onError = (error: NodeJS.ErrnoException) => {
         server.off("listening", onListening);
         // Only a taken port is worth trying past; anything else is a real error
         if (error.code == "EADDRINUSE" && left > 0) {
@@ -176,7 +186,7 @@ function listen(server: http.Server, start: number, tries = 25) {
         }
         reject(error);
       };
-      let onListening = () => {
+      const onListening = () => {
         server.off("error", onError);
         resolve(port);
       };
@@ -193,8 +203,8 @@ function listen(server: http.Server, start: number, tries = 25) {
 
 /** The page and the file index, rebuilt together so they always describe one state */
 type Built = {
-  html: string,
-  index: Map<string, string>,
+  html: string;
+  index: Map<string, string>;
   /**
    * The ruleset and file layout the page was built from.
    *
@@ -202,7 +212,12 @@ type Built = {
    * request that exported a fresh walk would be a different pack from the one
    * the reader is looking at whenever a file changed between the two.
    */
-  source: { processed: ProcessedRuleset, names: string[], layout: Layout, reader: (path: string) => Uint8Array | undefined },
+  source: {
+    processed: ProcessedRuleset;
+    names: string[];
+    layout: Layout;
+    reader: (path: string) => Uint8Array | undefined;
+  };
 };
 
 /**
@@ -213,27 +228,29 @@ type Built = {
  * a file on demand keeps a 300 MB pack from being held in memory for a page that
  * may never be exported.
  */
-function makeFileReader(files: { [name: string]: Uint8Array },
+function makeFileReader(
+  files: { [name: string]: Uint8Array },
   builtin: { [name: string]: Uint8Array },
-  root: string, names: string[], layout: Layout, modRoot: string) {
-  let byPath = folderFiles(root, names, layout, modRoot);
+  root: string,
+  names: string[],
+  layout: Layout,
+  modRoot: string,
+) {
+  const byPath = folderFiles(root, names, layout, modRoot);
   return (archivePath: string) => {
     // The text files the page was built from are already in memory; only the
     // placeholders have to be replaced with the bytes on disk
-    let known = files[archivePath];
-    if (known?.length)
-      return known;
+    const known = files[archivePath];
+    if (known?.length) return known;
     // A pack that ships no globe borrows the builtin one, exactly as the served
     // page does: it is compiled into this script, not a file in the folder
-    let fallback = builtin[archivePath];
-    if (fallback?.length)
-      return fallback;
-    let file = byPath.get(archivePath);
-    if (!file)
-      return;
+    const fallback = builtin[archivePath];
+    if (fallback?.length) return fallback;
+    const file = byPath.get(archivePath);
+    if (!file) return;
     try {
       return new Uint8Array(fs.readFileSync(file));
-    } catch (e) {
+    } catch {
       return;
     }
   };
@@ -249,63 +266,58 @@ function makeFileReader(files: { [name: string]: Uint8Array },
  * makes a sprite added since the last build appear straight away.
  */
 function makeBuilder(options: ServeOptions) {
-  let root = path.resolve(options.root);
-  let modRoot = path.basename(root);
-  let builtin = filterBuiltinMods(unpackBuiltinMods(options.builtinModsPayload), modRoot);
-  let cached: { fingerprint: string, built: Built } | undefined;
+  const root = path.resolve(options.root);
+  const modRoot = path.basename(root);
+  const builtin = filterBuiltinMods(unpackBuiltinMods(options.builtinModsPayload), modRoot);
+  let cached: { fingerprint: string; built: Built } | undefined;
   return async function build(refresh = true): Promise<Built> {
     // A sprite request does not re-list the folder. The page request that
     // preceded it already did, and a pack has tens of thousands of files: walking
     // them for every sprite would cost far more than serving the sprite itself.
     // Reloading the page is what is promised to pick up a change, so the page is
     // the one request that does the walk.
-    if (!refresh && cached)
-      return cached.built;
+    if (!refresh && cached) return cached.built;
 
-    let names = listFiles(root);
-    let layout = layoutOf(names);
-    let index = buildFileIndex(root, names, layout, modRoot);
+    const names = listFiles(root);
+    const layout = layoutOf(names);
+    const index = buildFileIndex(root, names, layout, modRoot);
 
-    let stamp = fingerprint(root, names);
-    if (cached?.fingerprint == stamp)
-      return { ...cached.built, index };
+    const stamp = fingerprint(root, names);
+    if (cached?.fingerprint == stamp) return { ...cached.built, index };
 
-    let files = readFolderPack(root, names, layout, modRoot, { textOnly: true });
+    const files = readFolderPack(root, names, layout, modRoot, { textOnly: true });
 
     // A pack that ships its own copy of a builtin path keeps it as its own data,
     // exactly as `unpackData` and the archive export decide it
-    let packDirs = new Set<string>();
-    for (let name of Object.keys(files)) {
-      let mod = interpretPath(name)?.mod;
-      if (mod)
-        packDirs.add(mod);
+    const packDirs = new Set<string>();
+    for (const name of Object.keys(files)) {
+      const mod = interpretPath(name)?.mod;
+      if (mod) packDirs.add(mod);
     }
-    let builtinDirs = new Set<string>();
-    for (let name of Object.keys(builtin)) {
-      let mod = interpretPath(name)?.mod;
-      if (mod && !packDirs.has(mod))
-        builtinDirs.add(mod);
+    const builtinDirs = new Set<string>();
+    for (const name of Object.keys(builtin)) {
+      const mod = interpretPath(name)?.mod;
+      if (mod && !packDirs.has(mod)) builtinDirs.add(mod);
     }
 
-    let merged: { [name: string]: Uint8Array } = { ...builtin };
-    for (let [name, data] of Object.entries(files))
-      merged[name] = data;
+    const merged: { [name: string]: Uint8Array } = { ...builtin };
+    for (const [name, data] of Object.entries(files)) merged[name] = data;
 
     // Nothing is stored, so the pack's own half is not asked for
-    let { processed } = buildPackData(merged, builtinDirs, false);
+    const { processed } = buildPackData(merged, builtinDirs, false);
 
-    let available = processed.langs
-      ? Object.keys(processed.langs).filter(name => name != "icon")
+    const available = processed.langs
+      ? Object.keys(processed.langs).filter((name) => name != "icon")
       : [];
     // Omitting `--lang` means every language the pack has, the same default the
     // export uses. English is always carried, so it is never one of the extras.
-    let wanted = resolveLanguages(options.languages, available);
-    let extra = wanted.filter(name => name != defaultLanguage);
+    const wanted = resolveLanguages(options.languages, available);
+    const extra = wanted.filter((name) => name != defaultLanguage);
 
-    let articles = Object.keys(processed.langs?.["en-US"] ?? {}).length;
+    const articles = Object.keys(processed.langs?.["en-US"] ?? {}).length;
     options.info(`Building the page: ${articles} strings, ${available.length} languages`);
 
-    let html = await buildPageHtml({
+    const html = await buildPageHtml({
       pack: `${modRoot}.zip`,
       processed,
       languages: extra,
@@ -316,22 +328,31 @@ function makeBuilder(options: ServeOptions) {
       served: true,
       // The globe travels inside the page, so serving it as a URL is not only
       // unnecessary but wrong: a pack that ships none has no file in the folder
-      data: await collectDataFiles(processed.resources, async archivePath => {
-        let own = files[archivePath];
-        if (own?.length)
-          return own;
-        // A pack that ships no globe borrows the builtin one, which is compiled
-        // into this script rather than being a file in the folder
-        return builtin["mods/xpedia/GEODATA/WORLD.DAT"];
-      }, processed.mods)
+      data: await collectDataFiles(
+        processed.resources,
+        async (archivePath) => {
+          const own = files[archivePath];
+          if (own?.length) return own;
+          // A pack that ships no globe borrows the builtin one, which is compiled
+          // into this script rather than being a file in the folder
+          return builtin["mods/xpedia/GEODATA/WORLD.DAT"];
+        },
+        processed.mods,
+      ),
     });
 
     cached = {
       fingerprint: stamp,
       built: {
-        html, index,
-        source: { processed, names, layout, reader: makeFileReader(files, builtin, root, names, layout, modRoot) }
-      }
+        html,
+        index,
+        source: {
+          processed,
+          names,
+          layout,
+          reader: makeFileReader(files, builtin, root, names, layout, modRoot),
+        },
+      },
     };
     return cached.built;
   };
@@ -355,21 +376,28 @@ function makeBuilder(options: ServeOptions) {
  * - `name`  base name of the archive, so the dialog and the file agree
  */
 function makeExportHandler(options: ServeOptions) {
-  let root = path.resolve(options.root);
-  let modRoot = path.basename(root);
+  const root = path.resolve(options.root);
+  const modRoot = path.basename(root);
 
   /** Everything an export of this folder consists of, from one request */
   async function buildPlan(url: URL, built: Built, weighOnly = false) {
-    let wanted = url.searchParams.get("lang");
-    let requested = wanted ? wanted.split(",").map(name => name.trim()).filter(Boolean) : undefined;
-    let split = url.searchParams.get("split") == "1";
-    let images = url.searchParams.get("images") == "1";
+    const wanted = url.searchParams.get("lang");
+    const requested = wanted
+      ? wanted
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean)
+      : undefined;
+    const split = url.searchParams.get("split") == "1";
+    const images = url.searchParams.get("images") == "1";
 
-    let { processed, reader } = built.source;
-    let available = processed.langs ? Object.keys(processed.langs).filter(n => n != "icon") : [];
-    let languages = resolveLanguages(requested, available);
+    const { processed, reader } = built.source;
+    const available = processed.langs
+      ? Object.keys(processed.langs).filter((n) => n != "icon")
+      : [];
+    const languages = resolveLanguages(requested, available);
 
-    let plan = await buildExport({
+    const plan = await buildExport({
       packName: modRoot,
       processed,
       readFile: reader,
@@ -377,7 +405,7 @@ function makeExportHandler(options: ServeOptions) {
       request: { languages, split, images },
       pageName: "index.html",
       weighOnly,
-      report: { info: message => options.info(message) },
+      report: { info: (message) => options.info(message) },
     });
     return { plan, languages, split, images };
   }
@@ -392,25 +420,28 @@ function makeExportHandler(options: ServeOptions) {
    * 300 MB pack just to quote its size would take longer than the export.
    */
   async function estimate(url: URL, built: Built) {
-    let { plan } = await buildPlan(url, built, true);
-    let bytes = plan.imageBytes + (plan.outputs.length ? zipFiles(plan.outputs).length : 0);
+    const { plan } = await buildPlan(url, built, true);
+    const bytes = plan.imageBytes + (plan.outputs.length ? zipFiles(plan.outputs).length : 0);
     return { bytes, files: plan.outputs.length + plan.assets, assets: plan.assets };
   }
 
   return async function exportPack(url: URL, built: Built) {
-    let baseName = (url.searchParams.get("name") ?? "").replace(/[\\/:*?"<>|]/g, "").trim();
-    if (url.searchParams.get("estimate") == "1")
-      return { json: await estimate(url, built) };
+    const baseName = (url.searchParams.get("name") ?? "").replace(/[\\/:*?"<>|]/g, "").trim();
+    if (url.searchParams.get("estimate") == "1") return { json: await estimate(url, built) };
 
-    let started = Date.now();
-    let { plan, languages, split, images } = await buildPlan(url, built);
-    options.info(`Exporting ${modRoot}: ${languages.join(", ")}` +
-      `${split ? ", split" : ""}${images ? ", with images" : ""}`);
+    const started = Date.now();
+    const { plan, languages, split, images } = await buildPlan(url, built);
+    options.info(
+      `Exporting ${modRoot}: ${languages.join(", ")}` +
+        `${split ? ", split" : ""}${images ? ", with images" : ""}`,
+    );
 
-    let zipped = zipFiles(plan.outputs);
-    let name = (baseName || exportedPackName(modRoot)) + ".zip";
-    options.info(`Exported ${plan.outputs.length} file(s), ` +
-      `${(zipped.length / 1e6).toFixed(2)} MB in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+    const zipped = zipFiles(plan.outputs);
+    const name = (baseName || exportedPackName(modRoot)) + ".zip";
+    options.info(
+      `Exported ${plan.outputs.length} file(s), ` +
+        `${(zipped.length / 1e6).toFixed(2)} MB in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+    );
     return { name, data: zipped };
   };
 }
@@ -423,15 +454,13 @@ function makeExportHandler(options: ServeOptions) {
  * network by accident.
  */
 export async function servePack(options: ServeOptions) {
-  let root = path.resolve(options.root);
-  let stat = fs.statSync(root, { throwIfNoEntry: false });
-  if (!stat)
-    throw new UsageError(`No such folder: ${options.root}`);
-  if (!stat.isDirectory())
-    throw new UsageError(`${options.root} is not a folder`);
+  const root = path.resolve(options.root);
+  const stat = fs.statSync(root, { throwIfNoEntry: false });
+  if (!stat) throw new UsageError(`No such folder: ${options.root}`);
+  if (!stat.isDirectory()) throw new UsageError(`${options.root} is not a folder`);
 
-  let build = makeBuilder(options);
-  let exportPack = makeExportHandler(options);
+  const build = makeBuilder(options);
+  const exportPack = makeExportHandler(options);
 
   // Built once before the port opens, so the address is announced only after it
   // can answer with a real pedia rather than a 500
@@ -455,30 +484,32 @@ export async function servePack(options: ServeOptions) {
     // Rebuilding picks up an edit since the page was loaded, and the export must
     // describe the folder as it is now rather than as the open page has it
     build()
-      .then(built => exportPack(url, built))
-      .then(result => {
+      .then((built) => exportPack(url, built))
+      .then((result) => {
         res.setHeader("Cache-Control", "no-store");
         if ("json" in result) {
-          let body = JSON.stringify(result.json);
+          const body = JSON.stringify(result.json);
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Content-Length", String(Buffer.byteLength(body)));
           res.end(req.method == "HEAD" ? undefined : body);
           return;
         }
-        let { name, data } = result;
+        const { name, data } = result;
         res.setHeader("Content-Type", "application/zip");
         res.setHeader("Content-Length", String(data.length));
         // `filename*` keeps a pack with non-ASCII in its name readable
-        res.setHeader("Content-Disposition",
-          `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+        );
         if (req.method == "HEAD") {
           res.end();
           return;
         }
         res.end(Buffer.from(data));
       })
-      .catch(e => {
-        let message = e instanceof UsageError ? e.message : `${e?.message ?? e}`;
+      .catch((e) => {
+        const message = e instanceof UsageError ? e.message : `${e?.message ?? e}`;
         options.info(`Export failed: ${message}`);
         res.statusCode = e instanceof UsageError ? 400 : 500;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -487,9 +518,9 @@ export async function servePack(options: ServeOptions) {
       });
   }
 
-  let server = http.createServer((req, res) => {
-    let parsed = new URL(String(req.url ?? "/"), "http://localhost");
-    let url = decodeURIComponent(parsed.pathname);
+  const server = http.createServer((req, res) => {
+    const parsed = new URL(String(req.url ?? "/"), "http://localhost");
+    const url = decodeURIComponent(parsed.pathname);
     // The export is a GET because the page cannot send a body it does not have:
     // the settings are small enough to be query parameters, and the reply is a
     // plain file a browser can download
@@ -505,7 +536,7 @@ export async function servePack(options: ServeOptions) {
           res.setHeader("Cache-Control", "no-store");
           res.end(html);
         })
-        .catch(e => {
+        .catch((e) => {
           res.statusCode = 500;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");
           res.end(`Can't build the pedia: ${e?.message ?? e}\n`);
@@ -515,7 +546,7 @@ export async function servePack(options: ServeOptions) {
 
     build(false)
       .then(({ index }) => {
-        let file = index.get(url.replace(/^\/+/, "").toLowerCase());
+        const file = index.get(url.replace(/^\/+/, "").toLowerCase());
         if (!file) {
           res.statusCode = 404;
           res.end("Not found");
@@ -529,14 +560,14 @@ export async function servePack(options: ServeOptions) {
       });
   });
 
-  let port = await listen(server, options.port);
+  const port = await listen(server, options.port);
   process.stdout.write(`Serving ${root}\nhttp://localhost:${port}/\n`);
   if (port != options.port)
     process.stdout.write(`(port ${options.port} was taken, so ${port} was used)\n`);
 
   // Serving is the whole job, so the command ends when the server does
-  await new Promise<void>(resolve => {
-    let stop = () => {
+  await new Promise<void>((resolve) => {
+    const stop = () => {
       server.close(() => resolve());
       // An idle keep-alive connection would otherwise hold the process open
       setTimeout(() => resolve(), 500).unref();

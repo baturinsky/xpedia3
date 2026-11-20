@@ -1,5 +1,5 @@
 pl:
- # UI
+  # UI
   BootyPedia: "Łupopedia"
   ITEMS: "PRZEDMIOTY"
   CONDITIONS: "WARUNKI"
@@ -20,7 +20,7 @@ pl:
   Download (forum link): "Pobierz (Łącze do forum)"
   Download (from mod.io): "Pobierz (z mod.io)"
 
- # STARTING CONDITIONS
+  # STARTING CONDITIONS
   ACADEMY_CRUISE: "Jacht Akademii"
   AIRCAR_RACE: "Aerowyścigi Yello"
   CITY: "Miasto"
@@ -44,7 +44,7 @@ pl:
   UNDERGROUND: "Podziemia"
   UNDERGROUND_TIGHT: "Ciasne podziemia"
 
- #Tables
+  #Tables
   #Vessels
   Craft: "Statek"
   accel: "Przyspieszenie"
@@ -417,7 +417,7 @@ pl:
   Allowed armors: "Dozwolone pancerze"
   Allowed auxilia: "Dozwolone pomocniki"
   Deployments: "Misje"
- #Subheaders
+  #Subheaders
   dependencies: "Wymagane odkrycia:" #STR_DEPENDS_ON
   seeAlso: "Wymagane przedmioty:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Wymagane funkcje kryjówki:" #STR_SERVICES_REQUIRED
@@ -429,7 +429,7 @@ pl:
   manufacture: "Proces wytwórczy:" #STR_REQUIRED_BY(partly) - see STR_HEALING_GEL on the site
   randomProducedItems: "Losowa produkcja!" #STR_RANDOM_PRODUCTION_DISCLAIMER
 
- # intro
+  # intro
   # Pt.1
   Welcome onboard, seagal! Take your bunk at da orlop and have some X-Grog, yarrr!: "Witam na pokładzie, wilczyco morska! Zajmij koję pod pokładem i łyknij se X-Grogu, jo!"
   # Pt.2
@@ -470,7 +470,7 @@ pl:
   Read or Die.: "Czytaj lub giń."
   Contains riddles. Not everything is what it seems.: "Zawiera łamigłówki. Nie wszystko jest takie, jakie się wydaje."
   A single campaign might take as much as 400 hours.: "Pojedyncza kampania może zająć nawet 400 godzin."
- #External Links
+  #External Links
   #Block1
   mod author, the Grand Master: "autor moda, Wielki Mistrz"
   You can send your donations through PayPal to: "Możesz wysłać swoje datki za pośrednictwem PayPal na adres"
@@ -485,7 +485,7 @@ pl:
   Community & support: "Społeczność i wsparcie"
   Here you can ask any questions associated with this site.: "Tutaj możesz zadawać pytania związane z tym serwisem internetowym."
   Ping @Kato_guardian and we will hear you.: "Pingnij @Kato_guardian, a my usłyszymy."
- #Credits
+  #Credits
   Thanks to: "Podziękowania dla"
   for translating the homepage and interfaces into non-English languages: "za tłumaczenie strony głównej i interfejsów na języki inne niż angielski"
   Wiki is powered by: "Wiki jest zasilane przez"

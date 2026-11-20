@@ -1,8 +1,8 @@
 import * as fflate from "fflate";
-import { state, update } from "./state";
 import * as idb from "./idb";
-import Ruleset, { defaultLanguage } from "./rul/Ruleset";
 import type { ProcessedRuleset } from "./rul/Ruleset";
+import Ruleset, { defaultLanguage } from "./rul/Ruleset";
+import { state, update } from "./state";
 import { base64ToArrayBuffer, gameRelativePath } from "./util";
 
 /**
@@ -22,15 +22,15 @@ import { base64ToArrayBuffer, gameRelativePath } from "./util";
  */
 
 export type PackStat = {
-  pack: string,
-  assets: number,
-  ruls: number,
-  archive: number,
+  pack: string;
+  assets: number;
+  ruls: number;
+  archive: number;
   /**
    * Pack installed before storage buckets were used, so it sits in the origin's
    * default storage and the browser will never expire it
    */
-  legacy?: boolean
+  legacy?: boolean;
 };
 
 export interface PackSource {
@@ -91,23 +91,23 @@ function databaseSource(pack: string): PackSource {
     kind: "database",
     permanent: false,
     async stats() {
-      let records = await idb.getStats() as any[];
-      let record = records?.find(r => r.pack == pack);
+      const records = (await idb.getStats()) as any[];
+      const record = records?.find((r) => r.pack == pack);
       return {
         pack,
         archive: record?.archive ?? 0,
         assets: record?.assets ?? 0,
         ruls: record?.ruls ?? 0,
-        legacy: record?.legacy ?? false
+        legacy: record?.legacy ?? false,
       };
     },
     rulData: () => idb.readRulData(pack),
-    imgData: path => idb.readImgData(pack, path),
+    imgData: (path) => idb.readImgData(pack, path),
     // A stored pack keeps every image as its own database record, so they can
     // be copied into an archive. `imagesUnavailable` is what says a pack cannot,
     // and this one has nothing to say there.
-    fileData: path => idb.readImgData(pack, path),
-    imgUrl: () => undefined
+    fileData: (path) => idb.readImgData(pack, path),
+    imgUrl: () => undefined,
   };
 }
 
@@ -118,9 +118,9 @@ function databaseSource(pack: string): PackSource {
 /** Shape of `window.xpedia`, written by the export */
 export type InlinePayload = {
   /** Pack name shown in the modpack list, ending in `.inline` */
-  pack?: string,
+  pack?: string;
   /** Base64 of the gzip-compressed processed ruleset */
-  rul: string,
+  rul: string;
   /**
    * The language an unsplit page opens in.
    *
@@ -128,7 +128,7 @@ export type InlinePayload = {
    * made for Russian readers starts in Russian. A split export has no such
    * field: its page carries English only and always starts there.
    */
-  lang?: string,
+  lang?: string;
   /**
    * Language name -> the script carrying its strings.
    *
@@ -136,12 +136,12 @@ export type InlinePayload = {
    * carries English alone, so every other language is fetched when it is picked
    * for the first time. English is absent: it is always already there.
    */
-  packs?: { [name: string]: string },
+  packs?: { [name: string]: string };
   /**
    * Ruleset-relative path -> base64 of the gzipped bytes, for the raw data
    * files the pedia reads instead of showing. Absent when there are none.
    */
-  data?: { [path: string]: string },
+  data?: { [path: string]: string };
   /**
    * Set by `xpedia-cli --serve`, which writes this page to preview a folder.
    *
@@ -149,13 +149,12 @@ export type InlinePayload = {
    * thing that tells the two apart: a served pack's images stay in the served
    * folder, while an exported page's sit beside the file.
    */
-  served?: boolean,
+  served?: boolean;
 };
 
 function readInlinePayload(): InlinePayload | undefined {
-  let payload = (window as any).xpedia;
-  if (!payload || typeof payload != "object" || typeof payload.rul != "string")
-    return;
+  const payload = (window as any).xpedia;
+  if (!payload || typeof payload != "object" || typeof payload.rul != "string") return;
   return payload;
 }
 
@@ -166,7 +165,7 @@ export function inlinePayload(): InlinePayload | undefined {
 
 /** The language an unsplit page was exported in, when it was asked for one */
 export function inlinePageLanguage() {
-  let lang = readInlinePayload()?.lang;
+  const lang = readInlinePayload()?.lang;
   return typeof lang == "string" && lang ? lang : undefined;
 }
 
@@ -175,9 +174,8 @@ export function inlinePageLanguage() {
  * to the page. Absent for an ordinary export, whose page carries every language.
  */
 export function inlineLanguagePacks() {
-  let packs = readInlinePayload()?.packs;
-  if (!packs || typeof packs != "object" || !Object.keys(packs).length)
-    return;
+  const packs = readInlinePayload()?.packs;
+  if (!packs || typeof packs != "object" || !Object.keys(packs).length) return;
   return packs;
 }
 
@@ -186,9 +184,8 @@ export function inlineLanguagePacks() {
  * which the page itself carries.
  */
 export function inlineLanguageNames() {
-  let packs = inlineLanguagePacks();
-  if (!packs)
-    return;
+  const packs = inlineLanguagePacks();
+  if (!packs) return;
   return [defaultLanguage, ...Object.keys(packs)];
 }
 
@@ -202,14 +199,13 @@ export function inlineLanguageNames() {
  * carries none, so a caller can fall through to reading them from the pack.
  */
 export function inlineDataFiles() {
-  let data = readInlinePayload()?.data;
-  if (!data || typeof data != "object" || !Object.keys(data).length)
-    return;
+  const data = readInlinePayload()?.data;
+  if (!data || typeof data != "object" || !Object.keys(data).length) return;
   return data;
 }
 
 /** Language packs already loaded or loading, so a second click reuses them */
-let langPackLoads = new Map<string, Promise<{ [id: string]: string } | undefined>>();
+const langPackLoads = new Map<string, Promise<{ [id: string]: string } | undefined>>();
 
 /**
  * Loads a language pack and returns the strings it carries.
@@ -221,29 +217,26 @@ let langPackLoads = new Map<string, Promise<{ [id: string]: string } | undefined
  * to nothing and is not remembered, so a later attempt starts over.
  */
 export function loadLanguagePack(lang: string): Promise<{ [id: string]: string } | undefined> {
-  let path = inlineLanguagePacks()?.[lang];
-  if (!path)
-    return Promise.resolve(undefined);
+  const path = inlineLanguagePacks()?.[lang];
+  if (!path) return Promise.resolve(undefined);
 
-  let started = langPackLoads.get(lang);
-  if (started)
-    return started;
+  const started = langPackLoads.get(lang);
+  if (started) return started;
 
-  let load = new Promise<{ [id: string]: string } | undefined>(resolve => {
-    let script = document.createElement("script");
+  const load = new Promise<{ [id: string]: string } | undefined>((resolve) => {
+    const script = document.createElement("script");
     script.src = path;
     script.onload = () => resolve((window as any).xpediaLangPacks?.[lang]);
     script.onerror = () => resolve(undefined);
     document.head.appendChild(script);
-  }).then(strings => {
+  }).then((strings) => {
     // A pack that did not arrive leaves nothing behind: the tag is dropped so a
     // retry starts clean, and the failure is not remembered, so a later click
     // tries again rather than being stuck on it
     if (!strings) {
       langPackLoads.delete(lang);
-      for (let tag of document.querySelectorAll("script[src]"))
-        if (tag.getAttribute("src") == path)
-          tag.remove();
+      for (const tag of document.querySelectorAll("script[src]"))
+        if (tag.getAttribute("src") == path) tag.remove();
     }
     return strings;
   });
@@ -262,13 +255,12 @@ let inlineChecked = false;
 let inlineStat: PackStat | undefined;
 
 function inlineSourceOf(payload: InlinePayload): PackSource {
-  if (inlineSource)
-    return inlineSource;
+  if (inlineSource) return inlineSource;
 
-  let pack = payload.pack || fallbackInlineName;
+  const pack = payload.pack || fallbackInlineName;
   // Base64 carries 3 bytes per 4 characters, so the compressed size is known
   // without decoding anything. Enough for a storage-size column.
-  let gzipSize = Math.floor(payload.rul.length * 3 / 4);
+  const gzipSize = Math.floor((payload.rul.length * 3) / 4);
   inlineStat = { pack, archive: 0, assets: 0, ruls: gzipSize };
 
   // Decompress once and share the text: the ruleset is the same every time it
@@ -276,7 +268,7 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
   let gzipData: Uint8Array | undefined;
   let rulTextPromise: Promise<string | undefined> | undefined;
 
-  let gzipBytes = () => {
+  const gzipBytes = () => {
     gzipData ??= new Uint8Array(base64ToArrayBuffer(payload.rul));
     return gzipData;
   };
@@ -297,12 +289,12 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
           return undefined;
         }
       })();
-      let text = await rulTextPromise;
+      const text = await rulTextPromise;
       return text ? JSON.parse(text) : undefined;
     },
     // Images are not in the payload, they live in the game folder
     imgData: async () => undefined,
-    imgUrl: path => "./" + gameRelativePath(path),
+    imgUrl: (path) => "./" + gameRelativePath(path),
     // The images are already files beside the page, put there by whatever made
     // it, so there is nothing to bundle: reading them back through the browser
     // would copy hundreds of megabytes only to write the same bytes again. A
@@ -315,14 +307,13 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     serveExport: payload.served ? { url: "./xpedia-export" } : undefined,
     async fileData(path) {
       try {
-        let response = await fetch("./" + gameRelativePath(path));
-        if (!response.ok)
-          return;
+        const response = await fetch("./" + gameRelativePath(path));
+        if (!response.ok) return;
         return new Uint8Array(await response.arrayBuffer());
-      } catch (e) {
+      } catch {
         return;
       }
-    }
+    },
   };
 
   return inlineSource;
@@ -332,9 +323,8 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
 export function inlinePack(): PackSource | undefined {
   if (!inlineChecked) {
     inlineChecked = true;
-    let payload = readInlinePayload();
-    if (payload)
-      inlineSourceOf(payload);
+    const payload = readInlinePayload();
+    if (payload) inlineSourceOf(payload);
   }
   return inlineSource;
 }
@@ -351,11 +341,9 @@ export function inlinePackStats(): PackStat | undefined {
 
 /** The source for a pack name, whether it lives in the database or inlined */
 export function packSource(pack?: string): PackSource | undefined {
-  if (!pack)
-    return;
-  let inline = inlinePack();
-  if (inline && inline.pack == pack)
-    return inline;
+  if (!pack) return;
+  const inline = inlinePack();
+  if (inline && inline.pack == pack) return inline;
   return databaseSource(pack);
 }
 
@@ -370,62 +358,57 @@ export function isPermanentPack(pack?: string) {
  * database changes.
  */
 export function allPackStats(): PackStat[] {
-  let db = state.files ?? [];
-  let inline = inlinePack();
-  if (!inline)
-    return db;
+  const db = state.files ?? [];
+  const inline = inlinePack();
+  if (!inline) return db;
   // The database can never contain the inlined pack, but guard anyway in case
   // an export named its pack like an uploaded archive
-  return [...db.filter(p => p.pack != inline.pack), inlineStat!];
+  return [...db.filter((p) => p.pack != inline.pack), inlineStat!];
 }
 
 /** Loads a pack's ruleset into the app, from whichever source owns it */
 export async function loadPackRul(pack: string) {
-  let source = packSource(pack);
-  if (!source)
-    return;
+  const source = packSource(pack);
+  if (!source) return;
 
-  let processed = await source.rulData();
-  if (!processed)
-    return;
+  const processed = await source.rulData();
+  if (!processed) return;
 
-  let rul = new Ruleset(processed);
-  let pageLang = source.kind == "inline" ? inlinePageLanguage() : undefined;
+  const rul = new Ruleset(processed);
+  const pageLang = source.kind == "inline" ? inlinePageLanguage() : undefined;
   // A split page carries English alone and names a script for each other
   // language, so those are candidates the browser's locale can also pick.
-  let packs = source.kind == "inline" ? Object.keys(inlineLanguagePacks() ?? {}) : undefined;
-  let wanted = idb.applySavedLanguage(rul, pageLang, packs);
+  const packs = source.kind == "inline" ? Object.keys(inlineLanguagePacks() ?? {}) : undefined;
+  const wanted = idb.applySavedLanguage(rul, pageLang, packs);
   // A language the page cannot show yet has to be fetched; this is what makes a
   // shared split page open in the reader's language instead of in English. A
   // failed load falls back to English, which every page carries.
   let lang = rul.langName ?? undefined;
   if (wanted && !rul.langs[wanted]) {
-    let strings = await loadLanguagePack(wanted);
-    if (strings)
-      rul.langs[wanted] = strings;
-    if (rul.selectLang(strings ? wanted : defaultLanguage))
-      lang = rul.langName ?? lang;
+    const strings = await loadLanguagePack(wanted);
+    if (strings) rul.langs[wanted] = strings;
+    if (rul.selectLang(strings ? wanted : defaultLanguage)) lang = rul.langName ?? lang;
   }
   update({ rul, packName: pack, lang });
   return processed;
 }
 
 /** Image bytes or URL for the currently shown pack */
-export async function resolveImage(path: string): Promise<{ data?: Uint8Array, url?: string } | undefined> {
-  let source = packSource(state.packName);
+export async function resolveImage(
+  path: string,
+): Promise<{ data?: Uint8Array; url?: string } | undefined> {
+  const source = packSource(state.packName);
 
   // Inlined packs point at the game folder instead of carrying bytes
-  let url = source?.imgUrl(path);
-  if (url)
-    return { url };
+  const url = source?.imgUrl(path);
+  if (url) return { url };
 
-  let record = await idb.getImg(path);
-  if (record?.data)
-    return { data: record.data };
+  const record = await idb.getImg(path);
+  if (record?.data) return { data: record.data };
 }
 
 /** Data files already decoded, keyed by the path the payload spells them with */
-let dataLoads = new Map<string, Promise<Uint8Array | undefined>>();
+const dataLoads = new Map<string, Promise<Uint8Array | undefined>>();
 
 /**
  * Bytes of a raw data file of the shown pack — the globe's `WORLD.DAT` so far.
@@ -440,23 +423,20 @@ let dataLoads = new Map<string, Promise<Uint8Array | undefined>>();
  * found through `resolveImage`.
  */
 export function inlineDataFile(path: string): Promise<Uint8Array | undefined> {
-  let payload = readInlinePayload();
-  if (!payload)
-    return Promise.resolve(undefined);
+  const payload = readInlinePayload();
+  if (!payload) return Promise.resolve(undefined);
 
-  let encoded = payload.data?.[path.replace(/\\/g, "/").toLowerCase()];
-  if (!encoded)
-    return Promise.resolve(undefined);
+  const encoded = payload.data?.[path.replace(/\\/g, "/").toLowerCase()];
+  if (!encoded) return Promise.resolve(undefined);
 
-  let started = dataLoads.get(path);
-  if (started)
-    return started;
+  const started = dataLoads.get(path);
+  if (started) return started;
 
   // Decoding is deferred to the first ask: the map is one page of many, and a
   // reader who never opens it should not pay for the gunzip
-  let load = (async () => {
+  const load = (async () => {
     try {
-      let gzipped = new Uint8Array(base64ToArrayBuffer(encoded));
+      const gzipped = new Uint8Array(base64ToArrayBuffer(encoded));
       return fflate.gunzipSync(gzipped);
     } catch (e) {
       console.error(`Can't read the inlined ${path}`, e);

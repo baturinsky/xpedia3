@@ -1,6 +1,6 @@
-import Ruleset from "./rul/Ruleset";
-import { Article } from './rul/Article';
-import { Section } from './rul/Section';
+import type { Article } from "./rul/Article";
+import type Ruleset from "./rul/Ruleset";
+import type { Section } from "./rul/Section";
 
 export type PageName = "files" | "main";
 export type Theme = "light" | "dark";
@@ -18,7 +18,7 @@ export const dbVersion = 11;
  */
 export type Selections = {
   /** Id of the region chosen on a trajectory map, see `Ruleset.regionsFor` */
-  region?: string
+  region?: string;
   /**
    * Region pinned on the map of the regions, so its outline stays lit.
    *
@@ -27,20 +27,20 @@ export type Selections = {
    * much lighter act — it only lights a shape up. Sharing the field would have
    * the next trajectory page open on a region chosen for an unrelated reason.
    */
-  regionsMap?: string
+  regionsMap?: string;
   /** Pose of the armor sprite sheet, see `UnitPose` */
-  pose?: string
+  pose?: string;
   /** Facing of the armor sprite, 0..7 as `UNIT_DIRECTIONS` numbers them */
-  direction?: number
+  direction?: number;
   /** Facing of a tank's gun, which turns on its own */
-  turretDirection?: number
+  turretDirection?: number;
   /** Step held of the sprite animation, 0 meaning "play it" */
-  frame?: number
-}
+  frame?: number;
+};
 
-export type SelectionKey = keyof Selections
+export type SelectionKey = keyof Selections;
 
-export let state = {
+export const state = {
   /** File unpacking status */
   slowProcessStatus: "",
   /** True once the status describes a finished load rather than work in progress */
@@ -53,28 +53,24 @@ export let state = {
   slowProcessProgress: undefined as number | undefined,
   /** Short description of the current stage, e.g. "Unpacking" */
   slowProcessStage: "",
-  files: [] as
-    {
-      pack: string,
-      assets: number,
-      ruls: number,
-      archive: number
-    }[]
-  ,
+  files: [] as {
+    pack: string;
+    assets: number;
+    ruls: number;
+    archive: number;
+  }[],
   /**
    * Every pack the app can show: `files` plus the inlined pack of an exported
    * HTML page, if there is one. Derived, see `updateFileStats`.
    */
-  packs: [] as
-    {
-      pack: string,
-      assets: number,
-      ruls: number,
-      archive: number,
-      /** Pack installed before storage buckets, so it never expires */
-      legacy?: boolean
-    }[]
-  ,
+  packs: [] as {
+    pack: string;
+    assets: number;
+    ruls: number;
+    archive: number;
+    /** Pack installed before storage buckets, so it never expires */
+    legacy?: boolean;
+  }[],
   /** The name of the file (modpack) currently watched */
   packName: undefined as string | undefined,
   section: undefined as Section | undefined,
@@ -165,7 +161,7 @@ export let state = {
    * Question asked before an irreversible action, e.g. deleting a modpack,
    * see `askConfirm` and `ConfirmDialog`
    */
-  confirmRequest: undefined as { message: string, action: () => void } | undefined
+  confirmRequest: undefined as { message: string; action: () => void } | undefined,
 };
 
 /** Settings that used to live in the separate `localStorage.xpediaSettings` entry */
@@ -177,11 +173,10 @@ Object.assign(state, load());
 // The view switch is now hidden unless the keyword reveals it. A user who had
 // already left the developer view on must not be trapped in it with no way back,
 // so treat that as already unlocked.
-if (state.devView)
-  state.devUnlocked = true;
+if (state.devView) state.devUnlocked = true;
 
 /** Keys of `state` persisted to localStorage */
-export let savedFields = [
+export const savedFields = [
   "packName",
   "seeSide",
   "hugeFont",
@@ -195,7 +190,7 @@ export let savedFields = [
   "selection",
 ] as const;
 
-export type StoreType = typeof state
+export type StoreType = typeof state;
 
 /**
  * The option a picker should show: the reader's remembered choice when the page
@@ -214,8 +209,11 @@ export type StoreType = typeof state
  * explicitly is a choice and stays one; a reader who never opened the picker has
  * chosen nothing, so that control's default is still free to change.
  */
-export function remembered<T>(options: readonly T[], matches: (option: T) => boolean,
-  fallback: T): T {
+export function remembered<T>(
+  options: readonly T[],
+  matches: (option: T) => boolean,
+  fallback: T,
+): T {
   return options.find(matches) ?? fallback;
 }
 
@@ -234,19 +232,16 @@ export function rememberSelection<K extends SelectionKey>(key: K, value: Selecti
  * to its default and the reader can choose again.
  */
 function readSelection(raw: unknown): Selections {
-  let out: Selections = {};
-  if (raw == null || typeof raw != "object" || Array.isArray(raw))
-    return out;
+  const out: Selections = {};
+  if (raw == null || typeof raw != "object" || Array.isArray(raw)) return out;
   // A stored blob is plain JSON data with no declared shape, so it is read as a
   // loose record here; each field is then checked against its own type below
-  let stored = raw as { [key: string]: unknown };
-  for (let key of ["region", "regionsMap", "pose"] as const)
-    if (typeof stored[key] == "string" && stored[key])
-      out[key] = stored[key] as string;
-  for (let key of ["direction", "turretDirection", "frame"] as const) {
-    let value = stored[key];
-    if (typeof value == "number" && Number.isInteger(value) && value >= 0)
-      out[key] = value;
+  const stored = raw as { [key: string]: unknown };
+  for (const key of ["region", "regionsMap", "pose"] as const)
+    if (typeof stored[key] == "string" && stored[key]) out[key] = stored[key] as string;
+  for (const key of ["direction", "turretDirection", "frame"] as const) {
+    const value = stored[key];
+    if (typeof value == "number" && Number.isInteger(value) && value >= 0) out[key] = value;
   }
   return out;
 }
@@ -259,12 +254,10 @@ function readSelection(raw: unknown): Selections {
  * keeps the blob from growing by one key per language per pack.
  */
 function readExportLanguages(raw: unknown): { [lang: string]: boolean } {
-  let out: { [lang: string]: boolean } = {};
-  if (raw == null || typeof raw != "object" || Array.isArray(raw))
-    return out;
-  for (let [lang, wanted] of Object.entries(raw as { [key: string]: unknown }))
-    if (wanted === false)
-      out[lang] = false;
+  const out: { [lang: string]: boolean } = {};
+  if (raw == null || typeof raw != "object" || Array.isArray(raw)) return out;
+  for (const [lang, wanted] of Object.entries(raw as { [key: string]: unknown }))
+    if (wanted === false) out[lang] = false;
   return out;
 }
 
@@ -272,8 +265,7 @@ function readExportLanguages(raw: unknown): { [lang: string]: boolean } {
 export let slowProcessCancelRequested = false;
 /** Abort the running load/unpack, best effort: long stages check this flag */
 export function requestCancelSlowProcess() {
-  if (state.slowProcessDone)
-    return;
+  if (state.slowProcessDone) return;
   slowProcessCancelRequested = true;
   update({ slowProcessStatus: "Cancelling...", slowProcessCancellable: false });
 }
@@ -294,18 +286,16 @@ export let article: Article | undefined, section: Section | undefined;
  * reason as every later one.
  */
 let storeSnapshot: StoreType = { ...state };
-let onUpdate = new Set<Function>();
+const onUpdate = new Set<Function>();
 let savedJson: string | null = null;
 
 function save() {
   // Writing on every update (including image cache fills) is wasteful, so only
   // persist when one of the saved fields actually changed.
-  let data: { [key: string]: unknown } = {};
-  for (let key of savedFields)
-    data[key] = state[key];
-  let json = JSON.stringify(data);
-  if (json == savedJson)
-    return;
+  const data: { [key: string]: unknown } = {};
+  for (const key of savedFields) data[key] = state[key];
+  const json = JSON.stringify(data);
+  if (json == savedJson) return;
   savedJson = json;
   localStorage.xpedia3 = json;
 }
@@ -327,13 +317,14 @@ function load(): StoredSettings {
     console.warn("Can't parse saved settings", e);
     data = {};
   }
-  if (data == null || typeof data != "object" || Array.isArray(data))
-    data = {};
+  if (data == null || typeof data != "object" || Array.isArray(data)) data = {};
 
   // The three old sort flags are now one. Turn the new flag on if the user had
   // any of them enabled and has not saved a choice for it yet.
-  if (data.alphabeticalSort === undefined
-    && (data.ordered || data.sortArticles || data.linksPageSorted))
+  if (
+    data.alphabeticalSort === undefined &&
+    (data.ordered || data.sortArticles || data.linksPageSorted)
+  )
     data.alphabeticalSort = true;
 
   // `developerMode` meant "show the developer view" before the view switch got
@@ -356,14 +347,12 @@ function load(): StoredSettings {
   // Migrate settings saved by the Svelte version, without overwriting
   // anything the new version has already stored.
   try {
-    let legacy: StoredSettings = JSON.parse(localStorage[legacySettingsKey] ?? "null");
+    const legacy: StoredSettings = JSON.parse(localStorage[legacySettingsKey] ?? "null");
     if (legacy && typeof legacy == "object" && !Array.isArray(legacy)) {
-      for (let key of legacyFields) {
-        if (data[key] === undefined && legacy[key] !== undefined)
-          data[key] = legacy[key];
+      for (const key of legacyFields) {
+        if (data[key] === undefined && legacy[key] !== undefined) data[key] = legacy[key];
       }
-      if (data.alphabeticalSort === undefined && legacy.sortArticles)
-        data.alphabeticalSort = true;
+      if (data.alphabeticalSort === undefined && legacy.sortArticles) data.alphabeticalSort = true;
     }
   } catch (e) {
     console.warn("Can't parse legacy settings", e);
@@ -377,7 +366,7 @@ export const externalStore = {
     // The wrapper is what is remembered, so the same value is removed again:
     // deleting the bare `callback` would delete nothing, and every unmount would
     // leave one more listener behind
-    let listener = () => {
+    const listener = () => {
       callback();
     };
     onUpdate.add(listener);
@@ -385,9 +374,8 @@ export const externalStore = {
       onUpdate.delete(listener);
     };
   },
-  getSnapshot: () => storeSnapshot
+  getSnapshot: () => storeSnapshot,
 };
-
 
 /**
  * Fields the article never reads, so changing one cannot change what it draws.
@@ -411,7 +399,11 @@ export const externalStore = {
  * a render at worst, never a bug.
  */
 const articleBlindFields = new Set<string>([
-  "theme", "seeSide", "showDropdown", "showPacksDropdown", "showLanguagesDropdown",
+  "theme",
+  "seeSide",
+  "showDropdown",
+  "showPacksDropdown",
+  "showLanguagesDropdown",
 ]);
 
 /**
@@ -424,41 +416,43 @@ export let articleRevision = 0;
 export function update(a?: Partial<StoreType>) {
   // Read before the assignment, so the test sees what the caller actually asked
   // for rather than the merged state
-  let changed = a ? Object.keys(a) : undefined;
-  if (a)
-    Object.assign(state, a);
+  const changed = a ? Object.keys(a) : undefined;
+  if (a) Object.assign(state, a);
   state.count++;
   storeSnapshot = { ...state };
   article = state.article;
   section = state.section;
   // A change the article cannot see leaves it exactly as it was, so its element
   // keeps its identity and React skips that subtree altogether
-  if (!changed || !changed.every(key => articleBlindFields.has(key)))
-    articleRevision++;
+  if (!changed || !changed.every((key) => articleBlindFields.has(key))) articleRevision++;
   save();
-  onUpdate.forEach(f => f());
+  onUpdate.forEach((f) => {
+    f();
+  });
 }
 
 /** Toggle/replace the "revealed" (raw language keys) mode */
 export function reveal(on?: boolean) {
-  if (state.revealLock)
-    return;
-  let value = on ?? !state.revealed;
-  if (value !== state.revealed)
-    update({ revealed: value });
+  if (state.revealLock) return;
+  const value = on ?? !state.revealed;
+  if (value !== state.revealed) update({ revealed: value });
 }
 
 /** Lock the "revealed" mode on/off, mirrors old `revealLock` store helper */
 export function revealLock(on?: boolean) {
-  let locked = on ?? !state.revealLock;
+  const locked = on ?? !state.revealLock;
   update({ revealLock: locked, revealed: locked });
 }
 
 /** Dismisses the load status window without reporting anything */
 export function closeStatus() {
   update({
-    slowProcessStatus: "", slowProcessStage: "", slowProcessProgress: undefined,
-    slowProcessDone: false, slowProcessError: false, slowProcessCancellable: false
+    slowProcessStatus: "",
+    slowProcessStage: "",
+    slowProcessProgress: undefined,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: false,
   });
 }
 
@@ -472,13 +466,12 @@ export function askConfirm(message: string, action: () => void) {
 
 /** Closes the confirmation window without running its action */
 export function cancelConfirm() {
-  if (state.confirmRequest)
-    update({ confirmRequest: undefined });
+  if (state.confirmRequest) update({ confirmRequest: undefined });
 }
 
 /** Runs the confirmed action and closes the window */
 export function acceptConfirm() {
-  let request = state.confirmRequest;
+  const request = state.confirmRequest;
   update({ confirmRequest: undefined });
   request?.action();
 }
@@ -489,7 +482,7 @@ export function acceptConfirm() {
  * window: the message is the report of what went wrong.
  */
 export function autoCloseStatus(delay = 1000) {
-  let expected = state.slowProcessStatus;
+  const expected = state.slowProcessStatus;
   setTimeout(() => {
     if (state.slowProcessStatus === expected && state.slowProcessDone && !state.slowProcessError)
       closeStatus();

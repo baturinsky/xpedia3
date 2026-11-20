@@ -28,18 +28,17 @@ export const HEIGHT = 1024;
  * legs flown at the same speed carry dashes of different length depending on
  * where on the globe they happen to be.
  */
-const KNOTS_PER_TEN_MINUTES = (WIDTH / 21600) / 6;
+const KNOTS_PER_TEN_MINUTES = WIDTH / 21600 / 6;
 
 /** A leg's dash and gap, in map units, from its speed */
 export function legDash(speedPercent?: number, craftKnots?: number) {
-  if (speedPercent == null || !craftKnots || craftKnots <= 0)
-    return undefined;
-  let knots = craftKnots * speedPercent / 100;
+  if (speedPercent == null || !craftKnots || craftKnots <= 0) return undefined;
+  const knots = (craftKnots * speedPercent) / 100;
   // A dash is ten minutes of flight, but a slow craft would produce a dash too
   // short to see and a fast one a dash longer than the gap between two stops, so
   // the length is kept within a readable band. The band is wide enough that the
   // ordering by speed always survives.
-  let dash = Math.min(90, Math.max(5, knots * KNOTS_PER_TEN_MINUTES));
+  const dash = Math.min(90, Math.max(5, knots * KNOTS_PER_TEN_MINUTES));
   // The gap scales with the dash so a fast leg does not become a solid line
   return `${dash.toFixed(1)} ${(dash * 0.34).toFixed(1)}`;
 }
@@ -54,8 +53,8 @@ export function legDash(speedPercent?: number, craftKnots?: number) {
 const altitudeWidths = [11, 8.5, 6.5, 4.5, 3];
 
 export function legWidth(altitude?: number) {
-  let n = Math.round(Number(altitude));
-  return altitudeWidths[isFinite(n) ? Math.min(4, Math.max(0, n)) : 2];
+  const n = Math.round(Number(altitude));
+  return altitudeWidths[Number.isFinite(n) ? Math.min(4, Math.max(0, n)) : 2];
 }
 
 /**
@@ -81,14 +80,22 @@ export const STOP_RADIUS = 14;
  * under it, the legend and the flight plan — so the legend is a picture of the
  * thing it explains rather than a second convention.
  */
-export function stopMarker(at: { x: number, y: number }, size: number, lands: boolean, className: string) {
-  if (!lands)
-    return <circle className={className} cx={at.x} cy={at.y} r={size} />;
+export function stopMarker(
+  at: { x: number; y: number },
+  size: number,
+  lands: boolean,
+  className: string,
+) {
+  if (!lands) return <circle className={className} cx={at.x} cy={at.y} r={size} />;
   // A square is sized to cover about the same area as the circle it replaces,
   // so a landing does not look bigger merely for being square
-  let half = size * 0.88;
-  let pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
-    .map(([sx, sy]) => `${(at.x + sx * half).toFixed(1)},${(at.y + sy * half).toFixed(1)}`);
+  const half = size * 0.88;
+  const pts = [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([sx, sy]) => `${(at.x + sx * half).toFixed(1)},${(at.y + sy * half).toFixed(1)}`);
   return <polygon className={className + " region-stop-land"} points={pts.join(" ")} />;
 }
 
@@ -111,26 +118,32 @@ export function stopMarker(at: { x: number, y: number }, size: number, lands: bo
  * its two markers gets no arrow at all — there is nothing on screen to put one on,
  * and the stops at either end already say where the leg goes.
  */
-export function arrowAt(a: { x: number, y: number }, b: { x: number, y: number },
-  scale = 1, keeps = 0) {
-  let dx = b.x - a.x, dy = b.y - a.y;
-  let length = Math.hypot(dx, dy);
-  if (length < 1)
-    return undefined;
-  let ux = dx / length, uy = dy / length;
-  let size = 7 * scale, half = 4.2 * scale;
+export function arrowAt(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  scale = 1,
+  keeps = 0,
+) {
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return undefined;
+  const ux = dx / length,
+    uy = dy / length;
+  const size = 7 * scale,
+    half = 4.2 * scale;
   // Distance from the far end to the tip. Not near the end is preferred; not
   // inside the marker is required.
-  let margin = 2 * scale + size;
-  let fromEnd = Math.max(length * 0.2, keeps + margin);
+  const margin = 2 * scale + size;
+  const fromEnd = Math.max(length * 0.2, keeps + margin);
   // Even the point of the arrow would be inside a marker, so there is no clear
   // stretch of line to mark. A leg this short is two markers with a sliver
   // between them; an arrow there would only be a smudge on a marker.
-  if (fromEnd > length / 2)
-    return undefined;
-  let cx = b.x - ux * fromEnd, cy = b.y - uy * fromEnd;
-  let tip = [cx + ux * size, cy + uy * size];
-  let backL = [cx - ux * size * 0.6 - uy * half, cy - uy * size * 0.6 + ux * half];
-  let backR = [cx - ux * size * 0.6 + uy * half, cy - uy * size * 0.6 - ux * half];
-  return [tip, backL, backR].map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  if (fromEnd > length / 2) return undefined;
+  const cx = b.x - ux * fromEnd,
+    cy = b.y - uy * fromEnd;
+  const tip = [cx + ux * size, cy + uy * size];
+  const backL = [cx - ux * size * 0.6 - uy * half, cy - uy * size * 0.6 + ux * half];
+  const backR = [cx - ux * size * 0.6 + uy * half, cy - uy * size * 0.6 - ux * half];
+  return [tip, backL, backR].map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
 }

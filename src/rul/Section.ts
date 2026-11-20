@@ -1,5 +1,5 @@
-import { rul } from './Ruleset';
-import { Article } from './Article';
+import { Article } from "./Article";
+import { rul } from "./Ruleset";
 
 export class Section {
   _articles: Article[] = [];
@@ -20,13 +20,12 @@ export class Section {
    * a pack is being loaded, so a cached length is enough to tell whether the
    * cached order is still current — rebuilding beats tracking every `add()`.
    */
-  _sorted: { [langName: string]: { articles: Article[], count: number } } = {};
+  _sorted: { [langName: string]: { articles: Article[]; count: number } } = {};
 
   articles(alphabetical = false) {
-    if (!alphabetical)
-      return this._articles;
+    if (!alphabetical) return this._articles;
 
-    let langName = rul.langName ?? "";
+    const langName = rul.langName ?? "";
     let cached = this._sorted[langName];
     // A section with no cache for this language, or one whose article list has
     // grown since the sort, has to be sorted again
@@ -38,7 +37,10 @@ export class Section {
     return cached.articles;
   }
 
-  constructor(public id: string, xpediaOwn = false) {
+  constructor(
+    public id: string,
+    xpediaOwn = false,
+  ) {
     rul.sections[id] = this;
 
     if (xpediaOwn) {
@@ -80,12 +82,11 @@ export class Section {
    * sections keep the pack's order either way. See `Ruleset.sectionOrder`.
    */
   adjacentSection(delta: number, alphabetical = false) {
-    let as = Section.all(alphabetical);
-    let ind = as.indexOf(this);
+    const as = Section.all(alphabetical);
+    const ind = as.indexOf(this);
     for (let step = 1; step <= as.length; step++) {
-      let next = as[(((ind + delta * step) % as.length) + as.length) % as.length];
-      if (next.articles(alphabetical).length)
-        return next;
+      const next = as[(((ind + delta * step) % as.length) + as.length) % as.length];
+      if (next.articles(alphabetical).length) return next;
     }
     return this;
   }

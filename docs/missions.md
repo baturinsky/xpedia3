@@ -12,11 +12,11 @@ its own comments disagree, the engine wins and the comment is called out.
 
 There are **three layers**, and each answers a different question:
 
-| Layer | File | Question it answers |
-| --- | --- | --- |
-| Mission script | `missionScripts.rul` | *When* is a mission created, *where* does it happen |
-| Alien mission | `alienMissions.rul` | *What* the aliens are doing: which UFOs, in what order, with what objective |
-| Trajectory + region | `ufoTrajectories.rul`, `regions.rul` | *How* the UFO flies, and *which patch of Earth* it uses |
+| Layer               | File                                 | Question it answers                                                         |
+| ------------------- | ------------------------------------ | --------------------------------------------------------------------------- |
+| Mission script      | `missionScripts.rul`                 | _When_ is a mission created, _where_ does it happen                         |
+| Alien mission       | `alienMissions.rul`                  | _What_ the aliens are doing: which UFOs, in what order, with what objective |
+| Trajectory + region | `ufoTrajectories.rul`, `regions.rul` | _How_ the UFO flies, and _which patch of Earth_ it uses                     |
 
 Supporting files hang off that spine:
 
@@ -59,17 +59,17 @@ Two things are worth holding onto from the start:
 
 `GeoscapeState::determineAlienMissions()` (`GeoscapeState.cpp:3755`) is called:
 
-| Trigger | Where |
-| --- | --- |
-| Every game month | `time1Month()` (`:2916`) |
-| Once at campaign start, when `MonthsPassed == -1` and the first base has a name | `:763` |
-| When a geoscape event fires, for **adhoc** scripts only | `GeoscapeEventState.cpp:142` |
+| Trigger                                                                         | Where                        |
+| ------------------------------------------------------------------------------- | ---------------------------- |
+| Every game month                                                                | `time1Month()` (`:2916`)     |
+| Once at campaign start, when `MonthsPassed == -1` and the first base has a name | `:763`                       |
+| When a geoscape event fires, for **adhoc** scripts only                         | `GeoscapeEventState.cpp:142` |
 
 At the start of the run it also executes `arcScripts` (higher-level progression),
 which is why arc scripts are documented as "run just before mission scripts".
 
 It also snapshots the data the filters need: current month, last month's score,
-and the funds the player *will* have this month
+and the funds the player _will_ have this month
 (`funds + countryFunding + performanceBonus - baseMaintenance`).
 
 ### 2.2 The four filter passes
@@ -84,14 +84,14 @@ The firing event's `adhocMissionScriptTags` must overlap the script's own
 
 **Pass 1 — time, budget and difficulty**
 
-| Field | Condition |
-| --- | --- |
-| `firstMonth` | `firstMonth <= monthsPassed` |
-| `lastMonth` | `lastMonth >= monthsPassed`, or `-1` for no limit |
-| `maxRuns` | `-1`, or `maxRuns > strategy.getMissionsRun(varName)` |
-| `minScore` / `maxScore` | last month's rating (not checked in month 0) |
-| `minFunds` / `maxFunds` | this month's projected funds (not checked in month 0) |
-| `minDifficulty` / `maxDifficulty` | player difficulty, 0..4 |
+| Field                             | Condition                                             |
+| --------------------------------- | ----------------------------------------------------- |
+| `firstMonth`                      | `firstMonth <= monthsPassed`                          |
+| `lastMonth`                       | `lastMonth >= monthsPassed`, or `-1` for no limit     |
+| `maxRuns`                         | `-1`, or `maxRuns > strategy.getMissionsRun(varName)` |
+| `minScore` / `maxScore`           | last month's rating (not checked in month 0)          |
+| `minFunds` / `maxFunds`           | this month's projected funds (not checked in month 0) |
+| `minDifficulty` / `maxDifficulty` | player difficulty, 0..4                               |
 
 Note `firstMonth: 0` = the "month -1" start, and `lastMonth: 0` = run once.
 
@@ -100,27 +100,27 @@ Note `firstMonth: 0` = the "month -1" start, and `lastMonth: 0` = run once.
 All of these are `map<string, bool>`: the value is what you want the world to
 look like. Any mismatch kills the script.
 
-| Field | Checks |
-| --- | --- |
-| `researchTriggers` | `isResearched(topic) == value` |
-| `itemTriggers` | item present in **base stores** |
-| `facilityTriggers` | facility built in **any** base |
-| `baseFunctionTriggers` | base service enabled (e.g. `STR_HYPER_WAVE_DECODER`) |
-| `soldierTypeTriggers` | soldier type hired anywhere |
-| `xcomBaseInRegionTriggers` | a base located in that region |
-| `xcomBaseInCountryTriggers` | a base located in that country |
-| `pactCountryTriggers` | country has signed a pact |
+| Field                       | Checks                                               |
+| --------------------------- | ---------------------------------------------------- |
+| `researchTriggers`          | `isResearched(topic) == value`                       |
+| `itemTriggers`              | item present in **base stores**                      |
+| `facilityTriggers`          | facility built in **any** base                       |
+| `baseFunctionTriggers`      | base service enabled (e.g. `STR_HYPER_WAVE_DECODER`) |
+| `soldierTypeTriggers`       | soldier type hired anywhere                          |
+| `xcomBaseInRegionTriggers`  | a base located in that region                        |
+| `xcomBaseInCountryTriggers` | a base located in that country                       |
+| `pactCountryTriggers`       | country has signed a pact                            |
 
-Plus the counters, which use the *values* of `missionVarName` / `missionMarkerName`
+Plus the counters, which use the _values_ of `missionVarName` / `missionMarkerName`
 rather than a boolean:
 
-| Field | Condition |
-| --- | --- |
+| Field        | Condition                                                                              |
+| ------------ | -------------------------------------------------------------------------------------- |
 | `counterMin` | `>=` missions run under `missionVarName`, or `>=` `save->getLastId(missionMarkerName)` |
-| `counterMax` | `<=` the same, `-1` = no limit |
+| `counterMax` | `<=` the same, `-1` = no limit                                                         |
 
 Which one is used is decided by which name you filled in — `missionVarName`
-counts *missions*, `missionMarkerName` reads an *object id counter*.
+counts _missions_, `missionMarkerName` reads an _object id counter_.
 
 **Pass 3 — conditionals over labels**
 
@@ -147,16 +147,16 @@ lets it pass for the same reason. Don't use `0`.
 Vanilla uses this to build a difficulty ladder out of one mechanic:
 
 ```yaml
-- type: researchRetaliation          # runs once, ever
+- type: researchRetaliation # runs once, ever
   label: 1
 - type: beginnerRetaliation
   firstMonth: 14
-  conditionals: [-1]                 # no retaliation happened yet
+  conditionals: [ -1 ] # no retaliation happened yet
   label: 2
 - type: experiencedRetaliation
   firstMonth: 13
   minDifficulty: 1
-  conditionals: [-1, -2]             # neither 1 nor 2 happened
+  conditionals: [ -1, -2 ] # neither 1 nor 2 happened
   label: 3
 # ... up to superhumanRetaliation with conditionals: [-1,-2,-3,-4,-5]
 ```
@@ -176,16 +176,16 @@ that script fails, and its label records `false`.
 ### 2.3 Delays: `startDelay` and `randomDelay`
 
 ```yaml
-startDelay: 150      # minutes before the first wave
-randomDelay: 43500   # plus RNG(0, randomDelay) minutes
+startDelay: 150 # minutes before the first wave
+randomDelay: 43500 # plus RNG(0, randomDelay) minutes
 ```
 
 `getDelay()` returns `startDelay + RNG(0, randomDelay)` (0 if both are 0). It is
 passed to `AlienMission::start(..., delay)`. Vanilla's own field comment describes
-`startDelay` as *"number of minutes to delay the start of the mission (rounded
-down to the nearest 30, 0 to use the wave timer from the mission itself)"*.
+`startDelay` as _"number of minutes to delay the start of the mission (rounded
+down to the nearest 30, 0 to use the wave timer from the mission itself)"_.
 
-**Important:** a non-zero delay *bypasses* the wave-0 timer randomisation
+**Important:** a non-zero delay _bypasses_ the wave-0 timer randomisation
 entirely — the countdown is set to exactly that many minutes. With a delay of 0,
 the normal `timer` rolling applies (see 3.3). The engine decrements countdowns
 in 30-minute steps, so the actual spawn lands on the next half-hour tick after
@@ -201,7 +201,7 @@ every scripted mission (783 of its 799 scripts) = "sometime in the next month"
 
 **Route A — mission-site commands** (`getSiteType()` true)
 
-`Mod.cpp` sets this flag automatically: if *every* mission in the script's
+`Mod.cpp` sets this flag automatically: if _every_ mission in the script's
 `missionWeights` has `objective: 3`, the script is a site script. Mixing site
 and non-site missions in one script throws ("cannot mix terror/non-terror
 missions in a single command").
@@ -210,7 +210,7 @@ The site path:
 
 1. Pick a mission from `missionWeights` (month-chunked weighted table).
 2. Build `validAreas` = every `(region, areaIndex)` pair that
-   - does not already have an identical mission running *in that region*
+   - does not already have an identical mission running _in that region_
      (`same mission type + same region` is pruned), and
    - for **point areas** (cities), passes
      `strategy.validMissionLocation(varName, region, index)` — the
@@ -260,7 +260,7 @@ mission->start(*game, *globe, command->getDelay());
 `AlienStrategy` (saved inside the savegame) holds one weighted mission table per
 region, seeded from `regions.rul`. With `useTable: true` (the default), creating
 a mission **removes that mission from that region's table**
-(`strategy.removeMission`). The table is only rebuilt when *every* region has
+(`strategy.removeMission`). The table is only rebuilt when _every_ region has
 been drained — so in practice a mission appearing once per region is gone for
 the rest of the campaign.
 
@@ -269,13 +269,13 @@ That is why modern mods write `useTable: false` on scripted missions: they want
 
 `varName` is the key for the two counters:
 
-| Field | Effect |
-| --- | --- |
-| `maxRuns: N` | at most N missions created under this `varName` |
+| Field             | Effect                                                       |
+| ----------------- | ------------------------------------------------------------ |
+| `maxRuns: N`      | at most N missions created under this `varName`              |
 | `avoidRepeats: N` | remember the last N `(region, area)` pairs, don't reuse them |
 
 Both require `varName`, enforced at load:
-*"no varName provided for a script with maxRuns or repeatAvoidance."*
+_"no varName provided for a script with maxRuns or repeatAvoidance."_
 `addMissionRun()` increments once per **created mission**; `avoidRepeats` only
 applies to point areas in site scripts.
 
@@ -285,47 +285,47 @@ applies to point areas in site scripts.
 
 ### 3.1 Mission fields
 
-| Field | Meaning |
-| --- | --- |
-| `points` | score credited to aliens when the mission delivers its payload |
-| `objective` | 0..6, see section 5 — **this is the single most important field** |
-| `waves` | required; the UFO sequence |
-| `spawnUfo` | UFO used for the final retaliation run, overriding the wave's UFO |
-| `spawnZone` | which `missionZones` index of the region to use for sites/bases |
-| `siteType` | alienDeployment for sites/bases; falls back to the area's texture |
-| `raceWeights` | month-chunked weighted race table (merged with parent mods) |
-| `missionWeights` | `{month: weight}` for *this* mission — how likely the game is to pick it when it needs a retaliation mission (default weight 1) |
-| `retaliationOdds` | % chance a shoot-down of this mission triggers retaliation; `-1` = formula |
-| `endlessInfiltration` | `true` (default): infiltration loops forever |
-| `skipScoutingPhase` | retaliation only: skip the detection phase and attack the first base in the region straight away |
-| `multiUfoRetaliation` | keep the mission alive after the first base defense |
-| `multiUfoRetaliationExtra` | ...and keep spawning UFOs (implies `multiUfoRetaliation`) |
-| `ignoreBaseDefenses` | skip base defenses, go straight to the battlescape |
-| `instaHyper` | show UFO info in base defense even if undetected |
-| `despawnEvenIfTargeted` | site expires even while an XCOM craft is en route |
-| `respawnUfoAfterSiteDespawn` | the landed UFO comes back when the site expires |
-| `interruptResearch` | researching this topic interrupts the mission immediately |
-| `showAlienBase` | reveal a freshly spawned alien base (objectives 1 and 2) |
-| `operationType` | 0..6, Earth-based operations (section 7) |
-| `operationSpawnZone` / `operationBaseType` | where/what base to build for the operation |
-| `targetBaseOdds` / `regionWeights` | only used for missions generated by an alien base (section 6) |
+| Field                                      | Meaning                                                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `points`                                   | score credited to aliens when the mission delivers its payload                                                                  |
+| `objective`                                | 0..6, see section 5 — **this is the single most important field**                                                               |
+| `waves`                                    | required; the UFO sequence                                                                                                      |
+| `spawnUfo`                                 | UFO used for the final retaliation run, overriding the wave's UFO                                                               |
+| `spawnZone`                                | which `missionZones` index of the region to use for sites/bases                                                                 |
+| `siteType`                                 | alienDeployment for sites/bases; falls back to the area's texture                                                               |
+| `raceWeights`                              | month-chunked weighted race table (merged with parent mods)                                                                     |
+| `missionWeights`                           | `{month: weight}` for _this_ mission — how likely the game is to pick it when it needs a retaliation mission (default weight 1) |
+| `retaliationOdds`                          | % chance a shoot-down of this mission triggers retaliation; `-1` = formula                                                      |
+| `endlessInfiltration`                      | `true` (default): infiltration loops forever                                                                                    |
+| `skipScoutingPhase`                        | retaliation only: skip the detection phase and attack the first base in the region straight away                                |
+| `multiUfoRetaliation`                      | keep the mission alive after the first base defense                                                                             |
+| `multiUfoRetaliationExtra`                 | ...and keep spawning UFOs (implies `multiUfoRetaliation`)                                                                       |
+| `ignoreBaseDefenses`                       | skip base defenses, go straight to the battlescape                                                                              |
+| `instaHyper`                               | show UFO info in base defense even if undetected                                                                                |
+| `despawnEvenIfTargeted`                    | site expires even while an XCOM craft is en route                                                                               |
+| `respawnUfoAfterSiteDespawn`               | the landed UFO comes back when the site expires                                                                                 |
+| `interruptResearch`                        | researching this topic interrupts the mission immediately                                                                       |
+| `showAlienBase`                            | reveal a freshly spawned alien base (objectives 1 and 2)                                                                        |
+| `operationType`                            | 0..6, Earth-based operations (section 7)                                                                                        |
+| `operationSpawnZone` / `operationBaseType` | where/what base to build for the operation                                                                                      |
+| `targetBaseOdds` / `regionWeights`         | only used for missions generated by an alien base (section 6)                                                                   |
 
 ### 3.2 Wave fields
 
-| Field | Meaning |
-| --- | --- |
-| `ufo` | UFO type — **or an alienDeployment id**, for site missions that create a site without a UFO |
-| `count` | UFOs in this wave, spawned one at a time |
-| `trajectory` | trajectory id |
-| `timer` | minutes before this wave's UFOs arrive (see 3.3) |
-| `objective` | this wave carries out the mission objective |
-| `objectiveOnTheLandingSite` | land at a random spot in the area, spawn the site exactly there |
-| `objectiveOnXcomBase` | put the mission site on an XCOM base instead |
-| `hunterKillerPercentage` | `-1` inherit from `ufos.rul`, 0..100 override |
-| `huntMode` / `huntBehavior` | `-1` inherit, `2` = roll randomly at spawn |
-| `escort` | this UFO (if a hunter-killer) escorts a non-HK UFO of the same mission |
-| `interruptPercentage` | % chance that downing this UFO's craft ends the whole mission (see 3.4) |
-| `respawnUfoAfterSiteDespawn` etc. | mission-level, see 3.1 |
+| Field                             | Meaning                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| `ufo`                             | UFO type — **or an alienDeployment id**, for site missions that create a site without a UFO |
+| `count`                           | UFOs in this wave, spawned one at a time                                                    |
+| `trajectory`                      | trajectory id                                                                               |
+| `timer`                           | minutes before this wave's UFOs arrive (see 3.3)                                            |
+| `objective`                       | this wave carries out the mission objective                                                 |
+| `objectiveOnTheLandingSite`       | land at a random spot in the area, spawn the site exactly there                             |
+| `objectiveOnXcomBase`             | put the mission site on an XCOM base instead                                                |
+| `hunterKillerPercentage`          | `-1` inherit from `ufos.rul`, 0..100 override                                               |
+| `huntMode` / `huntBehavior`       | `-1` inherit, `2` = roll randomly at spawn                                                  |
+| `escort`                          | this UFO (if a hunter-killer) escorts a non-HK UFO of the same mission                      |
+| `interruptPercentage`             | % chance that downing this UFO's craft ends the whole mission (see 3.4)                     |
+| `respawnUfoAfterSiteDespawn` etc. | mission-level, see 3.1                                                                      |
 
 Preferred defaults worth knowing: `hunterKillerPercentage: -1`,
 `huntMode: -1`, `huntBehavior: -1`, `interruptPercentage: 0`, `escort: false`,
@@ -352,7 +352,7 @@ if (_spawnCountdown > 30) { _spawnCountdown -= 30; return; }
 
 The header comment in `RuleAlienMission.h` saying `/4` and `3*/4` is **stale**.
 
-Every later wave uses the same formula, based on *its own* `timer`
+Every later wave uses the same formula, based on _its own_ `timer`
 (`AlienMission.cpp:396`). Consequences:
 
 - `timer: 0` means "immediately". The code literally calls `think()` again, so a
@@ -378,14 +378,14 @@ if (_nextWave == waveCount && !_liveUfos)           return true;
 creates) and decremented in `~Ufo()`, so a mission lingers until its last UFO is
 destroyed or expires. `_interrupted` is set by the following, all verified:
 
-| Trigger | Code |
-| --- | --- |
-| `interruptPercentage` rolled when a UFO of that wave crashes or is destroyed | `Ufo::setDamage` (`Ufo.cpp:472`) |
-| `interruptResearch` topic researched | `GeoscapeState.cpp:2758`, `SavedGame.cpp:3349` |
-| instant retaliation with no base in the region | `AlienMission::spawnUfo` (`:566`) |
-| instant retaliation whose assault ship was destroyed by base defences | `BaseDefenseState.cpp:470` |
-| `operationType` 1 / 4 with no base available | `AlienMission::start` (`:773`) |
-| the alien base an operation mission is attached to is destroyed | `SavedGame::clearLinksForAlienBase` |
+| Trigger                                                                      | Code                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------------- |
+| `interruptPercentage` rolled when a UFO of that wave crashes or is destroyed | `Ufo::setDamage` (`Ufo.cpp:472`)               |
+| `interruptResearch` topic researched                                         | `GeoscapeState.cpp:2758`, `SavedGame.cpp:3349` |
+| instant retaliation with no base in the region                               | `AlienMission::spawnUfo` (`:566`)              |
+| instant retaliation whose assault ship was destroyed by base defences        | `BaseDefenseState.cpp:470`                     |
+| `operationType` 1 / 4 with no base available                                 | `AlienMission::start` (`:773`)                 |
+| the alien base an operation mission is attached to is destroyed              | `SavedGame::clearLinksForAlienBase`            |
 
 A mission interrupted this way does **not** stop instantly: `isOver()` requires
 `_liveUfos == 0`, so already-flying UFOs are cleaned up first.
@@ -403,16 +403,16 @@ wave.
 - id: P0
   groundTimer: 3000
   waypoints:
-    - [5, 4, 100]
-    - [0, 3, 74]
-    - [0, 1, 28]
-    - [1, 1, 47]
-    - [5, 2, 100]
+    - [ 5, 4, 100 ]
+    - [ 0, 3, 74 ]
+    - [ 0, 1, 28 ]
+    - [ 1, 1, 47 ]
+    - [ 5, 2, 100 ]
 ```
 
 Each waypoint is `[zone, altitude, speed]`:
 
-- **zone** = an index into the *mission region's* `missionZones` list
+- **zone** = an index into the _mission region's_ `missionZones` list
 - **altitude** = 0 ground, 1 very low, 2 low, 3 high, 4 very high
   (`Ufo::ALTITUDE_STRING`)
 - **speed** = percentage of the UFO's `speedMax`
@@ -424,40 +424,40 @@ are numbered from 1:
 1. **the stop sequence is `z1, z2, z2, z3, …, zN`** — line 1's zone is the spawn
    point, and every later line's zone is a destination, with line 2's visited
    twice;
-2. **leg *m* is flown at line *m*'s altitude and speed.**
+2. **leg _m_ is flown at line _m_'s altitude and speed.**
 
 So a line's zone and its altitude/speed are read at different moments, and line 1
-is the asymmetric one: its zone is only ever *where the UFO appears* (never
+is the asymmetric one: its zone is only ever _where the UFO appears_ (never
 anywhere it arrives), yet its altitude and speed are what leg 1 is flown at. The
 reference's example is exactly this table:
 
 | Leg | Flight | Altitude / speed |
-| --- | --- | --- |
-| 1 | A → D | B, C (line 1's) |
-| 2 | D → D | E, F (line 2's) |
-| 3 | D → G | H, I (line 3's) |
-| 4 | G → J | K, L (line 4's) |
-| 5 | J → M | N, P (line 5's) |
+| --- | ------ | ---------------- |
+| 1   | A → D  | B, C (line 1's)  |
+| 2   | D → D  | E, F (line 2's)  |
+| 3   | D → G  | H, I (line 3's)  |
+| 4   | G → J  | K, L (line 4's)  |
+| 5   | J → M  | N, P (line 5's)  |
 
-`ufoReachedWaypoint` advances the trajectory index only *after* re-targeting, so
+`ufoReachedWaypoint` advances the trajectory index only _after_ re-targeting, so
 line 2's zone is targeted twice: once at spawn and again on the first arrival.
 That is the reference's "the second line, where zone D is targeted AGAIN, this
 happens automatically/internally and always on the second line."
 
 **N lines therefore produce N legs of flight**, not N−1, and N+1 waypoints: the
 extra waypoint is the duplicated line 2. Vanilla `P0` (five lines, values shown
-are those in force *during* each leg):
+are those in force _during_ each leg):
 
-| Leg | Flight | Altitude / speed |
-| --- | --- | --- |
-| 1 | spawn in zone 5 → zone 0 | very high, 100% (line 1's) |
-| 2 | zone 0 → zone 0 again | high, 74% (line 2's) |
-| 3 | zone 0 → zone 0 | very low, 28% (line 3's) |
-| 4 | zone 0 → zone 1 | very low, 47% (line 4's) |
-| 5 | zone 1 → zone 5, then the UFO vanishes | low, 100% (line 5's) |
+| Leg | Flight                                 | Altitude / speed           |
+| --- | -------------------------------------- | -------------------------- |
+| 1   | spawn in zone 5 → zone 0               | very high, 100% (line 1's) |
+| 2   | zone 0 → zone 0 again                  | high, 74% (line 2's)       |
+| 3   | zone 0 → zone 0                        | very low, 28% (line 3's)   |
+| 4   | zone 0 → zone 1                        | very low, 47% (line 4's)   |
+| 5   | zone 1 → zone 5, then the UFO vanishes | low, 100% (line 5's)       |
 
 Five legs from five lines, and zone 0 is visited three times. A one-line
-trajectory throws *"Missing second waypoint!"*, so two lines is the minimum:
+trajectory throws _"Missing second waypoint!"_, so two lines is the minimum:
 "appear here, go there once". Because line 2 is visited twice, you effectively
 get "line 1's values there, line 2's values back".
 
@@ -473,10 +473,10 @@ override the destination to the alien base; see §5 `5`.)
 
 ### 4.2 Landing
 
-A line with **altitude 0** (`STR_GROUND`) makes the leg *before* it land — leg
-*m−1*, for a ground line *m*. Where it lands is where that leg was already
-heading, so it is line *m*'s zone for a ground line 2 (leg 1 heads there) and
-line *m−1*'s zone for every later ground line. The ground line's own zone is
+A line with **altitude 0** (`STR_GROUND`) makes the leg _before_ it land — leg
+_m−1_, for a ground line _m_. Where it lands is where that leg was already
+heading, so it is line _m_'s zone for a ground line 2 (leg 1 heads there) and
+line _m−1_'s zone for every later ground line. The ground line's own zone is
 therefore where a landing happens only for line 2, and the general rule is to
 read the landing off the leg, not off the line.
 
@@ -506,7 +506,7 @@ Note how few vanilla trajectories actually land. `P0` is five lines of pure
 flight and never touches the ground; the landing ones are `P1` (`[0, 0, 20]`),
 `P4` and `P5`. `P8` is the eight-line reconnaissance patrol: it tours zones
 1, 2, 3, 4, 0, 2 at very low altitude, never descending to the ground, then
-climbs back out. `P9` is the two-line supply hop, and its second line *is* a
+climbs back out. `P9` is the two-line supply hop, and its second line _is_ a
 landing.
 
 ### 4.3 Regions: `areas` vs `missionZones`
@@ -514,18 +514,17 @@ landing.
 A region has two separate rectangle lists, and mixing them up is the classic
 mistake:
 
-| List | Format | Used for |
-| --- | --- | --- |
-| `areas` | `[lon1, lon2, lat1, lat2]` in degrees | activity graphs, base cost, "is this point in the region" |
-| `missionZones` | a list of zones, each a list of areas | UFO waypoints, mission sites, alien bases |
+| List           | Format                                | Used for                                                  |
+| -------------- | ------------------------------------- | --------------------------------------------------------- |
+| `areas`        | `[lon1, lon2, lat1, lat2]` in degrees | activity graphs, base cost, "is this point in the region" |
+| `missionZones` | a list of zones, each a list of areas | UFO waypoints, mission sites, alien bases                 |
 
 `missionZones` entries take two extra positional values:
 
 ```yaml
 missionZones:
-  -
-    - [286.125, 286.125, -40.75, -40.75, -1, STR_NEW_YORK]   # city: texture, name
-    - [230, 260, -65, -55]                                    # plain box
+  - - [ 286.125, 286.125, -40.75, -40.75, -1, STR_NEW_YORK ] # city: texture, name
+    - [ 230, 260, -65, -55 ] # plain box
 ```
 
 - An area is a **point** (city) when `lonMin == lonMax && latMin == latMax`.
@@ -567,7 +566,7 @@ region page's `xpediaRegionMapNote` does), and tftd's land regions have no
 X-Piratez.
 
 **Neither list is ever a flight.** The region page draws no path, no stop and no
-arrow: a trajectory is a list of zone *indices*, so it can only be pictured
+arrow: a trajectory is a list of zone _indices_, so it can only be pictured
 against one region chosen to read those indices against, which is what the
 trajectory page's own radio list is for. That page draws exactly one flight, and
 it is the only place a flight is drawn.
@@ -593,7 +592,7 @@ shows each region's own boxes with its name in the largest of them — the natio
 drawing with a different layer on it. Only the regions that state `areas` can
 appear, which in the packs checked is a minority: 15 of 54 in XFiles, 15 of 173
 in X-Piratez, 15 of 22 in tftd. The section's list therefore stays on the page
-below the map, and so does a short legend of the regions that *are* drawn, because
+below the map, and so does a short legend of the regions that _are_ drawn, because
 a press on a shape selects it (for picking one region out of the overlapping
 boxes) instead of following its page.
 
@@ -614,7 +613,7 @@ Measured on XFiles, dropping the anchors took the map's own construction from
 **The globe travels inside the page.** `WORLD.DAT` is not in the ruleset, so an
 exported page used to leave it beside itself as a loose file and read it back
 with `fetch` — which a page opened from `file://` cannot do at all. XFiles
-therefore drew the *stock* coastline while claiming to be XFiles. The bytes are
+therefore drew the _stock_ coastline while claiming to be XFiles. The bytes are
 now gzipped into the payload as `window.xpedia.data["geodata/world.dat"]`
 (11.8 KB of base64 against a 10 MB page), and the loose file is gone from
 `--assets` exports.
@@ -660,7 +659,7 @@ After the last wave, spawn an alien base somewhere in the mission's
 `spawnZone`, then award `points` (`spawnAlienBase` calls `addScore`). Deployment
 selection is `siteType` → area texture → hardcoded `STR_ALIEN_BASE_ASSAULT`.
 
-If instead a *wave* has `objectiveOnTheLandingSite: true` and the UFO lands in
+If instead a _wave_ has `objectiveOnTheLandingSite: true` and the UFO lands in
 the objective's `spawnZone`, the base is built exactly where it landed. Vanilla
 `STR_ALIEN_BASE` uses `spawnZone: 4` and `siteType: STR_ALIEN_BASE_ASSAULT`.
 
@@ -680,12 +679,12 @@ Three sub-styles exist, spelled out in a helpful comment block at
 
 Site placement:
 
-| Config | Landing point | Site position |
-| --- | --- | --- |
-| default (point area) | the city itself | the city |
-| rectangle, `objectiveOnTheLandingSite: false` | top-left corner of the area | random inside the area |
-| rectangle, `objectiveOnTheLandingSite: true` | random land point in the area | exactly the landing point |
-| `objectiveOnXcomBase: true` | — | on a random XCOM base in the region (skipped if none) |
+| Config                                        | Landing point                 | Site position                                         |
+| --------------------------------------------- | ----------------------------- | ----------------------------------------------------- |
+| default (point area)                          | the city itself               | the city                                              |
+| rectangle, `objectiveOnTheLandingSite: false` | top-left corner of the area   | random inside the area                                |
+| rectangle, `objectiveOnTheLandingSite: true`  | random land point in the area | exactly the landing point                             |
+| `objectiveOnXcomBase: true`                   | —                             | on a random XCOM base in the region (skipped if none) |
 
 The site's deployment comes from `missionOveride` → the mission's `siteType` →
 `texture->getRandomDeployment()`. Its lifetime is
@@ -693,7 +692,7 @@ The site's deployment comes from `missionOveride` → the mission's `siteType` �
 (vanilla terror site: `duration: [4, 10]` = 4–10 days).
 
 Sites bleed score: on every 30-minute tick `processMissionSite` adds the
-deployment's `points` to the site's region and country. The tick that *expires*
+deployment's `points` to the site's region and country. The tick that _expires_
 the site adds `despawnPenalty` instead. Vanilla terror sites declare only
 `despawnPenalty: 1000`, so the whole cost lands on the tick it times out.
 
@@ -760,15 +759,15 @@ on this path — it is ignored when the mission script creates the mission.
 Normally a mission's UFOs come from space (zone 5, the top of a trajectory). An
 operation instead flies out of an alien base:
 
-| Value | Base used |
-| --- | --- |
-| `0` `AMOT_SPACE` | none, spawn from the trajectory |
-| `1` `AMOT_REGION_EXISTING_BASE` | must exist in the mission region, else the mission is interrupted |
-| `2` `AMOT_REGION_NEW_BASE` | always build one in `operationSpawnZone` |
-| `3` `AMOT_REGION_NEW_BASE_IF_NECESSARY` | existing one in the region, else build |
-| `4` `AMOT_EARTH_EXISTING_BASE` | any existing base on Earth, else interrupted |
-| `5` `AMOT_EARTH_NEW_BASE_IF_NECESSARY` | any existing base, else build |
-| `6` `AMOT_EXISTING_BASE_HUNT_MISSION` | a base reacting to your craft (see below) |
+| Value                                   | Base used                                                         |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| `0` `AMOT_SPACE`                        | none, spawn from the trajectory                                   |
+| `1` `AMOT_REGION_EXISTING_BASE`         | must exist in the mission region, else the mission is interrupted |
+| `2` `AMOT_REGION_NEW_BASE`              | always build one in `operationSpawnZone`                          |
+| `3` `AMOT_REGION_NEW_BASE_IF_NECESSARY` | existing one in the region, else build                            |
+| `4` `AMOT_EARTH_EXISTING_BASE`          | any existing base on Earth, else interrupted                      |
+| `5` `AMOT_EARTH_NEW_BASE_IF_NECESSARY`  | any existing base, else build                                     |
+| `6` `AMOT_EXISTING_BASE_HUNT_MISSION`   | a base reacting to your craft (see below)                         |
 
 Resolution happens in `AlienMission::start()` (`:735`): collect candidates
 (region-filtered for 1/3), pick one at random, else `_interrupted = true` for
@@ -779,9 +778,9 @@ Effects on the UFOs themselves:
 
 - spawn position is the operation base instead of the trajectory's zone 0;
 - the **last** waypoint is forced to the operation base, so the UFO returns home
-  (`getWaypoint()`, comment: *"if the operation base is destroyed in the
+  (`getWaypoint()`, comment: _"if the operation base is destroyed in the
   meantime, remaining live UFOs will follow the original trajectory... therefore
-  it is important to have a valid last trajectory waypoint"*);
+  it is important to have a valid last trajectory waypoint"_);
 - if the base is destroyed, `clearLinksForAlienBase()` interrupts the mission.
 
 ### Hunt missions (type 6)
@@ -932,8 +931,8 @@ Two consequences modders trip over:
 - id: __RETALIATION_ASSAULT_RUN
   groundTimer: 1000
   waypoints:
-    - [5, 4, 100]   # this should always be 5, 4, 100
-    - [5, 0, 100]   # only the 0 altitude matters
+    - [ 5, 4, 100 ] # this should always be 5, 4, 100
+    - [ 5, 0, 100 ] # only the 0 altitude matters
 ```
 
 ### Step 6 — arrival
@@ -997,13 +996,13 @@ So:
 
 Multi-UFO retaliation semantics, precisely:
 
-| Flags | Behaviour |
-| --- | --- |
-| both false | the first successful assault ends the mission |
-| `multiUfoRetaliation: true` | mission kept; `think()` becomes a no-op once `_multiUfoRetaliationInProgress` is set, so no more spawns but live UFOs finish |
-| `multiUfoRetaliationExtra: true` | as above but keeps spawning, so repeated assaults |
+| Flags                            | Behaviour                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| both false                       | the first successful assault ends the mission                                                                                |
+| `multiUfoRetaliation: true`      | mission kept; `think()` becomes a no-op once `_multiUfoRetaliationInProgress` is set, so no more spawns but live UFOs finish |
+| `multiUfoRetaliationExtra: true` | as above but keeps spawning, so repeated assaults                                                                            |
 
-With `multiUfoRetaliation`, `selectXcomBase()` also considers *all* marked bases
+With `multiUfoRetaliation`, `selectXcomBase()` also considers _all_ marked bases
 instead of stopping at the first, which is what makes a multi-wave attack
 campaign actually hurt.
 
@@ -1011,16 +1010,16 @@ campaign actually hurt.
 
 ## 9. Scoring, in one place
 
-| Source | When | Where |
-| --- | --- | --- |
-| `alienMissions.points` | at every landed→takeoff (`ufoLifting`), except `OBJECTIVE_BASE` and infiltration | `AlienMission.cpp:1051` |
-| `alienMissions.points` | when a UFO lands and becomes a mission site, and when an alien base spawns | `:898`, `:1171` |
-| `alienMissions.points` | infiltration is the exception: `addScore` returns immediately, so no activity is added at all | `addScore` (`:1130`) |
-| the infiltration mission's `points` | as **pact score** at month end, from a *randomly picked* `OBJECTIVE_INFILTRATION` mission (not necessarily the one running) | `MonthlyReportState.cpp:445` |
-| `ufos.missionScore` | every 30 min per live UFO, ×2 while landed | `GeoscapeState.cpp:2017` |
-| `alienDeployments.points` | every 30 min while a mission site exists | `:1872` |
-| `alienDeployments.despawnPenalty` | on the tick that expires an unused site | `:1872` |
-| `alienDeployments.points` | per day per alien base | `:2796` |
+| Source                              | When                                                                                                                        | Where                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `alienMissions.points`              | at every landed→takeoff (`ufoLifting`), except `OBJECTIVE_BASE` and infiltration                                            | `AlienMission.cpp:1051`      |
+| `alienMissions.points`              | when a UFO lands and becomes a mission site, and when an alien base spawns                                                  | `:898`, `:1171`              |
+| `alienMissions.points`              | infiltration is the exception: `addScore` returns immediately, so no activity is added at all                               | `addScore` (`:1130`)         |
+| the infiltration mission's `points` | as **pact score** at month end, from a _randomly picked_ `OBJECTIVE_INFILTRATION` mission (not necessarily the one running) | `MonthlyReportState.cpp:445` |
+| `ufos.missionScore`                 | every 30 min per live UFO, ×2 while landed                                                                                  | `GeoscapeState.cpp:2017`     |
+| `alienDeployments.points`           | every 30 min while a mission site exists                                                                                    | `:1872`                      |
+| `alienDeployments.despawnPenalty`   | on the tick that expires an unused site                                                                                     | `:1872`                      |
+| `alienDeployments.points`           | per day per alien base                                                                                                      | `:2796`                      |
 
 All of these feed region/country **alien activity**, which drives funding and
 (through pacts) infiltration. `interruptPercentage` and `interruptResearch` are
@@ -1059,8 +1058,8 @@ the two ways to stop the bleeding from the player's side.
   objective: 2
   spawnZone: 4
   siteType: STR_ALIEN_BASE_ASSAULT
-  raceWeights: {...}
-  waves: [...]
+  raceWeights: { ... }
+  waves: [ ... ]
 ```
 
 `showAlienBase: true` if the player should see it right away.
@@ -1098,11 +1097,11 @@ Put it in `adhocScripts:` instead of `missionScripts:`, tag it with
 1. **`missionZones` prime meridian**: `lon2 >= lon1`. Write `[350, 368]`, not
    `[350, 8]`. `areas` may use either form.
 2. **Zone indices must exist everywhere.** `getWaypoint` throws
-   *"mission tried to find a waypoint in zone N but this region only has zones
-   valid up to M"*. Every region that can host a mission must have the
+   _"mission tried to find a waypoint in zone N but this region only has zones
+   valid up to M"_. Every region that can host a mission must have the
    trajectory's zone indices and the mission's `spawnZone`.
-3. **`spawnZone` out of range** throws *"Cannot spawn mission site, invalid
-   spawn zone! Command: ..., mission: ..."* at mission creation time.
+3. **`spawnZone` out of range** throws _"Cannot spawn mission site, invalid
+   spawn zone! Command: ..., mission: ..."_ at mission creation time.
 4. **Don't mix site and non-site missions** in one script's `missionWeights` —
    throws at ruleset load.
 5. **Don't put terror missions in `regions.rul` `missionWeights`** — the classic
@@ -1119,7 +1118,7 @@ Put it in `adhocScripts:` instead of `missionScripts:`, tag it with
 10. **Conditionals on a script that never ran always pass.** Use "did it
     succeed" logic (`researchRetaliation` → `label: 1` → `conditionals: [-1]`),
     not "did it fail".
-11. **`groundTimer` is in 5-second units.** It is *not* minutes and not seconds:
+11. **`groundTimer` is in 5-second units.** It is _not_ minutes and not seconds:
     the landing lasts `groundTimer * 5` seconds, so `groundTimer: 3000` ≈ 4 h.
     Wanting 6 hours means ~4320.
 12. **Supply missions need a base.** A `STR_ALIEN_SUPPLY` mission started from a
@@ -1138,12 +1137,12 @@ Put it in `adhocScripts:` instead of `missionScripts:`, tag it with
 
 ### Vanilla `xcom1`
 
-| File | Worth looking at |
-| --- | --- |
-| `missionScripts.rul` | `gameStart` (`lastMonth: 0`, `targetBaseOdds: 100`, `startDelay: 120`), the `beginner…superhumanRetaliation` ladder, `conditionals` usage |
-| `alienMissions.rul` | one mission per objective: `STR_ALIEN_RESEARCH` (0), `STR_ALIEN_INFILTRATION` (1), `STR_ALIEN_BASE` (2), `STR_ALIEN_TERROR` (3), `STR_ALIEN_RETALIATION` (4), `STR_ALIEN_SUPPLY` (5) |
-| `ufoTrajectories.rul` | `P0` (five-line pure-flight loop, no landing), `P1`/`P4`/`P5` (the ones with a ground line), `P8` (eight-line scouting patrol), `P9` (two-line supply hop straight down), `__RETALIATION_ASSAULT_RUN` |
-| `regions.rul` | the 12 land regions each define 6 zones: 0–2 = UFO traffic rectangles, 3 = city point areas (terror sites), 4 = plain rectangles (alien bases), 5 = a loose worldwide scatter used for spawn/exit aloft. The 3 ocean regions define no `missionZones` at all and just forward to a land region via `missionRegion` |
+| File                  | Worth looking at                                                                                                                                                                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `missionScripts.rul`  | `gameStart` (`lastMonth: 0`, `targetBaseOdds: 100`, `startDelay: 120`), the `beginner…superhumanRetaliation` ladder, `conditionals` usage                                                                                                                                                                          |
+| `alienMissions.rul`   | one mission per objective: `STR_ALIEN_RESEARCH` (0), `STR_ALIEN_INFILTRATION` (1), `STR_ALIEN_BASE` (2), `STR_ALIEN_TERROR` (3), `STR_ALIEN_RETALIATION` (4), `STR_ALIEN_SUPPLY` (5)                                                                                                                               |
+| `ufoTrajectories.rul` | `P0` (five-line pure-flight loop, no landing), `P1`/`P4`/`P5` (the ones with a ground line), `P8` (eight-line scouting patrol), `P9` (two-line supply hop straight down), `__RETALIATION_ASSAULT_RUN`                                                                                                              |
+| `regions.rul`         | the 12 land regions each define 6 zones: 0–2 = UFO traffic rectangles, 3 = city point areas (terror sites), 4 = plain rectangles (alien bases), 5 = a loose worldwide scatter used for spawn/exit aloft. The 3 ocean regions define no `missionZones` at all and just forward to a land region via `missionRegion` |
 
 ### XFiles (`misc/modpackExamples/openxcom_xfiles_42`)
 
@@ -1160,18 +1159,18 @@ The best real-world reference in this repo. In
 
 In `alienMissions_XCOMFILES.rul` (**368** missions):
 
-| Tally | Count |
-| --- | --- |
-| `objective: 3` (mission site) | 293 |
-| `objective: 2` (alien base) | 21 |
-| `objective: 4` (retaliation) | 16 |
-| `objective: 5` (supply) | 4 |
-| `objective: 1` (infiltration) | 1 |
-| `objective: 6` (instant retaliation) | 1 |
-| `objective: 0` (score only) | 0 |
-| `operationType: 1` | 13 |
-| `operationType: 6` | 12 |
-| `operationType: 4` | 7 |
+| Tally                                | Count |
+| ------------------------------------ | ----- |
+| `objective: 3` (mission site)        | 293   |
+| `objective: 2` (alien base)          | 21    |
+| `objective: 4` (retaliation)         | 16    |
+| `objective: 5` (supply)              | 4     |
+| `objective: 1` (infiltration)        | 1     |
+| `objective: 6` (instant retaliation) | 1     |
+| `objective: 0` (score only)          | 0     |
+| `operationType: 1`                   | 13    |
+| `operationType: 6`                   | 12    |
+| `operationType: 4`                   | 7     |
 
 Also worth grepping for in that file: `objectiveOnTheLandingSite` ×20,
 `respawnUfoAfterSiteDespawn` ×19, `interruptPercentage` ×32, `spawnUfo` ×17,
@@ -1191,26 +1190,26 @@ cheap to diff.
 
 ## 13. Where in the source
 
-| What | File:line |
-| --- | --- |
-| Monthly scheduler, filters, labels, `executionOdds` | `Geoscape/GeoscapeState.cpp:3755–4219` |
-| Site / base / random region+mission selection | `Geoscape/GeoscapeState.cpp:4457–4859` |
-| The three site-spawning styles (comment block) | `Geoscape/GeoscapeState.cpp:4519–4560` |
-| Retaliation roll on shoot-down | `Geoscape/DogfightState.cpp:1776–1844` |
-| Base detection (`DetectXCOMBase`) | `Geoscape/GeoscapeState.cpp:1516–1545`, `1599–1631` |
-| Base assault arrival, defenses vs battlescape | `Geoscape/GeoscapeState.cpp:1091–1107`, `3675` |
-| Supply missions from alien bases | `Geoscape/GeoscapeState.cpp:2334–2417`, called at `2810` |
-| Hunt missions from alien bases | `Geoscape/GeoscapeState.cpp:1738–1820` |
-| Mission sites expiring / scoring | `Geoscape/GeoscapeState.cpp:1821–1897` |
-| Wave timing (`think`) | `Savegame/AlienMission.cpp:170–413` |
-| `spawnUfo` (incl. retaliation / supply branches) | `Savegame/AlienMission.cpp:468–718` |
-| `start` (operation base resolution) | `Savegame/AlienMission.cpp:719–842` |
-| `ufoReachedWaypoint`, landing, site spawn | `Savegame/AlienMission.cpp:843–1009`, `1432–1497` |
-| `getWaypoint`, `getLandPoint`, `getLandPointForMissionSite` | `Savegame/AlienMission.cpp:1248–1422` |
-| Mission over / interruption | `Savegame/AlienMission.cpp:152–168`, `1010–1037` |
-| `interruptPercentage` on damage | `Savegame/Ufo.cpp:441–481` |
-| Field definitions and defaults | `Mod/RuleAlienMission.h`, `Mod/RuleAlienMission.cpp` |
-| Script field definitions and defaults | `Mod/RuleMissionScript.h/.cpp` |
-| Trajectory parsing, altitude names | `Mod/UfoTrajectory.h/.cpp`, `Savegame/Ufo.cpp:41–47` |
-| `missionZones` / `areas` parsing | `Mod/RuleRegion.cpp:52–117`, `246–262` |
-| Site-type auto-detection, delete/mixing errors | `Mod/Mod.cpp:2806–2828` |
+| What                                                        | File:line                                                |
+| ----------------------------------------------------------- | -------------------------------------------------------- |
+| Monthly scheduler, filters, labels, `executionOdds`         | `Geoscape/GeoscapeState.cpp:3755–4219`                   |
+| Site / base / random region+mission selection               | `Geoscape/GeoscapeState.cpp:4457–4859`                   |
+| The three site-spawning styles (comment block)              | `Geoscape/GeoscapeState.cpp:4519–4560`                   |
+| Retaliation roll on shoot-down                              | `Geoscape/DogfightState.cpp:1776–1844`                   |
+| Base detection (`DetectXCOMBase`)                           | `Geoscape/GeoscapeState.cpp:1516–1545`, `1599–1631`      |
+| Base assault arrival, defenses vs battlescape               | `Geoscape/GeoscapeState.cpp:1091–1107`, `3675`           |
+| Supply missions from alien bases                            | `Geoscape/GeoscapeState.cpp:2334–2417`, called at `2810` |
+| Hunt missions from alien bases                              | `Geoscape/GeoscapeState.cpp:1738–1820`                   |
+| Mission sites expiring / scoring                            | `Geoscape/GeoscapeState.cpp:1821–1897`                   |
+| Wave timing (`think`)                                       | `Savegame/AlienMission.cpp:170–413`                      |
+| `spawnUfo` (incl. retaliation / supply branches)            | `Savegame/AlienMission.cpp:468–718`                      |
+| `start` (operation base resolution)                         | `Savegame/AlienMission.cpp:719–842`                      |
+| `ufoReachedWaypoint`, landing, site spawn                   | `Savegame/AlienMission.cpp:843–1009`, `1432–1497`        |
+| `getWaypoint`, `getLandPoint`, `getLandPointForMissionSite` | `Savegame/AlienMission.cpp:1248–1422`                    |
+| Mission over / interruption                                 | `Savegame/AlienMission.cpp:152–168`, `1010–1037`         |
+| `interruptPercentage` on damage                             | `Savegame/Ufo.cpp:441–481`                               |
+| Field definitions and defaults                              | `Mod/RuleAlienMission.h`, `Mod/RuleAlienMission.cpp`     |
+| Script field definitions and defaults                       | `Mod/RuleMissionScript.h/.cpp`                           |
+| Trajectory parsing, altitude names                          | `Mod/UfoTrajectory.h/.cpp`, `Savegame/Ufo.cpp:41–47`     |
+| `missionZones` / `areas` parsing                            | `Mod/RuleRegion.cpp:52–117`, `246–262`                   |
+| Site-type auto-detection, delete/mixing errors              | `Mod/Mod.cpp:2806–2828`                                  |

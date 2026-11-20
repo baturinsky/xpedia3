@@ -9,17 +9,23 @@
  * Usage: node scripts/find-entry-ids.mjs [--write]
  *   --write  rewrite the reported `Expression.id` to `Expression.uid`
  */
-import ts from "typescript";
+
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(root, "src", "tsconfig.json");
-const config = ts.getParsedCommandLineOfConfigFile(configPath, {}, {
-  ...ts.sys,
-  onUnRecoverableConfigFileDiagnostic: d => console.error(ts.flattenDiagnosticMessageText(d.messageText, "\n")),
-});
+const config = ts.getParsedCommandLineOfConfigFile(
+  configPath,
+  {},
+  {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: (d) =>
+      console.error(ts.flattenDiagnosticMessageText(d.messageText, "\n")),
+  },
+);
 const program = ts.createProgram(config.fileNames, config.options);
 const checker = program.getTypeChecker();
 
@@ -31,10 +37,10 @@ const checker = program.getTypeChecker();
  * does not answer `getBaseTypes`. Asking whether the type is assignable to
  * `Entry` covers `this`, a concrete subclass, and `any` that was cast to one.
  */
-const entrySymbol =
-  program.getSourceFiles()
-    .flatMap(sf => sf.statements)
-    .find(s => ts.isClassDeclaration(s) && s.name?.text === "Entry");
+const entrySymbol = program
+  .getSourceFiles()
+  .flatMap((sf) => sf.statements)
+  .find((s) => ts.isClassDeclaration(s) && s.name?.text === "Entry");
 const entryType = entrySymbol && checker.getDeclaredTypeOfSymbol(entrySymbol.symbol);
 
 /** Does `type` denote a ruleset entry (Entry or a subclass of it)? */
@@ -55,9 +61,8 @@ const hits = [];
 // TypeScript reports source paths with forward slashes even on Windows
 const srcPrefix = path.join(root, "src").replace(/\\/g, "/");
 for (const sf of program.getSourceFiles()) {
-  if (sf.isDeclarationFile || !sf.fileName.replace(/\\/g, "/").startsWith(srcPrefix))
-    continue;
-  const visit = node => {
+  if (sf.isDeclarationFile || !sf.fileName.replace(/\\/g, "/").startsWith(srcPrefix)) continue;
+  const visit = (node) => {
     if (ts.isPropertyAccessExpression(node) && node.name.text === "id") {
       const type = checker.getTypeAtLocation(node.expression);
       if (isEntryLike(type)) {
@@ -77,10 +82,11 @@ for (const sf of program.getSourceFiles()) {
   visit(sf);
 }
 
-for (const h of hits)
-  console.log(`${h.file}:${h.line}: ${h.text}`);
+for (const h of hits) console.log(`${h.file}:${h.line}: ${h.text}`);
 
-console.log(`\n${hits.length} Entry.id read(s) across ${new Set(hits.map(h => h.file)).size} file(s)`);
+console.log(
+  `\n${hits.length} Entry.id read(s) across ${new Set(hits.map((h) => h.file)).size} file(s)`,
+);
 
 if (process.argv.includes("--write")) {
   // Grouped by file, rewritten back to front so earlier offsets stay valid

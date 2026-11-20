@@ -1,8 +1,8 @@
 import * as fflate from "fflate";
-import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
-import { mainMod, type LangMap, type Langs, type Mod, type ProcessedRuleset } from "./rul/Ruleset";
+import { gameRelativePath, WORLD_DAT } from "./packBuild";
 import type Ruleset from "./rul/Ruleset";
-import { WORLD_DAT, gameRelativePath } from "./packBuild";
+import { type LangMap, type Langs, type Mod, mainMod, type ProcessedRuleset } from "./rul/Ruleset";
+import { bytesToBase64, getFlagEmoji, xpediaVersion } from "./util";
 
 /**
  * Building an exported pedia, independent of where its inputs come from.
@@ -24,16 +24,15 @@ export const inlineSuffix = ".inline";
  * different pack in the modpack list.
  */
 export function exportedPackName(pack: string) {
-  if (pack.endsWith(inlineSuffix))
-    return pack;
+  if (pack.endsWith(inlineSuffix)) return pack;
   return pack.replace(/\.(zip|rar)$/i, "") + inlineSuffix;
 }
 
 /** One inline script or style of a page, ready to be copied verbatim */
-export type TagCopy = { attrs: string, content: string };
+export type TagCopy = { attrs: string; content: string };
 
 /** Inline scripts and styles of the app, as they must be copied out */
-export type AppShell = { scripts: TagCopy[], styles: string[] };
+export type AppShell = { scripts: TagCopy[]; styles: string[] };
 
 /**
  * What the language selector needs beyond the strings themselves.
@@ -45,9 +44,9 @@ export type AppShell = { scripts: TagCopy[], styles: string[] };
  */
 export type PageLanguage = {
   /** The language this page opens in, when that is not English */
-  lang?: string,
+  lang?: string;
   /** Language name -> the script that carries its strings */
-  packs?: { [name: string]: string },
+  packs?: { [name: string]: string };
 };
 
 /** Folder, next to the page, that holds the language packs of a split export */
@@ -73,11 +72,11 @@ export function languagePackPath(lang: string) {
  * file and read it.
  */
 export function buildLanguagePack(processed: ProcessedRuleset, lang: string) {
-  let english = processed.langs?.["en-US"] ?? {};
-  let translated = onlyTranslated(english, processed.langs?.[lang] ?? {});
+  const english = processed.langs?.["en-US"] ?? {};
+  const translated = onlyTranslated(english, processed.langs?.[lang] ?? {});
   // JSON is valid JavaScript once the characters that could end the script or
   // a line are escaped; those do occur in translations
-  let literal = JSON.stringify(translated)
+  const literal = JSON.stringify(translated)
     .replace(/</g, "\\u003c")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
@@ -94,9 +93,8 @@ export function buildLanguagePack(processed: ProcessedRuleset, lang: string) {
  * big translation, which matters when the export runs from the page.
  */
 export async function gzipBytes(bytes: Uint8Array) {
-  if (typeof CompressionStream == "undefined")
-    return fflate.gzipSync(bytes);
-  let stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("gzip"));
+  if (typeof CompressionStream == "undefined") return fflate.gzipSync(bytes);
+  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -118,10 +116,8 @@ export async function gzipText(text: string) {
  * literally the same one; anything else (numbers, OXCE plural objects) stays.
  */
 export function onlyTranslated(english: LangMap, lang: LangMap) {
-  let translated: LangMap = {};
-  for (let key of Object.keys(lang))
-    if (english[key] !== lang[key])
-      translated[key] = lang[key];
+  const translated: LangMap = {};
+  for (const key of Object.keys(lang)) if (english[key] !== lang[key]) translated[key] = lang[key];
   return translated;
 }
 
@@ -134,31 +130,33 @@ export function onlyTranslated(english: LangMap, lang: LangMap) {
  * in this file, which only happens in a split export: the selector offers every
  * exported language, while the page carries just one of them.
  */
-export function prepareRul(processed: ProcessedRuleset, languages: string[], labelLanguages: string[] = []) {
+export function prepareRul(
+  processed: ProcessedRuleset,
+  languages: string[],
+  labelLanguages: string[] = [],
+) {
   // `icon` is the emoji label map, not a language the user can pick, and the
   // page is unreadable without it
-  let keep = new Set(["en-US", "icon", ...languages]);
-  let source: Langs = processed.langs ?? {};
-  let english = source["en-US"] ?? {};
-  let langs: Langs = {};
-  for (let name of Object.keys(source)) {
-    if (!keep.has(name))
-      continue;
+  const keep = new Set(["en-US", "icon", ...languages]);
+  const source: Langs = processed.langs ?? {};
+  const english = source["en-US"] ?? {};
+  const langs: Langs = {};
+  for (const name of Object.keys(source)) {
+    if (!keep.has(name)) continue;
     // English and the emoji map are the reference the others are merged onto,
     // so they have to stay complete
-    langs[name] = name == "en-US" || name == "icon"
-      ? source[name]
-      : onlyTranslated(english, source[name]);
+    langs[name] =
+      name == "en-US" || name == "icon" ? source[name] : onlyTranslated(english, source[name]);
   }
 
   // A language gets its flag label from `Ruleset.loadProcessedMods`, which only
   // sees the languages the file carries. A split page carries one, so the labels
   // of the whole selection are written here instead; without them the selector
   // would fall back to the bare language code.
-  let missing = labelLanguages.filter(name => langs["en-US"] && !langs["en-US"][name]);
+  const missing = labelLanguages.filter((name) => langs["en-US"] && !langs["en-US"][name]);
   if (missing.length) {
     langs["en-US"] = { ...langs["en-US"] };
-    for (let name of missing)
+    for (const name of missing)
       langs["en-US"][name] = getFlagEmoji(name.match(/([a-z]+)/i)?.[1] ?? name);
   }
 
@@ -173,32 +171,24 @@ export function prepareRul(processed: ProcessedRuleset, languages: string[], lab
  * globe's DAT is *not* here: it travels inside the page, see `collectDataFiles`.
  */
 export function referencedPaths(rul: Ruleset | undefined) {
-  let paths = new Set<string>();
-  if (!rul)
-    return paths;
+  const paths = new Set<string>();
+  if (!rul) return paths;
 
-  let add = (path?: string) => {
+  const add = (path?: string) => {
     // `emptyImg` is a placeholder, not a file from the pack
-    if (path && !path.startsWith("data:"))
-      paths.add(path);
+    if (path && !path.startsWith("data:")) paths.add(path);
   };
 
-  for (let sprite of Object.values(rul.sprites))
-    add(sprite?.path);
-  for (let table of Object.values(rul.obs))
-    for (let sprite of table)
-      add(sprite?.path);
+  for (const sprite of Object.values(rul.sprites)) add(sprite?.path);
+  for (const table of Object.values(rul.obs)) for (const sprite of table) add(sprite?.path);
 
   // An article illustration is either a sprite id or an asset path
-  for (let article of Object.values(rul.articles)) {
-    let id = article?.image_id;
-    if (!id)
-      continue;
-    let sprite = rul.sprites[id];
-    if (sprite)
-      add(sprite.path);
-    else if (/[\\/]/.test(id))
-      add(id);
+  for (const article of Object.values(rul.articles)) {
+    const id = article?.image_id;
+    if (!id) continue;
+    const sprite = rul.sprites[id];
+    if (sprite) add(sprite.path);
+    else if (/[\\/]/.test(id)) add(id);
   }
 
   // The world map's globe data is deliberately *not* here: it is not a file the
@@ -228,19 +218,17 @@ export function referencedPaths(rul: Ruleset | undefined) {
  * for by default, the named one is what such a pack actually means.
  */
 export function dataPaths(mods: Mod[] = []): string[] {
-  let paths: string[] = [];
+  const paths: string[] = [];
   let named: string | undefined;
-  for (let mod of mods)
-    for (let file of mod.rul ?? [])
-      if (file?.globe && typeof file.globe.data == "string")
-        named = file.globe.data;
+  for (const mod of mods)
+    for (const file of mod.rul ?? [])
+      if (file?.globe && typeof file.globe.data == "string") named = file.globe.data;
   // The stock globe is always carried: it is what the reader falls back to when
   // the pack names none, and the builtin copy is not a file they can fetch
   paths.push(WORLD_DAT);
   if (named) {
-    let key = named.replace(/^[/\\]+/, "").toLowerCase();
-    if (!paths.includes(key))
-      paths.push(key);
+    const key = named.replace(/^[/\\]+/, "").toLowerCase();
+    if (!paths.includes(key)) paths.push(key);
   }
   return paths;
 }
@@ -266,12 +254,11 @@ export async function collectDataFiles(
   read: (archivePath: string, rel: string) => Promise<Uint8Array | undefined>,
   mods: Mod[] = [],
 ) {
-  let files: { [path: string]: string } = {};
-  for (let rel of dataPaths(mods)) {
-    let archivePath = resources?.[rel];
-    let bytes = archivePath ? await read(archivePath, rel) : undefined;
-    if (!bytes?.length)
-      continue;
+  const files: { [path: string]: string } = {};
+  for (const rel of dataPaths(mods)) {
+    const archivePath = resources?.[rel];
+    const bytes = archivePath ? await read(archivePath, rel) : undefined;
+    if (!bytes?.length) continue;
     // Gzipped then base64ed: this is a JSON payload, so raw binary would have
     // to be escaped into a larger form than the compression saves
     files[rel] = bytesToBase64(await gzipBytes(bytes));
@@ -280,7 +267,10 @@ export async function collectDataFiles(
 }
 
 function escapeHtml(text: string) {
-  return text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  return text.replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!,
+  );
 }
 
 /** JSON that can sit safely inside a `<script>` element */
@@ -296,20 +286,20 @@ function scriptJson(value: unknown) {
  */
 export type PagePayload = {
   /** Pack name shown in the modpack list, ending in `.inline` */
-  pack: string,
+  pack: string;
   /** Base64 of the gzip-compressed processed ruleset */
-  rul: string,
+  rul: string;
   /** The language the page opens in, when that is not English */
-  lang?: string,
+  lang?: string;
   /** Language name -> script carrying its strings, for a split export */
-  packs?: { [name: string]: string },
+  packs?: { [name: string]: string };
   /**
    * Ruleset-relative path -> base64 of the gzipped bytes, for the raw data
    * files the pedia reads rather than shows. See `dataPaths`.
    *
    * Absent when the pack has none, so an ordinary export keeps its old shape.
    */
-  data?: { [path: string]: string },
+  data?: { [path: string]: string };
   /**
    * Set when the page previews a folder served by `xpedia-cli --serve`.
    *
@@ -318,7 +308,7 @@ export type PagePayload = {
    * while an exported page's are files beside the page. See `imagesUnavailable`
    * in `packSource.ts`.
    */
-  served?: boolean,
+  served?: boolean;
 };
 
 /**
@@ -335,35 +325,31 @@ export async function renderPage(
   page?: PageLanguage,
   data?: { [path: string]: string },
   /** True when the page previews a served folder, see `PagePayload.served` */
-  served?: boolean
+  served?: boolean,
 ) {
-  let payload: PagePayload = {
+  const payload: PagePayload = {
     pack: exportedPackName(pack),
-    rul: rulesetBase64
+    rul: rulesetBase64,
   };
   // Only written when the page starts in one language and holds the others, so
   // an English export of an unsplit pack keeps the shape it has always had
-  if (page?.lang)
-    payload.lang = page.lang;
+  if (page?.lang) payload.lang = page.lang;
   // Only written when the other languages live in scripts beside the page
-  if (page?.packs && Object.keys(page.packs).length)
-    payload.packs = page.packs;
+  if (page?.packs && Object.keys(page.packs).length) payload.packs = page.packs;
   // Only written when the pack actually has data files, which most do not
-  if (data && Object.keys(data).length)
-    payload.data = data;
+  if (data && Object.keys(data).length) payload.data = data;
   // Only a served page carries this, so an ordinary export keeps its old shape
-  if (served)
-    payload.served = true;
+  if (served) payload.served = true;
 
-  let { scripts, styles } = shell;
+  const { scripts, styles } = shell;
   // The page title names the mod the pack is about, the same one the navbar
   // shows, not whichever mod happens to come last in the archive. When there is
   // no such name the page is XPedia's own, so it carries XPedia's version, and
   // that version is the one this build was exported with rather than whatever
   // the reader's copy later became.
-  let meta = mainMod(processed.mods ?? [])?.meta;
-  let packName = [meta?.name, meta?.version].filter(Boolean).join(" ");
-  let title = packName || `XPedia ${xpediaVersion()}`;
+  const meta = mainMod(processed.mods ?? [])?.meta;
+  const packName = [meta?.name, meta?.version].filter(Boolean).join(" ");
+  const title = packName || `XPedia ${xpediaVersion()}`;
 
   // The payload must exist before the app starts. Module scripts run after
   // parsing, so a plain script above them is always safe.
@@ -376,9 +362,9 @@ export async function renderPage(
   <meta name="description" content="Offline reference for an OpenXCom modpack" />
   <title>${escapeHtml(title)}</title>
   <link rel="icon" href="data:;base64,iVBORwOKGO=" />
-  ${styles.map(css => `<style>${css}</style>`).join("\n  ")}
+  ${styles.map((css) => `<style>${css}</style>`).join("\n  ")}
   <script data-xpedia-export>window.xpedia = ${scriptJson(payload)};</script>
-  ${scripts.map(js => `<script ${js.attrs}>${js.content}</script>`).join("\n  ")}
+  ${scripts.map((js) => `<script ${js.attrs}>${js.content}</script>`).join("\n  ")}
 </head>
 
 <body>
@@ -389,27 +375,37 @@ export async function renderPage(
 }
 
 export type BuildPageOptions = {
-  pack: string,
-  processed: ProcessedRuleset,
+  pack: string;
+  processed: ProcessedRuleset;
   /** Language names to keep besides `en-US`, which is always kept */
-  languages: string[],
-  shell: AppShell,
-  page?: PageLanguage,
+  languages: string[];
+  shell: AppShell;
+  page?: PageLanguage;
   /** Data files to carry inside the page, see `collectDataFiles` */
-  data?: { [path: string]: string },
+  data?: { [path: string]: string };
   /** True when the page previews a served folder, see `PagePayload.served` */
-  served?: boolean,
+  served?: boolean;
 };
 
 /** Builds the HTML text of the exported pedia */
 export async function buildPageHtml(options: BuildPageOptions) {
-  let trimmed = prepareRul(options.processed, options.languages,
+  const trimmed = prepareRul(
+    options.processed,
+    options.languages,
     // A page with language packs offers every language in its selector, so even
     // the ones whose strings live elsewhere need their flag label
-    options.page?.packs ? Object.keys(options.page.packs) : []);
-  let gzipped = await gzipText(JSON.stringify(trimmed));
-  return renderPage(options.pack, trimmed, bytesToBase64(gzipped), options.shell,
-    options.page, options.data, options.served);
+    options.page?.packs ? Object.keys(options.page.packs) : [],
+  );
+  const gzipped = await gzipText(JSON.stringify(trimmed));
+  return renderPage(
+    options.pack,
+    trimmed,
+    bytesToBase64(gzipped),
+    options.shell,
+    options.page,
+    options.data,
+    options.served,
+  );
 }
 
 /** Base64 is 4 characters per 3 bytes, rounded up to a whole group */
@@ -418,7 +414,7 @@ export function base64Length(bytes: number) {
 }
 
 /** One file of an export: its path relative to the target, and its bytes */
-export type ExportFile = { path: string, data: Uint8Array };
+export type ExportFile = { path: string; data: Uint8Array };
 
 /**
  * The files a self-contained export consists of: the page, then every image it
@@ -428,42 +424,42 @@ export type ExportFile = { path: string, data: Uint8Array };
  * a file the pack never shipped, and an export must not fail over that.
  */
 export async function buildAssetFiles(options: {
-  pack: string,
+  pack: string;
   /** Where the page goes inside the export */
-  page: string,
-  html: string,
-  rul: Ruleset | undefined,
-  readImage: (path: string) => Promise<Uint8Array | undefined>,
-  onProgress?: (done: number, total: number) => void,
+  page: string;
+  html: string;
+  rul: Ruleset | undefined;
+  readImage: (path: string) => Promise<Uint8Array | undefined>;
+  onProgress?: (done: number, total: number) => void;
 }): Promise<ExportFile[]> {
-  let files: ExportFile[] = [{ path: options.page, data: new TextEncoder().encode(options.html) }];
+  const files: ExportFile[] = [
+    { path: options.page, data: new TextEncoder().encode(options.html) },
+  ];
   /** Paths already claimed, so a later spelling cannot overwrite the bytes */
-  let taken = new Set(files.map(f => f.path));
+  const taken = new Set(files.map((f) => f.path));
 
-  let paths = [...referencedPaths(options.rul)];
+  const paths = [...referencedPaths(options.rul)];
   for (let i = 0; i < paths.length; i++) {
-    let path = paths[i];
-    let data = await options.readImage(path);
+    const path = paths[i];
+    const data = await options.readImage(path);
     if (data) {
       // Two archive paths can map to the same game file (`common/...` is
       // shared), so a later spelling must not overwrite the bytes already there
-      let target = gameRelativePath(path);
+      const target = gameRelativePath(path);
       if (!taken.has(target)) {
         taken.add(target);
         files.push({ path: target, data });
       }
     }
     // One update per few images keeps a progress line responsive on big packs
-    if (i % 25 == 0 || i == paths.length - 1)
-      options.onProgress?.(i + 1, paths.length);
+    if (i % 25 == 0 || i == paths.length - 1) options.onProgress?.(i + 1, paths.length);
   }
   return files;
 }
 
 /** Packs the files into a single zip, the shape the browser export produces */
 export function zipFiles(files: ExportFile[]) {
-  let entries: { [path: string]: Uint8Array } = {};
-  for (let file of files)
-    entries[file.path] = file.data;
+  const entries: { [path: string]: Uint8Array } = {};
+  for (const file of files) entries[file.path] = file.data;
   return fflate.zipSync(entries, { level: 6 });
 }

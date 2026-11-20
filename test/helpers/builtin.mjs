@@ -5,7 +5,7 @@
  * and a check has to see exactly what a page would see, so the container is
  * assembled here in the same format rather than the tree being walked again.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { ensureBuilt, root } from "../build.mjs";
@@ -15,18 +15,18 @@ await ensureBuilt();
 const { unpackBuiltinMods, filterBuiltinMods } = await import("../.gen/packbuild.mjs");
 
 function container(dir, base) {
-  let parts = [];
-  let walk = (at) => {
-    for (let name of readdirSync(at)) {
-      let full = join(at, name);
+  const parts = [];
+  const walk = (at) => {
+    for (const name of readdirSync(at)) {
+      const full = join(at, name);
       if (statSync(full).isDirectory()) {
         walk(full);
         continue;
       }
       // Keys are archive paths, so the separator is the one a pack would use
-      let rel = Buffer.from(full.substring(base.length + 1).replace(/\\/g, "/"), "utf8");
-      let data = readFileSync(full);
-      let header = Buffer.alloc(8);
+      const rel = Buffer.from(full.substring(base.length + 1).replace(/\\/g, "/"), "utf8");
+      const data = readFileSync(full);
+      const header = Buffer.alloc(8);
       header.writeUInt32LE(rel.length, 0);
       header.writeUInt32LE(data.length, 4);
       parts.push(header, rel, data);
@@ -38,7 +38,7 @@ function container(dir, base) {
 
 /** Every builtin mod, as `path -> data` */
 export function builtinFiles() {
-  let base = join(root, "src", "builtinMods");
+  const base = join(root, "src", "builtinMods");
   return unpackBuiltinMods(container(base, base));
 }
 

@@ -1,5 +1,5 @@
-import { defaultLanguage } from "./rul/Ruleset";
 import { UsageError } from "./cliError";
+import { defaultLanguage } from "./rul/Ruleset";
 
 /**
  * The languages to carry, in the order they were asked for.
@@ -18,20 +18,20 @@ import { UsageError } from "./cliError";
  */
 export function resolveLanguages(requested: string[] | undefined, available: string[]) {
   // Omitting `--lang` means every language the pack has, English leading
-  if (!requested)
-    return [defaultLanguage, ...available.filter(name => name != defaultLanguage)];
+  if (!requested) return [defaultLanguage, ...available.filter((name) => name != defaultLanguage)];
 
-  let byLower = new Map(available.map(name => [name.toLowerCase(), name]));
-  let unknown = requested.filter(name => !byLower.has(name.toLowerCase()));
+  const byLower = new Map(available.map((name) => [name.toLowerCase(), name]));
+  const unknown = requested.filter((name) => !byLower.has(name.toLowerCase()));
   if (unknown.length)
-    throw new UsageError(`The pack has no language ${unknown.map(n => JSON.stringify(n)).join(", ")}. ` +
-      `Available: ${available.join(", ")}`);
+    throw new UsageError(
+      `The pack has no language ${unknown.map((n) => JSON.stringify(n)).join(", ")}. ` +
+        `Available: ${available.join(", ")}`,
+    );
 
   // The same language twice is one language, and a repeat must not move it
-  let names = [...new Set(requested.map(name => byLower.get(name.toLowerCase())!))];
+  const names = [...new Set(requested.map((name) => byLower.get(name.toLowerCase())!))];
   // English goes last when it was not named, so that the first language the
   // user asked for stays the primary one
-  if (!names.includes(defaultLanguage))
-    names.push(defaultLanguage);
+  if (!names.includes(defaultLanguage)) names.push(defaultLanguage);
   return names;
 }

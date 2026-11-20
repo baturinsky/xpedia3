@@ -1,18 +1,36 @@
-//@ts-ignore
-import wasmRaw from './unrar.wasm?base64';
-import { state, update, slowProcessCancelRequested, resetSlowProcessCancel, autoCloseStatus } from "./state";
-import { delay, base64ToArrayBuffer, asMB } from "./util";
-import { fileTypeFromBuffer, type FileTypeResult } from "file-type";
-import * as fflate from 'fflate';
-import Ruleset from "./rul/Ruleset";
-import type { Mod, ProcessedRuleset } from "./rul/Ruleset";
-import { saveFile, saveImgs, saveRul, saveStats, wipeAssets, eraseArchiveFile, updateFileStats, applySavedLanguage } from "./idb";
-import builtinModsPayload from './builtinMods?builtinMods';
+import * as fflate from "fflate";
+import { type FileTypeResult, fileTypeFromBuffer } from "file-type";
+import builtinModsPayload from "./builtinMods?builtinMods";
 import {
-  buildPackData, filterBuiltinMods, interpretPath,
-  mergeBuiltinMods as mergeBuiltinData, unpackBuiltinMods, unpackRar as unpackRarFiles,
-  unpackZip as unpackZipFiles
+  applySavedLanguage,
+  eraseArchiveFile,
+  saveFile,
+  saveImgs,
+  saveRul,
+  saveStats,
+  updateFileStats,
+  wipeAssets,
+} from "./idb";
+import {
+  buildPackData,
+  filterBuiltinMods,
+  interpretPath,
+  mergeBuiltinMods as mergeBuiltinData,
+  unpackBuiltinMods,
+  unpackRar as unpackRarFiles,
+  unpackZip as unpackZipFiles,
 } from "./packBuild";
+import type { ProcessedRuleset } from "./rul/Ruleset";
+import Ruleset from "./rul/Ruleset";
+import {
+  autoCloseStatus,
+  resetSlowProcessCancel,
+  slowProcessCancelRequested,
+  state,
+  update,
+} from "./state";
+import wasmRaw from "./unrar.wasm?base64";
+import { asMB, base64ToArrayBuffer, delay } from "./util";
 
 /**
  * Loading modpacks into the browser app.
@@ -47,17 +65,16 @@ function unpackBuiltins() {
  * read them from.
  */
 export function builtinFile(path: string) {
-  let wanted = path.replace(/\\/g, "/").toLowerCase();
-  for (let [name, data] of Object.entries(builtinFiles()))
-    if (name.toLowerCase() == wanted)
-      return data;
+  const wanted = path.replace(/\\/g, "/").toLowerCase();
+  for (const [name, data] of Object.entries(builtinFiles()))
+    if (name.toLowerCase() == wanted) return data;
 }
 
 /** The unpacked builtin folder, kept because gunzipping it is not free */
 let cachedBuiltinFiles: { [name: string]: Uint8Array } | undefined;
 
 function builtinFiles() {
-  return cachedBuiltinFiles ??= unpackBuiltins();
+  return (cachedBuiltinFiles ??= unpackBuiltins());
 }
 
 /** The builtin mod files that apply to the given modpack */
@@ -87,7 +104,7 @@ export async function mergeBuiltinMods(stored: ProcessedRuleset, packName?: stri
 let wasmCache: ArrayBuffer | undefined;
 
 function unrarWasm() {
-  return wasmCache ??= base64ToArrayBuffer(wasmRaw);
+  return (wasmCache ??= base64ToArrayBuffer(wasmRaw));
 }
 
 /** Message shown when the user aborts a load from the status window */
@@ -104,8 +121,7 @@ class LoadCancelled extends Error {
 
 /** Aborts the current load if the Cancel button was pressed */
 function throwIfCancelled() {
-  if (slowProcessCancelRequested)
-    throw new LoadCancelled();
+  if (slowProcessCancelRequested) throw new LoadCancelled();
 }
 
 /**
@@ -114,11 +130,11 @@ function throwIfCancelled() {
  * load visibly keeps moving instead of looking frozen.
  */
 function reportStage(stage: string, progress: number, detail?: string) {
-  let pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
   update({
     slowProcessStage: stage,
     slowProcessProgress: progress,
-    slowProcessStatus: detail ? `${stage}: ${detail} (${pct}%)` : `${stage}... ${pct}%`
+    slowProcessStatus: detail ? `${stage}: ${detail} (${pct}%)` : `${stage}... ${pct}%`,
   });
 }
 
@@ -127,7 +143,7 @@ function reportStage(stage: string, progress: number, detail?: string) {
  * pipeline runs in one task and the user only ever sees the first message.
  */
 function nextPaint() {
-  return new Promise<void>(resolve => setTimeout(resolve, 0));
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 /** Reports a stage and lets it become visible before the work continues */
@@ -143,21 +159,26 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   reportStage("Reading archive", 0, `${packName ?? ""} (${asMB(data.byteLength)})`);
   await nextPaint();
 
-  let fileType = await fileTypeFromBuffer(data).catch(() => undefined as FileTypeResult | undefined);
+  const fileType = await fileTypeFromBuffer(data).catch(
+    () => undefined as FileTypeResult | undefined,
+  );
 
   let files: { [name: string]: Uint8Array };
 
   try {
-    if (!fileType)
-      throw new Error("Unknown file type");
+    if (!fileType) throw new Error("Unknown file type");
     await beginStage("Unpacking", `${packName ?? "archive"} (${asMB(data.byteLength)})`);
     if (fileType.ext == "rar") {
       files = await unpackRarFiles(data, unrarWasm(), {
         checkCancelled: throwIfCancelled,
         onProgress: async (done, total, name) => {
           await delay(0);
-          reportStage("Unpacking", done / (total || 1), `${done}/${total} files: ${name ?? "archive"}`);
-        }
+          reportStage(
+            "Unpacking",
+            done / (total || 1),
+            `${done}/${total} files: ${name ?? "archive"}`,
+          );
+        },
       });
     } else {
       files = unpackZipFiles(data);
@@ -165,12 +186,13 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
     reportStage("Unpacking", 1, `${Object.keys(files).length} files from ${packName ?? "archive"}`);
   } catch (e) {
     // Cancellation is not a format error, let it unwind to `unpackData`
-    if (e instanceof LoadCancelled)
-      throw e;
+    if (e instanceof LoadCancelled) throw e;
     console.error(e);
     update({
       slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
-      slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessProgress: undefined,
     });
     return null;
   }
@@ -178,16 +200,14 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   throwIfCancelled();
 
   return files;
-
 }
 
 /** The mod folders a set of archive files belongs to, see `interpretPath` */
 function modDirs(files: { [name: string]: Uint8Array }) {
-  let dirs = new Set<string>();
-  for (let name of Object.keys(files)) {
-    let mod = interpretPath(name)?.mod;
-    if (mod)
-      dirs.add(mod);
+  const dirs = new Set<string>();
+  for (const name of Object.keys(files)) {
+    const mod = interpretPath(name)?.mod;
+    if (mod) dirs.add(mod);
   }
   return dirs;
 }
@@ -197,53 +217,61 @@ function modDirs(files: { [name: string]: Uint8Array }) {
  * uses when no modpack is loaded, so there is always a ruleset to browse.
  */
 export async function loadBuiltinOnlyPack() {
-  let files = await builtinModFiles();
-  let { processed, interpretedFiles } = buildPackData(files);
+  const files = await builtinModFiles();
+  const { processed, interpretedFiles } = buildPackData(files);
   // Builtin images and globe data are not part of any stored archive, so they
   // are cached under the "builtin" pack just like a real load would. A page
   // without storage (an exported file opened from disk) still browses fine, just
   // without them.
-  let images = interpretedFiles.filter(f => f.type == "img");
-  let dataFiles = interpretedFiles.filter(f => f.type == "dat");
+  const images = interpretedFiles.filter((f) => f.type == "img");
+  const dataFiles = interpretedFiles.filter((f) => f.type == "dat");
   try {
     if (images.length || dataFiles.length) {
       await wipeAssets(builtinPackName);
       if (images.length)
-        await saveImgs(builtinPackName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })));
+        await saveImgs(
+          builtinPackName,
+          images.map((img) => ({ mod: img.mod, path: img.path, data: img.data })),
+        );
       if (dataFiles.length)
-        await saveImgs(builtinPackName, dataFiles.map(f => ({ mod: f.mod, path: f.path, data: f.data })));
+        await saveImgs(
+          builtinPackName,
+          dataFiles.map((f) => ({ mod: f.mod, path: f.path, data: f.data })),
+        );
     }
   } catch (e) {
     console.warn("Can't cache builtin images", e);
   }
 
-  let rul = new Ruleset(processed);
+  const rul = new Ruleset(processed);
   applySavedLanguage(rul);
   update({ rul, packName: undefined });
   return rul;
 }
 
 export async function unpackData(packName: string, data: ArrayBuffer) {
-
   try {
-    let builtinMods = await builtinModFiles(packName);
+    const builtinMods = await builtinModFiles(packName);
 
     let files = await unpackArchive(packName, data);
 
     // The error state is already set by `unpackArchive`
-    if (!files)
-      return;
+    if (!files) return;
 
     if (!Object.keys(files).length) {
-      update({ slowProcessStatus: `Nothing usable found in ${packName}`,
-        slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined });
+      update({
+        slowProcessStatus: `Nothing usable found in ${packName}`,
+        slowProcessDone: true,
+        slowProcessError: true,
+        slowProcessProgress: undefined,
+      });
       return;
     }
 
     // A pack that ships its own copy of a builtin mod path keeps it as its own
     // data, so those files are not mistaken for the builtin contribution
-    let packDirs = modDirs(files);
-    let builtinDirs = new Set([...modDirs(builtinMods)].filter(dir => !packDirs.has(dir)));
+    const packDirs = modDirs(files);
+    const builtinDirs = new Set([...modDirs(builtinMods)].filter((dir) => !packDirs.has(dir)));
 
     files = { ...builtinMods, ...files };
 
@@ -252,12 +280,15 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     reportStage("Building ruleset", 0, `${Object.keys(files).length} files`);
     await nextPaint();
 
-    let { processed, interpretedFiles, ownMods, ownResources } = buildPackData(files, builtinDirs);
+    const { processed, interpretedFiles, ownMods, ownResources } = buildPackData(
+      files,
+      builtinDirs,
+    );
 
     throwIfCancelled();
 
-    let images = interpretedFiles.filter(f => f.type == "img");
-    let assetsSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
+    const images = interpretedFiles.filter((f) => f.type == "img");
+    const assetsSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
 
     await beginStage("Saving images", `${images.length} images`);
 
@@ -267,18 +298,24 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
 
     // Batched writes are much faster than one transaction per image, and the
     // progress callback keeps the window alive during the slowest stage
-    await saveImgs(packName, images.map(img => ({ mod: img.mod, path: img.path, data: img.data })),
-      async done => {
+    await saveImgs(
+      packName,
+      images.map((img) => ({ mod: img.mod, path: img.path, data: img.data })),
+      async (done) => {
         throwIfCancelled();
         reportStage("Saving images", done / (images.length || 1), `${done}/${images.length}`);
         await nextPaint();
-      });
+      },
+    );
 
     // The globe's DAT files are stored like images, so the map can be drawn
     // without the archive having to be unpacked again
-    let dataFiles = interpretedFiles.filter(f => f.type == "dat");
+    const dataFiles = interpretedFiles.filter((f) => f.type == "dat");
     if (dataFiles.length)
-      await saveImgs(packName, dataFiles.map(f => ({ mod: f.mod, path: f.path, data: f.data })));
+      await saveImgs(
+        packName,
+        dataFiles.map((f) => ({ mod: f.mod, path: f.path, data: f.data })),
+      );
 
     throwIfCancelled();
 
@@ -289,33 +326,42 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
     // mods update is picked up without re-uploading the archive. `langs` is
     // deliberately absent: that is how `mergeBuiltinMods` recognizes this
     // format.
-    let ownModsJson = JSON.stringify(ownMods);
-    let stringifiedRul = `{"mods":${ownModsJson === undefined ? "[]" : ownModsJson},"resources":${JSON.stringify(ownResources ?? {})}}`;
+    const ownModsJson = JSON.stringify(ownMods);
+    const stringifiedRul = `{"mods":${ownModsJson === undefined ? "[]" : ownModsJson},"resources":${JSON.stringify(ownResources ?? {})}}`;
 
     // Compression is CPU-bound and blocking; the native stream version is
     // several times faster here and produces a gzip payload fflate can read
-    let compressedRul = await gzipBytes(new TextEncoder().encode(stringifiedRul));
+    const compressedRul = await gzipBytes(new TextEncoder().encode(stringifiedRul));
 
     reportStage("Saving ruleset", 1);
 
     // The archive is only kept in developer mode, so it only takes storage
     // there; in the normal mode the pedia consists of the images and ruleset
-    await saveStats(packName, state.devView ? data.byteLength : 0, assetsSize, compressedRul.length);
+    await saveStats(
+      packName,
+      state.devView ? data.byteLength : 0,
+      assetsSize,
+      compressedRul.length,
+    );
     await saveRul(packName, compressedRul);
 
-    let rul = new Ruleset(processed);
+    const rul = new Ruleset(processed);
     applySavedLanguage(rul);
 
-    let names = Object.values(rul.mods ?? {})
+    const names = Object.values(rul.mods ?? {})
       .map((m: any) => [m.meta?.name, m.meta?.version].filter(Boolean).join(" "))
       .filter(Boolean);
 
     update({
-      rul, packName,
-      slowProcessDone: true, slowProcessError: false, slowProcessProgress: undefined,
-      slowProcessStatus: `Loaded ${packName}: ${Object.keys(rul.articles).length} articles, ` +
+      rul,
+      packName,
+      slowProcessDone: true,
+      slowProcessError: false,
+      slowProcessProgress: undefined,
+      slowProcessStatus:
+        `Loaded ${packName}: ${Object.keys(rul.articles).length} articles, ` +
         `${Object.keys(rul.items ?? {}).length} items, ${rul.langNames?.length ?? 0} languages` +
-        (names.length ? ` — ${names.join(", ")}` : "")
+        (names.length ? ` — ${names.join(", ")}` : ""),
     });
 
     // The URL still names the article the user was reading, so let the
@@ -327,35 +373,39 @@ export async function unpackData(packName: string, data: ArrayBuffer) {
   } catch (e) {
     // Cancellation has to reach `uploadUsersFiles`, which owns the archive
     // record and can remove it; only report real failures here
-    if (e instanceof LoadCancelled)
-      throw e;
+    if (e instanceof LoadCancelled) throw e;
     console.error(e);
-    update({ slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined,
-      slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}` });
+    update({
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessProgress: undefined,
+      slowProcessStatus: `Failed to load ${packName}: ${e?.message ?? e}`,
+    });
     throw e;
   }
 }
 
 /** Compresses bytes as gzip, preferring the native stream when available */
 async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof CompressionStream == "undefined")
-    return fflate.compressSync(bytes);
+  if (typeof CompressionStream == "undefined") return fflate.compressSync(bytes);
   // `slice` gives a fresh array over an `ArrayBuffer`, which is what `Blob`
   // accepts; a `Uint8Array` view may be backed by a shared buffer
-  let stream = new Blob([bytes.slice()]).stream().pipeThrough(new CompressionStream("gzip"));
+  const stream = new Blob([bytes.slice()]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 export async function uploadUsersFiles(fileList: FileList) {
   const files = Array.from(fileList);
-  if (!files.length)
-    return;
+  if (!files.length) return;
 
   resetSlowProcessCancel();
   update({
     slowProcessStatus: `Uploading ${files.length} file(s)...`,
-    slowProcessStage: "Uploading", slowProcessProgress: 0,
-    slowProcessDone: false, slowProcessError: false, slowProcessCancellable: true
+    slowProcessStage: "Uploading",
+    slowProcessProgress: 0,
+    slowProcessDone: false,
+    slowProcessError: false,
+    slowProcessCancellable: true,
   });
 
   /** Removes the half-installed pack so it can't be opened later */
@@ -370,9 +420,11 @@ export async function uploadUsersFiles(fileList: FileList) {
     }
     updateFileStats();
     update({
-      slowProcessDone: true, slowProcessError: true, slowProcessCancellable: false,
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessCancellable: false,
       slowProcessProgress: undefined,
-      slowProcessStatus: `${reason}. Nothing was installed.`
+      slowProcessStatus: `${reason}. Nothing was installed.`,
     });
   }
 
@@ -380,12 +432,15 @@ export async function uploadUsersFiles(fileList: FileList) {
     try {
       throwIfCancelled();
       reportStage("Reading archive", 0, `${file.name} (${asMB(file.size)})`);
-      let data = await file.arrayBuffer();
+      const data = await file.arrayBuffer();
       await saveFile(file.name, data);
     } catch (e) {
-      await abandon(file.name, e instanceof LoadCancelled
-        ? cancelledMessage(file.name)
-        : `Could not load ${file.name}: ${e?.message ?? e}`);
+      await abandon(
+        file.name,
+        e instanceof LoadCancelled
+          ? cancelledMessage(file.name)
+          : `Could not load ${file.name}: ${e?.message ?? e}`,
+      );
       return;
     }
     // The archive is already stored at this point, so a late cancel must
@@ -399,7 +454,7 @@ export async function uploadUsersFiles(fileList: FileList) {
 
   // Every successful path ends in a "Loaded ..." status from `unpackData`
   if (slowProcessCancelRequested && !state.slowProcessDone) {
-    let last = files[files.length - 1];
+    const last = files[files.length - 1];
     await abandon(last.name, cancelledMessage(last.name));
   } else if (!state.slowProcessDone) {
     update({ slowProcessDone: true, slowProcessCancellable: false });
@@ -407,8 +462,7 @@ export async function uploadUsersFiles(fileList: FileList) {
 
   // The upload is over, so its window closes on its own instead of waiting for
   // a click. Failures keep theirs: the message says what went wrong.
-  if (state.slowProcessDone && !state.slowProcessError)
-    autoCloseStatus();
+  if (state.slowProcessDone && !state.slowProcessError) autoCloseStatus();
 
   resetSlowProcessCancel();
 }

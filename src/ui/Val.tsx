@@ -1,9 +1,9 @@
-import { FC, Fragment, ReactNode } from "react";
+import { type FC, Fragment, type ReactNode } from "react";
+import { ValueRange } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import { state } from "../state";
-import { ValueRange } from "../rul/Entry";
-import { Divider, fromAnyRef, Img, Nobr } from "./components";
 import { MusicRef, SoundRef } from "./Audio";
+import { Divider, fromAnyRef, Img } from "./components";
 
 /** Polymorphic value view */
 
@@ -11,7 +11,7 @@ export type IconType = "monospace" | "simple" | "none" | null;
 
 /** Number as the tables print it: the mod's own locale, dot decimal separator */
 export function formatNumber(val: unknown) {
-  return Number(val).toLocaleString('ru-RU', { maximumFractionDigits: 4 }).replace(",", ".");
+  return Number(val).toLocaleString("ru-RU", { maximumFractionDigits: 4 }).replace(",", ".");
 }
 
 export const Val = ({
@@ -37,9 +37,8 @@ export const Val = ({
   /** Prefix to be inlcuded in text/link */
   prefix = undefined as string | undefined,
   /** Postfix to be inlcuded in text/link */
-  postfix = undefined as string | undefined
+  postfix = undefined as string | undefined,
 }) => {
-
   if (!rul) {
     return val;
   }
@@ -57,7 +56,7 @@ export const Val = ({
   // Primitive: boolean
   if (val === true || val === false) {
     return (
-      <span style={{ color: val ? 'lime' : 'red' }}>
+      <span style={{ color: val ? "lime" : "red" }}>
         <Tr text={val.toString()} />
       </span>
     );
@@ -71,10 +70,9 @@ export const Val = ({
   // Checked before numbers, markers themselves are numeric indices. A pack
   // without the sheet, or a number past its end, keeps showing the number.
   if (field && ["marker", "markerCrash", "markerLand", "markerIcon"].includes(field)) {
-    let marker = rul.globeMarker(val);
+    const marker = rul.globeMarker(val);
     // The sprite is drawn twice the size, as the old globe view did
-    if (marker)
-      return <Img src={marker.path} frame={marker} scale={2} alt={`marker ${val}`} />;
+    if (marker) return <Img src={marker.path} frame={marker} scale={2} alt={`marker ${val}`} />;
   }
 
   // Sound slots and music ids are not references: the file behind them is more
@@ -84,36 +82,52 @@ export const Val = ({
     return <SoundRef value={val} field={field} collection={collection} />;
 
   if (field == "music") {
-    let ids = (Array.isArray(val) ? val : [val])
-      .map(v => typeof v == "string" ? v : v?.id)
-      .filter(v => v != null && v !== "");
+    const ids = (Array.isArray(val) ? val : [val])
+      .map((v) => (typeof v == "string" ? v : v?.id))
+      .filter((v) => v != null && v !== "");
     if (ids.length)
-      return <>{ids.map((musicId, i) =>
-        <Fragment key={i}>
-          {i > 0 && <span className="list-divider">&nbsp;· </span>}
-          <MusicRef entry={musicId} />
-        </Fragment>
-      )}</>;
+      return (
+        <>
+          {ids.map((musicId, i) => (
+            <Fragment key={i}>
+              {i > 0 && <span className="list-divider">&nbsp;· </span>}
+              <MusicRef entry={musicId} />
+            </Fragment>
+          ))}
+        </>
+      );
   }
 
   // Primitive: number. Empty strings are checked so they don't render as 0
-  if (val !== "" && !Array.isArray(val) && !isNaN(Number(val))) {
+  if (val !== "" && !Array.isArray(val) && !Number.isNaN(Number(val))) {
     return <em className="num">{formatNumber(val)}</em>;
   }
   // A value that changes over a commendation's stages: `first..last`
   if (val instanceof ValueRange) {
-    return <span className="value-range">
-      <em className="num">{formatNumber(val.first)}</em>
-      <span className="value-range-separator">..</span>
-      <em className="num">{formatNumber(val.last)}</em>
-    </span>;
+    return (
+      <span className="value-range">
+        <em className="num">{formatNumber(val.first)}</em>
+        <span className="value-range-separator">..</span>
+        <em className="num">{formatNumber(val.last)}</em>
+      </span>
+    );
   }
 
   // It should be an entry, passed by direct link or id. Converting it to id
-  let id = fromAnyRef(val);
+  const id = fromAnyRef(val);
 
   function tr1(text: string) {
-    return <Tr text={text} icon={icon} nobr={nobr} notip={notip} capital={capital} prefix={prefix} postfix={postfix} />;
+    return (
+      <Tr
+        text={text}
+        icon={icon}
+        nobr={nobr}
+        notip={notip}
+        capital={capital}
+        prefix={prefix}
+        postfix={postfix}
+      />
+    );
   }
 
   if (id && rul.article(id)) {
@@ -123,7 +137,7 @@ export const Val = ({
     // the link would only reload this same page
     if (state.article && state.article.id === id)
       return <span className="self-ref">{tr1(children ?? id)}</span>;
-    return <a href={'##' + id}>{tr1(children ?? id)}</a>;
+    return <a href={"##" + id}>{tr1(children ?? id)}</a>;
   }
 
   if (id && rul.hasSprite(id)) {
@@ -131,12 +145,20 @@ export const Val = ({
   }
 
   // Plain text, or a reference that has no article/sprite behind it
-  if (typeof val == "string")
-    return tr1(val);
+  if (typeof val == "string") return tr1(val);
 
   // Array/object case
   if (Array.isArray(val) || val instanceof Set || val instanceof Object) {
-    return <LinksList items={val} depth={depth - 1} className={className} table={table} sorted={sorted} vertical={vertical} />;
+    return (
+      <LinksList
+        items={val}
+        depth={depth - 1}
+        className={className}
+        table={table}
+        sorted={sorted}
+        vertical={vertical}
+      />
+    );
   }
 
   return null;
@@ -145,7 +167,12 @@ export const Val = ({
 /**Translate text if possible add the emoji icon to it. For internal use by Val only */
 /** Compares two label strings ignoring markup, case and spacing */
 function sameText(a: string, b: string) {
-  let norm = (s: string) => String(s ?? "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const norm = (s: string) =>
+    String(s ?? "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
   return norm(a) == norm(b);
 }
 
@@ -156,29 +183,26 @@ export function Tr({
   notip = false,
   capital = false,
   prefix = undefined as string | undefined,
-  postfix = undefined as string | undefined
+  postfix = undefined as string | undefined,
 }) {
-  if (text == null)
-    return null;
+  if (text == null) return null;
 
   // Before any mod pack is loaded there is no ruleset to translate through, so
   // fall back to the raw key rather than crashing the whole UI
   if (!rul) {
-    let raw = `${prefix ?? ""}${text}${postfix ?? ""}`;
+    const raw = `${prefix ?? ""}${text}${postfix ?? ""}`;
     return <span className="nobr">{raw}</span>;
   }
 
   // Raw keys are shown when the ruleset is in "revealed" mode
   let valtr = state.revealed ? text : rul.tr(text, { capital });
 
-  if (valtr == null)
-    return null;
+  if (valtr == null) return null;
 
   // Icon and label are compared without the prefix/postfix decoration
   let iconText = state.revealed ? null : rul.icon(text);
   // The `icon` language file often repeats the very same label, skip it then
-  if (iconText && sameText(iconText, valtr))
-    iconText = null;
+  if (iconText && sameText(iconText, valtr)) iconText = null;
 
   valtr = `${prefix ?? ""}${valtr}${postfix ?? ""}`;
 
@@ -186,22 +210,46 @@ export function Tr({
 
   if (iconText) {
     if (icon == "monospace")
-      element = <><div className='monospace-emoji-icon'>{iconText}</div>{element}</>;
+      element = (
+        <>
+          <div className="monospace-emoji-icon">{iconText}</div>
+          {element}
+        </>
+      );
     else if (icon == "simple")
-      element = <>{iconText}{element}</>;
+      element = (
+        <>
+          {iconText}
+          {element}
+        </>
+      );
     else if (icon != "none")
-      element = <><div className='emoji-icon'>{iconText}</div>{element}</>;
+      element = (
+        <>
+          <div className="emoji-icon">{iconText}</div>
+          {element}
+        </>
+      );
   }
 
   // The icon and the label are one unit: `Tr` never splits across lines.
   // Old `Ruleset.tr` measured the *translated* string, not the language key: a
   // short key such as `STR_SNAKEMAN_COMMANDER_CORPSE` can translate into a much
   // wider label, and measuring the key would keep that label on one line.
-  let plainLabel = String(valtr).replace(/<[^>]*>/g, "");
-  element = <span className={nobr === true || plainLabel.length <= (nobr as number) ? "nobr" : ""}>{element}</span>;
+  const plainLabel = String(valtr).replace(/<[^>]*>/g, "");
+  element = (
+    <span className={nobr === true || plainLabel.length <= (nobr as number) ? "nobr" : ""}>
+      {element}
+    </span>
+  );
 
-  if (!notip && text && ('tip_' + text) in rul.lang) {
-    element = <span data-tooltip={'tip_' + text}>{element}<sup className="tipmark">?</sup></span>;
+  if (!notip && text && "tip_" + text in rul.lang) {
+    element = (
+      <span data-tooltip={"tip_" + text}>
+        {element}
+        <sup className="tipmark">?</sup>
+      </span>
+    );
   }
 
   return element;
@@ -220,7 +268,7 @@ interface LinksListProps {
   depth?: number;
   sorted?: boolean;
   table?: boolean;
-  className?: string
+  className?: string;
 }
 
 /** Renders lists and objects of references as links, follows old LinksList.svelte */
@@ -232,9 +280,8 @@ const LinksList: FC<LinksListProps> = ({
   depth = 2,
   table = undefined,
   className = "",
-  sorted: initialSorted
+  sorted: initialSorted,
 }) => {
-
   if (initialItems == null) {
     return <>{rul.tr("NULL")}</>;
   }
@@ -242,64 +289,89 @@ const LinksList: FC<LinksListProps> = ({
     return <span>...</span>;
   }
 
-  let items = initialItems instanceof Set ? [...initialItems] : initialItems;
-  let isArray = Array.isArray(items);
+  const items = initialItems instanceof Set ? [...initialItems] : initialItems;
+  const isArray = Array.isArray(items);
   let keys: any[] = isArray ? items : Object.keys(items);
 
   // Long lists are sorted unless the caller says otherwise. `keys` holds either
   // the values themselves or an object's keys, and the sorter returns their order
   // as a new list, so it replaces them rather than being called on each use.
-  if (initialSorted ?? keys.length > 9)
-    keys = rul.sortStringsAndNumbers(keys);
+  if (initialSorted ?? keys.length > 9) keys = rul.sortStringsAndNumbers(keys);
 
   if (cols) {
-    return <div className={"cols " + className} style={{ columns: cols }}>
-      {keys.map(field =>
-        <div key={field}>
-          {state.article && state.article.id === field
-            ? <span className="self-ref"><Tr text={field} /></span>
-            : <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}><Tr text={field} /></a>}
-        </div>
-      )}
-    </div>;
+    return (
+      <div className={"cols " + className} style={{ columns: cols }}>
+        {keys.map((field) => (
+          <div key={field}>
+            {state.article && state.article.id === field ? (
+              <span className="self-ref">
+                <Tr text={field} />
+              </span>
+            ) : (
+              <a href={"##" + field} className={rul.article(field) ? undefined : "dead"}>
+                <Tr text={field} />
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (numberTable) {
-    return <table className={"number-table " + className}>
-      <tbody>
-        {rul.sortStringsAndNumbers(Object.keys(items)).map(field =>
-          <tr key={field}>
-            <td><Val of={field} /></td>
-            <td><em><Val of={items[field]} /></em></td>
-          </tr>
-        )}
-      </tbody>
-    </table>;
+    return (
+      <table className={"number-table " + className}>
+        <tbody>
+          {rul.sortStringsAndNumbers(Object.keys(items)).map((field) => (
+            <tr key={field}>
+              <td>
+                <Val of={field} />
+              </td>
+              <td>
+                <em>
+                  <Val of={items[field]} />
+                </em>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   }
 
   // Objects holding further objects need one block per key to stay readable
-  if (!isArray && Object.values(items).some(a => typeof a == "object")) {
-    return <>
-      {keys.map((subfield, j) =>
-        <div key={subfield} className={j > 0 ? "top-border" : undefined}>
-          <Val of={subfield} depth={depth - 1} /> :
-          <div className="sublist">
-            <Val of={items[subfield]} depth={depth - 1} />
+  if (!isArray && Object.values(items).some((a) => typeof a == "object")) {
+    return (
+      <>
+        {keys.map((subfield, j) => (
+          <div key={subfield} className={j > 0 ? "top-border" : undefined}>
+            <Val of={subfield} depth={depth - 1} /> :
+            <div className="sublist">
+              <Val of={items[subfield]} depth={depth - 1} />
+            </div>
           </div>
-        </div>
-      )}
-    </>;
+        ))}
+      </>
+    );
   }
 
   if (table) {
     return (
       <table className={"properties-table " + className}>
         <tbody>
-          {keys.map(field => {
-            let cells = isArray ? (Array.isArray(field) ? field : [field]) : [field, items[field]];
+          {keys.map((field) => {
+            const cells = isArray
+              ? Array.isArray(field)
+                ? field
+                : [field]
+              : [field, items[field]];
             return (
               <tr key={isArray ? String(field) : field}>
-                {cells.map((v, i) => <td key={i}><Val of={v} depth={depth - 1} /></td>)}
+                {cells.map((v, i) => (
+                  <td key={i}>
+                    <Val of={v} depth={depth - 1} />
+                  </td>
+                ))}
               </tr>
             );
           })}
@@ -310,27 +382,32 @@ const LinksList: FC<LinksListProps> = ({
 
   // Object of plain values: show the value, then the key as a reference
   if (!isArray && keys.length > 0 && !table) {
-    return <span className={"links-list " + className}>
-      {keys.map((field, i) =>
-        <Fragment key={field}>
-          {i !== 0 && <Divider vertical={vertical} />}
-          <Val of={field} depth={depth - 1} /> <Val of={items[field]} field={field} depth={depth - 1} />
-        </Fragment>
-      )}
-    </span>;
+    return (
+      <span className={"links-list " + className}>
+        {keys.map((field, i) => (
+          <Fragment key={field}>
+            {i !== 0 && <Divider vertical={vertical} />}
+            <Val of={field} depth={depth - 1} />{" "}
+            <Val of={items[field]} field={field} depth={depth - 1} />
+          </Fragment>
+        ))}
+      </span>
+    );
   }
 
   return (
     <span className={"links-list " + className}>
       {keys.map((item, i) =>
-        Array.isArray(item)
-          ? <div key={i} className="sublist">
+        Array.isArray(item) ? (
+          <div key={i} className="sublist">
             <LinksList items={item} depth={depth - 1} />
           </div>
-          : <Fragment key={i}>
+        ) : (
+          <Fragment key={i}>
             {i !== 0 && <Divider vertical={vertical} />}
             <Val of={item?.type || item} depth={depth - 1} />
           </Fragment>
+        ),
       )}
     </span>
   );

@@ -1,9 +1,19 @@
-import { addIfNew, camelToUnderscore, unique } from '../util';
-import { Article } from './Article';
+import { addIfNew, camelToUnderscore, unique } from "../util";
+import { Article } from "./Article";
 import {
-  backLink, backLink2, battleTypes, damageTypeIndex, damageTypes, internalBattleTypes, internalDamageTypes,
-  killFactions, killStatuses, rul, Service, statsList
-} from './Ruleset';
+  backLink,
+  backLink2,
+  battleTypes,
+  damageTypeIndex,
+  damageTypes,
+  internalBattleTypes,
+  internalDamageTypes,
+  killFactions,
+  killStatuses,
+  rul,
+  Service,
+  statsList,
+} from "./Ruleset";
 
 /**
  * A ruleset node exactly as a pack states it.
@@ -15,7 +25,7 @@ import {
  * object with an id; the index signature is what keeps an unknown field legal
  * here rather than an error.
  */
-export type RawEntry = { id?: string, [field: string]: any };
+export type RawEntry = { id?: string; [field: string]: any };
 
 /**
  * The field a collection names its blocks with, for the collections that do not
@@ -59,14 +69,11 @@ const identityFieldName = /^(uid|id|ident|identifier|key)$/i;
  * name — not the letters themselves.
  */
 function namesIdentity(field: string) {
-  if (identityFieldName.test(field))
-    return true;
+  if (identityFieldName.test(field)) return true;
   // `objId`, `unitID`: a capital `I` marks the start of the word
-  if (/[a-z]I[dD]$/.test(field))
-    return true;
+  if (/[a-z]I[dD]$/.test(field)) return true;
   // `object_id`, `object_ID`: an underscore separates it
-  if (/_id$/i.test(field))
-    return true;
+  if (/_id$/i.test(field)) return true;
   // `idString`-style prefix, which some engine fields use
   return /^id[A-Z_]/.test(field);
 }
@@ -97,17 +104,14 @@ export function unknownIdFields(): string[] {
  * reading one.
  */
 function guessIdentityField(raw: RawEntry): string | undefined {
-  let candidates = Object.keys(raw ?? {}).filter(field => {
-    if (neverIdentity.has(field))
-      return false;
-    if (!namesIdentity(field))
-      return false;
-    let value = raw[field];
+  const candidates = Object.keys(raw ?? {}).filter((field) => {
+    if (neverIdentity.has(field)) return false;
+    if (!namesIdentity(field)) return false;
+    const value = raw[field];
     return typeof value == "string" && value !== "";
   });
   return candidates.length == 1 ? candidates[0] : undefined;
 }
-
 
 /**
  * The identifier exactly as the file writes it.
@@ -125,9 +129,9 @@ function guessIdentityField(raw: RawEntry): string | undefined {
  * read.
  */
 export function rawId(collection: string, raw: RawEntry): string | undefined {
-  let field = idField[collection] ?? "type";
-  let value = raw?.[field];
-  return value == null ? undefined : value as string;
+  const field = idField[collection] ?? "type";
+  const value = raw?.[field];
+  return value == null ? undefined : (value as string);
 }
 
 /**
@@ -151,24 +155,21 @@ export function rawId(collection: string, raw: RawEntry): string | undefined {
  */
 export function entryKey(collection: string, raw: RawEntry): string {
   // Already resolved, e.g. when a block is merged more than once
-  let stamped = raw?.uid;
-  if (typeof stamped == "string" && stamped !== "")
-    return stamped;
+  const stamped = raw?.uid;
+  if (typeof stamped == "string" && stamped !== "") return stamped;
 
-  let written = rawId(collection, raw);
-  if (written != null)
-    return written;
+  const written = rawId(collection, raw);
+  if (written != null) return written;
 
-  let aliases = ["id", "type", "name", "delete", "typeSingle"];
-  for (let field of aliases) {
-    let value = raw?.[field];
-    if (value != null)
-      return value as string;
+  const aliases = ["id", "type", "name", "delete", "typeSingle"];
+  for (const field of aliases) {
+    const value = raw?.[field];
+    if (value != null) return value as string;
   }
 
   // A collection this build has no rule for: guess from the field names, and
   // record it so `unknownIdFields()` can report what was assumed
-  let guessed = guessIdentityField(raw);
+  const guessed = guessIdentityField(raw);
   if (guessed != null) {
     guessedIdFields.set(`${collection}.${guessed}`, guessed);
     return raw[guessed] as string;
@@ -187,9 +188,8 @@ export function entryKey(collection: string, raw: RawEntry): string {
  * caller drops it rather than filing it under `""`.
  */
 export function stampUid(collection: string, raw: RawEntry): string {
-  let uid = entryKey(collection, raw);
-  if (raw != null && typeof raw == "object" && uid !== "")
-    raw.uid = uid;
+  const uid = entryKey(collection, raw);
+  if (raw != null && typeof raw == "object" && uid !== "") raw.uid = uid;
   return uid;
 }
 
@@ -266,10 +266,9 @@ export class Entry {
     // while the mod rules were merged. It is settled before the copy because the
     // copy must not be able to move it: several collections name their blocks
     // `type`, and copying that field runs `set type`.
-    let uid = raw?.uid ?? entryKey(this.collection, raw);
+    const uid = raw?.uid ?? entryKey(this.collection, raw);
     raw = JSON.parse(JSON.stringify(raw));
-    for (let k in raw)
-      this[k] = raw[k];
+    for (const k in raw) this[k] = raw[k];
 
     // `id` is left exactly as the file wrote it. It is what the block called
     // itself, which is not always the uid: a `name`-keyed block has no `id` at
@@ -281,10 +280,9 @@ export class Entry {
     // A block that names itself with nothing is not a table row. Filing it under
     // `""` is what used to collapse a whole table into one blank entry and
     // create an article with no id to link to, so it is dropped instead.
-    if (!uid)
-      return this;
+    if (!uid) return this;
 
-    let tables = rul as unknown as { [collection: string]: { [id: string]: Entry } };
+    const tables = rul as unknown as { [collection: string]: { [id: string]: Entry } };
     tables[this.collection] ??= {};
 
     tables[this.collection][uid] = this;
@@ -313,10 +311,8 @@ export class Entry {
    * the column would then be empty.
    */
   sortField(field: string, filter?: string | boolean) {
-    if (field == "id" && !filter)
-      return this.title;
-    if (field == "id")
-      return this.uid;
+    if (field == "id" && !filter) return this.title;
+    if (field == "id") return this.uid;
     return this[field];
   }
 
@@ -339,11 +335,12 @@ export class Entry {
   }
 
   static reserve(raw: RawEntry, collection: string) {
-    let id = entryKey(collection, raw);
+    const id = entryKey(collection, raw);
     // Entries are registered on `rul` under their collection name, and the
     // table is created on first use
-    let table: { [id: string]: Entry } | undefined =
-      (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
+    const table: { [id: string]: Entry } | undefined = (
+      rul as unknown as { [collection: string]: { [id: string]: Entry } }
+    )[collection];
     if (table?.[id]) {
       return table[id];
     } else {
@@ -364,8 +361,7 @@ export class Entry {
   }
 
   set name(val) {
-    if (this.uid == null)
-      this.uid = val;
+    if (this.uid == null) this.uid = val;
   }
 
   get type() {
@@ -375,11 +371,10 @@ export class Entry {
   set type(val) {
     this.uid = val;
   }
-
 }
 
 export class SimpleEntry extends Entry {
-  constructor(raw: RawEntry, collection: string){
+  constructor(raw: RawEntry, collection: string) {
     super(collection);
     this.from(raw);
   }
@@ -399,35 +394,37 @@ export class MissionScript extends Entry {
     super("missionScripts");
     this.from(raw);
     if (this.researchTriggers) {
-      let triggers = this.researchTriggers;
-      this.researchNeeded = Object.keys(triggers).filter(k => triggers[k]);
-      this.researchForbidden = Object.keys(triggers).filter(k => !triggers[k]);
+      const triggers = this.researchTriggers;
+      this.researchNeeded = Object.keys(triggers).filter((k) => triggers[k]);
+      this.researchForbidden = Object.keys(triggers).filter((k) => !triggers[k]);
     }
     if (this.missionWeights) {
       // A weight may be a bare number rather than a block, so the values are
       // filtered to the blocks before their keys are read
-      let weights = Object.values(this.missionWeights)
-        .filter((m): m is { [mission: string]: number } => m != null && typeof m == "object");
-      this._missions = unique(weights.map(m => Object.keys(m)).flat());
+      const weights = Object.values(this.missionWeights).filter(
+        (m): m is { [mission: string]: number } => m != null && typeof m == "object",
+      );
+      this._missions = unique(weights.flatMap((m) => Object.keys(m)));
     }
   }
 }
 
 export class Soldiers extends Entry {
-  statCaps?: { [id: string]: number }
+  statCaps?: { [id: string]: number };
 
   constructor(raw: RawEntry) {
     super("soldiers");
     this.from(raw);
   }
 
-  sortField(n: string) {
-    return this[n] || this.statCaps?.[n];
+  sortField(n: string, v?: string | boolean) {
+    // `super` first, so the identity column answers with the uid like every
+    // other table's does; a stat this soldier has no cap for still falls back
+    return super.sortField(n, v) || this.statCaps?.[n];
   }
 }
 
 export class EventEntry extends Entry {
-
   constructor(raw: RawEntry) {
     super("events");
     this.from(raw);
@@ -450,23 +447,23 @@ export class EventScript extends Entry {
   constructor(raw: RawEntry) {
     super("eventScripts");
     this.from(raw);
-    let relatedEvents = new Set<string>([
-      ...Object.values(this.eventWeights || []).map(w => Object.keys(w)).flat(),
-      ...Object.keys(this.oneTimeRandomEvents || {})
+    const relatedEvents = new Set<string>([
+      ...Object.values(this.eventWeights || []).flatMap((w) => Object.keys(w)),
+      ...Object.keys(this.oneTimeRandomEvents || {}),
     ]);
     this._relatedEvents = [...relatedEvents];
     this._relatedResearch = [...new Set<string>(Object.keys(this.researchTriggers || {}))];
     if (this.xcomBaseInCountryTriggers) {
-      let triggers = this.xcomBaseInCountryTriggers;
-      this._xcomBaseInCountryTrue = Object.keys(triggers).filter(k => triggers[k] == true);
-      this._xcomBaseInCountryFalse = Object.keys(triggers).filter(k => triggers[k] == false);
+      const triggers = this.xcomBaseInCountryTriggers;
+      this._xcomBaseInCountryTrue = Object.keys(triggers).filter((k) => triggers[k] == true);
+      this._xcomBaseInCountryFalse = Object.keys(triggers).filter((k) => triggers[k] == false);
     }
   }
 }
 
 function totalSellCost(items: { [key: string]: number } = {}) {
   let c = 0;
-  for (let k in items) {
+  for (const k in items) {
     c += items[k] * (rul.items[k] || rul.crafts[k])?.costSell || 0;
   }
   return c || 0;
@@ -474,12 +471,11 @@ function totalSellCost(items: { [key: string]: number } = {}) {
 
 function totalSize(items: { [key: string]: number } = {}) {
   let c = 0;
-  for (let k in items) {
+  for (const k in items) {
     c += items[k] * (rul.items[k] || rul.crafts[k])?.size || 0;
   }
   return c;
 }
-
 
 export class Manufacture extends Entry {
   requires?: string;
@@ -502,8 +498,8 @@ export class Manufacture extends Entry {
     }
 
     if (this.requires) {
-      for (let resName of this.requires) {
-        let res = rul.research[resName];
+      for (const resName of this.requires) {
+        const res = rul.research[resName];
         if (!res) continue;
         if (!res.manufacture) res.manufacture = [];
         res.manufacture.push(this.name);
@@ -515,8 +511,8 @@ export class Manufacture extends Entry {
     }
 
     if (this.requiredItems) {
-      for (let itemName of Object.keys(this.requiredItems)) {
-        let item = rul.items[itemName];
+      for (const itemName of Object.keys(this.requiredItems)) {
+        const item = rul.items[itemName];
         if (!item) continue;
         if (!item.componentOf) item.componentOf = {};
         item.componentOf[this.name] = this.requiredItems[itemName];
@@ -525,12 +521,13 @@ export class Manufacture extends Entry {
 
     if (this.randomProducedItems) {
       this.chanceSum = 0;
-      for (let chance of this.randomProducedItems) this.chanceSum += chance[0];
+      for (const chance of this.randomProducedItems) this.chanceSum += chance[0];
 
       this.totalProducedItems = { ...this.producedItems };
-      for (let chance of this.randomProducedItems) {
-        for (let k in chance[1]) {
-          this.totalProducedItems[k] = (this.totalProducedItems[k] || 0) + chance[1][k] * chance[0] / this.chanceSum;
+      for (const chance of this.randomProducedItems) {
+        for (const k in chance[1]) {
+          this.totalProducedItems[k] =
+            (this.totalProducedItems[k] || 0) + (chance[1][k] * chance[0]) / this.chanceSum;
         }
       }
     } else {
@@ -542,7 +539,7 @@ export class Manufacture extends Entry {
     // to say "incomplete", so the number is left as it works out and the entry
     // is named in the console for whoever is fixing the pack.
     this.profit = totalSellCost(this.producedItems) - totalSellCost(this.requiredItems) - this.cost;
-    if (isNaN(this.profit))
+    if (Number.isNaN(this.profit))
       console.warn(`${this.uid}: profit is NaN, one of its items has no sell cost`);
     this.profitPerHour = this.profit / this.time;
     this.sizeChange = totalSize(this.producedItems) - totalSize(this.requiredItems);
@@ -578,7 +575,7 @@ export class SoldierTransformation extends Entry {
  */
 export class SoldierBonus extends Entry {
   declare stats?: { [stat: string]: number };
-  declare recovery?: { [stat: string]: { flatOne?: number, flatHundred?: number } };
+  declare recovery?: { [stat: string]: { flatOne?: number; flatHundred?: number } };
 
   constructor(raw: RawEntry) {
     super("soldierBonuses");
@@ -594,7 +591,6 @@ export class DamageType extends Entry {
     super("damageTypes");
     this.from(raw);
   }
-
 }
 
 /**
@@ -609,9 +605,8 @@ export class DamageType extends Entry {
  * Only the five leading fields are numeric: the optional sixth is a city id.
  */
 function numberArea(area: MapArea): MapArea {
-  let result = area.slice() as MapArea;
-  for (let i = 0; i < 5 && i < result.length; i++)
-    result[i] = Number(result[i]);
+  const result = area.slice() as MapArea;
+  for (let i = 0; i < 5 && i < result.length; i++) result[i] = Number(result[i]);
   return result;
 }
 
@@ -630,7 +625,8 @@ function numberArea(area: MapArea): MapArea {
  * wrap: `lon2` is never below `lon1` and may exceed 360, which is the opposite
  * of `areas`.
  */
-export class Region extends Entry {  declare cost?: number;
+export class Region extends Entry {
+  declare cost?: number;
   declare regionWeight?: number;
   declare areas?: MapArea[];
   declare missionZones?: MapArea[][];
@@ -645,10 +641,9 @@ export class Region extends Entry {  declare cost?: number;
     this.from(raw);
     // Assigned only when present: an own `undefined` would draw an empty row
     // wherever the entry is rendered raw, the same reason `armors` is `declare`.
-    if (this.areas)
-      this.areas = this.areas.map(numberArea);
+    if (this.areas) this.areas = this.areas.map(numberArea);
     if (this.missionZones)
-      this.missionZones = this.missionZones.map(zone => zone.map(numberArea));
+      this.missionZones = this.missionZones.map((zone) => zone.map(numberArea));
   }
 }
 
@@ -690,7 +685,7 @@ export class InventorySection extends Entry {
     // pedia does not read. XComFiles does exactly that — its hands have no
     // `type`, `x` or `y` at all, and they are hands because the stock ruleset
     // says so. Printing "INV_SLOT" there would be inventing data.
-    let { type, ...rest } = raw ?? {};
+    const { type, ...rest } = raw ?? {};
     this.from({ ...rest, invType: type == null ? undefined : Number(type) });
   }
 }
@@ -750,9 +745,7 @@ export type FlightStop = {
  * map needs each stop together with the leg that reaches it, so both are served
  * by one alternating list rather than each zipping the raw views itself.
  */
-export type FlightStep =
-  | { kind: "stop", stop: FlightStop }
-  | { kind: "leg", leg: FlightLeg };
+export type FlightStep = { kind: "stop"; stop: FlightStop } | { kind: "leg"; leg: FlightLeg };
 
 /**
  * A UFO flight path, as a list of waypoints.
@@ -788,8 +781,8 @@ export class UfoTrajectory extends Entry {
 
   /** The highest zone index the path visits, or -1 when it has no waypoints */
   get maxZone() {
-    let zones = this.waypoints ?? [];
-    return zones.length ? Math.max(...zones.map(w => Number(w?.[0]) ?? 0)) : -1;
+    const zones = this.waypoints ?? [];
+    return zones.length ? Math.max(...zones.map((w) => Number(w?.[0]) ?? 0)) : -1;
   }
 
   /** Whether `region` has zones for every waypoint of this path */
@@ -833,21 +826,20 @@ export class UfoTrajectory extends Entry {
    * lines. Such a path returns no legs rather than an invented one.
    */
   get legs(): FlightLeg[] {
-    let lines = this.waypoints ?? [];
-    let n = lines.length;
-    if (n < 2)
-      return [];
-    let zoneOf = (i: number) => Number(lines[i]?.[0]);
-    let altitudeOf = (i: number) => Number(lines[i]?.[1]);
+    const lines = this.waypoints ?? [];
+    const n = lines.length;
+    if (n < 2) return [];
+    const zoneOf = (i: number) => Number(lines[i]?.[0]);
+    const altitudeOf = (i: number) => Number(lines[i]?.[1]);
     // A UFO that spawns on the ground stays there for the ground timer before
     // it can fly on, exactly like one that lands later
     let grounded = altitudeOf(0) === 0;
-    let out: FlightLeg[] = [];
+    const out: FlightLeg[] = [];
     let from = zoneOf(0);
     for (let m = 1; m <= n; m++) {
       // Leg 1 is already aimed at line 1; every later leg at the line before it
-      let to = m == 1 ? zoneOf(1) : zoneOf(m - 1);
-      let lands = m < n && altitudeOf(m) === 0;
+      const to = m == 1 ? zoneOf(1) : zoneOf(m - 1);
+      const lands = m < n && altitudeOf(m) === 0;
       out.push({
         index: m,
         from,
@@ -864,10 +856,9 @@ export class UfoTrajectory extends Entry {
 
   /** The zones the UFO is in, in order: the spawn point, then each leg's arrival */
   get stops(): number[] {
-    let legs = this.legs;
-    if (!legs.length)
-      return (this.waypoints ?? []).map(w => Number(w?.[0]));
-    return [legs[0].from, ...legs.map(leg => leg.to)];
+    const legs = this.legs;
+    if (!legs.length) return (this.waypoints ?? []).map((w) => Number(w?.[0]));
+    return [legs[0].from, ...legs.map((leg) => leg.to)];
   }
 
   /**
@@ -879,14 +870,14 @@ export class UfoTrajectory extends Entry {
    * exactly the detail that is easy to get wrong.
    */
   get flightStops(): FlightStop[] {
-    let legs = this.legs;
+    const legs = this.legs;
     if (!legs.length)
       return (this.waypoints ?? []).map((w, i) => ({
         zone: Number(w?.[0]),
         index: i,
         lands: i == 0 && Number(w?.[1]) === 0,
       }));
-    return [legs[0].from, ...legs.map(leg => leg.to)].map((zone, i) => ({
+    return [legs[0].from, ...legs.map((leg) => leg.to)].map((zone, i) => ({
       zone,
       index: i,
       arrival: legs[i - 1],
@@ -905,12 +896,11 @@ export class UfoTrajectory extends Entry {
    * stop a leg belongs to.
    */
   get flightSteps(): FlightStep[] {
-    let stops = this.flightStops;
-    let legs = this.legs;
-    if (!legs.length)
-      return stops.map(stop => ({ kind: "stop" as const, stop }));
-    let out: FlightStep[] = [{ kind: "stop", stop: stops[0] }];
-    for (let [i, leg] of legs.entries()) {
+    const stops = this.flightStops;
+    const legs = this.legs;
+    if (!legs.length) return stops.map((stop) => ({ kind: "stop" as const, stop }));
+    const out: FlightStep[] = [{ kind: "stop", stop: stops[0] }];
+    for (const [i, leg] of legs.entries()) {
       out.push({ kind: "leg", leg });
       out.push({ kind: "stop", stop: stops[i + 1] });
     }
@@ -925,8 +915,9 @@ export class UfoTrajectory extends Entry {
    * longer than its own help text ("seconds") suggests.
    */
   get landingSeconds(): number | undefined {
-    let lands = (this.waypoints ?? []).length > 1
-      && (Number(this.waypoints?.[0]?.[1]) === 0 || this.legs.some(leg => leg.lands));
+    const lands =
+      (this.waypoints ?? []).length > 1 &&
+      (Number(this.waypoints?.[0]?.[1]) === 0 || this.legs.some((leg) => leg.lands));
     return lands ? Math.max(0, Number(this.groundTimer ?? 0)) * 5 : undefined;
   }
 }
@@ -951,14 +942,15 @@ export class Music {
   catPos?: number;
   normalization?: number;
 
-  constructor(id: string, raw: { name?: string, catPos?: number | string, normalization?: number | string }) {
+  constructor(
+    id: string,
+    raw: { name?: string; catPos?: number | string; normalization?: number | string },
+  ) {
     this.id = id;
-    let name = raw?.name || id;
+    const name = raw?.name || id;
     this.fileName = String(name);
-    if (raw?.catPos != null)
-      this.catPos = Number(raw.catPos);
-    if (raw?.normalization != null)
-      this.normalization = Number(raw.normalization);
+    if (raw?.catPos != null) this.catPos = Number(raw.catPos);
+    if (raw?.normalization != null) this.normalization = Number(raw.normalization);
   }
 }
 
@@ -969,7 +961,10 @@ export class Music {
  * number, so the two ends are numbers.
  */
 export class ValueRange {
-  constructor(public first: number, public last: number) { }
+  constructor(
+    public first: number,
+    public last: number,
+  ) {}
 }
 
 /**
@@ -982,13 +977,10 @@ const stageInternals = ["id", "name", "collection", "stats", "recovery"];
 
 /** The value one stage bonus gives for a column, or undefined when it gives none */
 function stageValue(bonus: Entry, n: string) {
-  if (n.substring(0, 9) == "recovery.")
-    return bonus.recovery?.[n.substring(9)]?.flatOne;
-  if (stageInternals.includes(n))
-    return undefined;
+  if (n.substring(0, 9) == "recovery.") return bonus.recovery?.[n.substring(9)]?.flatOne;
+  if (stageInternals.includes(n)) return undefined;
   // A stat the stage omits is not the same as a stat it sets to zero
-  if (bonus.stats && n in bonus.stats)
-    return bonus.stats[n];
+  if (bonus.stats && n in bonus.stats) return bonus.stats[n];
   return bonus[n];
 }
 
@@ -1008,15 +1000,15 @@ export type KillCriteriaDeed = [times: number, conditions: string[]];
  * no known list is kept as a field of its own, hence the index signature.
  */
 export type ResolvedDeed = {
-  times: number,
-  element?: string,
-  type?: string,
-  status?: string,
-  faction?: string,
-  race?: string,
-  unit?: string,
-  item?: string,
-  [field: string]: any,
+  times: number;
+  element?: string;
+  type?: string;
+  status?: string;
+  faction?: string;
+  race?: string;
+  unit?: string;
+  item?: string;
+  [field: string]: any;
 };
 
 export class Commendation extends Entry {
@@ -1038,7 +1030,9 @@ export class Commendation extends Entry {
   constructor(raw: RawEntry) {
     super("commendations");
     this.from(raw);
-    this.finalBonus = this.soldierBonusTypes && rul.soldierBonuses[this.soldierBonusTypes[this.soldierBonusTypes.length - 1]];
+    this.finalBonus =
+      this.soldierBonusTypes &&
+      rul.soldierBonuses[this.soldierBonusTypes[this.soldierBonusTypes.length - 1]];
   }
 
   /**
@@ -1051,24 +1045,26 @@ export class Commendation extends Entry {
    * so a commendation whose stages are all empty still resolves.
    */
   get lastMeaningfulBonus(): Entry | undefined {
-    let stages = (this.soldierBonusTypes || []).map(id => rul.soldierBonuses[id]).filter(b => b != null);
-    if (stages.length == 0)
-      return this.finalBonus;
-    let meaningful = (b: Entry) =>
+    const stages = (this.soldierBonusTypes || [])
+      .map((id) => rul.soldierBonuses[id])
+      .filter((b) => b != null);
+    if (stages.length == 0) return this.finalBonus;
+    const meaningful = (b: Entry) =>
       Object.keys(b.stats ?? {}).length > 0 || Object.keys(b.recovery ?? {}).length > 0;
     return [...stages].reverse().find(meaningful) ?? stages[stages.length - 1];
   }
 
   /** The stage bonuses of this commendation, in the order they are earned */
   get stages(): Entry[] {
-    return (this.soldierBonusTypes || []).map(id => rul.soldierBonuses[id]).filter(b => b != null);
+    return (this.soldierBonusTypes || [])
+      .map((id) => rul.soldierBonuses[id])
+      .filter((b) => b != null);
   }
 
   /** Every value the stages grant for column `n`, in stage order */
   private granted(n: string) {
-    if (n == "id")
-      return [];
-    return this.stages.map(s => stageValue(s, n)).filter(v => v != null);
+    if (n == "id") return [];
+    return this.stages.map((s) => stageValue(s, n)).filter((v) => v != null);
   }
 
   /**
@@ -1089,33 +1085,37 @@ export class Commendation extends Entry {
    * a range only says something about a number.
    */
   range(n: string): ValueRange | null {
-    let values = this.granted(n);
-    if (values.length < 2)
-      return null;
-    let first = values[0], last = values[values.length - 1];
-    if (first === last || typeof first != "number" || typeof last != "number")
-      return null;
+    const values = this.granted(n);
+    if (values.length < 2) return null;
+    const first = values[0],
+      last = values[values.length - 1];
+    if (first === last || typeof first != "number" || typeof last != "number") return null;
     return new ValueRange(first, last);
   }
 
-  /** What a section table cell shows for column `n`, see `range` */
+  /**
+   * What a section table cell shows for column `n`, see `range`.
+   *
+   * `true` is the "this is being drawn, not sorted" flag, which `Entry` answers
+   * for `id` with the uid: the cell is a link to the page, and the translated
+   * title it sorts by has no article behind it.
+   */
   cellValue(n: string) {
-    return this.range(n) ?? this.sortField(n);
+    return this.range(n) ?? this.sortField(n, true);
   }
 
   parseKillCriteria() {
-
     if (this.killCriteria) {
-      for (let deeds of this.killCriteria) {
-        let group: ResolvedDeed[] = [];
-        for (let deedList of deeds) {
-          let deed: ResolvedDeed = { times: deedList[0] };
+      for (const deeds of this.killCriteria) {
+        const group: ResolvedDeed[] = [];
+        for (const deedList of deeds) {
+          const deed: ResolvedDeed = { times: deedList[0] };
 
           if (deedList[1]) {
             for (let i = 0; i < deedList[1].length; i++) {
-              let k = deedList[1][i];
+              const k = deedList[1][i];
 
-              let idt = internalDamageTypes.indexOf(k);
+              const idt = internalDamageTypes.indexOf(k);
               if (idt != -1) {
                 deed.element = damageTypes[idt];
                 // The condition list is rewritten so the page shows the resolved
@@ -1126,14 +1126,12 @@ export class Commendation extends Entry {
                 continue;
               }
 
-              let ibt = internalBattleTypes.indexOf(k);
+              const ibt = internalBattleTypes.indexOf(k);
               if (ibt != -1) {
                 deed.type = k;
                 this.battleTypes.push(k);
                 backLink(this.uid, [k], rul.battleTypes, "commendations");
-              }
-
-              else if (killStatuses.includes(k)) {
+              } else if (killStatuses.includes(k)) {
                 deed.status = k;
               } else if (killFactions.includes(k)) {
                 deed.faction = k;
@@ -1154,11 +1152,25 @@ export class Commendation extends Entry {
 
           if (deed.type || deed.element) {
             if (!deed.type) {
-              backLink2(this, rul.damageTypes[deed.element!].items ?? [], rul.items, "commendations", "items");
+              backLink2(
+                this,
+                rul.damageTypes[deed.element!].items ?? [],
+                rul.items,
+                "commendations",
+                "items",
+              );
             } else if (!deed.element) {
-              backLink2(this, rul.battleTypes[deed.type]["items"] ?? [], rul.items, "commendations", "items");
+              backLink2(
+                this,
+                rul.battleTypes[deed.type]["items"] ?? [],
+                rul.items,
+                "commendations",
+                "items",
+              );
             } else {
-              let items = (rul.damageTypes[deed.element!].items ?? []).filter(id => rul.items[id]?.internalBattleType == deed.type);
+              const items = (rul.damageTypes[deed.element!].items ?? []).filter(
+                (id) => rul.items[id]?.internalBattleType == deed.type,
+              );
               backLink2(this, items, rul.items, "commendations", "items");
             }
           }
@@ -1171,36 +1183,33 @@ export class Commendation extends Entry {
     }
   }
 
-  sortField(n: string) {
-    if (n == null)
-      return;
+  sortField(n: string, v?: string | boolean) {
+    if (n == null) return;
     // A cell can span every stage, but it still sorts by the value a soldier
     // ends up with: the column's value at the last stage that grants it. The
     // last stage *listed* is often an empty placeholder, and reading that would
     // rank a phantom 0 above a real bonus granted earlier.
-    let granted = this.granted(n);
-    if (granted.length > 0)
-      return granted[granted.length - 1];
+    const granted = this.granted(n);
+    if (granted.length > 0) return granted[granted.length - 1];
 
     // No stage grants the column at all. Stats still read as 0 rather than
     // empty, as they did before ranges existed.
-    let fb = this.lastMeaningfulBonus;
+    const fb = this.lastMeaningfulBonus;
     if (fb && n != "id" && !stageInternals.includes(n)) {
-      if (statsList.includes(n) || n == "mana")
-        return fb["stats"] ? fb["stats"][n] || 0 : 0;
+      if (statsList.includes(n) || n == "mana") return fb["stats"] ? fb["stats"][n] || 0 : 0;
       if (fb.recovery && n.substring(0, 9) == "recovery.") {
         return fb.recovery[n.substring(9)]?.flatOne;
       }
-      if (fb[n] != null)
-        return fb[n];
+      if (fb[n] != null) return fb[n];
     }
 
-    return this[n];
+    // Not a stage column: the identity column answers with the uid here too, and
+    // an ordinary column reads the commendation's own field
+    return super.sortField(n, v);
   }
 }
 
 export class Research extends Entry {
-
   getOneFree?: string[];
   unlocks?: string[];
   dependencies?: string[];
@@ -1220,7 +1229,6 @@ export class Research extends Entry {
   }
 }
 
-
 export class AlienDeployment extends Entry {
   startingCondition?: string;
   data?: any[];
@@ -1229,12 +1237,11 @@ export class AlienDeployment extends Entry {
   constructor(raw: RawEntry) {
     super("alienDeployments");
     this.from(raw);
-    let allItems = new Set<string>();
-    for (let d of this.data || []) {
+    const allItems = new Set<string>();
+    for (const d of this.data || []) {
       if (Array.isArray(d.itemSets)) {
-        let items = d.itemSets.flat() as string[];
-        for (let item of items)
-          allItems.add(item);
+        const items = d.itemSets.flat() as string[];
+        for (const item of items) allItems.add(item);
       }
     }
     this.loot = [...allItems];
@@ -1253,7 +1260,6 @@ export class CraftWeapon extends Entry {
     this.weaponType = "weaponType" + (this.weaponType || 0);
     Entry.reserve({ id: this.weaponType }, "weaponTypes");
   }
-
 }
 
 export class Craft extends Entry {
@@ -1267,12 +1273,11 @@ export class Craft extends Entry {
     this.from(raw);
     this.allWeaponTypes = this.allWeaponTypes || [];
     if (this.weaponTypes) {
-      let weaponTypes = this.weaponTypes as unknown as { [slot: string]: any };
-      for (let slot in weaponTypes) {
-        if (!Array.isArray(weaponTypes[slot]))
-          weaponTypes[slot] = [weaponTypes[slot]];
-        weaponTypes[slot] = (weaponTypes[slot] as string[]).map(n => {
-          let id = "weaponType" + n;
+      const weaponTypes = this.weaponTypes as unknown as { [slot: string]: any };
+      for (const slot in weaponTypes) {
+        if (!Array.isArray(weaponTypes[slot])) weaponTypes[slot] = [weaponTypes[slot]];
+        weaponTypes[slot] = (weaponTypes[slot] as string[]).map((n) => {
+          const id = "weaponType" + n;
           Entry.reserve({ id }, "weaponTypes");
           this.allWeaponTypes!.push(id);
           return id;
@@ -1302,8 +1307,7 @@ export class Facility extends Entry {
     if (this.aliens) {
       Service.add("providedBy", this.type, [`prisonType${this.prisonType || 1}`]);
     }
-    if (!this.prisonType && this.aliens)
-      this.prisonType = 1;
+    if (!this.prisonType && this.aliens) this.prisonType = 1;
   }
 
   get kennel() {
@@ -1313,7 +1317,6 @@ export class Facility extends Entry {
   get prison() {
     return this.prisonType == 2 ? null : this.aliens;
   }
-
 }
 
 export class StartingConditions extends Entry {
@@ -1352,7 +1355,7 @@ export type Stats = {
   psiStrength?: number;
   psiSkill?: number;
   melee?: number;
-}
+};
 
 export class Unit extends Entry {
   stats?: Stats;
@@ -1363,21 +1366,21 @@ export class Unit extends Entry {
   constructor(raw: RawEntry) {
     super("units");
     this.from(raw);
-    for (let k in { ...raw }) {
+    for (const k in { ...raw }) {
       if (typeof raw[k] == "string" || typeof raw[k] == "number") {
         rul.unitFields.add(k);
       }
     }
 
-    let armor = rul.armors[raw.armor];
+    const armor = rul.armors[raw.armor];
     if (armor) {
       armor.users = armor.users || [];
       armor.users.push(this.type);
     }
     if (this.builtInWeaponSets) {
-      let weapons = new Set(this.builtInWeaponSets.flat());
-      for (let w of weapons) {
-        let item = rul.items[w];
+      const weapons = new Set(this.builtInWeaponSets.flat());
+      for (const w of weapons) {
+        const item = rul.items[w];
         if (item) {
           item.heldBy = item.heldBy || new Set<string>();
           item.heldBy.add(this.type);
@@ -1386,15 +1389,15 @@ export class Unit extends Entry {
     }
   }
 
-  sortField(n: string) {
-    if (statsList.includes(n))
-      return this.stats ? this.stats[n] || 0 : 0;
-    return this[n];
+  sortField(n: string, v?: string | boolean) {
+    if (statsList.includes(n)) return this.stats ? this.stats[n] || 0 : 0;
+    // `super` answers the identity column with the uid, which is the only name a
+    // `type`-keyed unit has
+    return super.sortField(n, v);
   }
-
 }
 
-let defaultRange: { [mode: string]: number } = { snap: 15, auto: 7, aimed: 200 };
+const defaultRange: { [mode: string]: number } = { snap: 15, auto: 7, aimed: 200 };
 
 export class Attack {
   possible = false;
@@ -1412,23 +1415,23 @@ export class Attack {
   name?: string;
   tuPercent?: number;
 
-  constructor(public item: Item, public mode: string) {
+  constructor(
+    public item: Item,
+    public mode: string,
+  ) {
     let capMode = mode.charAt(0).toUpperCase() + mode.substr(1);
 
-    let isDefaultAttack =
+    const isDefaultAttack =
       (mode == "ammo" && item.battleType == 2) ||
       (mode == "melee" && item.battleType == 3) ||
       (mode == "psi" && item.battleType == 9) ||
       (mode == "throw" && (item.battleType == 4 || item.battleType == 5));
 
-    if (mode == "throw" && !isDefaultAttack) 
-      return;
+    if (mode == "throw" && !isDefaultAttack) return;
 
-    let exists =
-      item["accuracy" + capMode] || item["cost" + capMode] || isDefaultAttack;
+    const exists = item["accuracy" + capMode] || item["cost" + capMode] || isDefaultAttack;
 
-    if (!exists) 
-      return;
+    if (!exists) return;
 
     if (mode == "melee" && item.battleType != 3) {
       this.damage = item.meleePower;
@@ -1445,27 +1448,25 @@ export class Attack {
     this.shots = mode == "auto" ? item.autoShots || 3 : 1;
     this.name = mode.substr(0, 1).toUpperCase() + mode.substr(1);
 
-    let confId = "conf" + this.name;
+    const confId = "conf" + this.name;
     if (confId in item) {
-      let conf = item[confId];
+      const conf = item[confId];
       if (conf.name) this.name = rul.str(conf.name);
       if (conf.shots) this.shots = conf.shots;
       delete item[confId];
     }
 
-    if (item[mode + "AttackName"])
-      this.name = rul.str(item[mode + "AttackName"]);
+    if (item[mode + "AttackName"]) this.name = rul.str(item[mode + "AttackName"]);
 
     if (mode == "melee") this.alter = item.meleeAlter;
 
-    if (item.battleType == 3 || mode != "melee") 
-      this.alter = item.damageAlter;
+    if (item.battleType == 3 || mode != "melee") this.alter = item.damageAlter;
 
     if (this.alter && this.alter.ResistType) {
       // `ResistType` may be given as an index or as `STR_DAMAGE_*`; resolve the
       // name first, otherwise `Number()` gives NaN and a bogus damage type
       // entry with an undefined id ends up in the ruleset
-      let dType = damageTypeIndex(this.alter.ResistType);
+      const dType = damageTypeIndex(this.alter.ResistType);
       if (dType == null) {
         console.error(this.item.uid + " attack has unknown damage type " + this.alter.ResistType);
       } else {
@@ -1475,14 +1476,10 @@ export class Attack {
     }
 
     if (mode != "ammo") {
-      if (
-        ((mode == "melee" && item.battleType == 3) || mode != "melee") &&
-        item.flatRate
-      )
+      if (((mode == "melee" && item.battleType == 3) || mode != "melee") && item.flatRate)
         this.flatTime = item.flatRate;
 
-      if (item["flat" + capMode] && item["flat" + capMode].time)
-        this.flatTime = true;
+      if (item["flat" + capMode] && item["flat" + capMode].time) this.flatTime = true;
 
       if (capMode == "Psi") capMode = "Use";
 
@@ -1501,7 +1498,7 @@ export class Attack {
             : item.accuracyMultiplier;
 
       if (!accuracyMultiplier) {
-        let defaultAccuracyStat =
+        const defaultAccuracyStat =
           mode == "throw" ? "throwing" : mode == "melee" ? "melee" : "firing";
         accuracyMultiplier = {};
         accuracyMultiplier[defaultAccuracyStat] = 1;
@@ -1513,9 +1510,8 @@ export class Attack {
         item.addDamageType(this.damageType);
       }
 
-      for (let k in this.accuracyMultiplier || [])
+      for (const k in this.accuracyMultiplier || [])
         backLink(item.uid, [k], "stats", "weaponDamage");
-
     }
 
     if (mode + "Range" in item) {
@@ -1526,11 +1522,10 @@ export class Attack {
     // `damageType`/`ResistType` may be an index or an `STR_DAMAGE_*` name; the
     // list shows the resolved name either way, and an unknown value is left
     // alone rather than turned into a bogus type
-    for (let k in this.alter) {
+    for (const k in this.alter) {
       if (k == "damageType" || k == "ResistType") {
-        let idx = damageTypeIndex(this.alter[k]);
-        if (idx != null)
-          this.alter[k] = damageTypes[idx];
+        const idx = damageTypeIndex(this.alter[k]);
+        if (idx != null) this.alter[k] = damageTypes[idx];
       }
     }
 
@@ -1558,8 +1553,7 @@ export class Attack {
     rul.attacks.push(this);
   }
 
-  sortField(n: string) {
-
+  sortField(n: string, _v?: string | boolean) {
     switch (n) {
       case "internalBattleType":
         return this.item.internalBattleType;
@@ -1570,6 +1564,8 @@ export class Attack {
       case "item":
         return this.item.uid;
 
+      // An attack has no identity of its own: it is a row of its item's table,
+      // and it names the row by the item it belongs to
       case "id":
         return this.item.uid;
     }
@@ -1617,8 +1613,7 @@ export class Armor extends Entry {
   constructor(raw: RawEntry) {
     super("armors");
     this.from(raw);
-    if (!this.size)
-      this.size = 1;
+    if (!this.size) this.size = 1;
 
     this.armor = {
       Front: this.frontArmor,
@@ -1628,13 +1623,13 @@ export class Armor extends Entry {
     };
 
     if (this.storeItem && rul.items[this.storeItem]) {
-      let item = rul.items[this.storeItem];
+      const item = rul.items[this.storeItem];
       if (!item.armors) item.armors = [];
       item.armors.push(this.type);
     }
 
-    for (let unit of this.units || []) {
-      let s = rul.soldiers[unit];
+    for (const unit of this.units || []) {
+      const s = rul.soldiers[unit];
       if (s) {
         s.armors = s.armors || [];
         s.armors.push(this.type);
@@ -1645,25 +1640,25 @@ export class Armor extends Entry {
   async dollSprites(): Promise<{ [key: string]: string[] }> {
     let ds: { [key: string]: string[] } = {};
     if (this.layersDefinition) {
-      let prefix = this.layersDefaultPrefix;
-      for (let body in this.layersDefinition) {
-        let layersDef = this.layersDefinition[body];
-        let layers: string[] = [];
-        for (let layer in layersDef) {
-          let name = layersDef[layer];
+      const prefix = this.layersDefaultPrefix;
+      for (const body in this.layersDefinition) {
+        const layersDef = this.layersDefinition[body];
+        const layers: string[] = [];
+        for (const layer in layersDef) {
+          const name = layersDef[layer];
           if (name && name.length) {
-            let id = prefix + "__" + layer + "__" + name;
+            const id = prefix + "__" + layer + "__" + name;
             layers.push(await rul.sprite(id));
           }
         }
         ds[body] = layers;
       }
     } else if (this.spriteInv) {
-      let name: string = this.spriteInv;
+      const name: string = this.spriteInv;
 
       if (this.spriteInv + ".SPK" in rul.sprites) {
         ds = {
-          "0": [await rul.sprites[this.spriteInv + ".SPK"].data() as string],
+          "0": [(await rul.sprites[this.spriteInv + ".SPK"].data()) as string],
         };
       } else {
         // The paperdoll variants of one body are registered as
@@ -1679,13 +1674,11 @@ export class Armor extends Entry {
         // sits under the same prefix and was counted as a variant, drawn as a
         // whole 512×720 atlas above the real dolls, labelled either blank or by
         // whatever followed the prefix.
-        for (let s in rul.sprites) {
-          if (!s.startsWith(name) || s == this.spriteSheet)
-            continue;
-          let sprite = rul.sprites[s];
-          if (sprite.subX || sprite.subY)
-            continue;
-          let body = s.substring(name.length).replace(/\.[^./\\]+$/, "");
+        for (const s in rul.sprites) {
+          if (!s.startsWith(name) || s == this.spriteSheet) continue;
+          const sprite = rul.sprites[s];
+          if (sprite.subX || sprite.subY) continue;
+          const body = s.substring(name.length).replace(/\.[^./\\]+$/, "");
           ds[body] = [await rul.sprite(s)];
         }
       }
@@ -1694,18 +1687,14 @@ export class Armor extends Entry {
   }
 
   sortField(n: string, v?: string | boolean) {
-    if (statsList.includes(n))
-      return this.stats ? this.stats[n] || 0 : 0;
+    if (statsList.includes(n)) return this.stats ? this.stats[n] || 0 : 0;
     if (damageTypes.includes(n) && this.damageModifier)
       return (this.damageModifier[damageTypes.indexOf(n)] || 0) * 100;
-    if (this.tags && n in this.tags)
-      return this.tags[n];
+    if (this.tags && n in this.tags) return this.tags[n];
 
     if (n == "armorUsers") {
-      if (v == "enemies")
-        return Object.values(this.units || {}).length == 0;
-      if (v == "allies")
-        return Object.values(this.units || {}).length > 0;
+      if (v == "enemies") return Object.values(this.units || {}).length == 0;
+      if (v == "allies") return Object.values(this.units || {}).length > 0;
       if (typeof v == "string" && rul.soldiers[v]) {
         return this.units?.includes(v);
       }
@@ -1715,9 +1704,10 @@ export class Armor extends Entry {
       return this.allowedIn?.includes(v as string);
     }
 
-    return this[n];
+    // The identity column is not a field of the armor: `super` answers it with
+    // the uid, which is the only name an armor block has
+    return super.sortField(n, v);
   }
-
 }
 
 /** A formula term: a weight, or the coefficients of a polynomial in the stat */
@@ -1777,7 +1767,7 @@ export class Item extends Entry {
   commendations?: string[];
   heldBy?: Set<string>;
   dropoff = 2;
-  damageTypes?: number[]
+  damageTypes?: number[];
   psiVision?: number;
   invSize: string;
 
@@ -1785,10 +1775,11 @@ export class Item extends Entry {
     if (this.bigSprite) {
       return rul.obsSprite("big", +this.bigSprite);
     }
+    return undefined;
   }
 
   get internalBattleType() {
-    let t = internalBattleTypes[this.battleType || 0];
+    const t = internalBattleTypes[this.battleType || 0];
     return t;
   }
 
@@ -1796,9 +1787,8 @@ export class Item extends Entry {
     // Called from `Attack` with whatever the ruleset wrote as the damage type,
     // so resolve it and ignore unknown values instead of adding an `undefined`
     // id to the damage type section
-    let idx = damageTypeIndex(type);
-    if (idx == null)
-      return;
+    const idx = damageTypeIndex(type);
+    if (idx == null) return;
     this.damageTypes = this.damageTypes || [];
     addIfNew(this.damageTypes, idx);
     backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
@@ -1807,18 +1797,21 @@ export class Item extends Entry {
   constructor(raw: RawEntry) {
     super("items");
     this.from(raw);
-    for (let k in { ...raw, ...(raw.damageAlter || {}) }) {
-      if (typeof raw[k] == "string" || typeof raw[k] == "number" || raw.damageAlter && raw.damageAlter[k] != null) {
+    for (const k in { ...raw, ...(raw.damageAlter || {}) }) {
+      if (
+        typeof raw[k] == "string" ||
+        typeof raw[k] == "number" ||
+        (raw.damageAlter && raw.damageAlter[k] != null)
+      ) {
         rul.itemFields.add(k);
       }
     }
 
     //this.addToSection(this.internalBattleType);
 
-    if (this.damageType)
-      this.addDamageType(this.damageType);
+    if (this.damageType) this.addDamageType(this.damageType);
 
-    let t = this as any;
+    const t = this as any;
 
     if ("flatThrow" in t) {
       t.flatThrowTime = t.flatThrow.time;
@@ -1828,40 +1821,43 @@ export class Item extends Entry {
     Service.add("canBuyItem", this.type, this.requiresBuyBaseFunc);
 
     if (this.categories) {
-      for (let cat of this.categories) rul.addCategory(cat, this.type);
+      for (const cat of this.categories) rul.addCategory(cat, this.type);
     }
 
-    if (this.liveAlien && this.recover && !this.prisonType)
-      this.prisonType = 1;
+    if (this.liveAlien && this.recover && !this.prisonType) this.prisonType = 1;
 
     if (this.ammo) {
-      this.compatibleAmmo = [...(this.compatibleAmmo || []), ...Object.values(this.ammo).map(a => a.compatibleAmmo).flat()];
+      this.compatibleAmmo = [
+        ...(this.compatibleAmmo || []),
+        ...Object.values(this.ammo).flatMap((a) => a.compatibleAmmo),
+      ];
     }
 
-    for (let k in this.damageBonus ?? {}) {
-      let b = this.damageBonus![k];
-      if (b != 0)
-        backLink(this.uid, [k], "stats", "weaponDamage");
+    for (const k in this.damageBonus ?? {}) {
+      const b = this.damageBonus![k];
+      if (b != 0) backLink(this.uid, [k], "stats", "weaponDamage");
       if (Array.isArray(b)) {
-        for (let p in b)
+        for (const p in b)
           if (b[p] > 0)
-            backLink(this.uid, [k], "stats", `weaponDamage${p != '0' ? `<sup>${+p + 1}</sup>` : ""}`);
+            backLink(
+              this.uid,
+              [k],
+              "stats",
+              `weaponDamage${p != "0" ? `<sup>${+p + 1}</sup>` : ""}`,
+            );
       }
     }
 
-    for (let k in this.meleeMultiplier || [])
-      backLink(this.uid, [k], "stats", "meleeAccuracy");
+    for (const k in this.meleeMultiplier || []) backLink(this.uid, [k], "stats", "meleeAccuracy");
 
     if (this.damageType != null) {
-      let idx = damageTypeIndex(this.damageType);
-      if (idx != null)
-        backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
+      const idx = damageTypeIndex(this.damageType);
+      if (idx != null) backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
     }
 
     if (this.damageAlter?.ResistType != null) {
-      let idx = damageTypeIndex(this.damageAlter.ResistType);
-      if (idx != null)
-        backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
+      const idx = damageTypeIndex(this.damageAlter.ResistType);
+      if (idx != null) backLink(this.uid, [damageTypes[idx]], "damageTypes", "items");
     }
 
     this.attacks();
@@ -1872,8 +1868,8 @@ export class Item extends Entry {
   attacks() {
     if (!this._attacks) {
       this._attacks = [];
-      for (let mode of battleTypes) {
-        let attack = new Attack(this, mode);
+      for (const mode of battleTypes) {
+        const attack = new Attack(this, mode);
         if (attack.possible) {
           this._attacks.push(attack);
         }
@@ -1888,29 +1884,25 @@ export class Item extends Entry {
     return this._attacks;
   }
 
-
   sortField(n: string, v?: string | boolean) {
     if (n === "category" && this.categories)
       return this.categories.includes(v as string) ? v : null;
 
     if (n === "damageTypes") {
       if (v !== true) {
-        let i = damageTypes.indexOf(v as string);
+        const i = damageTypes.indexOf(v as string);
         return this.damageTypes?.includes(i);
       } else {
-        return this.damageTypes?.map(d => damageTypes[d]);
+        return this.damageTypes?.map((d) => damageTypes[d]);
       }
     }
 
     if (n === "damageType" && this.damageTypes) {
-      return this.damageTypes.map(n => damageTypes[n]);
+      return this.damageTypes.map((n) => damageTypes[n]);
     }
 
-    if (this.damageAlter && this.damageAlter[n] != null)
-      return this.damageAlter[n];
+    if (this.damageAlter && this.damageAlter[n] != null) return this.damageAlter[n];
 
     return super.sortField(n, v);
   }
-
-
 }

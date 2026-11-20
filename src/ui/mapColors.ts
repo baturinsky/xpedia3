@@ -97,8 +97,18 @@ export const unknownLandColor = "#5a6b4f";
  * neighbouring nations read apart; a mod can still override any of them.
  */
 const countryPalette = [
-  "#e8b04a", "#6fb3e0", "#d4736f", "#8fc46a", "#c58fd8", "#54c4b0",
-  "#e08f4a", "#7a90e0", "#c4c45e", "#5fbf8f", "#d87fb0", "#9a8f7a",
+  "#e8b04a",
+  "#6fb3e0",
+  "#d4736f",
+  "#8fc46a",
+  "#c58fd8",
+  "#54c4b0",
+  "#e08f4a",
+  "#7a90e0",
+  "#c4c45e",
+  "#5fbf8f",
+  "#d87fb0",
+  "#9a8f7a",
 ];
 
 /** `xpedia: countryColors:` declarations, keyed by upper-cased nation id */
@@ -106,20 +116,17 @@ const declaredCountryColors: { [id: string]: string } = {};
 
 /** Reads the `xpedia: countryColors:` any active ruleset declares */
 export function readDeclaredCountryColors() {
-  for (let key in declaredCountryColors)
-    delete declaredCountryColors[key];
+  for (const key in declaredCountryColors) delete declaredCountryColors[key];
 
-  for (let mod of rul?.mods ?? []) {
-    for (let file of mod.rul ?? []) {
-      let block = file?.xpedia;
-      let entries = Array.isArray(block) ? block : block ? [block] : [];
-      for (let entry of entries) {
-        let table = entry?.countryColors;
-        if (!table || typeof table != "object")
-          continue;
-        for (let [id, color] of Object.entries(table))
-          if (id && typeof color == "string")
-            declaredCountryColors[id.toUpperCase()] = color;
+  for (const mod of rul?.mods ?? []) {
+    for (const file of mod.rul ?? []) {
+      const block = file?.xpedia;
+      const entries = Array.isArray(block) ? block : block ? [block] : [];
+      for (const entry of entries) {
+        const table = entry?.countryColors;
+        if (!table || typeof table != "object") continue;
+        for (const [id, color] of Object.entries(table))
+          if (id && typeof color == "string") declaredCountryColors[id.toUpperCase()] = color;
       }
     }
   }
@@ -132,29 +139,25 @@ export function colorForCountry(id: string, index: number) {
 
 /** Reads the `xpedia: mapColors:` any active ruleset declares */
 export function readDeclaredColors() {
-  for (let key in declared)
-    delete declared[key];
+  for (const key in declared) delete declared[key];
 
   // Read from every mod rather than the merged ruleset, because `combineModRuls`
   // replaces a whole `mapColors:` table: a mod that declares one biome would
   // otherwise wipe the builtin table instead of adding to it. Mods are in merge
   // order, so the last declaration of a name wins.
-  for (let mod of rul?.mods ?? []) {
-    for (let file of mod.rul ?? []) {
-      let block = file?.xpedia;
-      let entries = Array.isArray(block) ? block : block ? [block] : [];
-      for (let entry of entries)
-        addDeclared(entry?.mapColors);
+  for (const mod of rul?.mods ?? []) {
+    for (const file of mod.rul ?? []) {
+      const block = file?.xpedia;
+      const entries = Array.isArray(block) ? block : block ? [block] : [];
+      for (const entry of entries) addDeclared(entry?.mapColors);
     }
   }
 }
 
 function addDeclared(table: unknown) {
-  if (!table || typeof table != "object")
-    return;
-  for (let [name, color] of Object.entries(table))
-    if (name && typeof color == "string")
-      declared[name.toUpperCase()] = color;
+  if (!table || typeof table != "object") return;
+  for (const [name, color] of Object.entries(table))
+    if (name && typeof color == "string") declared[name.toUpperCase()] = color;
 }
 
 /**
@@ -164,13 +167,9 @@ function addDeclared(table: unknown) {
  * keyword the name contains.
  */
 export function colorForTerrain(name?: string) {
-  if (!name)
-    return unknownLandColor;
-  let upper = name.toUpperCase();
-  if (declared[upper])
-    return declared[upper];
-  for (let [keyword, color] of keywordColors)
-    if (upper.includes(keyword))
-      return color;
+  if (!name) return unknownLandColor;
+  const upper = name.toUpperCase();
+  if (declared[upper]) return declared[upper];
+  for (const [keyword, color] of keywordColors) if (upper.includes(keyword)) return color;
   return unknownLandColor;
 }

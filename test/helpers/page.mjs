@@ -15,9 +15,9 @@ globalThis.__XPEDIA_STAMP__ = "";
 globalThis.document = {
   querySelector: () => null,
   querySelectorAll: () => [],
-  addEventListener: () => { },
+  addEventListener: () => {},
 };
 
-globalThis.addEventListener = () => { };
+globalThis.addEventListener = () => {};
 
-export { };
+export {};

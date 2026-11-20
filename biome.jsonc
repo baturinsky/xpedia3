@@ -1,0 +1,78 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+  // Respect .gitignore so misc/, build/, test/.gen/ and node_modules are skipped.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    // cli/xpedia-cli.mjs is a generated esbuild bundle (see scripts/build-cli.mjs),
+    // src/ui/didactGothic.css is mostly one base64 font payload, and
+    // src/builtinMods is game data (ruleset/language files), not code.
+    "includes": ["**", "!cli/xpedia-cli.mjs", "!src/ui/didactGothic.css", "!src/builtinMods"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    // Comments wrap at ~80 cols and code at ~100-110 in the existing sources.
+    "lineWidth": 100,
+    "bracketSpacing": true
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      // Baseline demotions: these fire on existing code but each fix needs a
+      // design/behaviour review, so they warn instead of erroring until done.
+      // - a11y: pointer-driven map/diagram elements intentionally take mouse
+      //   events without keyboard equivalents, and buttons have no explicit
+      //   `type` because nothing is ever submitted as a form.
+      // - useExhaustiveDependencies: changing a dep list re-renders, so every
+      //   site must be checked against the store it reads.
+      // - noArrayIndexKey: lists here are static (articles, table rows);
+      //   index keys do not reorder, so re-keying has no benefit.
+      // - noAssignInExpressions: assignment-in-condition is the parse-loop
+      //   idiom (`while ((m = re.exec(...)))`).
+      // - noDescendingSpecificity: the stylesheet's cascade order is load
+      //   bearing; reordering selectors needs a visual check.
+      "a11y": "warn",
+      "correctness": {
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "warn",
+        // `== null` is allowed by Biome, which is the codebase's null check.
+        // The remaining `==` compares strings/numbers that may rely on
+        // coercion (ruleset values come from YAML untyped), so converting
+        // them to `===` needs a per-site review, not a bulk rewrite.
+        "noDoubleEquals": "warn",
+        "noAssignInExpressions": "warn"
+      },
+      "style": {
+        "noDescendingSpecificity": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

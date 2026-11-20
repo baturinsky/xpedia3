@@ -12,10 +12,11 @@
  * Run through `npm run cli`, which does `vite build` first: the shell is a build
  * artifact, not a source file, so it has to be current.
  */
-import * as esbuild from "esbuild";
+
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import * as esbuild from "esbuild";
 import { versionDefines } from "./version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -40,17 +41,19 @@ require(wasmFile, "The unrar binary");
  * JSON, and it is the exact format `unpackBuiltinMods` already reads.
  */
 function builtinModsPayload() {
-  let parts = [];
-  let walk = dir => {
-    for (let entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-      let full = path.join(dir, entry.name);
+  const parts = [];
+  const walk = (dir) => {
+    for (const entry of fs
+      .readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
         continue;
       }
-      let name = Buffer.from(path.relative(builtinRoot, full).replace(/\\/g, "/"), "utf8");
-      let data = fs.readFileSync(full);
-      let header = Buffer.alloc(8);
+      const name = Buffer.from(path.relative(builtinRoot, full).replace(/\\/g, "/"), "utf8");
+      const data = fs.readFileSync(full);
+      const header = Buffer.alloc(8);
       header.writeUInt32LE(name.length, 0);
       header.writeUInt32LE(data.length, 4);
       parts.push(header, name, data);
@@ -67,13 +70,13 @@ function builtinModsPayload() {
  * deflates to roughly half its size, and the CLI carries it in every copy.
  */
 function shellPayload() {
-  let html = fs.readFileSync(shellFile);
+  const html = fs.readFileSync(shellFile);
   return zlib.gzipSync(html, { level: 9 }).toString("base64");
 }
 
 /** A module the CLI imports instead of a file: its payload, as an ESM default */
 function embeddedModules() {
-  let payloads = {
+  const payloads = {
     "xpedia:shell": shellPayload(),
     "xpedia:builtin-mods": builtinModsPayload(),
     "xpedia:unrar-wasm": fs.readFileSync(wasmFile).toString("base64"),
@@ -81,17 +84,21 @@ function embeddedModules() {
   return {
     name: "xpedia-embedded",
     setup(build) {
-      build.onResolve({ filter: /^xpedia:/ }, args => ({ path: args.path, namespace: "xpedia" }));
-      build.onLoad({ filter: /.*/, namespace: "xpedia" }, args =>
+      build.onResolve({ filter: /^xpedia:/ }, (args) => ({ path: args.path, namespace: "xpedia" }));
+      build.onLoad({ filter: /.*/, namespace: "xpedia" }, (args) =>
         // Only the data modules; `xpedia:load` and `xpedia:search` have their own
         // loader below and must not be shadowed by this one
         args.path in payloads
           ? { contents: `export default ${JSON.stringify(payloads[args.path])};`, loader: "js" }
-          : undefined);
+          : undefined,
+      );
       // `load.ts` is the browser loader and would drag the whole app in. The CLI
       // only needs `builtinFile` for the globe data, so this one import is
       // answered here instead, from the same embedded payload.
-      build.onResolve({ filter: /^\.\/load$/ }, () => ({ path: "xpedia:load", namespace: "xpedia" }));
+      build.onResolve({ filter: /^\.\/load$/ }, () => ({
+        path: "xpedia:load",
+        namespace: "xpedia",
+      }));
       build.onLoad({ filter: /^xpedia:load$/, namespace: "xpedia" }, () => ({
         contents: `
           import { unpackBuiltinMods } from ${JSON.stringify(path.join(root, "src", "packBuild.ts").replace(/\\/g, "/"))};
@@ -105,10 +112,13 @@ function embeddedModules() {
                 return data;
           }
         `,
-        loader: "js"
+        loader: "js",
       }));
       // Search needs a Web Worker; the CLI never searches
-      build.onResolve({ filter: /^js-worker-search$/ }, () => ({ path: "xpedia:search", namespace: "xpedia" }));
+      build.onResolve({ filter: /^js-worker-search$/ }, () => ({
+        path: "xpedia:search",
+        namespace: "xpedia",
+      }));
       build.onLoad({ filter: /^xpedia:search$/, namespace: "xpedia" }, () => ({
         contents: `
           export default class SearchStub {
@@ -116,9 +126,9 @@ function embeddedModules() {
             search() { return []; }
           }
         `,
-        loader: "js"
+        loader: "js",
       }));
-    }
+    },
   };
 }
 
@@ -146,11 +156,11 @@ await esbuild.build({
       "const require = __createRequire(import.meta.url);",
       "const __filename = __fileURLToPath(import.meta.url);",
       "const __dirname = __pathDirname(__filename);",
-    ].join("\n")
+    ].join("\n"),
   },
   legalComments: "none",
   logLevel: "info",
 });
 
-let size = fs.statSync(outFile).size;
+const size = fs.statSync(outFile).size;
 console.log(`cli/xpedia-cli.mjs: ${(size / 1048576).toFixed(2)} MB`);

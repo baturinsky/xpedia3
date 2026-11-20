@@ -23,18 +23,16 @@ function round(value: number) {
  * a campaign is measured.
  */
 export function formatMinutes(minutes: number): string {
-  let mins = Math.max(0, Math.round(minutes));
-  if (mins < 60)
-    return `${mins} min`;
-  let hours = mins / 60;
-  if (hours < 24)
-    return `${round(hours)} h`;
+  const mins = Math.max(0, Math.round(minutes));
+  if (mins < 60) return `${mins} min`;
+  const hours = mins / 60;
+  if (hours < 24) return `${round(hours)} h`;
   return `${Math.round(hours / 24)} d`;
 }
 
 /** A span of seconds, for the stays on the ground that are not in minutes */
 export function formatSeconds(seconds: number): string {
-  let secs = Math.max(0, Math.round(seconds));
+  const secs = Math.max(0, Math.round(seconds));
   return secs < 60 ? `${secs} s` : formatMinutes(secs / 60);
 }
 
@@ -47,11 +45,10 @@ export function formatSeconds(seconds: number): string {
  * integer division the engine does first is repeated here so the range matches
  * the game for a timer that is not a multiple of 30.
  */
-export function waveDelay(timer: unknown): { min: number, max: number } | undefined {
-  let declared = Number(timer);
-  if (!Number.isFinite(declared) || declared < 0)
-    return undefined;
-  let ticks = Math.floor(declared / 30);
+export function waveDelay(timer: unknown): { min: number; max: number } | undefined {
+  const declared = Number(timer);
+  if (!Number.isFinite(declared) || declared < 0) return undefined;
+  const ticks = Math.floor(declared / 30);
   return {
     min: Math.floor(ticks / 2) * 30,
     max: (Math.floor(ticks / 2) + ticks) * 30,
@@ -65,17 +62,14 @@ export function waveDelay(timer: unknown): { min: number, max: number } | undefi
  * delay, which the engine treats as the next tick rather than as a very short
  * wait, so the article says "at once" instead.
  */
-export function formatDelay(delay: { min: number, max: number }): string | null {
-  if (delay.max <= 0)
-    return null;
-  if (delay.max == delay.min)
-    return formatMinutes(delay.min);
+export function formatDelay(delay: { min: number; max: number }): string | null {
+  if (delay.max <= 0) return null;
+  if (delay.max == delay.min) return formatMinutes(delay.min);
   // A range reads better with one unit than two: "0–30 min", not "0 min–30 min".
   // Units are only shared when both ends land in the same one, because "12 h–3 d"
   // is clearer than "0.5 d–3 d".
-  let [lo, hi] = [formatMinutes(delay.min), formatMinutes(delay.max)];
-  let unitOf = (text: string) => text.split(" ").pop();
-  if (unitOf(lo) == unitOf(hi))
-    return `${lo.replace(/\s*\D+$/, "")}–${hi}`;
+  const [lo, hi] = [formatMinutes(delay.min), formatMinutes(delay.max)];
+  const unitOf = (text: string) => text.split(" ").pop();
+  if (unitOf(lo) == unitOf(hi)) return `${lo.replace(/\s*\D+$/, "")}–${hi}`;
   return `${lo}–${hi}`;
 }

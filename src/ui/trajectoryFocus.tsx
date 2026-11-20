@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 
 /**
  * The zone and the leg a reader is pointing at or has pinned.
@@ -21,50 +21,53 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
  */
 export type TrajectoryFocus = {
   /** Zone to emphasise, from the pin or else from the pointer */
-  hotZone?: number
+  hotZone?: number;
   /** Zone kept lit by a press, which a touch screen needs instead of hover */
-  pinnedZone?: number
+  pinnedZone?: number;
   /** Leg to emphasise, from the pin or else from the pointer */
-  hotLeg?: number
+  hotLeg?: number;
   /** Leg kept lit by a press */
-  pinnedLeg?: number
+  pinnedLeg?: number;
   /** Called while a stop is pointed at, with nothing when the pointer leaves */
-  hoverZone: (zone?: number) => void
+  hoverZone: (zone?: number) => void;
   /** Called when a stop is pressed; pressing the same stop again releases it */
-  pinZone: (zone: number) => void
+  pinZone: (zone: number) => void;
   /** Called while a leg's line is pointed at */
-  hoverLeg: (leg?: number) => void
+  hoverLeg: (leg?: number) => void;
   /** Called when a leg's line is pressed; pressing it again releases it */
-  pinLeg: (leg: number) => void
+  pinLeg: (leg: number) => void;
   /** Drops every highlight. A different region makes every zone number mean something else. */
-  reset: () => void
+  reset: () => void;
 };
 
 const Context = createContext<TrajectoryFocus | undefined>(undefined);
 
 /** Holds the highlight for one page's flight, and gives it to every view of it */
 export function TrajectoryFocusProvider({ children }: { children: ReactNode }) {
-  let [hovered, setHovered] = useState<number>();
-  let [pinned, setPinned] = useState<number>();
-  let [hoveredLeg, setHoveredLeg] = useState<number>();
-  let [pinnedLeg, setPinnedLeg] = useState<number>();
+  const [hovered, setHovered] = useState<number>();
+  const [pinned, setPinned] = useState<number>();
+  const [hoveredLeg, setHoveredLeg] = useState<number>();
+  const [pinnedLeg, setPinnedLeg] = useState<number>();
 
-  let value = useMemo<TrajectoryFocus>(() => ({
-    hotZone: pinned ?? hovered,
-    pinnedZone: pinned,
-    hotLeg: pinnedLeg ?? hoveredLeg,
-    pinnedLeg,
-    hoverZone: setHovered,
-    pinZone: zone => setPinned(current => current == zone ? undefined : zone),
-    hoverLeg: setHoveredLeg,
-    pinLeg: leg => setPinnedLeg(current => current == leg ? undefined : leg),
-    reset: () => {
-      setHovered(undefined);
-      setPinned(undefined);
-      setHoveredLeg(undefined);
-      setPinnedLeg(undefined);
-    },
-  }), [hovered, pinned, hoveredLeg, pinnedLeg]);
+  const value = useMemo<TrajectoryFocus>(
+    () => ({
+      hotZone: pinned ?? hovered,
+      pinnedZone: pinned,
+      hotLeg: pinnedLeg ?? hoveredLeg,
+      pinnedLeg,
+      hoverZone: setHovered,
+      pinZone: (zone) => setPinned((current) => (current == zone ? undefined : zone)),
+      hoverLeg: setHoveredLeg,
+      pinLeg: (leg) => setPinnedLeg((current) => (current == leg ? undefined : leg)),
+      reset: () => {
+        setHovered(undefined);
+        setPinned(undefined);
+        setHoveredLeg(undefined);
+        setPinnedLeg(undefined);
+      },
+    }),
+    [hovered, pinned, hoveredLeg, pinnedLeg],
+  );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -2,6 +2,7 @@ import type { MapArea, Region, UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import { ORIGIN } from "../worldmap";
 import type { Overlay, OverlayPath } from "./WorldMapArticle";
+
 /**
  * Region and trajectory data as the world map draws it.
  *
@@ -19,8 +20,9 @@ import type { Overlay, OverlayPath } from "./WorldMapArticle";
  * the designation packs use for "a UFO may appear anywhere".
  */
 function latSpanOf(boxes: MapArea[]) {
-  let min = Infinity, max = -Infinity;
-  for (let area of boxes) {
+  let min = Infinity,
+    max = -Infinity;
+  for (const area of boxes) {
     min = Math.min(min, Math.min(Number(area[2]), Number(area[3])));
     max = Math.max(max, Math.max(Number(area[2]), Number(area[3])));
   }
@@ -41,27 +43,26 @@ function latSpanOf(boxes: MapArea[]) {
  * too.
  */
 export function boxArea(area: MapArea) {
-  let lonLow = Number(area[0]), lonHigh = Number(area[1]);
-  let latLow = Number(area[2]), latHigh = Number(area[3]);
-  if (lonHigh < lonLow)
-    lonHigh += 360;
-  if (latLow > latHigh)
-    [latLow, latHigh] = [latHigh, latLow];
+  let lonLow = Number(area[0]),
+    lonHigh = Number(area[1]);
+  let latLow = Number(area[2]),
+    latHigh = Number(area[3]);
+  if (lonHigh < lonLow) lonHigh += 360;
+  if (latLow > latHigh) [latLow, latHigh] = [latHigh, latLow];
   // `sin` weights the longitude by how much of the globe a degree of it covers,
   // so a box near the pole is not ranked as if it were a box at the equator
-  let sine = Math.sin(latHigh * Math.PI / 180) - Math.sin(latLow * Math.PI / 180);
+  const sine = Math.sin((latHigh * Math.PI) / 180) - Math.sin((latLow * Math.PI) / 180);
   return (lonHigh - lonLow) * Math.abs(sine);
 }
 
 /** The middle of one box, with longitude normalised back into 0..360 when it leaves it */
 function boxCenter(area: MapArea) {
   let lon = (Number(area[0]) + Number(area[1])) / 2;
-  let lat = (Number(area[2]) + Number(area[3])) / 2;
+  const lat = (Number(area[2]) + Number(area[3])) / 2;
   // Only fold an out-of-range longitude. Running a value that is already in
   // range through `% 360` twice loses precision in the last bits, which is
   // enough to put the marker a hair outside the box it is meant to sit in.
-  if (lon < 0 || lon >= 360)
-    lon = ((lon % 360) + 360) % 360;
+  if (lon < 0 || lon >= 360) lon = ((lon % 360) + 360) % 360;
   return { lon, lat };
 }
 
@@ -99,16 +100,17 @@ const anywhereCenter = { lon: ORIGIN + 180, lat: 0, anywhere: true };
  * marker apart by `anywhere`, since its position is the same for every one of
  * them.
  */
-export function zoneCenter(zone: MapArea[]): { lon: number, lat: number, anywhere?: boolean } | undefined {
-  let boxes = zone.filter(area => area && area.length >= 4);
-  if (!boxes.length)
-    return;
-  if (latSpanOf(boxes) >= 170)
-    return anywhereCenter;
+export function zoneCenter(
+  zone: MapArea[],
+): { lon: number; lat: number; anywhere?: boolean } | undefined {
+  const boxes = zone.filter((area) => area && area.length >= 4);
+  if (!boxes.length) return;
+  if (latSpanOf(boxes) >= 170) return anywhereCenter;
 
-  let largest = -1, largestArea = -Infinity;
+  let largest = -1,
+    largestArea = -Infinity;
   boxes.forEach((area, i) => {
-    let area2 = boxArea(area);
+    const area2 = boxArea(area);
     if (area2 > largestArea) {
       largestArea = area2;
       largest = i;
@@ -117,21 +119,22 @@ export function zoneCenter(zone: MapArea[]): { lon: number, lat: number, anywher
   // All boxes are single points: the zone names exact spots rather than panels,
   // so pick the one nearest their mean rather than whichever came first
   if (largestArea <= 0) {
-    let centres = boxes.map(boxCenter);
-    let lat = centres.reduce((sum, c) => sum + c.lat, 0) / centres.length;
-    let x = 0, y = 0;
-    for (let c of centres) {
-      let radians = c.lon * Math.PI / 180;
+    const centres = boxes.map(boxCenter);
+    const lat = centres.reduce((sum, c) => sum + c.lat, 0) / centres.length;
+    let x = 0,
+      y = 0;
+    for (const c of centres) {
+      const radians = (c.lon * Math.PI) / 180;
       x += Math.cos(radians);
       y += Math.sin(radians);
     }
-    let lon = ((Math.atan2(y, x) * 180 / Math.PI) % 360 + 360) % 360;
-    let best = centres[0], bestDistance = Infinity;
-    for (let c of centres) {
+    const lon = ((((Math.atan2(y, x) * 180) / Math.PI) % 360) + 360) % 360;
+    let best = centres[0],
+      bestDistance = Infinity;
+    for (const c of centres) {
       let dLon = Math.abs(c.lon - lon);
-      if (dLon > 180)
-        dLon = 360 - dLon;
-      let distance = Math.hypot(dLon, c.lat - lat);
+      if (dLon > 180) dLon = 360 - dLon;
+      const distance = Math.hypot(dLon, c.lat - lat);
       if (distance < bestDistance) {
         bestDistance = distance;
         best = c;
@@ -155,7 +158,7 @@ export function zoneCenter(zone: MapArea[]): { lon: number, lat: number, anywher
  */
 export type PathStop = {
   zone: number;
-  point: { lon: number, lat: number };
+  point: { lon: number; lat: number };
   leg: number;
   /** Whether the UFO lands when it arrives */
   lands: boolean;
@@ -205,20 +208,19 @@ export function samePlace(a: PathStop, b: PathStop) {
  * can say "no place in particular" instead of the picture silently losing it.
  */
 export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape {
-  let shape: PathShape = { stops: [], missing: 0 };
+  const shape: PathShape = { stops: [], missing: 0 };
   // A path the engine refuses to fly has no shape worth drawing; the article
   // says why rather than showing a single dot
-  if (!trajectory.legs.length)
-    return shape;
+  if (!trajectory.legs.length) return shape;
 
-  let zones = region.missionZones ?? [];
-  for (let stop of trajectory.flightStops) {
-    let zone = zones[stop.zone];
+  const zones = region.missionZones ?? [];
+  for (const stop of trajectory.flightStops) {
+    const zone = zones[stop.zone];
     if (!zone) {
       shape.missing++;
       continue;
     }
-    let center = zoneCenter(zone);
+    const center = zoneCenter(zone);
     if (!center) {
       shape.missing++;
       continue;
@@ -245,10 +247,9 @@ export function pathShape(trajectory: UfoTrajectory, region: Region): PathShape 
  * could be drawn.
  */
 export function trajectoryPath(trajectory: UfoTrajectory, region: Region): OverlayPath | undefined {
-  let shape = pathShape(trajectory, region);
-  if (!shape.stops.length)
-    return;
-  let speeds = pathSpeeds(trajectory);
+  const shape = pathShape(trajectory, region);
+  if (!shape.stops.length) return;
+  const speeds = pathSpeeds(trajectory);
   return {
     id: trajectory.uid,
     stops: shape.stops,
@@ -271,16 +272,19 @@ export function trajectoryPath(trajectory: UfoTrajectory, region: Region): Overl
  * in the radio list above, so they are left out. The zone boxes stay either way:
  * they are what the waypoints actually index.
  */
-export function regionOverlay(region: Region, paths: UfoTrajectory[] = [],
-  { outline = true }: { outline?: boolean } = {}): Overlay {
+export function regionOverlay(
+  region: Region,
+  paths: UfoTrajectory[] = [],
+  { outline = true }: { outline?: boolean } = {},
+): Overlay {
   return {
     id: region.uid,
     color: regionColor(region.uid),
     areas: outline ? region.areas : undefined,
     zones: region.missionZones,
     paths: paths
-      .map(path => trajectoryPath(path, region))
-      .filter((path): path is OverlayPath => path != null)
+      .map((path) => trajectoryPath(path, region))
+      .filter((path): path is OverlayPath => path != null),
   };
 }
 
@@ -301,29 +305,27 @@ export function regionOverlay(region: Region, paths: UfoTrajectory[] = [],
  * callers keep their chroma low.
  */
 function oklchToHex(light: number, chroma: number, hue: number) {
-  let radians = hue * Math.PI / 180;
-  let a = chroma * Math.cos(radians);
-  let b = chroma * Math.sin(radians);
+  const radians = (hue * Math.PI) / 180;
+  const a = chroma * Math.cos(radians);
+  const b = chroma * Math.sin(radians);
 
-  let l = Math.pow(light + 0.3963377774 * a + 0.2158037573 * b, 3);
-  let m = Math.pow(light - 0.1055613458 * a - 0.0638541728 * b, 3);
-  let s = Math.pow(light - 0.0894841775 * a - 1.2914855480 * b, 3);
+  const l = (light + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (light - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (light - 0.0894841775 * a - 1.291485548 * b) ** 3;
 
   // Linear sRGB
-  let red = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-  let green = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-  let blue = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  const red = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const green = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const blue = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
 
   // The sRGB transfer function, then 8 bits
-  let encode = (value: number) => {
-    let clamped = Math.min(1, Math.max(0, value));
-    let encoded = clamped <= 0.0031308
-      ? clamped * 12.92
-      : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+  const encode = (value: number) => {
+    const clamped = Math.min(1, Math.max(0, value));
+    const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * clamped ** (1 / 2.4) - 0.055;
     return Math.round(encoded * 255);
   };
-  let hex = [red, green, blue]
-    .map(channel => encode(channel).toString(16).padStart(2, "0"))
+  const hex = [red, green, blue]
+    .map((channel) => encode(channel).toString(16).padStart(2, "0"))
     .join("");
   return `#${hex}`;
 }
@@ -336,13 +338,11 @@ function oklchToHex(light: number, chroma: number, hue: number) {
  * not compete with the zones on top of it.
  */
 export function regionColor(id?: string) {
-  if (!id)
-    return undefined;
+  if (!id) return undefined;
   let hash = 0;
-  for (let i = 0; i < id.length; i++)
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  let hue = Math.abs(hash) % 360;
-  return oklchToHex(0.80, 0.13, hue);
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return oklchToHex(0.8, 0.13, hue);
 }
 
 /**
@@ -367,10 +367,12 @@ export function regionColor(id?: string) {
  * more contours than the eye can follow anyway.
  */
 export function regionPalette(count: number): string[] {
-  let palette: string[] = [];
+  const palette: string[] = [];
   for (let i = 0; i < count; i++) {
-    let dark = i % 2 == 1;
-    palette.push(oklchToHex(dark ? 0.64 : 0.76, dark ? 0.16 : 0.17, i * 360 / Math.max(count, 2) % 360));
+    const dark = i % 2 == 1;
+    palette.push(
+      oklchToHex(dark ? 0.64 : 0.76, dark ? 0.16 : 0.17, ((i * 360) / Math.max(count, 2)) % 360),
+    );
   }
   return palette;
 }
@@ -398,13 +400,13 @@ export function regionPalette(count: number): string[] {
  * hex so no browser has to understand the newer syntax — see `oklchToHex`.
  */
 export function zoneColor(index: number) {
-  let hue = (index * 137.508) % 360;
-  let dark = index % 2 == 1;
+  const hue = (index * 137.508) % 360;
+  const dark = index % 2 == 1;
   // Measured over the first eight indices, this pair keeps the closest two zones
   // 17 ΔE apart in OKLab, against 4.4 for a fixed lightness: 13.4 for the worst
   // pair of a four-zone path. The dark step is kept at 0.60 rather than lower so
   // it still reads against the navy sea it is usually drawn on.
-  return oklchToHex(dark ? 0.60 : 0.78, dark ? 0.18 : 0.14, hue);
+  return oklchToHex(dark ? 0.6 : 0.78, dark ? 0.18 : 0.14, hue);
 }
 
 /**
@@ -415,10 +417,8 @@ export function zoneColor(index: number) {
  * a property of the place, not of the stop.
  */
 export function visitedZones(stops: PathStop[]) {
-  let out: number[] = [];
-  for (let stop of stops)
-    if (!out.includes(stop.zone))
-      out.push(stop.zone);
+  const out: number[] = [];
+  for (const stop of stops) if (!out.includes(stop.zone)) out.push(stop.zone);
   return out;
 }
 
@@ -444,8 +444,8 @@ export function visitedZones(stops: PathStop[]) {
  * the meaning and colour is a rank, not an identity.
  */
 export function legColor(index: number) {
-  let hue = (index * 137.508 + 120) % 360;
-  let dark = index % 2 == 1;
+  const hue = (index * 137.508 + 120) % 360;
+  const dark = index % 2 == 1;
   return oklchToHex(dark ? 0.56 : 0.76, dark ? 0.18 : 0.16, hue);
 }
 
@@ -458,19 +458,16 @@ export function legColor(index: number) {
  * with twelve). Turning a percentage into a distance therefore needs a craft,
  * and the honest summary of "several" is either the shared value or a range.
  */
-export function pathSpeeds(trajectory: UfoTrajectory): { min: number, max: number } | undefined {
-  let values: number[] = [];
-  for (let mission of rul.missionsFlying(trajectory.uid))
-    for (let wave of rul.alienMissions?.[mission]?.waves ?? []) {
-      if (wave?.trajectory != trajectory.uid)
-        continue;
-      let speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
+export function pathSpeeds(trajectory: UfoTrajectory): { min: number; max: number } | undefined {
+  const values: number[] = [];
+  for (const mission of rul.missionsFlying(trajectory.uid))
+    for (const wave of rul.alienMissions?.[mission]?.waves ?? []) {
+      if (wave?.trajectory != trajectory.uid) continue;
+      const speed = Number(rul.ufos?.[wave?.ufo]?.speedMax);
       // A `speedMax` of 0 is a craft that does not move, and packs do carry
       // nonsense values here, so only a positive number is a speed
-      if (isFinite(speed) && speed > 0 && speed < 100000)
-        values.push(speed);
+      if (Number.isFinite(speed) && speed > 0 && speed < 100000) values.push(speed);
     }
-  if (!values.length)
-    return;
+  if (!values.length) return;
   return { min: Math.min(...values), max: Math.max(...values) };
 }

@@ -1,11 +1,10 @@
-import { dbVersion, state, update } from "./state";
-import { unpackData, mergeBuiltinMods } from "./load";
-import * as fflate from 'fflate';
-import Ruleset from "./rul/Ruleset";
-import type { ProcessedRuleset } from "./rul/Ruleset";
-import { asMB, chooseLanguage } from "./util";
+import * as fflate from "fflate";
+import { mergeBuiltinMods, unpackData } from "./load";
 import { inlinePackStats } from "./packSource";
-
+import type { ProcessedRuleset } from "./rul/Ruleset";
+import Ruleset from "./rul/Ruleset";
+import { dbVersion, state, update } from "./state";
+import { asMB, chooseLanguage } from "./util";
 
 export let idb: IDBDatabase;
 
@@ -20,20 +19,20 @@ export let idb: IDBDatabase;
  */
 export type AssetRecord = {
   /** Assigned by the store; absent until a record has been written */
-  id?: number,
-  pack: string,
-  kind: "rul" | "img" | "stats",
+  id?: number;
+  pack: string;
+  kind: "rul" | "img" | "stats";
   /** Archive path of an image, or the pack name on a `rul` record */
-  name?: string,
+  name?: string;
   /** Mod folder the image came from */
-  mod?: string,
-  data?: Uint8Array,
+  mod?: string;
+  data?: Uint8Array;
   /** Size fields of a `stats` record */
-  archive?: number,
-  assets?: number,
-  ruls?: number,
+  archive?: number;
+  assets?: number;
+  ruls?: number;
   /** The record came from the pre-bucket database, see `getStats` */
-  legacy?: boolean,
+  legacy?: boolean;
 };
 
 /**
@@ -45,10 +44,10 @@ export type AssetRecord = {
  * change holds them inline as an `ArrayBuffer`.
  */
 export type ArchiveRecord = {
-  name: string,
-  blob?: Blob,
-  data?: ArrayBuffer,
-  size?: number,
+  name: string;
+  blob?: Blob;
+  data?: ArrayBuffer;
+  size?: number;
 };
 
 /**
@@ -114,14 +113,18 @@ function storageBuckets(): StorageBucketManager | undefined {
  * ever goes away on its own, and the UI must not say that it does.
  */
 export async function storageInfo() {
-  let estimate: StorageEstimate | undefined =
-    await navigator.storage?.estimate?.().catch((): undefined => undefined);
-  let persisted: boolean | undefined =
-    await navigator.storage?.persisted?.().catch((): undefined => undefined);
-  let enforced = !!storageBuckets()?.open;
+  const estimate: StorageEstimate | undefined = await navigator.storage
+    ?.estimate?.()
+    .catch((): undefined => undefined);
+  const persisted: boolean | undefined = await navigator.storage
+    ?.persisted?.()
+    .catch((): undefined => undefined);
+  const enforced = !!storageBuckets()?.open;
   return {
-    usage: estimate?.usage, quota: estimate?.quota, persisted,
-    retentionDays: enforced ? retentionDays : undefined
+    usage: estimate?.usage,
+    quota: estimate?.quota,
+    persisted,
+    retentionDays: enforced ? retentionDays : undefined,
   };
 }
 
@@ -136,13 +139,12 @@ function daysFromNow(days: number) {
  * bucket the page still runs on default storage.
  */
 async function touchBucket() {
-  let buckets = storageBuckets();
-  if (!buckets?.open)
-    return;
+  const buckets = storageBuckets();
+  if (!buckets?.open) return;
   try {
     // The same object that `initDB` keeps alive: a second `open()` would be a
     // different handle, and the one the database depends on could be collected
-    let bucket = packBucket ?? await buckets.open(bucketName);
+    const bucket = packBucket ?? (await buckets.open(bucketName));
     packBucket = bucket;
     await bucket.setExpires?.(daysFromNow(retentionDays));
   } catch (e) {
@@ -159,7 +161,7 @@ async function touchBucket() {
  */
 async function requestPersistence() {
   try {
-    return await navigator.storage?.persist?.() ?? false;
+    return (await navigator.storage?.persist?.()) ?? false;
   } catch {
     return false;
   }
@@ -171,20 +173,22 @@ async function requestPersistence() {
  * so the message has to explain the likely cause instead of echoing it.
  */
 function archiveWriteError(size: number, error?: DOMException | null) {
-  let quota = error?.name == "QuotaExceededError" || error?.name == "DataError";
+  const quota = error?.name == "QuotaExceededError" || error?.name == "DataError";
   if (!quota && error?.name && error.name != "UnknownError")
     return `Could not save the archive: ${error.message || error.name}`;
-  return `Could not save the archive: it needs ${asMB(size)} of local storage, ` +
-    `which is more than the browser allows (usually about 60% of free disk space)`;
+  return (
+    `Could not save the archive: it needs ${asMB(size)} of local storage, ` +
+    `which is more than the browser allows (usually about 60% of free disk space)`
+  );
 }
 
 export async function updateFileStats() {
   // A page without storage has no stats to show, only the inlined pack
-  let files = await getStats() ?? [];
-  let inline = inlinePackStats();
+  const files = (await getStats()) ?? [];
+  const inline = inlinePackStats();
   update({
     files,
-    packs: inline ? [...files.filter(p => p.pack != inline.pack), inline] : files
+    packs: inline ? [...files.filter((p) => p.pack != inline.pack), inline] : files,
   });
 }
 
@@ -200,11 +204,10 @@ export async function initDB() {
 
   /** No database: show only what the page itself provides */
   function withoutDB(error?: unknown) {
-    if (settled)
-      return;
+    if (settled) return;
     settled = true;
     console.warn("IndexedDB is not available, running without stored modpacks", error);
-    let inline = inlinePackStats();
+    const inline = inlinePackStats();
     update({ files: [], packs: inline ? [inline] : [] });
   }
 
@@ -213,10 +216,10 @@ export async function initDB() {
   // back to the origin's default storage keeps Firefox and Safari working
   // exactly as before.
   let factory: IDBFactory = indexedDB;
-  let buckets = storageBuckets();
+  const buckets = storageBuckets();
   if (buckets?.open) {
     try {
-      let bucket = await buckets.open(bucketName);
+      const bucket = await buckets.open(bucketName);
       // Kept in a module variable on purpose: see `packBucket`
       packBucket = bucket;
       factory = bucket.indexedDB;
@@ -244,12 +247,15 @@ export async function initDB() {
   // The caller has to wait for the database: `init` reads a stored ruleset right
   // after this, and an unopened `idb` would silently look like "nothing stored",
   // dropping the user onto the builtin pedia as if the pack had been lost
-  let opened: () => void = () => { };
-  let openedPromise = new Promise<void>(done => opened = done);
+  let opened: () => void = () => {};
+  const openedPromise = new Promise<void>((done) => (opened = done));
 
   // Belt and braces: some browsers report a request that never settles instead
   // of throwing, which would leave `init` waiting forever and the page blank
-  let giveUp = setTimeout(() => { withoutDB("IndexedDB did not respond"); opened(); }, 3000);
+  const giveUp = setTimeout(() => {
+    withoutDB("IndexedDB did not respond");
+    opened();
+  }, 3000);
 
   openRequest.onerror = () => {
     clearTimeout(giveUp);
@@ -257,7 +263,7 @@ export async function initDB() {
     opened();
   };
 
-  openRequest.onsuccess = function () {
+  openRequest.onsuccess = () => {
     clearTimeout(giveUp);
     // A database that shows up after the grace period is still good: adopt it,
     // so storage starts working even though the first page load went without.
@@ -275,21 +281,18 @@ export async function initDB() {
     opened();
   };
 
-  openRequest.onupgradeneeded = function () {
-    let db = openRequest.result;
-    if (!db.objectStoreNames.contains("files"))
-      db.createObjectStore("files", { keyPath: "name" });
+  openRequest.onupgradeneeded = () => {
+    const db = openRequest.result;
+    if (!db.objectStoreNames.contains("files")) db.createObjectStore("files", { keyPath: "name" });
 
-    if (db.objectStoreNames.contains("assets"))
-      db.deleteObjectStore("assets");
+    if (db.objectStoreNames.contains("assets")) db.deleteObjectStore("assets");
 
-    let assets = db.createObjectStore("assets", { keyPath: "id", autoIncrement: true });
+    const assets = db.createObjectStore("assets", { keyPath: "id", autoIncrement: true });
     assets.createIndex("name", "name", { unique: false });
     assets.createIndex("packKind", ["pack", "kind"], { unique: false });
     assets.createIndex("kind", "kind", { unique: false });
     assets.createIndex("pack", "pack", { unique: false });
     assets.createIndex("packPath", ["pack", "path"], { unique: false });
-
   };
   await openedPromise;
 }
@@ -315,12 +318,16 @@ export async function saveFile(name: string, data: ArrayBuffer) {
   // Uploading is the one thing that needs storage: say so plainly instead of
   // letting a later `undefined` transaction surface as a vague error
   if (!idb)
-    throw new Error("this page cannot store modpacks because the browser has " +
-      "blocked local storage for it");
+    throw new Error(
+      "this page cannot store modpacks because the browser has " + "blocked local storage for it",
+    );
   if (state.devView) {
     try {
-      await queryDB(transaction =>
-        transaction.objectStore("files").put({ name, blob: new Blob([data]), size: data.byteLength }));
+      await queryDB((transaction) =>
+        transaction
+          .objectStore("files")
+          .put({ name, blob: new Blob([data]), size: data.byteLength }),
+      );
     } catch (e) {
       // A pack that does not fit is a normal outcome, not a bug: report it in
       // plain language instead of letting a bare DOMException reach the status
@@ -335,12 +342,14 @@ export async function saveFile(name: string, data: ArrayBuffer) {
 }
 
 export async function saveRul(pack: string, data: Uint8Array) {
-  return await queryDB(transaction => transaction.objectStore("assets").add({ pack, data, kind: "rul" }));
+  return await queryDB((transaction) =>
+    transaction.objectStore("assets").add({ pack, data, kind: "rul" }),
+  );
 }
 
 /** True when the stored archive bytes are gone, see `getRul` */
 export async function hasArchive(name: string) {
-  return !!(await readBoth(transaction => transaction.objectStore("files").get(name)));
+  return !!(await readBoth((transaction) => transaction.objectStore("files").get(name)));
 }
 
 /**
@@ -351,20 +360,20 @@ export async function hasArchive(name: string) {
  * already installed.
  */
 export async function readRulData(pack: string) {
-  let data = await readBoth<AssetRecord>(transaction => transaction.objectStore("assets").index("packKind").get([pack, "rul"]));
-  if (!data?.data)
-    return;
-  let unpacked = fflate.decompressSync(data.data);
-  let stored = JSON.parse(new TextDecoder().decode(unpacked)) as ProcessedRuleset;
+  const data = await readBoth<AssetRecord>((transaction) =>
+    transaction.objectStore("assets").index("packKind").get([pack, "rul"]),
+  );
+  if (!data?.data) return;
+  const unpacked = fflate.decompressSync(data.data);
+  const stored = JSON.parse(new TextDecoder().decode(unpacked)) as ProcessedRuleset;
   return await mergeBuiltinMods(stored, pack);
 }
 
 export async function getRul(pack: string) {
-  let processed = await readRulData(pack);
-  if (!processed)
-    return;
+  const processed = await readRulData(pack);
+  if (!processed) return;
 
-  let rul = new Ruleset(processed);
+  const rul = new Ruleset(processed);
   applySavedLanguage(rul);
   update({ rul, packName: pack });
 
@@ -387,9 +396,9 @@ export async function getRul(pack: string) {
  * make.
  */
 export function applySavedLanguage(rul: Ruleset, fallback?: string, available?: readonly string[]) {
-  let carried = Object.keys(rul.langs ?? {}).filter(name => name != "icon");
-  let names = available?.length ? [...new Set([...carried, ...available])] : carried;
-  let lang = chooseLanguage(names, state.lang, fallback);
+  const carried = Object.keys(rul.langs ?? {}).filter((name) => name != "icon");
+  const names = available?.length ? [...new Set([...carried, ...available])] : carried;
+  const lang = chooseLanguage(names, state.lang, fallback);
   if (!lang) {
     // Nothing saved, nothing exported, nothing recognised: the ruleset keeps the
     // language it loaded with, and the saved preference must not claim otherwise
@@ -406,13 +415,21 @@ export function applySavedLanguage(rul: Ruleset, fallback?: string, available?: 
 }
 
 export async function viewAssets(pack: string) {
-  let assets = await readBoth<AssetRecord[]>(transaction => transaction.objectStore("assets").index("pack").getAll(pack)) ?? [];
-  update({ assets: new Set(assets.map(a => a.name!)), packName: pack });
+  const assets =
+    (await readBoth<AssetRecord[]>((transaction) =>
+      transaction.objectStore("assets").index("pack").getAll(pack),
+    )) ?? [];
+  update({ assets: new Set(assets.map((a) => a.name!)), packName: pack });
 }
 
-export async function saveStats(pack: string, archiveSize: number, assetsSize: number, rulSize: number) {
-  let record = { pack, archive: archiveSize, assets: assetsSize, ruls: rulSize, kind: "stats" };
-  return await queryDB(transaction => transaction.objectStore("assets").add(record));
+export async function saveStats(
+  pack: string,
+  archiveSize: number,
+  assetsSize: number,
+  rulSize: number,
+) {
+  const record = { pack, archive: archiveSize, assets: assetsSize, ruls: rulSize, kind: "stats" };
+  return await queryDB((transaction) => transaction.objectStore("assets").add(record));
 }
 
 /**
@@ -424,19 +441,23 @@ export async function saveStats(pack: string, archiveSize: number, assetsSize: n
  * everything the pack stored.
  */
 export async function readImgSizes(pack: string) {
-  let records = await readBoth<AssetRecord[]>(transaction =>
-    transaction.objectStore("assets").index("pack").getAll(pack));
-  if (!records)
-    return;
-  let sizes = new Map<string, number>();
-  for (let record of records)
-    if (record.kind == "img" && record.name)
-      sizes.set(record.name, record.data?.byteLength ?? 0);
+  const records = await readBoth<AssetRecord[]>((transaction) =>
+    transaction.objectStore("assets").index("pack").getAll(pack),
+  );
+  if (!records) return;
+  const sizes = new Map<string, number>();
+  for (const record of records)
+    if (record.kind == "img" && record.name) sizes.set(record.name, record.data?.byteLength ?? 0);
   return sizes;
 }
 
 /** A `stats` record: the size line of one installed pack */
-export type StatsRecord = AssetRecord & { pack: string, archive: number, assets: number, ruls: number };
+export type StatsRecord = AssetRecord & {
+  pack: string;
+  archive: number;
+  assets: number;
+  ruls: number;
+};
 
 /**
  * Every installed pack's stats, from both the bucket and pre-bucket storage.
@@ -446,31 +467,50 @@ export type StatsRecord = AssetRecord & { pack: string, archive: number, assets:
  * and a pack left in default storage has no deadline at all.
  */
 export async function getStats() {
-  let bucket = await readDB(transaction => transaction.objectStore("assets").index("kind").getAll("stats")) as StatsRecord[] ?? [];
-  let db = await legacy();
-  let old = db ? await runQuery(db, transaction => transaction.objectStore("assets").index("kind").getAll("stats"), "readonly", ["files", "assets"]) as StatsRecord[] ?? [] : [];
+  const bucket =
+    ((await readDB((transaction) =>
+      transaction.objectStore("assets").index("kind").getAll("stats"),
+    )) as StatsRecord[]) ?? [];
+  const db = await legacy();
+  const old = db
+    ? (((await runQuery(
+        db,
+        (transaction) => transaction.objectStore("assets").index("kind").getAll("stats"),
+        "readonly",
+        ["files", "assets"],
+      )) as StatsRecord[]) ?? [])
+    : [];
   // A pack can only be in one place, but if both ever hold one the bucket wins
-  let seen = new Set(bucket.map(record => record.pack));
-  return [...bucket, ...old.filter(record => !seen.has(record.pack)).map(record => ({ ...record, legacy: true }))];
+  const seen = new Set(bucket.map((record) => record.pack));
+  return [
+    ...bucket,
+    ...old
+      .filter((record) => !seen.has(record.pack))
+      .map((record) => ({ ...record, legacy: true })),
+  ];
 }
 
-
 export async function saveImg(pack: string, mod: string, path: string, data: Uint8Array) {
-  return await queryDB(transaction => transaction.objectStore("assets").add({ pack, mod: mod, name: path, data, kind: "img" }));
+  return await queryDB((transaction) =>
+    transaction.objectStore("assets").add({ pack, mod: mod, name: path, data, kind: "img" }),
+  );
 }
 
 /**
  * Saves many images in batched transactions. One transaction per image is
  * correct but slow (an extra commit per record), so images are grouped.
  */
-export async function saveImgs(pack: string, images: { mod: string, path: string, data: Uint8Array }[],
-  onProgress?: (done: number) => void | Promise<void>) {
-  let batchSize = 200;
+export async function saveImgs(
+  pack: string,
+  images: { mod: string; path: string; data: Uint8Array }[],
+  onProgress?: (done: number) => void | Promise<void>,
+) {
+  const batchSize = 200;
   for (let start = 0; start < images.length; start += batchSize) {
-    let batch = images.slice(start, start + batchSize);
-    await queryDB(transaction => {
-      let store = transaction.objectStore("assets");
-      for (let img of batch)
+    const batch = images.slice(start, start + batchSize);
+    await queryDB((transaction) => {
+      const store = transaction.objectStore("assets");
+      for (const img of batch)
         store.add({ pack, mod: img.mod, name: img.path, data: img.data, kind: "img" });
       return store.count();
     });
@@ -485,35 +525,40 @@ export async function saveImgs(pack: string, images: { mod: string, path: string
  * `builtin` pack, which every pack inherits.
  */
 export async function getImg(path: string) {
-  return await readPick(transaction => transaction.objectStore("assets").index("name").getAll(path), records =>
-    records.find(r => r.kind == "img" && r.pack == state.packName)
-    ?? records.find(r => r.kind == "img" && r.pack == "builtin")
-    ?? records.find(r => r.kind == "img"));
+  return await readPick(
+    (transaction) => transaction.objectStore("assets").index("name").getAll(path),
+    (records) =>
+      records.find((r) => r.kind == "img" && r.pack == state.packName) ??
+      records.find((r) => r.kind == "img" && r.pack == "builtin") ??
+      records.find((r) => r.kind == "img"),
+  );
 }
 
 /** Image bytes of one pack, by full archive path */
 export async function readImgData(pack: string, path: string) {
-  return await readPick(transaction =>
-    transaction.objectStore("assets").index("name").getAll(path), records =>
-      records.find(r => r.kind == "img" && r.pack == pack)?.data
+  return await readPick(
+    (transaction) => transaction.objectStore("assets").index("name").getAll(path),
+    (records) =>
+      records.find((r) => r.kind == "img" && r.pack == pack)?.data ??
       // Builtin images are cached under their own pseudo pack and shared by all
-      ?? records.find(r => r.kind == "img" && r.pack == "builtin")?.data);
+      records.find((r) => r.kind == "img" && r.pack == "builtin")?.data,
+  );
 }
-
 
 export async function packAssets(pack: string) {
-  return await readBoth<AssetRecord[]>(transaction => transaction.objectStore("assets").index("pack").getAll(pack));
+  return await readBoth<AssetRecord[]>((transaction) =>
+    transaction.objectStore("assets").index("pack").getAll(pack),
+  );
 }
-
 
 /** Deletes every `assets` record of a pack from one database */
 function wipeFrom(db: IDBDatabase, pack: string) {
-  return new Promise<void>(done => {
-    let transaction = db.transaction("assets", "readwrite");
-    let os = transaction.objectStore("assets");
-    let query = os.index("pack").openCursor(IDBKeyRange.only(pack));
+  return new Promise<void>((done) => {
+    const transaction = db.transaction("assets", "readwrite");
+    const os = transaction.objectStore("assets");
+    const query = os.index("pack").openCursor(IDBKeyRange.only(pack));
     query.onsuccess = () => {
-      let cursor = query.result;
+      const cursor = query.result;
       if (cursor) {
         os.delete(cursor.primaryKey);
         cursor.continue();
@@ -535,23 +580,25 @@ function wipeFrom(db: IDBDatabase, pack: string) {
 export async function wipeAssets(pack: string) {
   // Without a database there is nothing stored to wipe; returning a resolved
   // promise keeps every caller working (see `initDB`)
-  if (!idb)
-    return;
+  if (!idb) return;
   await wipeFrom(idb, pack);
-  let db = await legacy();
-  if (db)
-    await wipeFrom(db, pack);
+  const db = await legacy();
+  if (db) await wipeFrom(db, pack);
 }
 
-export async function queryDBCursor(db: string, index: string, match: IDBValidKey, cb: (v: IDBCursorWithValue) => void) {
-  if (!idb)
-    return;
+export async function queryDBCursor(
+  db: string,
+  index: string,
+  match: IDBValidKey,
+  cb: (v: IDBCursorWithValue) => void,
+) {
+  if (!idb) return;
   return new Promise<void>((success, error) => {
-    let transaction = idb.transaction(db, "readwrite");
-    let os = transaction.objectStore(db);
-    let request = os.index(index).openCursor(IDBKeyRange.only(match));
+    const transaction = idb.transaction(db, "readwrite");
+    const os = transaction.objectStore(db);
+    const request = os.index(index).openCursor(IDBKeyRange.only(match));
     request.onsuccess = () => {
-      let cursor = request.result;
+      const cursor = request.result;
       if (cursor) {
         cb(cursor);
         cursor.continue();
@@ -559,12 +606,11 @@ export async function queryDBCursor(db: string, index: string, match: IDBValidKe
         success();
       }
     };
-    request.onerror = e => {
+    request.onerror = (e) => {
       console.error(e, request);
       error && error();
     };
   });
-
 }
 
 /**
@@ -589,10 +635,10 @@ function runQuery<T = unknown>(
   dbNames: string | Iterable<string>,
 ): Promise<T> {
   return new Promise<T>((success, error) => {
-    let transaction = db.transaction(dbNames, mode);
-    let request = action(transaction);
+    const transaction = db.transaction(dbNames, mode);
+    const request = action(transaction);
     let result: T;
-    request.onerror = e => {
+    request.onerror = (e) => {
       console.error(e, request);
       error?.(request.error);
     };
@@ -613,8 +659,7 @@ export async function queryDB(
   dbNames: string | Iterable<string> = ["files", "assets"],
 ) {
   // An exported page opened from disk may have no storage at all, see `initDB`
-  if (!idb)
-    throw new Error("This browser does not allow storing modpacks for this page");
+  if (!idb) throw new Error("This browser does not allow storing modpacks for this page");
   return runQuery(idb, action, mode, dbNames);
 }
 
@@ -636,20 +681,18 @@ export async function queryDB(
 let legacyPromise: Promise<IDBDatabase | null> | undefined;
 
 function legacy(): Promise<IDBDatabase | null> {
-  return legacyPromise ??= openLegacy();
+  return (legacyPromise ??= openLegacy());
 }
 
 async function openLegacy(): Promise<IDBDatabase | null> {
   // Without a bucket there is no second database to look in: both names would
   // resolve to the same place and every read would come back doubled
-  if (!packBucket)
-    return null;
+  if (!packBucket) return null;
   try {
-    let known = await indexedDB.databases?.();
-    if (!known?.some(db => db.name == "xpedia3"))
-      return null;
+    const known = await indexedDB.databases?.();
+    if (!known?.some((db) => db.name == "xpedia3")) return null;
     return await new Promise<IDBDatabase>((ok, fail) => {
-      let request = indexedDB.open("xpedia3");
+      const request = indexedDB.open("xpedia3");
       request.onsuccess = () => ok(request.result);
       request.onerror = () => fail(request.error);
     });
@@ -671,14 +714,11 @@ function empty(result: unknown) {
  * place at a time, so the two results are alternatives rather than a union.
  */
 async function readBoth<T>(action: (t: IDBTransaction) => IDBRequest): Promise<T | undefined> {
-  if (!idb)
-    return undefined;
-  let current = await readDB<T>(action);
-  if (!empty(current))
-    return current;
-  let db = await legacy();
-  if (!db)
-    return current;
+  if (!idb) return undefined;
+  const current = await readDB<T>(action);
+  if (!empty(current)) return current;
+  const db = await legacy();
+  if (!db) return current;
   return runQuery<T>(db, action, "readonly", ["files", "assets"]);
 }
 
@@ -689,24 +729,24 @@ async function readBoth<T>(action: (t: IDBTransaction) => IDBRequest): Promise<T
  * Image lookups are the hot path — every sprite on an article — so they must
  * not pay for a second database unless the bucket really cannot answer.
  */
-async function readPick<T>(action: (t: IDBTransaction) => IDBRequest,
-  pick: (records: AssetRecord[]) => T | undefined): Promise<T | undefined> {
-  let found = pick(await readDB<AssetRecord[]>(action) ?? []);
-  if (found != undefined)
-    return found;
-  let db = await legacy();
-  if (!db)
-    return found;
-  return pick(await runQuery<AssetRecord[]>(db, action, "readonly", ["files", "assets"]) ?? []);
+async function readPick<T>(
+  action: (t: IDBTransaction) => IDBRequest,
+  pick: (records: AssetRecord[]) => T | undefined,
+): Promise<T | undefined> {
+  const found = pick((await readDB<AssetRecord[]>(action)) ?? []);
+  if (found != undefined) return found;
+  const db = await legacy();
+  if (!db) return found;
+  return pick((await runQuery<AssetRecord[]>(db, action, "readonly", ["files", "assets"])) ?? []);
 }
 
-export async function readDB<T = unknown>(action: (t: IDBTransaction) => IDBRequest): Promise<T | undefined> {
+export async function readDB<T = unknown>(
+  action: (t: IDBTransaction) => IDBRequest,
+): Promise<T | undefined> {
   // Reading without a database is simply "nothing stored", not an error
-  if (!idb)
-    return undefined;
+  if (!idb) return undefined;
   return runQuery<T>(idb, action, "readonly", ["files", "assets"]);
 }
-
 
 /**
  * Stored archives, from both databases.
@@ -715,21 +755,27 @@ export async function readDB<T = unknown>(action: (t: IDBTransaction) => IDBRequ
  * bucket existed can still be re-unpacked from its old copy.
  */
 export async function listArchiveFiles() {
-  let db = await legacy();
-  let current = await readDB<ArchiveRecord[]>(transaction => transaction.objectStore("files").getAll()) ?? [];
-  let old = db ? await runQuery<ArchiveRecord[]>(db, transaction => transaction.objectStore("files").getAll(), "readonly", ["files", "assets"]) ?? [] : [];
-  let archiveFiles: { [name: string]: ArrayBuffer } = {};
+  const db = await legacy();
+  const current =
+    (await readDB<ArchiveRecord[]>((transaction) => transaction.objectStore("files").getAll())) ??
+    [];
+  const old = db
+    ? ((await runQuery<ArchiveRecord[]>(
+        db,
+        (transaction) => transaction.objectStore("files").getAll(),
+        "readonly",
+        ["files", "assets"],
+      )) ?? [])
+    : [];
+  const archiveFiles: { [name: string]: ArrayBuffer } = {};
 
   // The bucket is listed first and assignment keeps the first value, so its
   // copy of a name wins over the same name in the old database
-  for (let record of [...current, ...old]) {
-    if (record.name in archiveFiles)
-      continue;
+  for (const record of [...current, ...old]) {
+    if (record.name in archiveFiles) continue;
     // Legacy records store the bytes inline as `data`, new ones as a `blob`
-    if (record.blob)
-      archiveFiles[record.name] = await record.blob.arrayBuffer();
-    else if (record.data)
-      archiveFiles[record.name] = record.data;
+    if (record.blob) archiveFiles[record.name] = await record.blob.arrayBuffer();
+    else if (record.data) archiveFiles[record.name] = record.data;
   }
 
   return archiveFiles;
@@ -737,24 +783,31 @@ export async function listArchiveFiles() {
 
 export async function eraseArchiveFile(name: string) {
   // Nothing to erase when the page has no storage (see `initDB`)
-  if (!idb)
-    return;
-  await queryDB(transaction => transaction.objectStore("files").delete(name));
-  let db = await legacy();
+  if (!idb) return;
+  await queryDB((transaction) => transaction.objectStore("files").delete(name));
+  const db = await legacy();
   if (db)
-    await runQuery(db, transaction => transaction.objectStore("files").delete(name), "readwrite", ["files"]);
+    await runQuery(
+      db,
+      (transaction) => transaction.objectStore("files").delete(name),
+      "readwrite",
+      ["files"],
+    );
   await updateFileStats();
 }
 
 export async function unpackArchiveFile(name: string) {
-  let archives = await listArchiveFiles();
+  const archives = await listArchiveFiles();
   // The archive can be gone while its unpacked ruleset and images survive, e.g.
   // when the browser evicts the largest value first under storage pressure
   if (!archives[name]) {
     update({
-      slowProcessStatus: `The archive for ${name} is no longer stored, so it cannot be re-unpacked. ` +
+      slowProcessStatus:
+        `The archive for ${name} is no longer stored, so it cannot be re-unpacked. ` +
         `Its pedia is still usable; upload the archive again if you need to rebuild it.`,
-      slowProcessDone: true, slowProcessError: true, slowProcessProgress: undefined
+      slowProcessDone: true,
+      slowProcessError: true,
+      slowProcessProgress: undefined,
     });
     return;
   }

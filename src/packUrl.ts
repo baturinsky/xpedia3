@@ -17,11 +17,10 @@ import { uploadUsersFiles } from "./load";
 
 /** A name the archive can be stored under, taken from its URL */
 export function packNameFromUrl(url: string): string {
-  let path = url.split("?")[0].split("#")[0];
+  const path = url.split("?")[0].split("#")[0];
   // Archives are unpacked by extension, so the name has to keep one
-  let name = decodeURIComponent(path.substring(path.lastIndexOf("/") + 1));
-  if (!name)
-    throw new Error(`No file name in ${url}`);
+  const name = decodeURIComponent(path.substring(path.lastIndexOf("/") + 1));
+  if (!name) throw new Error(`No file name in ${url}`);
   return name;
 }
 
@@ -32,21 +31,20 @@ export function packNameFromUrl(url: string): string {
  * name in the list, and so the archive readers can tell a ZIP from a RAR.
  */
 export async function loadPackFromUrl(url: string) {
-  let name = packNameFromUrl(url);
+  const name = packNameFromUrl(url);
   let response: Response;
   try {
     response = await fetch(url);
   } catch (e) {
     throw new Error(`Could not fetch ${url}: ${e?.message ?? e}`);
   }
-  if (!response.ok)
-    throw new Error(`Could not fetch ${url}: HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Could not fetch ${url}: HTTP ${response.status}`);
 
-  let bytes = await response.arrayBuffer();
-  let file = new File([bytes], name);
+  const bytes = await response.arrayBuffer();
+  const file = new File([bytes], name);
   // A one-file `FileList` is what the drop handler receives, so the import path
   // is the same one a real upload takes
-  let transfer = new DataTransfer();
+  const transfer = new DataTransfer();
   transfer.items.add(file);
   await uploadUsersFiles(transfer.files);
 }
@@ -59,7 +57,7 @@ export async function loadPackFromUrl(url: string) {
  * an explicit instruction from whoever opened the page, not a stray click.
  */
 export function packUrlFromLocation(): string | undefined {
-  let value = new URLSearchParams(location.search).get("packUrl");
+  const value = new URLSearchParams(location.search).get("packUrl");
   return value || undefined;
 }
 
@@ -71,9 +69,8 @@ export function packUrlFromLocation(): string | undefined {
  * leave the progress unreported.
  */
 export async function loadPackFromLocation() {
-  let url = packUrlFromLocation();
-  if (!url)
-    return;
+  const url = packUrlFromLocation();
+  if (!url) return;
   try {
     await loadPackFromUrl(url);
   } catch (e) {
@@ -104,9 +101,8 @@ export function examplePacksUrl(): string | undefined {
  * may name any address at all, so it is never rewritten.
  */
 export function examplePacksBase(): string | undefined {
-  let path = examplePacksUrl();
-  if (!path)
-    return;
+  const path = examplePacksUrl();
+  if (!path) return;
   // A relative resolution would drop the dev server's port on a bare page
   return new URL(path, location.href).href;
 }

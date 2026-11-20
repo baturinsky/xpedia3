@@ -1,17 +1,35 @@
-import { createElement, ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { rul, battleStats, damageTypes, internalBattleTypes, statsList, SortFirstLastOptions } from "../rul/Ruleset";
+import {
+  createElement,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import type { Article } from "../rul/Article";
 import type { Entry } from "../rul/Entry";
+import {
+  battleStats,
+  damageTypes,
+  internalBattleTypes,
+  rul,
+  type SortFirstLastOptions,
+  statsList,
+} from "../rul/Ruleset";
+import type { Section } from "../rul/Section";
 import { article, section, state, update } from "../state";
+import { xpediaBuildStamp, xpediaVersion } from "../util";
 import ArmorComponent from "./ArmorComponent";
-import { BaseService, Img, LinksPage, SectionTable, SectionRow } from "./components";
 import CommendationComponent, { SoldierBonusesComponent } from "./CommendationComponent";
 import Conditions from "./Conditions";
 import CountriesComponent from "./CountryComponent";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
+import { BaseService, Img, LinksPage, type SectionRow, SectionTable } from "./components";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
-import MainTable, { MainTableRenderer } from "./MainTable";
+import MainTable, { type MainTableRenderer } from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import MissionComponent from "./MissionComponent";
 import MissionScriptComponent from "./MissionScriptComponent";
@@ -19,39 +37,53 @@ import ResearchComponent from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
 import TrajectoryComponent from "./TrajectoryComponent";
 import { TrajectoryFocusProvider } from "./trajectoryFocus";
-import { LandingPage, packTitle, onLandingPage, xpediaNamed } from "./ui";
 import UnitComponent from "./UnitComponent";
-import { Val, Tr } from "./Val";
-import { xpediaVersion, xpediaBuildStamp } from "../util";
-import { WorldMapArticle, RegionsMapArticle, RegionMapArticle, TrajectoryMapArticle } from "./WorldMapArticle";
-import type { Article } from "../rul/Article";
-import type { Section } from "../rul/Section";
+import { LandingPage, onLandingPage, packTitle, xpediaNamed } from "./ui";
+import { Tr, Val } from "./Val";
+import {
+  RegionMapArticle,
+  RegionsMapArticle,
+  TrajectoryMapArticle,
+  WorldMapArticle,
+} from "./WorldMapArticle";
 
 export function ArticleTitle() {
-  let [left, right] = [-1, 1].map(delta => article ? rul.nearbyArticle(article, delta, section, state.alphabeticalSort) : undefined);
+  const [left, right] = [-1, 1].map((delta) =>
+    article ? rul.nearbyArticle(article, delta, section, state.alphabeticalSort) : undefined,
+  );
   // Old `Article.svelte` filtered out the article's own section from the list
-  let sectionIds = article?.sections?.map(s => s.id).filter(id => id != article?.id) ?? [];
+  const sectionIds = article?.sections?.map((s) => s.id).filter((id) => id != article?.id) ?? [];
   if (onLandingPage()) {
-    return <>
-      <div className="article-title">
-        <div className="central">
-          {/* Only XPedia itself carries XPedia's version: a pack's title is the
+    return (
+      <>
+        <div className="article-title">
+          <div className="central">
+            {/* Only XPedia itself carries XPedia's version: a pack's title is the
               pack's name and its own version, and mixing the two numbers in one
               line is ambiguous. See the navbar label for the same rule. */}
-          <Tr text={packTitle()} nobr={100} />
-          {xpediaNamed() &&
-            <span className="xpedia-version" title={xpediaBuildStamp()}> {xpediaVersion()}</span>}
+            <Tr text={packTitle()} nobr={100} />
+            {xpediaNamed() && (
+              <span className="xpedia-version" title={xpediaBuildStamp()}>
+                {" "}
+                {xpediaVersion()}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <PackMeta />
-    </>;
+        <PackMeta />
+      </>
+    );
   } else {
-    return <div className="article-title">
-      <div className="left">{left && <NearbyLink target={left} prefix={"<"} />}</div>
-      <div className="central"><Tr text={article?.id} nobr={100} /></div>
-      <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
-      <div className="right">{right && <NearbyLink target={right} postfix={">"} />}</div>
-    </div>;
+    return (
+      <div className="article-title">
+        <div className="left">{left && <NearbyLink target={left} prefix={"<"} />}</div>
+        <div className="central">
+          <Tr text={article?.id} nobr={100} />
+        </div>
+        <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
+        <div className="right">{right && <NearbyLink target={right} postfix={">"} />}</div>
+      </div>
+    );
   }
 }
 
@@ -64,11 +96,17 @@ export function ArticleTitle() {
  * is put in `state` before the hash changes — the click runs ahead of
  * `hashchange`, so `goToArticle` then finds the section already set.
  */
-function NearbyLink(props: { target: { article: Article, section: Section }, prefix?: string, postfix?: string }) {
-  let { article: target, section: targetSection } = props.target;
-  return <a href={"##" + target.id} onClick={() => update({ section: targetSection })}>
-    <Tr text={target.id} prefix={props.prefix} postfix={props.postfix} />
-  </a>;
+function NearbyLink(props: {
+  target: { article: Article; section: Section };
+  prefix?: string;
+  postfix?: string;
+}) {
+  const { article: target, section: targetSection } = props.target;
+  return (
+    <a href={"##" + target.id} onClick={() => update({ section: targetSection })}>
+      <Tr text={target.id} prefix={props.prefix} postfix={props.postfix} />
+    </a>
+  );
 }
 
 /**
@@ -77,14 +115,15 @@ function NearbyLink(props: { target: { article: Article, section: Section }, pre
  * are free text written by the mod's author, so they are not translated.
  */
 function PackMeta() {
-  let author = rul?.meta?.author;
-  let description = rul?.meta?.description;
-  if (!author && !description)
-    return null;
-  return <div className="pack-meta">
-    {author && <div className="pack-author">by {author}</div>}
-    {description && <div className="pack-description">{description}</div>}
-  </div>;
+  const author = rul?.meta?.author;
+  const description = rul?.meta?.description;
+  if (!author && !description) return null;
+  return (
+    <div className="pack-meta">
+      {author && <div className="pack-author">by {author}</div>}
+      {description && <div className="pack-description">{description}</div>}
+    </div>
+  );
 }
 
 export const asSubTable: MainTableRenderer = (props) => <MainTable of={props.val} />,
@@ -97,10 +136,10 @@ export const asSubTable: MainTableRenderer = (props) => <MainTable of={props.val
  * ordering, title. Collections that need no special drawing state an empty one.
  */
 interface TableConfig {
-  title?: string,
-  sort?: SortFirstLastOptions,
-  special?: { [field: string]: MainTableRenderer },
-  rows?: { [field: string]: MainTableRenderer },
+  title?: string;
+  sort?: SortFirstLastOptions;
+  special?: { [field: string]: MainTableRenderer };
+  rows?: { [field: string]: MainTableRenderer };
 }
 
 /**
@@ -110,7 +149,7 @@ interface TableConfig {
  * entry class, and the table is keyed by collection name — the component and the
  * entry it is given are matched at runtime, not by the type.
  */
-type ArticleComponentRenderer = (props: { entry: any, text?: string }) => ReactNode;
+type ArticleComponentRenderer = (props: { entry: any; text?: string }) => ReactNode;
 
 /**
  * The entry an article draws, looked up in the collection its renderer is keyed
@@ -118,7 +157,7 @@ type ArticleComponentRenderer = (props: { entry: any, text?: string }) => ReactN
  * it goes through an index signature rather than a key of the class.
  */
 function collectionEntry(collection: string, id: string): Entry | undefined {
-  let table = (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
+  const table = (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
   return table?.[id];
 }
 
@@ -154,20 +193,20 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
   terrains: {
     sort: { last: ["mapBlocks"] },
     special: {
-      mapBlocks: asSubTable
-    }
+      mapBlocks: asSubTable,
+    },
   },
   mapScripts: {
     special: {
-      commands: asSubTable
-    }
+      commands: asSubTable,
+    },
   },
   events: {},
   eventScripts: {
     title: "Event Script",
     special: {
       eventWeights: asSubTable,
-    }
+    },
   },
   inventorySections: {
     title: "INVENTORY_SECTIONS",
@@ -179,28 +218,50 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
       invType: ({ val }) => {
         // A kind the pack leaves to the game's own ruleset has no number to
         // print, so the row is absent rather than reading "undefined"
-        let name = invTypeName(val);
-        return name == null ? null : <tr>
-          <td className="row-name"><Val of="invType" capital={true} /></td>
-          <td><Val of={name} /></td>
-        </tr>;
+        const name = invTypeName(val);
+        return name == null ? null : (
+          <tr>
+            <td className="row-name">
+              <Val of="invType" capital={true} />
+            </td>
+            <td>
+              <Val of={name} />
+            </td>
+          </tr>
+        );
       },
       slots: ({ val }) => {
-        if (!val?.length)
-          return null;
-        let width = Math.max(...val.map((s: [number, number]) => s[0])) + 1;
-        let height = Math.max(...val.map((s: [number, number]) => s[1])) + 1;
-        return <tr>
-          <td className="row-name"><Val of="slots" capital={true} /></td>
-          <td>{val.length} <Tr text="xpediaSlotCells" postfix={` (${width} x ${height})`} /></td>
-        </tr>;
+        if (!val?.length) return null;
+        const width = Math.max(...val.map((s: [number, number]) => s[0])) + 1;
+        const height = Math.max(...val.map((s: [number, number]) => s[1])) + 1;
+        return (
+          <tr>
+            <td className="row-name">
+              <Val of="slots" capital={true} />
+            </td>
+            <td>
+              {val.length} <Tr text="xpediaSlotCells" postfix={` (${width} x ${height})`} />
+            </td>
+          </tr>
+        );
       },
       // `costs` maps every other section to the time a move into it takes, which
       // is a table of its own rather than one long row
-      costs: ({ val }) => val == null ? null : <>
-        <tr><td colSpan={2} className="table-subheader"><Val of="costs" /></td></tr>
-        <tr><td colSpan={2}><MainTable of={val} /></td></tr>
-      </>,
+      costs: ({ val }) =>
+        val == null ? null : (
+          <>
+            <tr>
+              <td colSpan={2} className="table-subheader">
+                <Val of="costs" />
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={2}>
+                <MainTable of={val} />
+              </td>
+            </tr>
+          </>
+        ),
     },
   },
 };
@@ -222,105 +283,188 @@ const inventoryTypes = ["invSlot", "invHand", "invGround"];
  * must not be turned into the engine's default.
  */
 function invTypeName(val: unknown) {
-  if (val == null || Number.isNaN(Number(val)))
-    return undefined;
+  if (val == null || Number.isNaN(Number(val))) return undefined;
   return inventoryTypes[Number(val)];
 }
 
 /** Section articles that list their entries in a filterable table */
 function sectionTable() {
-  let id = article?.id;
-  if (!id || !rul)
-    return null;
-  let table = (entries: SectionRow[], fields: string[], extraFields?: string[], filters?: { [key: string]: string[] }) =>
-    <SectionTable key={id} aId={id} entries={entries} fields={fields}
-      extraFields={extraFields} filters={filters} />;
+  const id = article?.id;
+  if (!id || !rul) return null;
+  const table = (
+    entries: SectionRow[],
+    fields: string[],
+    extraFields?: string[],
+    filters?: { [key: string]: string[] },
+  ) => (
+    <SectionTable
+      key={id}
+      aId={id}
+      entries={entries}
+      fields={fields}
+      extraFields={extraFields}
+      filters={filters}
+    />
+  );
 
   switch (id) {
     case "FACILITIES":
-      return table(Object.values(rul.facilities), [
-        "size", "monthlyCost", "storage", "personnel", "workshops", "prisonType", "aliens"
-      ], ["buildCost", "buildTime", "manaRecoveryPerDay", "sickBayAbsoluteBonus",
-        "sickBayRelativeBonus", "defense", "hitRatio"]);
+      return table(
+        Object.values(rul.facilities),
+        ["size", "monthlyCost", "storage", "personnel", "workshops", "prisonType", "aliens"],
+        [
+          "buildCost",
+          "buildTime",
+          "manaRecoveryPerDay",
+          "sickBayAbsoluteBonus",
+          "sickBayRelativeBonus",
+          "defense",
+          "hitRatio",
+        ],
+      );
     case "COMMENDATIONS":
       // `mana` is the game's "Freshness" stat and is granted by the same stage
       // bonuses as the rest, so it belongs with them even though it is not in
       // `statsList`
-      return table(Object.values(rul.commendations), [...statsList, "mana", "visibilityAtDark"],
-        [...battleStats.map(s => "recovery." + s), "description", "visibilityAtDay",
-          "camouflageAtDark", "camouflageAtDay", "frontArmor", "sideArmor",
-          "rearArmor", "underArmor"]);
+      return table(
+        Object.values(rul.commendations),
+        [...statsList, "mana", "visibilityAtDark"],
+        [
+          ...battleStats.map((s) => "recovery." + s),
+          "description",
+          "visibilityAtDay",
+          "camouflageAtDark",
+          "camouflageAtDay",
+          "frontArmor",
+          "sideArmor",
+          "rearArmor",
+          "underArmor",
+        ],
+      );
     case "CRAFTS":
       return table(Object.values(rul.crafts), [
-        "speedMax", "soldiers", "vehicles", "weapons", "damageMax", "repairRate", "costRent"
+        "speedMax",
+        "soldiers",
+        "vehicles",
+        "weapons",
+        "damageMax",
+        "repairRate",
+        "costRent",
       ]);
     case "CRAFT_WEAPONS":
-      return table(Object.values(rul.craftWeapons), ["damage", "accuracy", "range", "ammoMax"], undefined, {
-        weaponType: ["any", ...Object.keys(rul.weaponTypes)]
-      });
+      return table(
+        Object.values(rul.craftWeapons),
+        ["damage", "accuracy", "range", "ammoMax"],
+        undefined,
+        {
+          weaponType: ["any", ...Object.keys(rul.weaponTypes)],
+        },
+      );
     case "SOLDIERS":
       return table(Object.values(rul.soldiers), [...statsList, "manufacture", "events"]);
     case "UFOS":
       return table(Object.values(rul.ufos), [
-        "modSprite", "marker", "markerCrash", "markerLand", "speedMax", "armor",
-        "damageMax", "power", "huntBehavior", "huntMode", "hunterKillerPercentage",
-        "radarRange", "accel"
+        "modSprite",
+        "marker",
+        "markerCrash",
+        "markerLand",
+        "speedMax",
+        "armor",
+        "damageMax",
+        "power",
+        "huntBehavior",
+        "huntMode",
+        "hunterKillerPercentage",
+        "radarRange",
+        "accel",
       ]);
     case "COUNTRIES":
       return table(Object.values(rul.countries), ["fundingBase", "fundingCap", "events"]);
     case "ATTACKS":
-      return table(rul.attacks, ["name", "accuracy", "damage", "damageType", "shots", "range"], [
-        "ToArmorPre", "ToStun", "RandomType", "ToHealth", "ToTile", "ResistType",
-        "ToWound", "SmokeThreshold", ...statsList, ...statsList.map(v => "acc*" + v)
-      ], {
-        internalBattleType: ["any", ...internalBattleTypes],
-        damageTypes: ["any", ...damageTypes],
-      });
+      return table(
+        rul.attacks,
+        ["name", "accuracy", "damage", "damageType", "shots", "range"],
+        [
+          "ToArmorPre",
+          "ToStun",
+          "RandomType",
+          "ToHealth",
+          "ToTile",
+          "ResistType",
+          "ToWound",
+          "SmokeThreshold",
+          ...statsList,
+          ...statsList.map((v) => "acc*" + v),
+        ],
+        {
+          internalBattleType: ["any", ...internalBattleTypes],
+          damageTypes: ["any", ...damageTypes],
+        },
+      );
     case "ITEMS":
-      return table(Object.values(rul.items),
+      return table(
+        Object.values(rul.items),
         ["costSell", "costBuy", "size", "weight", "power", "invSize"],
-        [...rul.itemFields].sort(), {
-        internalBattleType: ["any", ...internalBattleTypes],
-        damageTypes: ["any", ...damageTypes],
-        category: ["any", ...rul.sortStringsAndNumbers(Object.keys(rul.categories))],
-        invSize: ["any", "auto"],
-      });
+        [...rul.itemFields].sort(),
+        {
+          internalBattleType: ["any", ...internalBattleTypes],
+          damageTypes: ["any", ...damageTypes],
+          category: ["any", ...rul.sortStringsAndNumbers(Object.keys(rul.categories))],
+          invSize: ["any", "auto"],
+        },
+      );
     case "MANUFACTURE":
-      return table(Object.values(rul.manufacture),
+      return table(
+        Object.values(rul.manufacture),
         ["cost", "profit", "profitPerHour", "sizeChange", "time"],
-        ["requiredItems", "producedItems", "requires", "requiresBaseFunc", "space"], {
-        category: ["any", ...Object.keys(rul.manufactureCategories)],
-      });
+        ["requiredItems", "producedItems", "requires", "requiresBaseFunc", "space"],
+        {
+          category: ["any", ...Object.keys(rul.manufactureCategories)],
+        },
+      );
     case "ARMORS":
-      return table(Object.values(rul.armors),
+      return table(
+        Object.values(rul.armors),
         ["size", "frontArmor", "sideArmor", "rearArmor", "underArmor"],
-        [...damageTypes, ...statsList, "psiVision", "visibilityAtDark", "visibilityAtDay",
-          "camouflageAtDark", "camouflageAtDay", "heatVision", "fearImmune",
-          "ARMOR_ENERGY_SHIELD_CAPACITY", "ARMOR_ENERGY_SHIELD_PER_TURN",
-          "ARMOR_ENERGY_SHIELD_FLASH_COLOR", "ARMOR_ENERGY_SHIELD_TYPE"], {
-        armorUsers: ["any", "allies", "enemies", ...Object.keys(rul.soldiers)],
-        size: ["any", "auto"],
-        allowedIn: ["any", ...Object.keys(rul.startingConditions)],
-      });
+        [
+          ...damageTypes,
+          ...statsList,
+          "psiVision",
+          "visibilityAtDark",
+          "visibilityAtDay",
+          "camouflageAtDark",
+          "camouflageAtDay",
+          "heatVision",
+          "fearImmune",
+          "ARMOR_ENERGY_SHIELD_CAPACITY",
+          "ARMOR_ENERGY_SHIELD_PER_TURN",
+          "ARMOR_ENERGY_SHIELD_FLASH_COLOR",
+          "ARMOR_ENERGY_SHIELD_TYPE",
+        ],
+        {
+          armorUsers: ["any", "allies", "enemies", ...Object.keys(rul.soldiers)],
+          size: ["any", "auto"],
+          allowedIn: ["any", ...Object.keys(rul.startingConditions)],
+        },
+      );
     case "UNITS":
-      return table(Object.values(rul.units),
+      return table(
+        Object.values(rul.units),
         ["canSurrender", "sniper", "spotter", "health"],
-        [...statsList, ...rul.unitFields].sort());
+        [...statsList, ...rul.unitFields].sort(),
+      );
   }
   return null;
 }
 
 /** Articles whose body is not the generic list of entry tables */
 function specialArticleBody() {
-  let id = article?.id;
-  if (!id)
-    return null;
+  const id = article?.id;
+  if (!id) return null;
 
-  if (id == "SERVICES")
-    return <ServicesTable />;
+  if (id == "SERVICES") return <ServicesTable />;
 
-  if (id == "CONDITIONS")
-    return <Conditions conditions={rul.startingConditions[id]} />;
+  if (id == "CONDITIONS") return <Conditions conditions={rul.startingConditions[id]} />;
 
   return null;
 }
@@ -337,18 +481,15 @@ function specialArticleBody() {
  * deliberate (it crops a paperdoll), so it is ignored.
  */
 function overflowsColumn(body: HTMLElement, column: number) {
-  let limit = column + 1; // allow for sub-pixel rounding
-  return Array.from(body.children).some(el => {
-    if (el.classList.contains("img-clip"))
-      return false;
-    let rects = Array.from(el.getClientRects());
+  const limit = column + 1; // allow for sub-pixel rounding
+  return Array.from(body.children).some((el) => {
+    if (el.classList.contains("img-clip")) return false;
+    const rects = Array.from(el.getClientRects());
     // A box the browser split between two columns has one rect per column and
     // flows correctly, so it must not be mistaken for an overflowing one
-    if (rects.length > 1)
-      return false;
-    let box = rects[0] ?? el.getBoundingClientRect();
-    if (box.width > limit)
-      return true;
+    if (rects.length > 1) return false;
+    const box = rects[0] ?? el.getBoundingClientRect();
+    if (box.width > limit) return true;
     // Text or a sprite too wide for its cell only shows up here
     return (el as HTMLElement).scrollWidth > limit;
   });
@@ -373,13 +514,15 @@ function overflowsColumn(body: HTMLElement, column: number) {
  * layout back and forth forever.
  */
 function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, fontSalt: unknown) {
-  let [oneColumn, setOneColumn] = useState(false);
+  const [oneColumn, setOneColumn] = useState(false);
   // The layout the current decision was made for
-  let measured = useRef<{ articleId: string, width: number, recheck: number, fontSalt: unknown }>(undefined);
+  const measured = useRef<{ articleId: string; width: number; recheck: number; fontSalt: unknown }>(
+    undefined,
+  );
   // Bumped when the body's box or an image changes: a sprite decoded, a font
   // arrived, the window was resized
-  let [recheck, setRecheck] = useState(0);
-  let observer = useRef<ResizeObserver>(undefined);
+  const [recheck, setRecheck] = useState(0);
+  const observer = useRef<ResizeObserver>(undefined);
 
   // One instance of the article exists at a time, so a single set of document
   // listeners is enough. Images become their real size only after they decode,
@@ -392,9 +535,9 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
   // 400 sprites spend seconds re-laying out the same unchanged body.
   useEffect(() => {
     let timer: number | undefined;
-    let bump = () => {
+    const bump = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setRecheck(n => n + 1), 100);
+      timer = window.setTimeout(() => setRecheck((n) => n + 1), 100);
     };
     document.addEventListener("load", bump, true);
     document.addEventListener("error", bump, true);
@@ -408,7 +551,7 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
   }, []);
 
   useLayoutEffect(() => {
-    let body = ref.current;
+    const body = ref.current;
     if (!body) {
       measured.current = undefined;
       return;
@@ -416,51 +559,43 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
     if (window.ResizeObserver) {
       // Re-observing the same element is a no-op, so this also handles the body
       // being replaced while the article stays the same
-      observer.current ??= new ResizeObserver(() => setRecheck(n => n + 1));
+      observer.current ??= new ResizeObserver(() => setRecheck((n) => n + 1));
       observer.current.observe(body);
     }
 
-    let width = body.clientWidth;
-    let last = measured.current;
-    let sameArticle = !!last && last.articleId == articleId;
+    const width = body.clientWidth;
+    const last = measured.current;
+    const sameArticle = !!last && last.articleId == articleId;
     // Only a real resize counts. A one-column body is taller, which can add a
     // scrollbar and narrow it by ~15px; reacting to that would flip the layout
     // back and forth forever
-    let resized = !!last && Math.abs(last.width - width) > 24;
-    let fontChanged = !!last && last.fontSalt !== fontSalt;
+    const resized = !!last && Math.abs(last.width - width) > 24;
+    const fontChanged = !!last && last.fontSalt !== fontSalt;
 
     if (oneColumn) {
       // Our own override is in charge, and only the natural layout can be
       // judged. Recheck ticks are caused by the override itself, so only an
       // outside change (another article, a resize, a font change) may drop it.
-      if (sameArticle && !resized && !fontChanged)
-        return;
+      if (sameArticle && !resized && !fontChanged) return;
       measured.current = undefined;
       setOneColumn(false);
       return;
     }
 
-    if (last && sameArticle && !resized && !fontChanged && last.recheck == recheck)
-      return;
+    if (last && sameArticle && !resized && !fontChanged && last.recheck == recheck) return;
     measured.current = { articleId, width, recheck, fontSalt };
 
-    let style = getComputedStyle(body);
-    let gap = parseFloat(style.columnGap) || 0;
-    let max = parseInt(style.columnCount, 10) || 0;
-    let min = parseFloat(style.columnWidth) || 0;
-    if (width <= 0)
-      return;
+    const style = getComputedStyle(body);
+    const gap = parseFloat(style.columnGap) || 0;
+    const max = parseInt(style.columnCount, 10) || 0;
+    const min = parseFloat(style.columnWidth) || 0;
+    if (width <= 0) return;
     // `column-width` is a minimum and `column-count` a maximum
-    let used = min > 0
-      ? Math.max(1, Math.floor((width + gap) / (min + gap)))
-      : max > 0 ? max : 1;
-    if (max > 0)
-      used = Math.min(used, max);
-    if (used < 2)
-      return;
-    let column = (width - gap * (used - 1)) / used;
-    if (overflowsColumn(body, column))
-      setOneColumn(true);
+    let used = min > 0 ? Math.max(1, Math.floor((width + gap) / (min + gap))) : max > 0 ? max : 1;
+    if (max > 0) used = Math.min(used, max);
+    if (used < 2) return;
+    const column = (width - gap * (used - 1)) / used;
+    if (overflowsColumn(body, column)) setOneColumn(true);
   });
 
   return oneColumn;
@@ -468,82 +603,123 @@ function useColumnFit(ref: RefObject<HTMLDivElement | null>, articleId: string, 
 
 /** All base services and the facilities that provide them, follows old `BaseServices.svelte` */
 function ServicesTable({ query = null as string | null }) {
-  let names = rul.sortStringsAndNumbers(Object.keys(rul.baseServices));
-  if (!names.length)
-    return null;
+  const names = rul.sortStringsAndNumbers(Object.keys(rul.baseServices));
+  if (!names.length) return null;
 
-  return <table className="main-table base-services">
-    <thead>
-      <tr className="table-header">
-        <td><Tr text="Service" /></td>
-        <td><Tr text="Facility" /></td>
-      </tr>
-    </thead>
-    <tbody>
-      {names.map(name => {
-        let items = rul.baseServices[name];
-        return <tr key={name} className={name == query ? "highlight" : ""}>
-          <td><a className="services" href={"##" + name}><Tr text={name} /></a></td>
-          <td><Val of={items.providedBy} /></td>
-        </tr>;
-      })}
-    </tbody>
-  </table>;
+  return (
+    <table className="main-table base-services">
+      <thead>
+        <tr className="table-header">
+          <td>
+            <Tr text="Service" />
+          </td>
+          <td>
+            <Tr text="Facility" />
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        {names.map((name) => {
+          const items = rul.baseServices[name];
+          return (
+            <tr key={name} className={name == query ? "highlight" : ""}>
+              <td>
+                <a className="services" href={"##" + name}>
+                  <Tr text={name} />
+                </a>
+              </td>
+              <td>
+                <Val of={items.providedBy} />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
 }
 
 /** Full text search results, follows old `App.svelte` */
 function SearchResults() {
-  let query = state.searchQuery.toLowerCase();
-  let found = state.found;
-  let matches = (a: string) => (rul.tr(a) ?? "").toLowerCase().includes(query);
+  const query = state.searchQuery.toLowerCase();
+  const found = state.found;
+  const matches = (a: string) => (rul.tr(a) ?? "").toLowerCase().includes(query);
 
-  let searchingFor = <><Tr text="Searching for" /> "<em>{state.searchQuery}</em>"</>;
+  const searchingFor = (
+    <>
+      <Tr text="Searching for" /> "<em>{state.searchQuery}</em>"
+    </>
+  );
 
   if (!found)
-    return <div> {searchingFor}<br />
-      {query.length < 2 ? <i>Query too short</i> : <><Val of="Initializing search engine..." /><br /></>}
-    </div>;
+    return (
+      <div>
+        {" "}
+        {searchingFor}
+        <br />
+        {query.length < 2 ? (
+          <i>Query too short</i>
+        ) : (
+          <>
+            <Val of="Initializing search engine..." />
+            <br />
+          </>
+        )}
+      </div>
+    );
 
   if (found.length == 0)
-    return <div>{searchingFor}<br /><i><Val of="Nothing found" /></i></div>;
+    return (
+      <div>
+        {searchingFor}
+        <br />
+        <i>
+          <Val of="Nothing found" />
+        </i>
+      </div>
+    );
 
-  let primary = found.filter(matches).slice(0, 200);
-  let secondary = found.filter(a => !matches(a)).slice(0, 200);
+  const primary = found.filter(matches).slice(0, 200);
+  const secondary = found.filter((a) => !matches(a)).slice(0, 200);
 
-  return <div>
-    Searching "<em>{state.searchQuery}</em>":<br />
-    <LinksPage key={"primary" + query} links={primary} title="In Title" />
-    <br />
-    <LinksPage key={"secondary" + query} links={secondary} title="In Body" />
-  </div>;
+  return (
+    <div>
+      Searching "<em>{state.searchQuery}</em>":
+      <br />
+      <LinksPage key={"primary" + query} links={primary} title="In Title" />
+      <br />
+      <LinksPage key={"secondary" + query} links={secondary} title="In Body" />
+    </div>
+  );
 }
 
 export function ArticleComponent() {
-  let bodyRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   // Old `Article.svelte` set the document title from `<svelte:head>`. This must
   // run before any early return so the hook order stays stable.
   useEffect(() => {
     // The tab title names the article, and falls back to XPedia on the landing
     // page. The version belongs to that fallback only: an article's own name
     // is already the pack's, and a pack's articles are not XPedia's version.
-    let name = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
+    const name = rul ? (rul.tr(article?.id || "XPedia", { icon: "simple" }) ?? "XPedia") : "XPedia";
     document.title = article?.id ? name : `${name} ${xpediaVersion()}`;
   }, [article?.id]);
-  let oneColumn = useColumnFit(bodyRef, article?.id ?? "", state.hugeFont);
+  const oneColumn = useColumnFit(bodyRef, article?.id ?? "", state.hugeFont);
 
   // Full text search results replace the article view
-  if (state.searchQuery)
-    return <SearchResults />;
+  if (state.searchQuery) return <SearchResults />;
 
   if (!article)
-    return <div className="article">
-      <ArticleTitle />
-      <LandingPage />
-    </div>;
+    return (
+      <div className="article">
+        <ArticleTitle />
+        <LandingPage />
+      </div>
+    );
 
-  let id = article.id;
-  let table = sectionTable();
-  let item = rul?.items?.[id];
+  const id = article.id;
+  const table = sectionTable();
+  const item = rul?.items?.[id];
 
   // A flight path is described by its own table of stops and the picture of
   // where it happens. Both are wide, so both belong above the two-column body,
@@ -552,48 +728,56 @@ export function ArticleComponent() {
   //
   // Keyed by the collection rather than by `article.section`, because a page can
   // be reachable from more than one section and only its first would match.
-  let trajectory = !table ? rul.ufoTrajectories?.[article.id] : undefined;
+  const trajectory = !table ? rul.ufoTrajectories?.[article.id] : undefined;
 
   // A section page is the article whose id matches its own section; it lists
   // that section's articles below its own pedia text
-  let isSectionPage = !table && section?.id == article.id;
+  const isSectionPage = !table && section?.id == article.id;
 
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
-  let itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
+  const itemImage = item?.sprite && article?.text && item.battleType != 2 ? item : null;
 
-  let articleText = article?.text && <div className="main-table main-text">
-    {itemImage &&
-      <div className="article-text-image">
-        <Img src={itemImage.sprite} scale={2}
-          maxWidth={32 * (itemImage.invWidth ?? 1)}
-          maxHeight={32 * (itemImage.invHeight ?? 1)} />
-      </div>
-    }
-    <div>
-      {/* Article bodies are authored as HTML: the built-in articles and many
+  const articleText = article?.text && (
+    <div className="main-table main-text">
+      {itemImage && (
+        <div className="article-text-image">
+          <Img
+            src={itemImage.sprite}
+            scale={2}
+            maxWidth={32 * (itemImage.invWidth ?? 1)}
+            maxHeight={32 * (itemImage.invHeight ?? 1)}
+          />
+        </div>
+      )}
+      <div>
+        {/* Article bodies are authored as HTML: the built-in articles and many
           mods use `<p>`, `<b>` and links, so they must not be escaped. This
           matches old `Article.svelte`, which used `{@html article.text}`.
           A block container is needed because such bodies contain blocks. */}
-      <div dangerouslySetInnerHTML={{ __html: article.text }} />
-      {article.requires && article.requires.join('') != article.id && <>
-        <br />
-        <Val of="Research required: " />
-        <Val of={article.requires} />
-      </>}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: article bodies are authored HTML (parity with old `{@html}`), trusted modpack data */}
+        <div dangerouslySetInnerHTML={{ __html: article.text }} />
+        {article.requires && article.requires.join("") != article.id && (
+          <>
+            <br />
+            <Val of="Research required: " />
+            <Val of={article.requires} />
+          </>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 
   // The section page's own illustration belongs with its text, above the list
-  let sectionImage = isSectionPage && article?.image_id
-    && !(article.id in (rul.units ?? {}))
-    && <div className="main-table main-text article-section-image">
+  const sectionImage = isSectionPage && article?.image_id && !(article.id in (rul.units ?? {})) && (
+    <div className="main-table main-text article-section-image">
       <Img src={article.image_id} scale={2} />
-    </div>;
+    </div>
+  );
 
   // The entries the body draws. Listed here rather than at the point of drawing
   // because the maps below have to know whether the page carries anything else.
-  let bodyPanels = !table
+  const bodyPanels = !table
     ? Object.entries(renderers).filter(([key]) => collectionEntry(key, id) != null)
     : [];
 
@@ -608,7 +792,7 @@ export function ArticleComponent() {
   //
   // `REGIONS` itself is the section's own page, which leads with the picture of
   // all regions (`RegionsMapArticle`) instead.
-  let region = !table && article.id != "REGIONS" ? rul.regions?.[article.id] : undefined;
+  const region = !table && article.id != "REGIONS" ? rul.regions?.[article.id] : undefined;
 
   // The map that belongs beside the article rather than in it.
   //
@@ -631,102 +815,125 @@ export function ArticleComponent() {
   // always been: beside the text, or above the columns when the picture is of a
   // region. Deciding that here keeps the two arrangements from being written
   // out twice further down.
-  let mapLast = bodyPanels.length > 0;
+  const mapLast = bodyPanels.length > 0;
 
-  let regionMap = region && <RegionMapArticle key={article.id + "-region-map"} region={region} />;
+  const regionMap = region && <RegionMapArticle key={article.id + "-region-map"} region={region} />;
   // A flight is a picture of part of the globe too, and its block holds the
   // region picker and the numbered stop list as well as the map, so the whole
   // of it moves: splitting it would leave the reader with the choices in one
   // place and the picture they are choosing for in another.
-  let flightMap = trajectory && <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />;
-  if (flightMap && !mapLast && !regionMap)
-    sideMap = flightMap;
+  const flightMap = trajectory && (
+    <TrajectoryMapArticle key={article.id + "-map"} trajectory={trajectory} />
+  );
+  if (flightMap && !mapLast && !regionMap) sideMap = flightMap;
 
   // The maps that follow the page's own blocks, in the order they are read: the
   // region first, since it is the whole of what the page is about, then the
   // flight drawn across it.
-  let laterMaps = <>
-    {regionMap && mapLast && regionMap}
-    {flightMap && (mapLast || regionMap) && flightMap}
-  </>;
+  const laterMaps = (
+    <>
+      {regionMap && mapLast && regionMap}
+      {flightMap && (mapLast || regionMap) && flightMap}
+    </>
+  );
 
   // A trajectory page puts the map on the side sooner than the Countries page:
   // its article column is a narrow flight table, so there is room beside it well
   // before a full country table and two columns of text would leave any.
-  let mainClass = "article-main"
-    + (sideMap ? " has-side-map" : "")
-    + (sideMap && sideMap == flightMap ? " narrow-side-map" : "");
+  const mainClass =
+    "article-main" +
+    (sideMap ? " has-side-map" : "") +
+    (sideMap && sideMap == flightMap ? " narrow-side-map" : "");
 
-  let main = article && <><ArticleTitle />
-    <div className={mainClass}>
-      <div className="article-flow">
-        {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
+  const main = article && (
+    <>
+      <ArticleTitle />
+      <div className={mainClass}>
+        <div className="article-flow">
+          {/* Old `Article.svelte` put all of these above `.main-flex`, so wide
             tables get the full page width instead of a single column */}
-        {table}
-        {/* The map of the regions heads the REGIONS page: it is the picture the
+          {table}
+          {/* The map of the regions heads the REGIONS page: it is the picture the
             section is named for, drawn the way the nations are drawn on the
             Countries page. The section's own list stays below it, because most
             regions state no `areas` and so cannot appear on a map at all — and
             because the pedia is readable with the sidebar hidden, where that
             list is the only way to reach those pages. */}
-        {article.id == "REGIONS" && <RegionsMapArticle />}
-        {/* A region is a picture of part of the globe, so its map belongs in the
+          {article.id == "REGIONS" && <RegionsMapArticle />}
+          {/* A region is a picture of part of the globe, so its map belongs in the
             same place: above the columns, full width. When the page is also
             another entry type the map follows that entry's panels instead, see
             `laterMaps`. */}
-        {regionMap && !mapLast}
-        {/* The waypoints a flight visits, as a table. The picture of where it
+          {regionMap && !mapLast}
+          {/* The waypoints a flight visits, as a table. The picture of where it
             happens is in the side column, see `sideMap`. */}
-        {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
-        {article.section == "CATEGORIES" && article.id != "CATEGORIES" &&
-          <LinksPage links={rul.categories[article.id]} />}
-        {article.section == "MANUFACTURE_CATEGORIES" && article.id != "MANUFACTURE_CATEGORIES" &&
-          <LinksPage links={rul.manufactureCategories[article.id]} />}
-        {/* Section pages put their own pedia text and illustration first, then
+          {trajectory && <TrajectoryComponent key={article.id} entry={trajectory} />}
+          {article.section == "CATEGORIES" && article.id != "CATEGORIES" && (
+            <LinksPage links={rul.categories[article.id]} />
+          )}
+          {article.section == "MANUFACTURE_CATEGORIES" &&
+            article.id != "MANUFACTURE_CATEGORIES" && (
+              <LinksPage links={rul.manufactureCategories[article.id]} />
+            )}
+          {/* Section pages put their own pedia text and illustration first, then
             the list of the articles in the section */}
-        {isSectionPage && articleText}
-        {isSectionPage && sectionImage}
-        {isSectionPage &&
-          <div className="articles-list">
-            {/* The section's own order, so the list and `<`/`>` agree. It is
+          {isSectionPage && articleText}
+          {isSectionPage && sectionImage}
+          {isSectionPage && (
+            <div className="articles-list">
+              {/* The section's own order, so the list and `<`/`>` agree. It is
                 already sorted by `articles()`, which caches it per language. */}
-            <LinksPage key={article.id} preSorted
-              links={section?.articles(state.alphabeticalSort).map(a => a.id) ?? []} />
+              <LinksPage
+                key={article.id}
+                preSorted
+                links={section?.articles(state.alphabeticalSort).map((a) => a.id) ?? []}
+              />
+            </div>
+          )}
+          {!isSectionPage && articleText}
+          <div
+            className={"article-body"}
+            ref={bodyRef}
+            // Set only when the two-column layout did not fit, see `useColumnFit`
+            style={oneColumn ? { columns: 1 } : undefined}
+          >
+            {!table && specialArticleBody()}
+            {bodyPanels.map(([key, ren]) => {
+              if (typeof ren == "function") {
+                // Render as an element so hooks inside the renderer work
+                // biome-ignore lint/correctness/useJsxKeyInIterable: `key` is in the createElement config object
+                return createElement(ren, {
+                  key,
+                  entry: collectionEntry(key, id),
+                  text: article?.text,
+                });
+              } else {
+                const { title } = ren;
+                return (
+                  <MainTable
+                    {...ren}
+                    key={key}
+                    of={collectionEntry(key, id)}
+                    title={title != null ? title : key}
+                  />
+                );
+              }
+            })}
+            {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
+            {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id && (
+              <Img src={article.image_id} scale={1.5} />
+            )}
           </div>
-        }
-        {!isSectionPage && articleText}
-        <div className={"article-body"} ref={bodyRef}
-          // Set only when the two-column layout did not fit, see `useColumnFit`
-          style={oneColumn ? { columns: 1 } : undefined}>
-          {!table && specialArticleBody()}
-          {bodyPanels.map(([key, ren]) => {
-            if (typeof ren == "function") {
-              // Render as an element so hooks inside the renderer work
-              return createElement(ren, { key, entry: collectionEntry(key, id), text: article?.text });
-            } else {
-              let { title } = ren;
-              return <MainTable
-                {...ren}
-                key={key}
-                of={collectionEntry(key, id)}
-                title={title != null ? title : key}
-              />;
-            }
-          })}
-          {/* Old Article.svelte skipped this one for units, they show an armor sprite instead */}
-          {!isSectionPage && !(article.id in (rul.units ?? {})) && article.image_id &&
-            <Img src={article.image_id} scale={1.5} />}
         </div>
-      </div>
-      {/* Beside the article when the screen is wide, below it otherwise. The
+        {/* Beside the article when the screen is wide, below it otherwise. The
           order in the DOM is the reading order as a single column: the map
           follows everything it illustrates. */}
-      {sideMap}
-      {/* The page's own maps, after its own blocks: see `laterMaps` */}
-      {laterMaps}
-    </div>
-  </>;
-
+        {sideMap}
+        {/* The page's own maps, after its own blocks: see `laterMaps` */}
+        {laterMaps}
+      </div>
+    </>
+  );
 
   // A trajectory page draws the same flight twice — as the plan and as the map —
   // and pointing at a stop in either has to light it in the other. The provider
@@ -736,9 +943,13 @@ export function ArticleComponent() {
   // Keyed by the article, because a pinned stop is a zone number and a zone
   // number means something else on the next path. Without the key the highlight
   // would survive the step to the next trajectory and point at nothing.
-  return <div className={"article"}>
-    {trajectory
-      ? <TrajectoryFocusProvider key={article.id + "-flight"}>{main}</TrajectoryFocusProvider>
-      : main}
-  </div>;
+  return (
+    <div className={"article"}>
+      {trajectory ? (
+        <TrajectoryFocusProvider key={article.id + "-flight"}>{main}</TrajectoryFocusProvider>
+      ) : (
+        main
+      )}
+    </div>
+  );
 }

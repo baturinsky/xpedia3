@@ -1,20 +1,17 @@
 import { emptyImg } from "./imgPlaceholders";
 
-
 //For possible app implementations
-declare const
-  fsData: (path: string) => string
-  ;
+declare const fsData: (path: string) => string;
 
 export function delay(n: number) {
-  return new Promise(r => setTimeout(r, n));
+  return new Promise((r) => setTimeout(r, n));
 }
 
 //export const camelToSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
-export function camelToUnderscore(key:string) {
+export function camelToUnderscore(key: string) {
   var result = key.replace(/([A-Z])/g, " $1");
-  return result.split(' ').join('_').toLowerCase();
+  return result.split(" ").join("_").toLowerCase();
 }
 
 export function getFlagEmoji(countryCode: string) {
@@ -29,10 +26,9 @@ export function getFlagEmoji(countryCode: string) {
  * than guessing, which keeps this usable from a headless script.
  */
 export function browserLanguages(): string[] {
-  if (typeof navigator == "undefined")
-    return [];
-  let list = navigator.languages?.length ? navigator.languages : [navigator.language];
-  return [...list].filter(tag => typeof tag == "string" && tag.length > 0);
+  if (typeof navigator == "undefined") return [];
+  const list = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return [...list].filter((tag) => typeof tag == "string" && tag.length > 0);
 }
 
 /**
@@ -48,10 +44,8 @@ export function browserLanguages(): string[] {
  * nothing to show.
  */
 export function chooseLanguage(available: readonly string[], saved?: string, fallback?: string) {
-  if (saved && available.includes(saved))
-    return saved;
-  if (fallback && available.includes(fallback))
-    return fallback;
+  if (saved && available.includes(saved)) return saved;
+  if (fallback && available.includes(fallback)) return fallback;
   return matchLanguage(available, browserLanguages());
 }
 
@@ -68,38 +62,33 @@ export function chooseLanguage(available: readonly string[], saved?: string, fal
  * which. Returns nothing when no tag shares a language with the pack.
  */
 export function matchLanguage(available: readonly string[], preferred: readonly string[]) {
-  let byTag = new Map<string, string>();
-  let byPrimary = new Map<string, string[]>();
-  for (let name of available) {
-    let lower = name.toLowerCase();
+  const byTag = new Map<string, string>();
+  const byPrimary = new Map<string, string[]>();
+  for (const name of available) {
+    const lower = name.toLowerCase();
     byTag.set(lower, name);
-    let primary = lower.split("-")[0];
-    let group = byPrimary.get(primary);
-    if (group)
-      group.push(name);
-    else
-      byPrimary.set(primary, [name]);
+    const primary = lower.split("-")[0];
+    const group = byPrimary.get(primary);
+    if (group) group.push(name);
+    else byPrimary.set(primary, [name]);
   }
 
-  for (let tag of preferred) {
+  for (const tag of preferred) {
     // Tags in the wild use `_` as well as `-`, e.g. from older browsers
-    let lower = tag.toLowerCase().replace(/_/g, "-");
-    let exact = byTag.get(lower);
-    if (exact)
-      return exact;
+    const lower = tag.toLowerCase().replace(/_/g, "-");
+    const exact = byTag.get(lower);
+    if (exact) return exact;
 
-    let [primary, ...rest] = lower.split("-");
-    let candidates = byPrimary.get(primary);
-    if (!candidates?.length)
-      continue;
+    const [primary, ...rest] = lower.split("-");
+    const candidates = byPrimary.get(primary);
+    if (!candidates?.length) continue;
     // `de-CH` against a pack with only `de` and `de-AT`
     if (rest.length) {
-      let region = rest.join("-");
-      let sameRegion = candidates.find(c => c.toLowerCase().endsWith("-" + region));
-      if (sameRegion)
-        return sameRegion;
+      const region = rest.join("-");
+      const sameRegion = candidates.find((c) => c.toLowerCase().endsWith("-" + region));
+      if (sameRegion) return sameRegion;
     }
-    let bare = candidates.find(c => !c.includes("-"));
+    const bare = candidates.find((c) => !c.includes("-"));
     return bare ?? candidates[0];
   }
 
@@ -117,8 +106,7 @@ export function removeByValue<T>(arr: T[], item: T) {
 
 export function addIfNew<T>(arr: T[], item: T) {
   const ind = arr.indexOf(item);
-  if (ind == -1)
-    arr.push(item);
+  if (ind == -1) arr.push(item);
 }
 
 export function addAllIfNew<T>(arr: T[], items: T[] | T) {
@@ -127,16 +115,12 @@ export function addAllIfNew<T>(arr: T[], items: T[] | T) {
     return;
   }
   if (items.length < 3) {
-    for (let it of items)
-      addIfNew(arr, it);
+    for (const it of items) addIfNew(arr, it);
   } else {
-    let set = new Set(arr);
-    for (let it of items)
-      if (!set.has(it))
-        arr.push(it);
+    const set = new Set(arr);
+    for (const it of items) if (!set.has(it)) arr.push(it);
   }
 }
-
 
 export function isAncestorOf(ancestor: Node | null, descendant: Node | null) {
   let n: Node | null = descendant;
@@ -151,8 +135,7 @@ export function isAncestorOf(ancestor: Node | null, descendant: Node | null) {
 }
 
 export function capital(str: string | null) {
-  if (str == null)
-    return;
+  if (str == null) return;
   // Only the first letter changes: labels legitimately hold capitals after it,
   // such as "TU", "CQC" and "VIP?"
   return str.substr(0, 1).toUpperCase() + str.substr(1);
@@ -162,35 +145,33 @@ export function cullDoubles<T>(list: T[]) {
 }
 
 export function clamp(min: number, val: number, max: number) {
-  return val < min ? min : val > max ? max : val;
+  return Math.min(Math.max(val, min), max);
 }
 
 export function unique<T>(a: T[]) {
   return [...new Set(a)];
 }
 
-
 export function withoutKeys<T extends { [key: string]: any }>(o: T, keys: string[]) {
-  let copy = { ...o };
-  for (let k of keys) {
+  const copy = { ...o };
+  for (const k of keys) {
     delete copy[k];
   }
   return copy;
 }
 
 export function allFieldValuesOf(objects: { [key: string]: any }[], field: string) {
-  let s = new Set<unknown>();
+  const s = new Set<unknown>();
 
-  for (let o of objects) {
-    if (o[field] != undefined)
-      s.add(o[field]);
+  for (const o of objects) {
+    if (o[field] != undefined) s.add(o[field]);
   }
   return [...s];
 }
 
 export function exclude<T>(a: T[], b: T[]) {
-  let s = new Set(b);
-  return a.filter(v => !s.has(v));
+  const s = new Set(b);
+  return a.filter((v) => !s.has(v));
 }
 
 /**
@@ -202,24 +183,26 @@ export function exclude<T>(a: T[], b: T[]) {
  * array or object to qualify.
  */
 export function isFlat(value: unknown) {
-  if (value == null || typeof value != "object")
-    return false;
-  let children = Array.isArray(value) ? value : Object.values(value);
-  return children.every(child => child == null || typeof child != "object");
+  if (value == null || typeof value != "object") return false;
+  const children = Array.isArray(value) ? value : Object.values(value);
+  return children.every((child) => child == null || typeof child != "object");
 }
 
 export function base64ToArrayBuffer(base64: string) {
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer;
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer;
 }
 
 /** Base64 of binary data, chunked so large images don't overflow the call stack */
 export function bytesToBase64(data: Uint8Array | number[]) {
-  let bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
-  let chunk = 0x8000, parts: string[] = [];
+  const bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+  const chunk = 0x8000,
+    parts: string[] = [];
   for (let i = 0; i < bytes.length; i += chunk) {
     // `apply` takes any array-like, and a typed array is one; the DOM lib's
     // signature only admits `number[]`
-    parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[]));
+    parts.push(
+      String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[]),
+    );
   }
   return btoa(parts.join(""));
 }
@@ -231,7 +214,7 @@ export function imageDataToUrl(data: Uint8Array | number[] | undefined | null) {
 
 /** Formatted number */
 export function localeFixed2(n: number, digits = 4) {
-  return n && ((~~n) == n ? n : n.toFixed(digits));
+  return n && (~~n == n ? n : n.toFixed(digits));
 }
 
 export function asMB(n: number) {
@@ -257,7 +240,7 @@ export const pngDataPrefix = "data:image/png;base64,";
  * it was exported with, not whatever the CLI later became.
  */
 export function xpediaVersion(): string {
-  let build = __XPEDIA_BUILD__ || injectedBuildNumber();
+  const build = __XPEDIA_BUILD__ || injectedBuildNumber();
   return build ? `${__XPEDIA_VERSION__} #${build}` : __XPEDIA_VERSION__;
 }
 
@@ -271,8 +254,10 @@ export function xpediaVersion(): string {
 let injectedNumber: string | undefined;
 function injectedBuildNumber(): string {
   if (injectedNumber === undefined) {
-    let meta = typeof document == "undefined" ? undefined
-      : document.querySelector('meta[name="xpedia-build"]');
+    const meta =
+      typeof document == "undefined"
+        ? undefined
+        : document.querySelector('meta[name="xpedia-build"]');
     injectedNumber = meta?.getAttribute("content") ?? "";
   }
   return injectedNumber;
@@ -307,12 +292,11 @@ export function xpediaBuildStamp(): string {
  * and the ruleset need it, and the ruleset must not import the pack builder.
  */
 export function gameRelativePath(path: string): string {
-  let parts = path.split(/[/\\]/).filter(p => p != "");
-  let lower = parts.map(p => p.toLowerCase());
+  const parts = path.split(/[/\\]/).filter((p) => p != "");
+  const lower = parts.map((p) => p.toLowerCase());
 
   for (let i = 0; i < parts.length; i++) {
-    if (lower[i] == "user" && lower[i + 1] == "mods")
-      return parts.slice(i).join("/");
+    if (lower[i] == "user" && lower[i + 1] == "mods") return parts.slice(i).join("/");
     if (lower[i] == "standard" || lower[i] == "common" || lower[i] == "mods")
       return parts.slice(i).join("/");
   }
@@ -332,8 +316,7 @@ export function gameRelativePath(path: string): string {
  * happens next.
  */
 export function clearHash() {
-  if (location.hash)
-    history.replaceState(history.state, "", location.pathname + location.search);
+  if (location.hash) history.replaceState(history.state, "", location.pathname + location.search);
 }
 
 /** The last element of a list, `undefined` when it is empty */
@@ -353,4 +336,3 @@ export async function loadData(path: string) {
     return path;
   }
 }
-
