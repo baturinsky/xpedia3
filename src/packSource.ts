@@ -261,7 +261,8 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
   // Base64 carries 3 bytes per 4 characters, so the compressed size is known
   // without decoding anything. Enough for a storage-size column.
   const gzipSize = Math.floor((payload.rul.length * 3) / 4);
-  inlineStat = { pack, archive: 0, assets: 0, ruls: gzipSize };
+  const stat: PackStat = { pack, archive: 0, assets: 0, ruls: gzipSize };
+  inlineStat = stat;
 
   // Decompress once and share the text: the ruleset is the same every time it
   // is opened. It is parsed per call because `Ruleset` mutates what it is given.
@@ -278,7 +279,7 @@ function inlineSourceOf(payload: InlinePayload): PackSource {
     kind: "inline",
     permanent: true,
     async stats() {
-      return inlineStat!;
+      return stat;
     },
     async rulData() {
       rulTextPromise ??= (async () => {
@@ -363,7 +364,7 @@ export function allPackStats(): PackStat[] {
   if (!inline) return db;
   // The database can never contain the inlined pack, but guard anyway in case
   // an export named its pack like an uploaded archive
-  return [...db.filter((p) => p.pack !== inline.pack), inlineStat!];
+  return [...db.filter((p) => p.pack !== inline.pack), ...(inlineStat ? [inlineStat] : [])];
 }
 
 /** Loads a pack's ruleset into the app, from whichever source owns it */

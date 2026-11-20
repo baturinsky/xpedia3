@@ -1154,7 +1154,7 @@ export class Commendation extends Entry {
             if (!deed.type) {
               backLink2(
                 this,
-                rul.damageTypes[deed.element!].items ?? [],
+                rul.damageTypes[deed.element ?? ""]?.items ?? [],
                 rul.items,
                 "commendations",
                 "items",
@@ -1168,7 +1168,7 @@ export class Commendation extends Entry {
                 "items",
               );
             } else {
-              const items = (rul.damageTypes[deed.element!].items ?? []).filter(
+              const items = (rul.damageTypes[deed.element ?? ""]?.items ?? []).filter(
                 (id) => rul.items[id]?.internalBattleType === deed.type,
               );
               backLink2(this, items, rul.items, "commendations", "items");
@@ -1279,7 +1279,7 @@ export class Craft extends Entry {
         weaponTypes[slot] = (weaponTypes[slot] as string[]).map((n) => {
           const id = `weaponType${n}`;
           Entry.reserve({ id }, "weaponTypes");
-          this.allWeaponTypes!.push(id);
+          this.allWeaponTypes?.push(id);
           return id;
         });
       }
@@ -1834,7 +1834,7 @@ export class Item extends Entry {
     }
 
     for (const k in this.damageBonus ?? {}) {
-      const b = this.damageBonus![k];
+      const b = this.damageBonus?.[k];
       if (b !== 0) backLink(this.uid, [k], "stats", "weaponDamage");
       if (Array.isArray(b)) {
         for (const p in b)

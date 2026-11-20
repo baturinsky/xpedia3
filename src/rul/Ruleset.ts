@@ -131,7 +131,7 @@ export type ProcessedRuleset = {
 export function mainMod(mods: Mod[]): Mod | undefined {
   const masters = mods.filter((m) => m.meta?.isMaster);
   const chained = masters.filter(
-    (m) => m.meta?.master && mods.some((o) => (o.meta?.id ?? o.dir) === m.meta!.master),
+    (m) => m.meta?.master && mods.some((o) => (o.meta?.id ?? o.dir) === m.meta?.master),
   );
   const master = (chained.length ? chained : masters).slice(-1)[0];
   if (master) return master;
@@ -1246,7 +1246,10 @@ export default class Ruleset {
      * The builtins and `common` count as on: they are not something a pack
      * installs or enables, so a player's list cannot speak about them.
      */
-    const chosen = (mod: Mod) => !disabled?.has(idOf(mod)!);
+    const chosen = (mod: Mod) => {
+      const id = idOf(mod);
+      return id === undefined || !disabled?.has(id);
+    };
 
     // The chain of the deepest master the player kept. A pack can ship several
     // masters (`xcom1` next to `xcom2`), and only the one that is switched on
@@ -1281,8 +1284,10 @@ export default class Ruleset {
      */
     const chain: Mod[] = [];
     const chainSeen = new Set<string>();
-    for (let mod: Mod | undefined = activeMaster; mod && !chainSeen.has(idOf(mod)!); ) {
-      chainSeen.add(idOf(mod)!);
+    for (let mod: Mod | undefined = activeMaster; mod; ) {
+      const key = idOf(mod) ?? "";
+      if (chainSeen.has(key)) break;
+      chainSeen.add(key);
       chain.unshift(mod);
       mod = mod.meta?.master ? byId[mod.meta.master] : undefined;
     }

@@ -419,7 +419,7 @@ export async function viewAssets(pack: string) {
     (await readBoth<AssetRecord[]>((transaction) =>
       transaction.objectStore("assets").index("pack").getAll(pack),
     )) ?? [];
-  update({ assets: new Set(assets.map((a) => a.name!)), packName: pack });
+  update({ assets: new Set(assets.flatMap((a) => (a.name ? [a.name] : []))), packName: pack });
 }
 
 export async function saveStats(

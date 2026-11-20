@@ -1091,6 +1091,8 @@ function MapPicture({
     const svg = svgRef.current;
     if (!svg) return;
     function onWheel(e: WheelEvent) {
+      const el = svgRef.current;
+      if (!el) return;
       // At normal size the map has nothing to zoom out to, so the page keeps
       // scrolling; only an actual zoom swallows the wheel
       if (view.zoom === 1 && e.deltaY > 0) return;
@@ -1100,7 +1102,7 @@ function MapPicture({
         // Keep the point under the cursor still: everything else moves towards
         // or away from it by the same factor
         const factor = zoom / current.zoom;
-        const point = pointInMap(svg!, e.clientX, e.clientY);
+        const point = pointInMap(el, e.clientX, e.clientY);
         return clampView({
           zoom,
           x: point.x + (current.x - point.x) * factor,
@@ -1136,7 +1138,9 @@ function MapPicture({
     drag.current = moved;
 
     function move(moveEvent: PointerEvent) {
-      const now = pointInMap(svg!, moveEvent.clientX, moveEvent.clientY);
+      const el = svgRef.current;
+      if (!el) return;
+      const now = pointInMap(el, moveEvent.clientX, moveEvent.clientY);
       const next = clampView({
         zoom: base.zoom,
         x: base.x + now.x - start.x,
@@ -1149,11 +1153,11 @@ function MapPicture({
       setView(next);
     }
     function end() {
-      svg!.removeEventListener("pointermove", move);
-      svg!.removeEventListener("pointerup", end);
-      svg!.removeEventListener("pointercancel", end);
+      svg?.removeEventListener("pointermove", move);
+      svg?.removeEventListener("pointerup", end);
+      svg?.removeEventListener("pointercancel", end);
       try {
-        svg!.releasePointerCapture(e.pointerId);
+        svg?.releasePointerCapture(e.pointerId);
       } catch {}
       setPanning(false);
     }

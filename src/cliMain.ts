@@ -597,8 +597,8 @@ function removeManifest(dir: string) {
  * A directory gets `index.html`; a file keeps its own name, so `site/pedia.html`
  * writes exactly that file.
  */
-function htmlBaseName(target: { directory: boolean; file?: string }) {
-  return target.directory ? "index.html" : path.basename(target.file!);
+function htmlBaseName(target: ReturnType<typeof targetKind>) {
+  return target.directory ? "index.html" : path.basename(target.file);
 }
 
 /** The directory an export writes into, and the page name the target resolves to */

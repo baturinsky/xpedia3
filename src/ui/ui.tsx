@@ -750,7 +750,7 @@ const rootKey = "__xpediaRoot";
 export function initUI() {
   const container = document.body as HTMLElement & { [rootKey]?: Root };
   if (!container[rootKey]) container[rootKey] = createRoot(container);
-  container[rootKey]!.render(<UI />);
+  container[rootKey]?.render(<UI />);
 }
 
 window.addEventListener("pointermove", async (e) => {

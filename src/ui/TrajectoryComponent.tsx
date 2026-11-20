@@ -68,7 +68,8 @@ function zonePlace(trajectory: UfoTrajectory, index: number) {
 
   let agreed: string[] | undefined;
   for (const region of regions) {
-    const zone = region.missionZones![index];
+    const zone = region.missionZones?.[index];
+    if (!zone) continue;
     // An unnamed area makes this a rectangle rather than a set of places, and a
     // rectangle only means something against the map
     const names = zone.map((area) => area?.[5]).filter((name) => name);

@@ -158,12 +158,16 @@ export class Sprite {
     const offset = frame - start;
     if (offset >= grid.cols * grid.rows) return undefined;
 
+    const subX = this.subX;
+    const subY = this.subY;
+    if (subX == null || subY == null) return undefined;
+
     return {
       path: this.resolveFramePath(path),
-      x: (offset % grid.cols) * this.subX!,
-      y: Math.floor(offset / grid.cols) * this.subY!,
-      w: this.subX!,
-      h: this.subY!,
+      x: (offset % grid.cols) * subX,
+      y: Math.floor(offset / grid.cols) * subY,
+      w: subX,
+      h: subY,
       cols: grid.cols,
     };
   }

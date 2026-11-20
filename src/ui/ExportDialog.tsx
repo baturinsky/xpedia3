@@ -154,7 +154,7 @@ function ExportDialogBody() {
 
   useEffect(() => {
     // The server's archive is not measured here, so the local one is not either
-    if (!estimate || !pending || serverSized) {
+    if (!pack || !estimate || !pending || serverSized) {
       setTicking(false);
       return;
     }
@@ -164,7 +164,7 @@ function ExportDialogBody() {
       await measureLanguages(estimate, selected);
       // The shell is measured for any archive; the images only when they are
       // going in, so ticking "Split" alone does not wait on sprite sizes
-      if (archive) await measureArchive(estimate, pack!, includeImages);
+      if (archive) await measureArchive(estimate, pack, includeImages);
     })()
       .then(() => {
         if (!live) return;

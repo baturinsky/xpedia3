@@ -29,7 +29,13 @@ export function resolveLanguages(requested: string[] | undefined, available: str
     );
 
   // The same language twice is one language, and a repeat must not move it
-  const names = [...new Set(requested.map((name) => byLower.get(name.toLowerCase())!))];
+  const names = [
+    ...new Set(
+      requested
+        .map((name) => byLower.get(name.toLowerCase()))
+        .filter((name): name is string => name !== undefined),
+    ),
+  ];
   // English goes last when it was not named, so that the first language the
   // user asked for stays the primary one
   if (!names.includes(defaultLanguage)) names.push(defaultLanguage);

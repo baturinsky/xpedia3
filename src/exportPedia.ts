@@ -103,7 +103,7 @@ function collectTags(root: ParentNode) {
       attrs: [...s.attributes].map((a) => `${a.name}="${a.value}"`).join(" "),
       // The dev build points at `bundle.js.map`, which is not part of the
       // export: dropping the comment keeps the file fully standalone
-      content: s.textContent!.replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, "\n"),
+      content: (s.textContent ?? "").replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, "\n"),
     }));
   const styles = [...root.querySelectorAll("style")]
     // Same reason as above: the map is not part of the export

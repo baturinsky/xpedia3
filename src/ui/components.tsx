@@ -290,12 +290,12 @@ export function Img(props: {
           t.naturalHeight &&
           (t.naturalWidth !== size?.w || t.naturalHeight !== size?.h)
         )
-          setNatural({ path: path!, w: t.naturalWidth, h: t.naturalHeight });
+          setNatural({ path, w: t.naturalWidth, h: t.naturalHeight });
       }}
       onError={() => {
         if (!broken) {
           console.warn("Can't decode image", path);
-          setBrokenPath(path!);
+          setBrokenPath(path);
         }
       }}
       style={
@@ -802,7 +802,11 @@ export function LinksPage(props: {
       if (list) list.push(link);
       else byId.set(id, [link]);
     });
-    items = sortedIds.map((id) => byId.get(id)!.shift()!);
+    items = sortedIds.map((id) => {
+      const shifted = byId.get(id)?.shift();
+      if (shifted === undefined) throw new Error(`LinksPage: no link left for ${id}`);
+      return shifted;
+    });
   }
 
   return (
