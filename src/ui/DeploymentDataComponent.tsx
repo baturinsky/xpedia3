@@ -1,7 +1,12 @@
 import { Fragment, type ReactNode } from "react";
 import type { AlienDeployment } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
-import { type RankDeployment, rankUnits, setChancesByLevel } from "./deploymentRank";
+import {
+  loadoutIsEmpty,
+  type RankDeployment,
+  rankUnits,
+  setChancesByLevel,
+} from "./deploymentRank";
 import MainTable, { type MainTableRenderer } from "./MainTable";
 import { TipScopeProvider, Tr, Val } from "./Val";
 
@@ -135,7 +140,10 @@ function ItemSets({
   const levelCount = chancesByLevel?.[0]?.length ?? 0;
   if (chancesByLevel && chancesByLevel.length === sets.length && levelCount > 0) {
     return (
-      <table className="main-table data-table deployment-levels">
+      // The one `.data-table` whose last column is a long list beside short
+      // numbers: the per-cents stay content-width and `itemSets` takes what
+      // is left, rather than sharing the width fairly with them.
+      <table className="main-table data-table data-table-wide-last deployment-levels">
         {/* One level needs no number to its column */}
         {levelCount > 1 && (
           <thead>
@@ -335,60 +343,84 @@ function DeploymentDataView({
   return (
     <TipScopeProvider scope="deploymentData">
       <div className="deployment-cards">
-        {rows.map(({ row, origIndex }) => (
-          <section className="deployment-card" key={origIndex}>
-            <h3 className="deployment-card-title">
-              <RankTitle row={row} index={origIndex} deployment={deployment} />
-            </h3>
-            <Summary row={row} />
-            {otherFields
-              .filter((field) => !isEmpty(row[field]))
-              .map((field) => (
-                <dl className="data-fields" key={field}>
-                  <dt>
-                    <Val of={field} capital={true} />
-                  </dt>
-                  <dd>
-                    <Val of={row[field]} field={field} />
-                  </dd>
-                </dl>
-              ))}
-            {!isEmpty(row.itemSets) &&
-              (() => {
-                const byLevel = asItems(row.itemSets).length > 1;
-                return (
-                  <>
-                    <span
-                      className="deployment-row-label"
-                      data-tooltip={
-                        byLevel ? "tip_xpediaLoadoutsByTechLevel" : "tip_xpediaLoadoutByTechLevel"
-                      }
-                    >
-                      <Tr
-                        text={byLevel ? "xpediaLoadoutsByTechLevel" : "xpediaLoadoutByTechLevel"}
+        {rows.map(({ row, origIndex }) => {
+          // A rank can state its loadout explicitly as empty sets — XPiratez
+          // anchors `&itemSetsEmpty` with five empty sets and reuses it for
+          // bare-handed ranks, including both rows of `STR_LABYRINTHUS_NOCTIS`.
+          // That is a stated absence, not a missing field, so it is worth
+          // saying rather than drawing a tech-level table of blank rows.
+          const itemSetsPresent = !isEmpty(row.itemSets);
+          const extraPresent = !isEmpty(row.extraRandomItems);
+          const itemSetsEmpty = itemSetsPresent && loadoutIsEmpty(row.itemSets);
+          const extraEmpty = extraPresent && loadoutIsEmpty(row.extraRandomItems);
+          // The note replaces both loadout blocks when every stated
+          // loadout is empty; if any loadout does carry items, that block
+          // renders as usual and the empty field just stays out.
+          const showsNoItems =
+            (itemSetsEmpty || extraEmpty) &&
+            (!itemSetsPresent || itemSetsEmpty) &&
+            (!extraPresent || extraEmpty);
+          return (
+            <section className="deployment-card" key={origIndex}>
+              <h3 className="deployment-card-title">
+                <RankTitle row={row} index={origIndex} deployment={deployment} />
+              </h3>
+              <Summary row={row} />
+              {otherFields
+                .filter((field) => !isEmpty(row[field]))
+                .map((field) => (
+                  <dl className="data-fields" key={field}>
+                    <dt>
+                      <Val of={field} capital={true} />
+                    </dt>
+                    <dd>
+                      <Val of={row[field]} field={field} />
+                    </dd>
+                  </dl>
+                ))}
+              {showsNoItems && (
+                <p className="deployment-no-items">
+                  <Tr text="xpediaNoLoadoutItems" />
+                </p>
+              )}
+              {itemSetsPresent &&
+                !itemSetsEmpty &&
+                (() => {
+                  const byLevel = asItems(row.itemSets).length > 1;
+                  return (
+                    <>
+                      <span
+                        className="deployment-row-label"
+                        data-tooltip={
+                          byLevel ? "tip_xpediaLoadoutsByTechLevel" : "tip_xpediaLoadoutByTechLevel"
+                        }
+                      >
+                        <Tr
+                          text={byLevel ? "xpediaLoadoutsByTechLevel" : "xpediaLoadoutByTechLevel"}
+                        />
+                      </span>
+                      <ItemSets
+                        value={row.itemSets}
+                        chancesByLevel={
+                          byLevel
+                            ? setChancesByLevel(asItems(row.itemSets).length, rul?.alienItemLevels)
+                            : undefined
+                        }
                       />
-                    </span>
-                    <ItemSets
-                      value={row.itemSets}
-                      chancesByLevel={
-                        byLevel
-                          ? setChancesByLevel(asItems(row.itemSets).length, rul?.alienItemLevels)
-                          : undefined
-                      }
-                    />
-                  </>
-                );
-              })()}
-            {!isEmpty(row.extraRandomItems) && (
-              <>
-                <span className="deployment-row-label">
-                  <Val of="extraRandomItems" />
-                </span>
-                <ItemSets value={row.extraRandomItems} />
-              </>
-            )}
-          </section>
-        ))}
+                    </>
+                  );
+                })()}
+              {extraPresent && !extraEmpty && (
+                <>
+                  <span className="deployment-row-label">
+                    <Val of="extraRandomItems" />
+                  </span>
+                  <ItemSets value={row.extraRandomItems} />
+                </>
+              )}
+            </section>
+          );
+        })}
       </div>
     </TipScopeProvider>
   );

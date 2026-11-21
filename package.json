@@ -1,7 +1,7 @@
 {
   "name": "xpedia3",
-  "version": "3.0.0-alpha.7",
-  "description": "A simple tactics engine",
+  "version": "3.0.0-alpha.8",
+  "description": "OpenXCom reference engine",
   "main": "main.js",
   "type": "module",
   "license": "MIT",

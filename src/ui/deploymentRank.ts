@@ -346,3 +346,18 @@ export function rankUnits(
   }
   return out.length > 0 ? out : undefined;
 }
+
+/**
+ * Whether a rank's `itemSets` / `extraRandomItems` states no items at all.
+ *
+ * A pack can state the loadout explicitly as five empty sets — XPiratez
+ * anchors `&itemSetsEmpty` with `- []` five times and reuses it for undead
+ * and other bare-handed ranks, including both rows of
+ * `STR_LABYRINTHUS_NOCTIS` — so the field is not absent, it is present and
+ * empty on purpose. The caller renders "No items in loadout" for that
+ * instead of leaving the tech-level table's items column blank.
+ */
+export function loadoutIsEmpty(value: unknown): boolean {
+  const sets = Array.isArray(value) ? value : [value];
+  return sets.every((set) => set == null || set === "" || (Array.isArray(set) && set.length === 0));
+}

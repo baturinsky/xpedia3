@@ -12,7 +12,7 @@ import { ensureBuilt } from "../build.mjs";
 import { eq, report } from "../helpers/check.mjs";
 
 await ensureBuilt();
-const { deploymentRaces, rankMembers, rankUnits, setChancesByLevel } = await import(
+const { deploymentRaces, loadoutIsEmpty, rankMembers, rankUnits, setChancesByLevel } = await import(
   "../.gen/deploymentrank.mjs"
 );
 
@@ -379,5 +379,26 @@ eq(
 eq(setChancesByLevel(5, undefined), undefined, "no table, no chances");
 eq(setChancesByLevel(5, []), undefined, "an empty table, no chances");
 eq(setChancesByLevel(1, pirateTable), undefined, "one set has no choice to count");
+
+// --- a loadout stated as empty sets means a bare-handed spawn ------------
+// XPiratez `STR_LABYRINTHUS_NOCTIS`: both rows carry `itemSets:
+// *itemSetsEmpty`, five empty sets, so the card says "No items in loadout"
+// instead of a tech-level table of blank rows.
+const itemSetsEmpty = [[], [], [], [], []];
+eq(loadoutIsEmpty(itemSetsEmpty), true, "five empty sets are an empty loadout");
+eq(loadoutIsEmpty([]), true, "a lone empty list is an empty loadout");
+eq(loadoutIsEmpty([null, []]), true, "missing and empty sets are an empty loadout");
+eq(
+  loadoutIsEmpty([[], ["STR_PIR_HEAVY_PLASMA"]]),
+  false,
+  "one set with items is not an empty loadout",
+);
+eq(
+  loadoutIsEmpty([["STR_PIR_HEAVY_PLASMA"], ["STR_PIR_STUN_BOMB"]]),
+  false,
+  "full sets are not an empty loadout",
+);
+eq(loadoutIsEmpty(undefined), true, "no field at all is an empty loadout");
+eq(loadoutIsEmpty("STR_PIR_HEAVY_PLASMA"), false, "a lone item is not an empty loadout");
 
 report();

@@ -1562,16 +1562,34 @@ ol > li:last-child::after {
 }
 
 /*
- * Every column but the last is only as wide as its content, so the numbers
- * stop being padded out across the page and the last column takes the
- * remaining width. `width: 1%` makes table layout give a column only what
+ * Every column is proportional to its content, so the spare width is shared
+ * fairly between them rather than dumped into the last one the table
+ * happens to have. `width: 1%` makes table layout give a column only what
  * its content needs, the same trick as `.row-name` — without it, `width:
- * 100%` on the table splits the spare width over every column, and a
- * `Groups` of one digit fills a third of the page.
+ * 100%` on the table splits the spare width evenly and a `Groups` of one
+ * digit fills a third of the page. With every column at `1%` on a
+ * full-width table the browser spreads the spare width in proportion to
+ * each column's content, so a wide heading earns its column a wider share
+ * without taking it all.
+ *
+ * The one exception is a table whose last column is a long comma list
+ * beside short numbers (the deployment loadouts: per cents beside items).
+ * There the last column takes what is left — `.data-table-wide-last` round
+ * the list back to unconstrained. Tables whose columns are all short stats
+ * or mixed text, such as the mission waves, stay fair: the last column is
+ * not a list to spare the width for, and stretching it starves the rest.
  */
-.data-table > thead > tr > :not(:last-child),
-.data-table > tbody > tr > :not(:last-child) {
+/* biome-ignore lint/style/noDescendingSpecificity: `*` carries no specificity on purpose, so the wide-last opt-in below reads after it rather than above it; the two never compete on one cell */
+.data-table > thead > tr > * {
   width: 1%;
+}
+/* biome-ignore lint/style/noDescendingSpecificity: `*` carries no specificity on purpose, so the wide-last opt-in below reads after it rather than above it; the two never compete on one cell */
+.data-table > tbody > tr > * {
+  width: 1%;
+}
+.data-table-wide-last > thead > tr > :last-child,
+.data-table-wide-last > tbody > tr > :last-child {
+  width: auto;
 }
 
 .data-table thead th {
@@ -1662,6 +1680,14 @@ ol > li:last-child::after {
 
 .deployment-summary {
   margin: 0 0 0.3rem;
+}
+
+/* A rank whose loadout is stated as empty sets: the engine spawns the unit
+   bare-handed, so the note stands where the loadouts list would go. */
+.deployment-no-items {
+  margin: 0 0 0.3rem;
+  font-style: italic;
+  opacity: 0.85;
 }
 
 /* Deployment loadouts and map-block rolls stacked under their card's
@@ -3309,6 +3335,33 @@ table.mission-waves td {
 .mission-raw {
   font-size: 85%;
   opacity: 0.6;
+}
+
+/* `raceWeights` table: months × races, chances as per cents. The month
+   column is a range, and the chance cells are short centred numbers.
+   Like any fair `.data-table` its columns share the width in proportion to
+   their content, and the whole block sits at its content width instead of
+   filling the outer cell — a two-digit per cent centred in a stretched
+   column sits far from its title. A table ignores `fit-content`: in
+   Chromium `fit-content`, `auto` and `100%` all fill the outer cell.
+   `max-content` is the width that actually shrinks a table to its columns;
+   `max-width` caps it on narrow screens. */
+table.mission-raceweights {
+  width: max-content;
+  max-width: 100%;
+}
+table.mission-raceweights th {
+  text-align: center;
+}
+table.mission-raceweights th:first-child {
+  text-align: left;
+}
+table.mission-raceweights td {
+  text-align: center;
+}
+table.mission-raceweights td.mission-race-month {
+  text-align: left;
+  white-space: nowrap;
 }
 
 .mission-notes {

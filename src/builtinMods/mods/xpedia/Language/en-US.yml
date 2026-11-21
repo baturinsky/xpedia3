@@ -2032,7 +2032,7 @@ en-US:
   tip_xpediaDeploymentRank: "Rank<br><br>Rank this deployment slot uses, as an index into the member list of the alien race."
   tip_xpediaDeploymentQuantity: "Quantity<br><br>Aliens spawned for this rank: base count by difficulty (easy..medium..hard, equal neighbours collapsed) plus each random bonus as +🎲0–N (dQty, then extraQty, each an independent roll of 0..N). A missing or zero block is omitted."
   tip_xpediaDeploymentOutside: "Outside<br><br>Share of the aliens spawned outside the UFO, in per cent."
-  tip_raceWeights: "raceWeights<br><br>Races that may carry out this mission and their chance, listed by number of months since the campaign started."
+  tip_raceWeights: "Race weights<br><br>Which race flies this mission in each phase of the campaign. A row holds from its month until the next row starts. The number in a cell is the race's share of all the weights in that row, as a per cent — the engine rolls the race with that chance each time the mission is created, so 90 next to 10 means 90% against 10%."
   tip_randomProducedItems: "randomProducedItems<br><br>Alternative results of this project with their chances, used instead of a fixed set of produced items."
   tip_regionWeight: "regionWeight<br><br>Weight of this region when the game picks one for an alien mission."
   tip_relatedScripts: "relatedScripts<br><br>Event scripts connected to this entry: the scripts that can fire this event, or the scripts a research topic appears in."
@@ -2288,6 +2288,8 @@ en-US:
   tip_spawnedPersonName: "spawnedPersonName<br><br>Name given to the person who joins. It is translated like any other string ID."
   tip_spawnItem: "spawnItem<br><br>Item created when this projectile or explosion goes off."
   tip_spawnItemChance: "spawnItemChance<br><br>Chance in per cent that the item is spawned at all."
+  tip_siteType: "Site deployment<br><br>The battlescape this mission's site or alien base is fought on. Without it the site takes the deployment tied to the region area it lands in."
+  tip_spawnZone: "Site zone<br><br>Which part of the region the site or alien base appears in: an index into that region's mission zones, the boxes drawn on the region's map. Without it the site follows the flight's own starting zone. It decides where in the region you will find this mission, not what you fight there."
   tip_specialChance: "specialChance<br><br>Chance in per cent that the special effects of this explosion happen at all: mine triggering, corpse explosion, zombifying, unit or item spawning."
   tip_startMovingFemale: "startMovingFemale<br><br>Sound played when a female unit wearing this outfit starts moving. A single sound ID or a list of them."
   tip_startMovingMale: "startMovingMale<br><br>Sound played when a male unit wearing this outfit starts moving. A single sound ID or a list of them."
@@ -2919,6 +2921,10 @@ en-US:
   xpediaWaveInterrupt: chance a shoot-down ends the mission
   xpediaAtOnce: at once
   xpediaMissionPoints: score the aliens gain when this mission succeeds
+  xpediaRaceMonth: Month
+  xpediaRaceOnwards: onwards
+  xpediaRaceWeightsEmpty: No race stated, so the race comes from the alien base or the mission script that starts this mission.
+  xpediaSpawnZoneNote: the site or alien base this mission creates appears inside this zone of the region, not anywhere in the whole region — see the region's mission zones on its map.
   # Altitudes a UFO flies at. The game names them with the engine keys
   # STR_GROUND/STR_VERY_LOW/STR_LOW_UC/STR_HIGH_UC/STR_VERY_HIGH, which a pack is
   # free to translate however it likes; these are XPedia's own wording so the
@@ -2994,6 +3000,7 @@ en-US:
   xpediaOutsideUfo: outside the UFO
   xpediaLoadoutsByTechLevel: Loadouts by alien tech level
   xpediaLoadoutByTechLevel: Loadout
+  xpediaNoLoadoutItems: No items in loadout
   tip_xpediaLoadoutsByTechLevel: "Loadouts by alien tech level<br><br>Each spawned alien carries one of these sets, chosen by the alien tech level the game has reached (alienItemLevels), not by difficulty and not by alien rank. Sets are listed weakest first; late in the campaign the last set is the one that spawns. The table counts each set's chance at every tech level from the mod's alienItemLevels table: tech level 1 is the first month of the campaign, and the columns after it are the following months."
   tip_xpediaLoadoutByTechLevel: "Loadout<br><br>The one set this alien always carries, at every tech level. With several sets a tech level would pick one of them (see 'Loadouts by alien tech level')."
   nextStage: Next stage

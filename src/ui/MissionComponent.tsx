@@ -1,6 +1,7 @@
 import type { UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import MainTable, { type MainTableRenderer } from "./MainTable";
+import { parseRaceWeights, raceWeightPercent } from "./raceWeights";
 import { formatDelay, formatSeconds, waveDelay } from "./timing";
 import { Tr, Val } from "./Val";
 
@@ -248,8 +249,71 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
   );
 }
 
-/** A nested table, for the weights this article shows as their own block */
-const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
+function RaceWeights({ value }: { value: unknown }) {
+  const { months, races } = parseRaceWeights(value);
+  if (months.length === 0) {
+    return (
+      <div className="mission-note">
+        <Tr text="xpediaRaceWeightsEmpty" />
+      </div>
+    );
+  }
+  return (
+    <table className="main-table data-table mission-raceweights">
+      <thead>
+        <tr>
+          <th scope="col">
+            <Tr text="xpediaRaceMonth" />
+          </th>
+          {races.map((race) => (
+            <th scope="col" key={race}>
+              <Val of={race} />
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {months.map((row, i) => {
+          const next = months[i + 1]?.month;
+          const start = row.month + 1;
+          const end = next != null ? next : null;
+          return (
+            <tr key={row.month}>
+              <td className="mission-race-month">
+                <em className="num">{start}</em>
+                {end != null ? (
+                  <>
+                    {"–"}
+                    <em className="num">{end}</em>
+                  </>
+                ) : (
+                  <>
+                    {" "}
+                    <Tr text="xpediaRaceOnwards" />
+                  </>
+                )}
+              </td>
+              {races.map((race) => {
+                const weight = row.weights.get(race);
+                if (weight == null) return <td key={race}>—</td>;
+                const pct = raceWeightPercent(weight, row.total);
+                return (
+                  <td key={race}>
+                    {/* `Val` renders a number without its postfix, so the per
+                        cent sign is plain text after it */}
+                    <Val of={pct} />%
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+const asRaceWeights: MainTableRenderer = ({ val }) => <RaceWeights value={val} />;
 
 /** Alien mission table: the fields, with the waves drawn as a schedule */
 export default function MissionComponent({ entry }: { entry: AlienMission }) {
@@ -260,7 +324,7 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
       of={entry}
       title="ALIEN_MISSIONS"
       sort={{ last: ["waves"], exclude: ["id"] }}
-      special={{ raceWeights: asSubTable }}
+      special={{ raceWeights: asRaceWeights }}
       rows={{
         objective: ({ val }) => {
           const name = objectiveName(val);
@@ -297,6 +361,25 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
                 <Val of={val} />
                 <div className="mission-note">
                   <Tr text="xpediaMissionPoints" />
+                </div>
+              </td>
+            </tr>
+          ),
+        // `spawnZone` is an index into the region's own `missionZones` list:
+        // the site or alien base this mission creates goes in that zone's
+        // boxes, not anywhere in the whole region. The raw number alone says
+        // nothing to a reader — the note says which part of the region it
+        // means, and points at the region map where the zones are drawn.
+        spawnZone: ({ val }) =>
+          val == null ? null : (
+            <tr>
+              <td className="row-name">
+                <Val of="spawnZone" capital={true} />
+              </td>
+              <td>
+                <Val of={val} />
+                <div className="mission-note">
+                  <Tr text="xpediaSpawnZoneNote" />
                 </div>
               </td>
             </tr>
