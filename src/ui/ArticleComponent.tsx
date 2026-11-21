@@ -27,7 +27,7 @@ import CountriesComponent from "./CountryComponent";
 import CraftComponent from "./CraftComponent";
 import CraftWeaponComponent from "./CraftWeaponComponent";
 import { BaseService, Img, LinksPage, type SectionRow, SectionTable } from "./components";
-import { deploymentData } from "./DeploymentDataComponent";
+import DeploymentComponent from "./DeploymentDataComponent";
 import { environmentalConditions } from "./EnviroConditionsComponent";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
@@ -209,13 +209,7 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
   },
   alienRaces: { title: "Race" },
   alienRanks: { title: "Ranks" },
-  alienDeployments: {
-    sort: { first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] },
-    special: {
-      data: deploymentData,
-      briefing: asSubTable,
-    },
-  },
+  alienDeployments: DeploymentComponent,
   startingConditions: StartingConditionsComponent,
   terrains: {
     sort: { last: ["mapBlocks"] },

@@ -2987,6 +2987,15 @@ en-US:
   xpediaDeploymentRank: Rank
   xpediaDeploymentQuantity: Quantity
   xpediaDeploymentOutside: Outside
+  xpediaAtEasy: "at easy"
+  xpediaAtMedium: "at medium"
+  xpediaAtHard: "at hard"
+  xpediaRandomQty: random
+  xpediaOutsideUfo: outside the UFO
+  xpediaLoadoutsByTechLevel: Loadouts by alien tech level
+  xpediaLoadoutByTechLevel: Loadout
+  tip_xpediaLoadoutsByTechLevel: "Loadouts by alien tech level<br><br>Each spawned alien carries one of these sets, chosen by the alien tech level the game has reached (alienItemLevels), not by difficulty and not by alien rank. Sets are listed weakest first; late in the campaign the last set is the one that spawns. The table counts each set's chance at every tech level from the mod's alienItemLevels table: tech level 1 is the first month of the campaign, and the columns after it are the following months."
+  tip_xpediaLoadoutByTechLevel: "Loadout<br><br>The one set this alien always carries, at every tech level. With several sets a tech level would pick one of them (see 'Loadouts by alien tech level')."
   nextStage: Next stage
   startingCondition: Starting condition
   xcomBaseInCountryTriggers: Base-in-country triggers

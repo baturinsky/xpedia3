@@ -160,7 +160,7 @@ function waveNotes(wave: MissionWave) {
  * A wave's `timer` is the gap *before* it, which is the number a player cares
  * about: the wave table reads as a schedule, so the delay belongs to the row it
  * delays rather than to the mission as a whole. Its headers are ordinary
- * `data-table` headers like the deployment and map-block tables — left-aligned
+ * `data-table` headers like the map-block tables — left-aligned
  * `th`, content-width columns — rather than the large centred `table-header`
  * row other tables use for a title.
  */

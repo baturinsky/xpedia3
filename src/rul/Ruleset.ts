@@ -318,6 +318,13 @@ export default class Ruleset {
   eventScripts: { [key: string]: EventScript } = {};
   missionScripts: { [key: string]: MissionScript } = {};
   alienMissions: { [key: string]: Entry } = {};
+  /**
+   * The tech level each spawn die value (`RNG::generate(0,9)`) rolls to, per
+   * tech level: `alienItemLevels[techLevel][die] = itemLevel`, see
+   * `BattlescapeGenerator`. Kept as numbers (a list of lists), not entries,
+   * so `combineModRuls` cannot file it — see `parseRuls`.
+   */
+  alienItemLevels: number[][] = [];
   ufos: { [key: string]: Entry } = {};
   regions: { [key: string]: Region } = {};
   ufoTrajectories: { [key: string]: UfoTrajectory } = {};
@@ -740,6 +747,26 @@ export default class Ruleset {
     // the Countries page, so neither exists any more, and nothing is registered
     // for it. A pack that declares its own `WORLD_MAP` article keeps it: that is
     // the pack's content, and the builtins do not override a modpack.
+
+    // `alienItemLevels`, like `extraSounds`, is read from the mods rather
+    // than from `this.raw`: the merge files only entry blocks (objects) and
+    // object-form singletons, so a list of lists like this one is dropped
+    // there. The last mod that declares it wins, the way the engine's
+    // `tryRead` replaces the whole table.
+    this.alienItemLevels = [];
+    for (const mod of mods) {
+      for (const file of mod.rul) {
+        const declared = file?.alienItemLevels;
+        if (!Array.isArray(declared)) continue;
+        const rows: number[][] = [];
+        for (const row of declared) {
+          if (!Array.isArray(row) || row.length === 0) continue;
+          const values = row.map(Number).filter((n) => Number.isFinite(n));
+          if (values.length > 0) rows.push(values);
+        }
+        if (rows.length > 0) this.alienItemLevels = rows;
+      }
+    }
 
     // Sounds are read from the mods rather than from `this.raw`: a slot's file
     // path is relative to the mod folder that declares it, and merging the

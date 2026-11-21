@@ -16,9 +16,11 @@ import {
 import { resolveLanguages } from "./cliLanguages";
 import {
   type AppShell,
+  articleExcerpt,
   buildPageHtml,
   collectDataFiles,
   exportedPackName,
+  renderArticlePreview,
   zipFiles,
 } from "./exportCore";
 import {
@@ -27,7 +29,7 @@ import {
   mergeBuiltinFiles,
   unpackBuiltinMods,
 } from "./packBuild";
-import { defaultLanguage, type ProcessedRuleset } from "./rul/Ruleset";
+import Ruleset, { defaultLanguage, mainMod, type ProcessedRuleset } from "./rul/Ruleset";
 import { gameRelativePath } from "./util";
 
 /**
@@ -45,6 +47,11 @@ import { gameRelativePath } from "./util";
  * There is no watcher and no automatic reload on purpose. A reload rebuilds the
  * ruleset from the files as they are at that moment, which is the promise; a
  * watcher would additionally yank the page out from under someone mid-article.
+ *
+ * A pasted link to one article reads `/a/<id>` rather than the app's `##`
+ * deep link: the fragment never reaches a server, so a board cannot unfurl
+ * it. The stub at that path carries the article's preview tags and forwards
+ * the browser to the app entry.
  */
 
 export type ServeOptions = {
@@ -351,6 +358,76 @@ function makeBuilder(options: ServeOptions) {
 }
 
 /**
+ * Preview rulesets, one per ruleset snapshot.
+ *
+ * Building a ruleset is the expensive half of a page build, so it is done
+ * once and done lazily: only a pasted article link pays for it, never an
+ * ordinary page view. The snapshot keys the cache, so editing a file — which
+ * builds a new snapshot — retires the old ruleset on its own. English is
+ * cloned before construction because the constructor stamps language flag
+ * labels onto it, and those labels must not travel into a later export made
+ * from the same snapshot.
+ */
+const previewRulesets = new WeakMap<ProcessedRuleset, Ruleset>();
+
+function previewRuleset(built: Built): Ruleset {
+  const { processed } = built.source;
+  let rul = previewRulesets.get(processed);
+  if (!rul) {
+    const english = processed.langs?.[defaultLanguage];
+    const snapshot: ProcessedRuleset = english
+      ? {
+          ...processed,
+          langs: { ...processed.langs, [defaultLanguage]: { ...english } },
+        }
+      : processed;
+    rul = new Ruleset(snapshot);
+    previewRulesets.set(processed, rul);
+  }
+  return rul;
+}
+
+/**
+ * Absolute address of the server as the request reached it.
+ *
+ * Preview tags must name a public absolute URL, and the server only ever
+ * hears the request through whatever put it in front of the loopback bind —
+ * on a published host that is a reverse proxy, whose `X-Forwarded-*` headers
+ * carry the address the reader and the board actually used.
+ */
+function requestBase(req: http.IncomingMessage): string {
+  // A proxy may send the header once per hop; the first is the reader's own
+  const first = (value: string | string[] | undefined) =>
+    (Array.isArray(value) ? value[0] : value)?.split(",")[0].trim();
+  const proto = first(req.headers["x-forwarded-proto"]) || "http";
+  const host = first(req.headers["x-forwarded-host"]) || first(req.headers.host) || "localhost";
+  return `${proto}://${host}`;
+}
+
+/**
+ * Absolute URL of an article's illustration, when the folder can serve it.
+ *
+ * An illustration is either a sprite id or an asset path, the same spelling
+ * `referencedPaths` follows. It is only advertised when the file is in the
+ * index: a preview that names a missing image renders worse than one with
+ * no image at all.
+ */
+function articleImageUrl(
+  built: Built,
+  rul: Ruleset,
+  article: { image_id?: string },
+  base: string,
+): string | undefined {
+  const id = article.image_id;
+  if (!id) return undefined;
+  const path = rul.sprites[id]?.path ?? (/[\\/]/.test(id) ? id : undefined);
+  if (!path) return undefined;
+  const rel = gameRelativePath(path);
+  if (!built.index.has(path.toLowerCase()) && !built.index.has(rel.toLowerCase())) return undefined;
+  return `${base}/${encodeURI(rel)}`;
+}
+
+/**
  * Answers the page's export request with a finished archive.
  *
  * `xpedia-cli` already knows how to turn this folder into a pack; the browser
@@ -443,7 +520,9 @@ function makeExportHandler(options: ServeOptions) {
  *
  * Only the loopback interface is bound: this previews a folder for the person
  * sitting at the machine, and a modpack is not something to publish on a
- * network by accident.
+ * network by accident. To publish it, a reverse proxy on the same host
+ * forwards to it — the per-article previews then name the address the proxy
+ * saw, through its `X-Forwarded-*` headers.
  */
 export async function servePack(options: ServeOptions) {
   const root = path.resolve(options.root);
@@ -510,6 +589,67 @@ export async function servePack(options: ServeOptions) {
       });
   }
 
+  /**
+   * Answers a per-article link with its stub, see `renderArticlePreview`.
+   *
+   * The app's own deep links hide behind `##`, which a hash never carries to
+   * a server, so a link worth pasting has to name the article in the path
+   * instead: `/a/<id>`. The stub is what a board reads; the reader's browser
+   * is forwarded from there to the app entry. An id that names nothing is a
+   * 404, so a stale link fails plainly rather than previewing the wrong
+   * article. The ruleset is read from the current snapshot without re-walking
+   * the folder — the same snapshot the open page shows — and built lazily,
+   * only for links that actually ask for it.
+   */
+  function handleArticle(req: http.IncomingMessage, res: http.ServerResponse, id: string) {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "GET, HEAD");
+      res.end("Use GET");
+      return;
+    }
+    build(false)
+      .then((built) => {
+        const rul = previewRuleset(built);
+        const article = rul.article(id);
+        if (!article) {
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end("Not found\n");
+          return undefined;
+        }
+        const meta = mainMod(built.source.processed.mods ?? [])?.meta;
+        const title = article.title ?? article.id;
+        // An entry with no body still previews: the pack's own description
+        // says what the pedia is, which is all a card for it can say
+        const description =
+          articleExcerpt(article.text) ||
+          meta?.description?.trim() ||
+          "Offline reference for an OpenXCom modpack";
+        const base = requestBase(req);
+        const html = renderArticlePreview({
+          title,
+          description,
+          url: `${base}/a/${encodeURIComponent(article.id)}`,
+          image: articleImageUrl(built, rul, article, base),
+          target: `/##${encodeURIComponent(article.id)}`,
+        });
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Content-Length", String(Buffer.byteLength(html)));
+        res.end(req.method === "HEAD" ? undefined : html);
+        return undefined;
+      })
+      .catch((e) => {
+        options.info(`Article preview failed: ${e?.message ?? e}`);
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(`Can't build the preview: ${e?.message ?? e}\n`);
+      });
+  }
+
   const server = http.createServer((req, res) => {
     const parsed = new URL(String(req.url ?? "/"), "http://localhost");
     const url = decodeURIComponent(parsed.pathname);
@@ -518,6 +658,13 @@ export async function servePack(options: ServeOptions) {
     // plain file a browser can download
     if (url === "/xpedia-export") {
       handleExport(req, res, parsed);
+      return;
+    }
+    // One article per path, see `handleArticle`: checked before the file
+    // lookup so no folder layout can shadow a stub
+    const articleMatch = /^\/a\/([^/]+)\/?$/.exec(url);
+    if (articleMatch) {
+      handleArticle(req, res, articleMatch[1]);
       return;
     }
     if (url === "/" || url === "/index.html") {

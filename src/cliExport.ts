@@ -33,6 +33,13 @@ export type ExportRequest = {
   split: boolean;
   /** Write the images the pedia can show, laid out as the game expects */
   images: boolean;
+  /**
+   * Public URL of the page, ending in `/`, for link previews.
+   *
+   * Only a page that will live somewhere has one; opening the file locally
+   * has none, so the preview tags that need an address stay out.
+   */
+  url?: string;
 };
 
 /** Bytes of one file of the pack by archive path, or nothing when it has none */
@@ -64,6 +71,35 @@ export type ExportReporter = {
   /** Ends the progress line, if one is open */
   endProgress?: () => void;
 };
+
+/**
+ * Bytes for the link-preview image: the first article illustration the pack
+ * has, else the first image it can show.
+ *
+ * An illustration is what a preview should be — a full picture, not an
+ * inventory icon — and the pack's own order makes the choice stable from
+ * one export to the next, so re-exporting does not churn the preview.
+ */
+function previewImageBytes(
+  rul: Ruleset,
+  paths: string[],
+  readFile: PackReader,
+): Uint8Array | undefined {
+  const candidates: string[] = [];
+  for (const article of Object.values(rul.articles)) {
+    const id = article?.image_id;
+    if (!id) continue;
+    const sprite = rul.sprites[id];
+    const path = sprite?.path ?? (/[\\/]/.test(id) ? id : undefined);
+    if (path) candidates.push(path);
+  }
+  candidates.push(...paths);
+  for (const path of candidates) {
+    const bytes = readFile(path);
+    if (bytes?.length) return bytes;
+  }
+  return undefined;
+}
 
 /**
  * Builds everything an export consists of, in memory.
@@ -105,6 +141,16 @@ export async function buildExport(options: {
     packs = Object.fromEntries(extra.map((name) => [name, languagePackPath(name)]));
 
   report.info(`Building ${pageName} (${request.split ? "English" : primary})`);
+  // Link previews need absolute URLs, which only a published page has; the
+  // preview image travels as its own file beside the page, so the page can
+  // name it before its bytes are collected. Only an export that writes
+  // images writes it, see below.
+  const link = request.url
+    ? {
+        url: request.url,
+        image: request.images ? `${request.url}og-image.png` : undefined,
+      }
+    : undefined;
   // The raw data files the page has to carry, gathered before the page is built
   // because they go inside it
   const data = await collectDataFiles(
@@ -121,6 +167,7 @@ export async function buildExport(options: {
     // Only a page that cannot hold every language needs to say how it starts
     page: request.split ? { packs } : primary === defaultLanguage ? undefined : { lang: primary },
     data,
+    link,
   });
 
   const outputs: ExportFile[] = [{ path: pageName, data: new TextEncoder().encode(html) }];
@@ -146,7 +193,8 @@ export async function buildExport(options: {
     // already turned into text: constructing one stamps the language flags onto
     // the shared `langs` map, and a payload written afterwards would carry them.
     // The browser exporter does not add them, so neither may this.
-    const paths = [...referencedPaths(new Ruleset(processed))];
+    const rul = new Ruleset(processed);
+    const paths = [...referencedPaths(rul)];
     /** Paths already claimed, so a later spelling cannot overwrite the bytes */
     const taken = new Set(outputs.map((o) => o.path));
     for (let i = 0; i < paths.length; i++) {
@@ -167,6 +215,14 @@ export async function buildExport(options: {
     }
     report.endProgress?.();
     report.info(`${weighOnly ? "Weighed" : "Collected"} ${assets} image(s)`);
+
+    // The preview image the page already names: one more file beside it,
+    // never weighed the same way, because an estimate need not carry bytes
+    if (link?.image && !weighOnly) {
+      const bytes = previewImageBytes(rul, paths, readFile);
+      if (bytes?.length && !taken.has("og-image.png"))
+        outputs.push({ path: "og-image.png", data: bytes });
+    }
   }
 
   return { pageName, outputs, pages, assets, imageBytes };

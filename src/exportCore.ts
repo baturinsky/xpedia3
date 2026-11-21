@@ -322,6 +322,19 @@ export type PagePayload = {
 };
 
 /**
+ * What a message board or chat shows when the page's link is pasted: the
+ * Open Graph tags. Both are absolute URLs, because the board fetches them
+ * from its own servers; a page opened from a disk has no such address, so
+ * they are absent unless the exporter was told where the page will live.
+ */
+export type PageLink = {
+  /** Public URL of the page, for `og:url` */
+  url?: string;
+  /** Absolute URL of the preview image, for `og:image` */
+  image?: string;
+};
+
+/**
  * The page text around a ruleset payload.
  *
  * Split out so the size estimate can measure the shell once and then add the
@@ -336,6 +349,8 @@ export async function renderPage(
   data?: { [path: string]: string },
   /** True when the page previews a served folder, see `PagePayload.served` */
   served?: boolean,
+  /** Link-preview tags, see `PageLink` */
+  link?: PageLink,
 ) {
   const payload: PagePayload = {
     pack: exportedPackName(pack),
@@ -360,6 +375,16 @@ export async function renderPage(
   const meta = mainMod(processed.mods ?? [])?.meta;
   const packName = [meta?.name, meta?.version].filter(Boolean).join(" ");
   const title = packName || `XPedia ${xpediaVersion()}`;
+  // The pack's own description is what its preview and its search excerpt
+  // should say; the generic one is for a pack that wrote none
+  const description = meta?.description?.trim() || "Offline reference for an OpenXCom modpack";
+
+  // The tags that need an address exist only when the page has one, and the
+  // card is the large-image kind only when there is an image to enlarge
+  const ogUrl = link?.url ? `\n  <meta property="og:url" content="${escapeHtml(link.url)}" />` : "";
+  const ogImage = link?.image
+    ? `\n  <meta property="og:image" content="${escapeHtml(link.image)}" />`
+    : "";
 
   // The payload must exist before the app starts. Module scripts run after
   // parsing, so a plain script above them is always safe.
@@ -369,7 +394,11 @@ export async function renderPage(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Offline reference for an OpenXCom modpack" />
+  <meta name="description" content="${escapeHtml(description)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />${ogUrl}${ogImage}
+  <meta name="twitter:card" content="${link?.image ? "summary_large_image" : "summary"}" />
   <title>${escapeHtml(title)}</title>
   <link rel="icon" href="${favicon}" />
   ${styles.map((css) => `<style>${css}</style>`).join("\n  ")}
@@ -379,6 +408,81 @@ export async function renderPage(
 
 <body>
 
+</body>
+
+</html>`;
+}
+
+/**
+ * Plain text of an article body, cut to a preview excerpt.
+ *
+ * Article text is markup — headings, lists, line breaks — and a preview card
+ * has room for a sentence or two, so the tags go and the whitespace collapses
+ * before the words are counted. The cut falls on a word boundary, never mid
+ * word, and ends in an ellipsis when anything was dropped. Empty when the
+ * article has no body: most entry tables write none, and the caller decides
+ * what the card says instead.
+ */
+export function articleExcerpt(text: string | undefined, max = 200): string {
+  if (!text) return "";
+  let plain = text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (plain.length <= max) return plain;
+  const cut = plain.lastIndexOf(" ", max);
+  plain = (cut > 0 ? plain.substring(0, cut) : plain.substring(0, max)).trimEnd();
+  return `${plain}…`;
+}
+
+/**
+ * The stub a served pedia answers a per-article link with.
+ *
+ * A board fetches a pasted link without running the app, and the app's own
+ * deep links live behind `##`, which never reaches a server, so the stub
+ * carries the article in its path instead (`/a/<id>`) and says everything in
+ * static tags: the article's title, an excerpt of its text, and its
+ * illustration when it has one. The reader in a browser is forwarded to the
+ * app at the same entry, by script, by a meta refresh, and by a plain link
+ * for anything that runs neither.
+ */
+export function renderArticlePreview(options: {
+  title: string;
+  description: string;
+  /** Absolute URL of the stub itself, for `og:url` */
+  url: string;
+  /** Absolute URL of the article illustration, for `og:image` */
+  image?: string;
+  /** Path and hash the app opens the article at, e.g. `/##STR_XXX` */
+  target: string;
+}) {
+  const { title, description, url, image, target } = options;
+  const ogImage = image ? `\n  <meta property="og:image" content="${escapeHtml(image)}" />` : "";
+  return `<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="${escapeHtml(description)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:url" content="${escapeHtml(url)}" />${ogImage}
+  <meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />
+  <title>${escapeHtml(title)}</title>
+  <meta http-equiv="refresh" content="0; url=${escapeHtml(target)}" />
+  <script>location.replace(${JSON.stringify(target)});</script>
+</head>
+
+<body>
+  <p><a href="${escapeHtml(target)}">${escapeHtml(title)}</a></p>
 </body>
 
 </html>`;
@@ -395,6 +499,8 @@ export type BuildPageOptions = {
   data?: { [path: string]: string };
   /** True when the page previews a served folder, see `PagePayload.served` */
   served?: boolean;
+  /** Link-preview tags, see `PageLink`; only a published page has a URL */
+  link?: PageLink;
 };
 
 /** Builds the HTML text of the exported pedia */
@@ -415,6 +521,7 @@ export async function buildPageHtml(options: BuildPageOptions) {
     options.page,
     options.data,
     options.served,
+    options.link,
   );
 }
 

@@ -24,6 +24,7 @@ const modules = [
   ["src/exportCore.ts", "exportcore.mjs"],
   ["src/ui/schedule.ts", "schedule.mjs"],
   ["src/ui/timing.ts", "timing.mjs"],
+  ["src/ui/deploymentRank.ts", "deploymentrank.mjs"],
 ];
 
 /** `js-worker-search` ships as CommonJS whose default export is the class */

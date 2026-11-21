@@ -72,6 +72,13 @@ Options:
                          the game expects, so the result runs without the game.
   --zip                  Write a single .zip instead of loose files, like the
                          browser export does.
+  --url <url>            Public URL the exported page will be served from,
+                         e.g. https://example.io/xcf/. Used for link
+                         previews: the title and description are published
+                         as Open Graph tags, and with --assets a preview
+                         image beside the page backs og:image. Without it
+                         the title and description tags are still written,
+                         but no og:url or og:image.
   --no-manifest          Do not write .xpedia-export.json, and remove one left by
                          an earlier run. Stale files are then not cleaned up, so
                          a directory stays exactly as this run left it.
@@ -116,6 +123,8 @@ type Options = {
   split: boolean;
   assets: boolean;
   zip: boolean;
+  /** Public URL of the page for link previews, ending in `/` */
+  url: string | undefined;
   force: boolean;
   quiet: boolean;
   manifest: boolean;
@@ -138,6 +147,7 @@ function parseArgs(argv: string[]): Options | "help" {
   let manifest = true;
   let serve: string | undefined;
   let port: number | undefined;
+  let url: string | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -173,11 +183,25 @@ function parseArgs(argv: string[]): Options | "help" {
         throw new UsageError("--lang needs a value, e.g. --lang ru,de");
       languages ??= [];
       for (const name of value.split(",")) if (name.trim()) languages.push(name.trim());
+    } else if (arg === "--url" || arg.startsWith("--url=")) {
+      // Both `--url https://example.io/xcf/` and `--url=https://...` are accepted
+      const value = arg === "--url" ? argv[++i] : arg.substring("--url=".length);
+      if (value == null || value.startsWith("--"))
+        throw new UsageError("--url needs a URL, e.g. --url https://example.io/xcf/");
+      if (!/^https?:\/\//i.test(value))
+        throw new UsageError(
+          `--url needs an http(s) URL, not ${JSON.stringify(value)}: a link preview can only point at a public address`,
+        );
+      // The page lives at this folder's address, so the preview image is
+      // named by appending to it; a missing trailing slash would make that
+      // append land next to the page instead of inside it
+      url = value.endsWith("/") ? value : `${value}/`;
     } else if (arg.startsWith("-") && arg !== "-") throw new UsageError(`Unknown option: ${arg}`);
     else positional.push(arg);
   }
 
   if (serve !== undefined) {
+    if (url != null) throw new UsageError("--url only applies to exporting");
     // The folder is normally named by `--serve=`, but a single positional is
     // also read as one so `xpedia-cli --serve D:/mods/MyMod` works
     let folder = serve;
@@ -193,6 +217,7 @@ function parseArgs(argv: string[]): Options | "help" {
       split,
       assets,
       zip,
+      url,
       force,
       quiet,
       manifest,
@@ -213,6 +238,7 @@ function parseArgs(argv: string[]): Options | "help" {
     split,
     assets,
     zip,
+    url,
     force,
     quiet,
     manifest,
@@ -680,7 +706,7 @@ async function main(argv: string[]) {
     processed: pack.processed,
     readFile: (archivePath) => byPath.get(archivePath),
     shell,
-    request: { languages, split: options.split, images: options.assets },
+    request: { languages, split: options.split, images: options.assets, url: options.url },
     pageName,
     report,
   });

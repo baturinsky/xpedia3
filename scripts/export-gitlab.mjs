@@ -33,16 +33,20 @@ const site = "C:\\1\\xpedia-gitlab";
  *
  * `xpiratez` and `xcf` are the folder names the site links use, so they are fixed
  * here rather than derived from the pack file's name: renaming an archive must
- * not move the page that readers have bookmarked.
+ * not move the page that readers have bookmarked. `url` is the GitLab Pages
+ * address of the same folder, which the CLI writes into the page's link
+ * preview tags; those have to be the public address, not the disk one.
  */
 const packs = [
   {
     source: path.join(root, "misc", "modpackExamples", "Dioxine_XPiratez_o2.1.rar"),
     target: path.join(site, "public", "xpiratez"),
+    url: "https://baturinsky.gitlab.io/xpedia/xpiratez/",
   },
   {
     source: path.join(root, "misc", "modpackExamples", "openxcom_xfiles_42.zip"),
     target: path.join(site, "public", "xcf"),
+    url: "https://baturinsky.gitlab.io/xpedia/xcf/",
   },
 ];
 
@@ -110,7 +114,9 @@ console.log(`Commit name: ${commitName}`);
 for (const pack of packs) {
   const name = path.basename(pack.target);
   console.log(`\n=== ${name} ===`);
-  run(process.execPath, [cli, pack.source, pack.target, ...exportFlags]);
+  // `--url` is per pack, so it is not part of the shared flags: each page's
+  // preview has to name its own public address
+  run(process.execPath, [cli, pack.source, pack.target, ...exportFlags, "--url", pack.url]);
 
   // The exit code says the CLI finished; the page is what says it finished with
   // something. A target the CLI declined to write leaves no page at all.

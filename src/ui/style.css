@@ -1215,11 +1215,15 @@ button.modpack-name {
    Wrapping them put the continuation (or the trailing arrow) on a second line
    and read worse than a cut name with the full one on hover. The link is a
    flex row so the arrow never shrinks and the name absorbs the squeeze; the
-   inner `.nobr` span is what actually carries the ellipsis. */
+   inner `.nobr` span is what actually carries the ellipsis.
+   Centred, not baseline-aligned: the name's `overflow: hidden` box makes
+   baseline alignment use the box rather than its text line, which dropped
+   the `<`/`>` about a third of a line below the name. Both items carry the
+   same line-height, so centring their boxes also centres their glyphs. */
 .article-title .left a,
 .article-title .right a {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   min-width: 0;
   overflow: hidden;
 }
@@ -1541,7 +1545,7 @@ ol > li:last-child::after {
 }
 
 /*
- * Tabular nested data: map blocks, deployment data, environmental
+ * Tabular nested data: map blocks, environmental
  * conditions. Header and row-name cells are `th`, so they need the padding
  * `td` gets from `.main-table`, and a table this tall has to be allowed to
  * break across the article's columns — `.main-table` avoids breaking so a
@@ -1609,7 +1613,6 @@ ol > li:last-child::after {
 
 .data-nested li:nth-child(odd) {
   background: var(--table-main);
-  margin-right: 1rem;
 }
 
 .mapscript-commands > li {
@@ -1633,35 +1636,50 @@ ol > li:last-child::after {
   display: list-item;
 }
 
-/* Deployment loadouts and map-block rolls stacked in a full-width row: a gap
-   between sets is what tells one from the next now that they share the row.
+/*
+ * One card per deployment rank: the title, the summary and the loadouts
+ * stay together, so a reader scrolling a long deployment never loses which
+ * rank a list of weapons belongs to. `break-inside: avoid` keeps a card
+ * whole on one side of the article's columns; cards are each only a dozen
+ * lines, so nothing pins like a whole table would.
+ */
+.deployment-cards {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.deployment-card {
+  border: solid 1px var(--border);
+  background: var(--table-main);
+  padding: 0.4rem 0.6rem 0.5rem;
+  break-inside: avoid;
+}
+
+.deployment-card-title {
+  margin: 0 0 0.25rem;
+  font-size: 115%;
+}
+
+.deployment-summary {
+  margin: 0 0 0.3rem;
+}
+
+/* Deployment loadouts and map-block rolls stacked under their card's
+   summary: a gap between sets is what tells one from the next now that
+   they share the card.
    `:where()` carries no specificity on purpose, so this reads as descending */
 /* biome-ignore lint/style/noDescendingSpecificity: margin-block-start on stacked sets is contested nowhere else, and the low specificity is deliberate */
 :where(.deployment-sets, .mapblock-sets) > li + li {
   margin-block-start: 0.35rem;
 }
 
-/* The label of a list row that is not the loadouts/spawns themselves, e.g. the
+/* The label of a list that is not the loadouts themselves, e.g. the
    extra random items under a rank's item sets. */
 .deployment-row-label,
 .mapblock-row-label {
   display: block;
   font-variant: small-caps;
   margin-block-end: 0.2rem;
-}
-
-/* The combined quantity is one expression (`🟢2..🔴6 +🎲0–2`): it must stay
-   on one line. The `width: 1%` content-width columns above would otherwise
-   shrink it to its longest word and wrap the dice onto extra lines. */
-.deployment-qty {
-  white-space: nowrap;
-}
-
-/* Breathing room before the Outside column: the quantity runs longer than
-   the header, so the default cell padding leaves it tight against it. The
-   selector outranks `table.main-table td` on purpose. */
-.data-table > tbody > tr > td.deployment-qty-cell {
-  padding-inline-end: 1rem;
 }
 
 .mapscript-commands > li::after {

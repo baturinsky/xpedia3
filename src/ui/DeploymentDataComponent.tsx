@@ -1,34 +1,49 @@
 import { Fragment, type ReactNode } from "react";
-import type { MainTableRenderer } from "./MainTable";
-import { TipScopeProvider, Val } from "./Val";
+import type { AlienDeployment } from "../rul/Entry";
+import { rul } from "../rul/Ruleset";
+import { type RankDeployment, rankUnits, setChancesByLevel } from "./deploymentRank";
+import MainTable, { type MainTableRenderer } from "./MainTable";
+import { TipScopeProvider, Tr, Val } from "./Val";
 
 /**
- * The `data` of one `alienDeployments` entry, as a table.
+ * The `data` of one `alienDeployments` entry, as cards.
  *
- * One row per alien rank for the numbers — rank, a combined quantity, and
- * the outside share — and one full-width row underneath it per list field
- * (`itemSets`, `extraRandomItems`): the loadouts are the long part, and
- * giving them the whole table width keeps each set to a line or two instead
- * of squeezing them into the last column behind five header-width numeric
- * columns. A field nothing states gets no column, and a list field a row
- * does not state gets no row. `customUnitType` is a single unit, so it
- * stays a column like any other scalar field.
+ * One card per alien rank: the unit that rank spawns as its title, a prose
+ * summary of how many of them appear ("3 at easy, 6 at hard, +0–3 random,
+ * 50% outside the UFO"), and the rank's loadouts underneath. The loadouts
+ * are labelled by what they turn on: `itemSets` are alternatives the alien
+ * tech level picks between (weakest first, drawn as a table of sets against
+ * tech levels when the mod's `alienItemLevels` table can be counted), not
+ * difficulty tiers and not things one alien carries together. Cards rather
+ * than a table, because the loadouts are the long part and a table's
+ * full-width item rows orphan them from the rank they belong to — a reader
+ * scrolling a long deployment lost which rank a list of weapons belonged
+ * to. A card keeps its title, its numbers and its loadouts in one place.
  *
- * The quantity is one cell: the base count by difficulty (`lowQty..medQty..
- * highQty`, equal neighbours collapsed, a missing `medQty` skipped) plus
- * each random bonus that is stated and nonzero as `+🎲0–N` — `dQty` and
- * `extraQty` are independent rolls of 0..N on top of the base, see
- * `BattlescapeGenerator`. Anything the engine knows about that is none of
- * the above follows as a plain column, so a future field still has
- * somewhere to go.
+ * A rank is an index into the alien race's member list, so the title prints
+ * the member the index resolves to (see `deploymentRank.ts`), with the rank
+ * itself kept beside it the way `MissionComponent` keeps an objective's raw
+ * number beside its name. `customUnitType` overrides the lookup in the
+ * engine, so when a row states one it is the title itself. When the missions
+ * field more than one race, the title lists each race's member at that rank
+ * (`A / B`); only when no race leads here, or none has a member at the rank,
+ * does the title fall back to the raw number.
+ *
+ * The quantity in the summary is the base count by difficulty
+ * (`lowQty..medQty..highQty`, equal neighbours collapsed, a missing
+ * `medQty` skipped) plus each random bonus that is stated and nonzero —
+ * `dQty` and `extraQty` are independent rolls of 0..N on top of the base,
+ * see `BattlescapeGenerator`. Anything the engine knows about that is none
+ * of the above follows as a small definition list, so a future field still
+ * has somewhere to go.
  */
 
 type DeploymentRow = { [field: string]: unknown };
 
-/** The quantity fields the combined cell is built from, easy to hard */
+/** The quantity fields the summary is built from, easy to hard */
 const QUANTITY_FIELDS = ["lowQty", "medQty", "highQty", "dQty", "extraQty"];
 
-/** Fields drawn as full-width rows under the rank row, not as columns */
+/** Fields drawn as lists under the summary, not as fields */
 const LIST_ROW_FIELDS = ["itemSets", "extraRandomItems"];
 
 /** Whether a field is absent or empty — it has nothing to say */
@@ -53,21 +68,19 @@ function asNumber(value: unknown): number | undefined {
 }
 
 /**
- * The table's shape: whether the combined quantity and the outside share
- * earn a column, and which other scalar fields do, `customUnitType` first.
- * A field nothing states is left out — a column of blanks would only repeat
- * that the pack did not use it.
+ * The other scalar fields a card states as a small definition list.
+ * `customUnitType` is not among them: the engine spawns it instead of the
+ * rank's member, so the title already prints it. A field nothing states is
+ * left out — a line of blanks would only repeat that the pack did not use
+ * it.
  */
-function layoutOf(rows: DeploymentRow[]): {
-  hasQuantity: boolean;
-  hasOutside: boolean;
-  otherColumns: string[];
-} {
+function otherFieldsOf(rows: DeploymentRow[]): string[] {
   const seen = new Set<string>();
   for (const row of rows) {
     for (const field of Object.keys(row)) {
       if (
         field !== "alienRank" &&
+        field !== "customUnitType" &&
         field !== "percentageOutsideUfo" &&
         !QUANTITY_FIELDS.includes(field) &&
         !LIST_ROW_FIELDS.includes(field) &&
@@ -76,12 +89,7 @@ function layoutOf(rows: DeploymentRow[]): {
         seen.add(field);
     }
   }
-  const rest = [...seen].filter((field) => field !== "customUnitType").sort();
-  return {
-    hasQuantity: rows.some((row) => QUANTITY_FIELDS.some((field) => !isEmpty(row[field]))),
-    hasOutside: rows.some((row) => !isEmpty(row.percentageOutsideUfo)),
-    otherColumns: seen.has("customUnitType") ? ["customUnitType", ...rest] : rest,
-  };
+  return [...seen].sort();
 }
 
 /** A comma list of item references, linked */
@@ -105,9 +113,66 @@ function ItemSet({ value }: { value: unknown }): ReactNode {
   return <Val of={value} />;
 }
 
-/** `itemSets`/`extraRandomItems`: the loadouts, one per line */
-function ItemSets({ value }: { value: unknown }): ReactNode {
+/**
+ * `itemSets`/`extraRandomItems`: the loadouts, one per line.
+ * With `chancesByLevel` — the share of spawns counted from the mod's
+ * `alienItemLevels` table — the loadouts become a table: the tech levels as
+ * the first columns, the items as the last, one row per set (weakest first),
+ * so a reader sees each set's chance at every level instead of counting the
+ * table themselves. A mod with a single row (most have one) has a single
+ * level column and no header to number it by. `extraRandomItems` never gets
+ * one: each of its lines is one random pick, not an alternative, so it stays
+ * a list.
+ */
+function ItemSets({
+  value,
+  chancesByLevel,
+}: {
+  value: unknown;
+  chancesByLevel?: number[][];
+}): ReactNode {
   const sets = asItems(value);
+  const levelCount = chancesByLevel?.[0]?.length ?? 0;
+  if (chancesByLevel && chancesByLevel.length === sets.length && levelCount > 0) {
+    return (
+      <table className="main-table data-table deployment-levels">
+        {/* One level needs no number to its column */}
+        {levelCount > 1 && (
+          <thead>
+            <tr>
+              {Array.from({ length: levelCount }, (_, level) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: a tech level is identified by its position in the mod's table, which is the order it applies
+                <th scope="col" key={level}>
+                  {level + 1}
+                </th>
+              ))}
+              <th scope="col">
+                <Tr text="itemSets" />
+              </th>
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {sets.map((set, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a loadout is identified by its position among its siblings, the order the file writes them
+            <tr key={i}>
+              {chancesByLevel[i].map((chance, level) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: a tech level is identified by its position in the mod's table, which is the order it applies
+                <td key={level}>
+                  {/* `Val` renders a number without its postfix, so the
+                      per cent sign is plain text after it */}
+                  <Val of={chance} />%
+                </td>
+              ))}
+              <td>
+                <ItemSet value={set} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
   return (
     <ul className="data-nested deployment-sets">
       {sets.map((set, i) => (
@@ -121,27 +186,32 @@ function ItemSets({ value }: { value: unknown }): ReactNode {
 }
 
 /**
- * The combined quantity: the base count by difficulty with equal neighbours
- * collapsed (`1..2`, a lone `3` when easy and hard agree — a flat count
- * carries no difficulty icon, since it holds at every difficulty), each
- * stated value marked with its difficulty icon (🟢 easy, 🟡 medium,
- * 🔴 hard) carrying that field's tooltip, then each random bonus that is
- * stated and nonzero as `+🎲0–N` with the die's own tooltip. A missing or
- * zero block takes its punctuation with it, so nothing dangles. `medQty` of
- * 0 counts as missing, the way the engine reads it.
+ * The summary line: how many of the card's unit appear.
+ *
+ * The base count by difficulty with equal neighbours collapsed (a flat
+ * count carries no difficulty word, since it holds at every difficulty),
+ * each stated value marked with its difficulty in words ("3 at easy,
+ * 6 at hard") and carrying that field's tooltip, then each random bonus
+ * that is stated and nonzero as "+0–N random" with its own tooltip. The
+ * outside share closes the line ("50% outside the UFO"). A missing or
+ * zero block takes its punctuation with it, so nothing dangles, and a row
+ * with nothing at all to say gets no line. `medQty` of 0 counts as
+ * missing, the way the engine reads it. Every fragment is a number followed
+ * by its words, which is also the order the Russian reads, so the parts
+ * join with a plain comma in both languages.
  */
-function QuantityCell({ row }: { row: DeploymentRow }): ReactNode {
-  const stated: { n: number; icon: string; tip: string }[] = [];
+function Summary({ row }: { row: DeploymentRow }): ReactNode {
+  const stated: { n: number; word: string; tip: string }[] = [];
   const low = asNumber(row.lowQty);
-  if (low != null) stated.push({ n: low, icon: "🟢", tip: "tip_lowQty" });
+  if (low != null) stated.push({ n: low, word: "xpediaAtEasy", tip: "tip_lowQty" });
   const med = asNumber(row.medQty);
-  if (med != null && med > 0) stated.push({ n: med, icon: "🟡", tip: "tip_medQty" });
+  if (med != null && med > 0) stated.push({ n: med, word: "xpediaAtMedium", tip: "tip_medQty" });
   const high = asNumber(row.highQty);
-  if (high != null) stated.push({ n: high, icon: "🔴", tip: "tip_highQty" });
+  if (high != null) stated.push({ n: high, word: "xpediaAtHard", tip: "tip_highQty" });
   // Equal neighbours collapse to one number, keeping the last mark of the
   // run (the hardest difficulty the value holds at); a count stated at every
   // difficulty collapses to a single unmarked number.
-  const groups: { n: number; icon: string; tip: string }[] = [];
+  const groups: { n: number; word: string; tip: string }[] = [];
   for (const entry of stated) {
     const last = groups[groups.length - 1];
     if (last && last.n === entry.n) Object.assign(last, entry);
@@ -153,116 +223,196 @@ function QuantityCell({ row }: { row: DeploymentRow }): ReactNode {
   if (dQty != null && dQty > 0) dice.push({ n: dQty, tip: "tip_dQty" });
   const extraQty = asNumber(row.extraQty);
   if (extraQty != null && extraQty > 0) dice.push({ n: extraQty, tip: "tip_extraQty" });
-  return (
-    <span className="deployment-qty">
-      {groups.length > 0 && (
-        <em className="num">
-          {groups.map((group, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a position in the difficulty order identifies the value for the file reader
-            <Fragment key={i}>
-              {i > 0 && ".."}
-              {!flat && <span data-tooltip={group.tip}>{group.icon}</span>}
-              {group.n}
-            </Fragment>
-          ))}
-        </em>
-      )}
-      {dice.map((die, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: dQty comes before extraQty, the order the file writes them
-        <Fragment key={i}>
+
+  const parts: ReactNode[] = groups.map((group, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: a position in the difficulty order identifies the value for the file reader
+    <span key={i} data-tooltip={group.tip}>
+      <em className="num">{group.n}</em>
+      {!flat && (
+        <>
           {" "}
-          <span data-tooltip={die.tip}>
-            <em className="num">🎲0–{die.n}</em>
-          </span>
+          <Tr text={group.word} />
+        </>
+      )}
+    </span>
+  ));
+  for (const die of dice) {
+    parts.push(
+      <span data-tooltip={die.tip}>
+        <em className="num">+0–{die.n}</em> <Tr text="xpediaRandomQty" />
+      </span>,
+    );
+  }
+  if (!isEmpty(row.percentageOutsideUfo)) {
+    parts.push(
+      <span>
+        <em className="num">{String(row.percentageOutsideUfo)}%</em> <Tr text="xpediaOutsideUfo" />
+      </span>,
+    );
+  }
+  if (parts.length === 0) return null;
+  return (
+    <p className="deployment-summary">
+      {parts.map((part, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the parts follow the order the summary builds them in
+        <Fragment key={i}>
+          {i > 0 && ", "}
+          {part}
         </Fragment>
       ))}
-    </span>
+    </p>
   );
 }
 
-function DeploymentDataView({ data }: { data: unknown }): ReactNode {
+/**
+ * The card's title: the unit the rank spawns, with the rank kept beside it.
+ *
+ * `customUnitType` wins outright in the engine, so it needs no race at all;
+ * otherwise the rank resolves through the deployment's race (see
+ * `deploymentRank.ts`). A `membersRandom` slot rolls between its candidates
+ * on every spawn, so all of them are listed, joined by ` / ` — and the same
+ * join lists the members of two or more races when the deployment's missions
+ * field more than one. When nothing resolves — no known race, or a rank past
+ * every member list — the raw number stands, which is all that can honestly
+ * be said.
+ */
+function RankTitle({
+  row,
+  index,
+  deployment,
+}: {
+  row: DeploymentRow;
+  index: number;
+  deployment: RankDeployment | undefined;
+}): ReactNode {
+  const rank = asNumber(row.alienRank) ?? index;
+  const custom =
+    typeof row.customUnitType === "string" && row.customUnitType !== ""
+      ? row.customUnitType
+      : undefined;
+  const units = custom ? [custom] : rankUnits(deployment, rank, rul ?? {});
+  if (!units || units.length === 0) return <Val of={row.alienRank ?? index} field="alienRank" />;
+  return (
+    <>
+      {units.map((unit, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a candidate is identified by its position in its rank's roll
+        <Fragment key={i}>
+          {i > 0 && " / "}
+          <Val of={unit} />
+        </Fragment>
+      ))}
+      <span className="mission-raw"> ({rank})</span>
+    </>
+  );
+}
+
+function DeploymentDataView({
+  data,
+  deployment,
+}: {
+  data: unknown;
+  deployment: RankDeployment | undefined;
+}): ReactNode {
   const list = asItems(data).filter(
     (item): item is DeploymentRow => typeof item === "object" && item != null,
   );
   if (list.length === 0) return null;
-  const rows = list;
-  const { hasQuantity, hasOutside, otherColumns } = layoutOf(rows);
-  const colCount = 1 + (hasQuantity ? 1 : 0) + (hasOutside ? 1 : 0) + otherColumns.length;
+  // By rank, not by file order: the engine spawns each row in turn with a
+  // random node of its rank, so the order a pack writes its rows in carries
+  // no meaning — and ascending rank reads like the race's member list
+  // (commander first, terrorists last). The sort is stable, so rows of one
+  // rank keep the order the file writes them in.
+  // `origIndex` survives the sort: a row with no stated rank falls back to
+  // its position in the file, not to its position among the cards.
+  const rows = list
+    .map((row, origIndex) => ({ row, origIndex }))
+    .sort(
+      (a, b) =>
+        (asNumber(a.row.alienRank) ?? a.origIndex) - (asNumber(b.row.alienRank) ?? b.origIndex) ||
+        a.origIndex - b.origIndex,
+    );
+  const otherFields = otherFieldsOf(rows.map(({ row }) => row));
   return (
     <TipScopeProvider scope="deploymentData">
-      <table className="main-table data-table">
-        <thead>
-          <tr>
-            <th scope="col">
-              <Val of="xpediaDeploymentRank" />
-            </th>
-            {hasQuantity && (
-              <th scope="col">
-                <Val of="xpediaDeploymentQuantity" />
-              </th>
-            )}
-            {hasOutside && (
-              <th scope="col">
-                <Val of="xpediaDeploymentOutside" />
-              </th>
-            )}
-            {otherColumns.map((field) => (
-              <th scope="col" key={field}>
-                <Val of={field} capital={true} />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a row is identified by its position among its siblings, the order the file writes them
-            <Fragment key={i}>
-              <tr>
-                <th scope="row">
-                  <Val of={row.alienRank ?? i} field="alienRank" />
-                </th>
-                {hasQuantity && (
-                  <td className="deployment-qty-cell">
-                    <QuantityCell row={row} />
-                  </td>
-                )}
-                {hasOutside && (
-                  <td>
-                    {isEmpty(row.percentageOutsideUfo) ? null : (
-                      <em className="num">{String(row.percentageOutsideUfo)}%</em>
-                    )}
-                  </td>
-                )}
-                {otherColumns.map((field) => (
-                  <td key={field}>
-                    {isEmpty(row[field]) ? null : <Val of={row[field]} field={field} />}
-                  </td>
-                ))}
-              </tr>
-              {!isEmpty(row.itemSets) && (
-                <tr>
-                  <td colSpan={colCount}>
-                    <ItemSets value={row.itemSets} />
-                  </td>
-                </tr>
-              )}
-              {!isEmpty(row.extraRandomItems) && (
-                <tr>
-                  <td colSpan={colCount}>
-                    <span className="deployment-row-label">
-                      <Val of="extraRandomItems" />
+      <div className="deployment-cards">
+        {rows.map(({ row, origIndex }) => (
+          <section className="deployment-card" key={origIndex}>
+            <h3 className="deployment-card-title">
+              <RankTitle row={row} index={origIndex} deployment={deployment} />
+            </h3>
+            <Summary row={row} />
+            {otherFields
+              .filter((field) => !isEmpty(row[field]))
+              .map((field) => (
+                <dl className="data-fields" key={field}>
+                  <dt>
+                    <Val of={field} capital={true} />
+                  </dt>
+                  <dd>
+                    <Val of={row[field]} field={field} />
+                  </dd>
+                </dl>
+              ))}
+            {!isEmpty(row.itemSets) &&
+              (() => {
+                const byLevel = asItems(row.itemSets).length > 1;
+                return (
+                  <>
+                    <span
+                      className="deployment-row-label"
+                      data-tooltip={
+                        byLevel ? "tip_xpediaLoadoutsByTechLevel" : "tip_xpediaLoadoutByTechLevel"
+                      }
+                    >
+                      <Tr
+                        text={byLevel ? "xpediaLoadoutsByTechLevel" : "xpediaLoadoutByTechLevel"}
+                      />
                     </span>
-                    <ItemSets value={row.extraRandomItems} />
-                  </td>
-                </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+                    <ItemSets
+                      value={row.itemSets}
+                      chancesByLevel={
+                        byLevel
+                          ? setChancesByLevel(asItems(row.itemSets).length, rul?.alienItemLevels)
+                          : undefined
+                      }
+                    />
+                  </>
+                );
+              })()}
+            {!isEmpty(row.extraRandomItems) && (
+              <>
+                <span className="deployment-row-label">
+                  <Val of="extraRandomItems" />
+                </span>
+                <ItemSets value={row.extraRandomItems} />
+              </>
+            )}
+          </section>
+        ))}
+      </div>
     </TipScopeProvider>
   );
 }
 
-/** The `data` renderer for `alienDeployments` articles */
-export const deploymentData: MainTableRenderer = ({ val }) => <DeploymentDataView data={val} />;
+/** A nested table, for the briefing this article shows as its own block */
+const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
+
+/**
+ * An `alienDeployments` article: the entry's fields, with `data` drawn as
+ * the rank cards above. A component rather than a table config, because the
+ * cards need the deployment itself — its `race`, and the missions that lead
+ * to it — to resolve each rank to the unit it spawns.
+ */
+export default function DeploymentComponent({ entry }: { entry: AlienDeployment }) {
+  return (
+    <MainTable
+      of={entry}
+      title="alienDeployments"
+      sort={{ first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] }}
+      special={{
+        data: ({ val }) => <DeploymentDataView data={val} deployment={entry} />,
+        briefing: asSubTable,
+      }}
+    />
+  );
+}
