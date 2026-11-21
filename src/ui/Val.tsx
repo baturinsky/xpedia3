@@ -53,6 +53,24 @@ export function formatNumber(val: unknown) {
   return Number(val).toLocaleString("ru-RU", { maximumFractionDigits: 4 }).replace(",", ".");
 }
 
+/**
+ * A chance as the tables print it: a formatted number with its per cent sign.
+ *
+ * The one path for every percent in the renderers. `Val` formats a number but
+ * does not add the sign, so callers that typed `%` themselves ended up with
+ * three spellings of the same thing — `<Val/>%`, `<em>{n}%</em>`, and a bare
+ * `String` — and one of them skipped locale formatting. A field that *is* a
+ * chance (`globalChance`, `*Percentage`) gets the sign from `Val` itself via
+ * its field name, so those can go through `Val of={v} field={field}` instead.
+ */
+export function Percent({ value, field }: { value: unknown; field?: string }) {
+  return (
+    <>
+      <Val of={value} field={field} />%
+    </>
+  );
+}
+
 export const Val = ({
   of: val = null as unknown,
   children = null as unknown,
@@ -139,7 +157,18 @@ export const Val = ({
 
   // Primitive: number. Empty strings are checked so they don't render as 0
   if (val !== "" && !Array.isArray(val) && !Number.isNaN(Number(val))) {
-    return <em className="num">{formatNumber(val)}</em>;
+    // A chance field is a per cent: the number alone does not say so, and the
+    // old renderers each remembered to add the sign (or forgot to, leaving
+    // `globalChance` as a bare number). The sign comes from the field name
+    // here, so every chance reads the same way wherever it is drawn.
+    const suffix =
+      field != null && (/(Chance|Percentage)$/.test(field) || field === "executionOdds") ? "%" : "";
+    return (
+      <>
+        <em className="num">{formatNumber(val)}</em>
+        {suffix}
+      </>
+    );
   }
   // A value that changes over a commendation's stages: `first..last`
   if (val instanceof ValueRange) {

@@ -3,7 +3,7 @@ import { rul } from "../rul/Ruleset";
 import MainTable, { type MainTableRenderer } from "./MainTable";
 import { parseRaceWeights, raceWeightPercent } from "./raceWeights";
 import { formatDelay, formatSeconds, waveDelay } from "./timing";
-import { Tr, Val } from "./Val";
+import { Percent, Tr, Val } from "./Val";
 
 /**
  * An alien mission: the plan behind a UFO flight.
@@ -233,7 +233,7 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
                         {note.percent != null && (
                           <>
                             {" "}
-                            <em className="num">{note.percent}%</em>
+                            <Percent value={note.percent} />
                           </>
                         )}
                       </div>
@@ -280,11 +280,11 @@ function RaceWeights({ value }: { value: unknown }) {
           return (
             <tr key={row.month}>
               <td className="mission-race-month">
-                <em className="num">{start}</em>
+                <Val of={start} />
                 {end != null ? (
                   <>
                     {"–"}
-                    <em className="num">{end}</em>
+                    <Val of={end} />
                   </>
                 ) : (
                   <>
@@ -299,9 +299,7 @@ function RaceWeights({ value }: { value: unknown }) {
                 const pct = raceWeightPercent(weight, row.total);
                 return (
                   <td key={race}>
-                    {/* `Val` renders a number without its postfix, so the per
-                        cent sign is plain text after it */}
-                    <Val of={pct} />%
+                    <Percent value={pct} />
                   </td>
                 );
               })}
@@ -323,30 +321,29 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
     <MainTable
       of={entry}
       title="ALIEN_MISSIONS"
-      sort={{ last: ["waves"], exclude: ["id"] }}
-      special={{ raceWeights: asRaceWeights }}
-      rows={{
+      sort={{ last: ["waves"] }}
+      wide={["waves"]}
+      special={{
+        raceWeights: asRaceWeights,
+        waves: () => <WaveTable waves={waves} />,
         objective: ({ val }) => {
           const name = objectiveName(val);
           // A pack that states no objective is running the default score mission,
           // which is worth saying rather than leaving an empty row
           return (
-            <tr>
-              <td className="row-name">
-                <Val of="objective" capital={true} />
-              </td>
-              <td>
-                <Val of={name ?? "xpediaObjective0"} />
-                {name && val != null && (
-                  <span className="mission-raw">
-                    {" "}
-                    (<Val of={val} />)
-                  </span>
-                )}
-              </td>
-            </tr>
+            <>
+              <Val of={name ?? "xpediaObjective0"} />
+              {name && val != null && (
+                <span className="mission-raw">
+                  {" "}
+                  (<Val of={val} />)
+                </span>
+              )}
+            </>
           );
         },
+      }}
+      rows={{
         // `points` is shared with research and manufacture, where the tooltip the
         // shared label carries ("score for completing this project") is right. On
         // a mission it is the score the aliens gain, so the row states that itself
@@ -384,20 +381,6 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
               </td>
             </tr>
           ),
-        waves: () => (
-          <>
-            <tr>
-              <td colSpan={2} className="table-subheader">
-                <Val of="waves" />
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={2}>
-                <WaveTable waves={waves} />
-              </td>
-            </tr>
-          </>
-        ),
       }}
     />
   );

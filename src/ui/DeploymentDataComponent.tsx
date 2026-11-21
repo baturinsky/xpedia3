@@ -7,8 +7,9 @@ import {
   rankUnits,
   setChancesByLevel,
 } from "./deploymentRank";
-import MainTable, { type MainTableRenderer } from "./MainTable";
-import { TipScopeProvider, Tr, Val } from "./Val";
+import MainTable, { asSubTable } from "./MainTable";
+import { Percent, TipScopeProvider, Tr, Val } from "./Val";
+import { asItems, asNumber, isEmpty } from "./value";
 
 /**
  * The `data` of one `alienDeployments` entry, as cards.
@@ -50,27 +51,6 @@ const QUANTITY_FIELDS = ["lowQty", "medQty", "highQty", "dQty", "extraQty"];
 
 /** Fields drawn as lists under the summary, not as fields */
 const LIST_ROW_FIELDS = ["itemSets", "extraRandomItems"];
-
-/** Whether a field is absent or empty — it has nothing to say */
-function isEmpty(value: unknown): boolean {
-  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
-}
-
-/** A scalar or a one-value list, as a list */
-function asItems(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [value];
-}
-
-/** A stated number, or nothing when the value is absent or not numeric */
-function asNumber(value: unknown): number | undefined {
-  const n =
-    typeof value === "number"
-      ? value
-      : typeof value === "string" && value.trim() !== ""
-        ? Number(value)
-        : NaN;
-  return Number.isFinite(n) ? n : undefined;
-}
 
 /**
  * The other scalar fields a card states as a small definition list.
@@ -140,9 +120,9 @@ function ItemSets({
   const levelCount = chancesByLevel?.[0]?.length ?? 0;
   if (chancesByLevel && chancesByLevel.length === sets.length && levelCount > 0) {
     return (
-      // The one `.data-table` whose last column is a long list beside short
-      // numbers: the per-cents stay content-width and `itemSets` takes what
-      // is left, rather than sharing the width fairly with them.
+      // A loadout table is a chance table: it fills the card with the
+      // per-cents centred under their level numbers, like the raceWeights
+      // table, while the last column is the items list.
       <table className="main-table data-table data-table-wide-last deployment-levels">
         {/* One level needs no number to its column */}
         {levelCount > 1 && (
@@ -167,9 +147,7 @@ function ItemSets({
               {chancesByLevel[i].map((chance, level) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: a tech level is identified by its position in the mod's table, which is the order it applies
                 <td key={level}>
-                  {/* `Val` renders a number without its postfix, so the
-                      per cent sign is plain text after it */}
-                  <Val of={chance} />%
+                  <Percent value={chance} />
                 </td>
               ))}
               <td>
@@ -234,27 +212,30 @@ function Summary({ row }: { row: DeploymentRow }): ReactNode {
 
   const parts: ReactNode[] = groups.map((group, i) => (
     // biome-ignore lint/suspicious/noArrayIndexKey: a position in the difficulty order identifies the value for the file reader
-    <span key={i} data-tooltip={group.tip}>
-      <em className="num">{group.n}</em>
+    <span key={i} className="nobr" data-tooltip={group.tip}>
+      <Val of={group.n} />
       {!flat && (
         <>
           {" "}
           <Tr text={group.word} />
         </>
       )}
+      <sup className="tipmark">?</sup>
     </span>
   ));
   for (const die of dice) {
     parts.push(
-      <span data-tooltip={die.tip}>
-        <em className="num">+0–{die.n}</em> <Tr text="xpediaRandomQty" />
+      <span className="nobr" data-tooltip={die.tip}>
+        +0–
+        <Val of={die.n} /> <Tr text="xpediaRandomQty" />
+        <sup className="tipmark">?</sup>
       </span>,
     );
   }
   if (!isEmpty(row.percentageOutsideUfo)) {
     parts.push(
-      <span>
-        <em className="num">{String(row.percentageOutsideUfo)}%</em> <Tr text="xpediaOutsideUfo" />
+      <span className="nobr">
+        <Percent value={row.percentageOutsideUfo} /> <Tr text="xpediaOutsideUfo" />
       </span>,
     );
   }
@@ -360,6 +341,15 @@ function DeploymentDataView({
             (itemSetsEmpty || extraEmpty) &&
             (!itemSetsPresent || itemSetsEmpty) &&
             (!extraPresent || extraEmpty);
+          // The "by alien tech level" label is only honest when the levels
+          // were actually counted: with several sets but no usable
+          // `alienItemLevels` table the sets just list, and the label drops
+          // the "by alien tech level". A single set is a single loadout.
+          const setCount = asItems(row.itemSets).length;
+          const chances =
+            itemSetsPresent && !itemSetsEmpty
+              ? setChancesByLevel(setCount, rul?.alienItemLevels)
+              : undefined;
           return (
             <section className="deployment-card" key={origIndex}>
               <h3 className="deployment-card-title">
@@ -379,37 +369,26 @@ function DeploymentDataView({
                   </dl>
                 ))}
               {showsNoItems && (
-                <p className="deployment-no-items">
+                <p className="mission-note">
                   <Tr text="xpediaNoLoadoutItems" />
                 </p>
               )}
-              {itemSetsPresent &&
-                !itemSetsEmpty &&
-                (() => {
-                  const byLevel = asItems(row.itemSets).length > 1;
-                  return (
-                    <>
-                      <span
-                        className="deployment-row-label"
-                        data-tooltip={
-                          byLevel ? "tip_xpediaLoadoutsByTechLevel" : "tip_xpediaLoadoutByTechLevel"
-                        }
-                      >
-                        <Tr
-                          text={byLevel ? "xpediaLoadoutsByTechLevel" : "xpediaLoadoutByTechLevel"}
-                        />
-                      </span>
-                      <ItemSets
-                        value={row.itemSets}
-                        chancesByLevel={
-                          byLevel
-                            ? setChancesByLevel(asItems(row.itemSets).length, rul?.alienItemLevels)
-                            : undefined
-                        }
-                      />
-                    </>
-                  );
-                })()}
+              {itemSetsPresent && !itemSetsEmpty && (
+                <>
+                  <span className="deployment-row-label">
+                    <Tr
+                      text={
+                        setCount > 1
+                          ? chances
+                            ? "xpediaLoadoutsByTechLevel"
+                            : "xpediaLoadouts"
+                          : "xpediaLoadoutByTechLevel"
+                      }
+                    />
+                  </span>
+                  <ItemSets value={row.itemSets} chancesByLevel={chances} />
+                </>
+              )}
               {extraPresent && !extraEmpty && (
                 <>
                   <span className="deployment-row-label">
@@ -425,9 +404,6 @@ function DeploymentDataView({
     </TipScopeProvider>
   );
 }
-
-/** A nested table, for the briefing this article shows as its own block */
-const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
 
 /**
  * An `alienDeployments` article: the entry's fields, with `data` drawn as

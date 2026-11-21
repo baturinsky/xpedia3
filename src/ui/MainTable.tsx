@@ -3,15 +3,37 @@ import { rul, type SortFirstLastOptions, sortFirstLast } from "../rul/Ruleset";
 import { isFlat } from "../util";
 import { type AnyRef, fromAnyRef } from "./components";
 import { TipScopeProvider, Val } from "./Val";
+import { isEmpty } from "./value";
 
 /**
  * Draws one row of a `MainTable`.
  *
  * `val` is whatever the ruleset put under that key: a number, a list of ids, or
  * a whole nested node. A renderer is picked by field name, so it is matched to
- * the value at runtime and cannot be typed by it.
+ * the value at runtime and cannot be typed by it. `field` and `collection` ride
+ * along so a custom renderer can pass them to `Val` the way the default row
+ * does — tooltips and sound handling key off them.
  */
-export type MainTableRenderer = (props: { key: string; val: unknown; row: number }) => ReactNode;
+export type MainTableRenderer = (props: {
+  key: string;
+  val: unknown;
+  row: number;
+  field?: string;
+  collection?: string;
+}) => ReactNode;
+
+/**
+ * A nested node as its own table, or nothing when it states nothing.
+ *
+ * The conditional is the point: an empty `briefing` or weights block is no
+ * table at all, not an empty boxed one. `MainTable` itself draws nothing for
+ * an absent node, and this does the same for an empty object.
+ */
+export const asSubTable: MainTableRenderer = ({ val }) => {
+  if (isEmpty(val)) return null;
+  if (typeof val === "object" && Object.keys(val as object).length === 0) return null;
+  return <MainTable of={val} />;
+};
 
 interface MainTableProps {
   /** The node to draw a row per field of; `Entry`, or a plain ruleset node */
@@ -30,9 +52,14 @@ interface MainTableProps {
   after?: ReactNode;
   /** Fields that use custom renderer for the value only */
   special?: { [field: string]: MainTableRenderer };
-  /** Fields that use custom renderer for both the key and rendered value */
+  /** Fields drawn as a subheader with the whole block under it. The renderer
+   *  returns the block's content; the subheader is the table's. This is the
+   *  canonical path for "subheader + block" — `rows` hand-rolling the same
+   *  markup is reserved for fields that draw several rows of their own, or
+   *  that must suppress the subheader when the value is empty. */
   wide?: string[];
-  /** Fields that render every row they need, subheader included */
+  /** Fields that render every row they need, subheader included. Use only
+   *  when `wide` cannot: several rows, or no subheader for an empty value. */
   rows?: { [field: string]: MainTableRenderer };
 }
 
@@ -110,6 +137,7 @@ const MainTable = ({
         <tbody>
           {before}
           {sorted.all.map(([key, value]: [string, unknown], row) => {
+            const extra = { key, val: value, row, field: key, collection: scope };
             // A field that draws its own rows, subheader included. Checked first
             // so a caller can name an internal row such as `_details`.
             if (key in rows) {
@@ -118,7 +146,7 @@ const MainTable = ({
                 console.error(`Row renderer for '${key}' is not a function`);
                 return null;
               }
-              return <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
+              return <Fragment key={key}>{render(extra)}</Fragment>;
             }
 
             // Skip keys starting with underscore
@@ -135,7 +163,7 @@ const MainTable = ({
               if (typeof render !== "function") {
                 content = subVal(key, value);
               } else {
-                content = <Fragment key={key}>{render({ key, val: value, row })}</Fragment>;
+                content = <Fragment key={key}>{render(extra)}</Fragment>;
               }
               return (
                 <Fragment key={key}>
@@ -163,13 +191,13 @@ const MainTable = ({
                   <td className="row-name">
                     <Val of={key} capital={true} />
                   </td>
-                  <td>{render({ key, val: value, row })}</td>
+                  <td>{render(extra)}</td>
                 </tr>
               );
             }
 
             // Default fields - only render if prop has value
-            if (value != null && (value as { length?: unknown })?.length !== 0) {
+            if (!isEmpty(value)) {
               return (
                 <tr key={key}>
                   <td className="row-name">

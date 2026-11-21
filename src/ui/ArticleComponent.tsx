@@ -31,7 +31,7 @@ import DeploymentComponent from "./DeploymentDataComponent";
 import { environmentalConditions } from "./EnviroConditionsComponent";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
-import MainTable, { type MainTableRenderer } from "./MainTable";
+import MainTable, { asSubTable, type MainTableRenderer } from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import { mapBlocks } from "./MapBlockComponent";
 import { mapScriptCommands } from "./MapScriptComponent";
@@ -140,9 +140,6 @@ function PackMeta() {
   );
 }
 
-export const asSubTable: MainTableRenderer = (props) => <MainTable of={props.val} />,
-  asJson: MainTableRenderer = (props) => <pre>{JSON.stringify(props.val, undefined, 2)}</pre>;
-
 /*Which renderer to use for each article type */
 
 /**
@@ -152,6 +149,7 @@ export const asSubTable: MainTableRenderer = (props) => <MainTable of={props.val
 interface TableConfig {
   title?: string;
   sort?: SortFirstLastOptions;
+  wide?: string[];
   special?: { [field: string]: MainTableRenderer };
   rows?: { [field: string]: MainTableRenderer };
 }

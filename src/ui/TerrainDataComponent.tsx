@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import type { MainTableRenderer } from "./MainTable";
 import { mapBlocks } from "./MapBlockComponent";
 import { TipScopeProvider, Val } from "./Val";
+import { asItems, isEmpty } from "./value";
 
 /**
  * The `battlescapeTerrainData` of one `ufos` entry: an inline terrain.
@@ -10,8 +11,9 @@ import { TipScopeProvider, Val } from "./Val";
  * terrain here, so a nested table per field hid its shape behind boxes in
  * boxes (`Map blocks`/`0`/`1`/… and a `Name` the generic table never draws).
  * The name is the headline in its rul spelling, the data sets a comma list,
- * and the blocks reuse the `mapBlocks` table: one row per block, content-
- * width columns, the spawn columns taking the rest.
+ * and the blocks reuse the `mapBlocks` summary: the terrain's placed items
+ * and random spawns summed over all blocks, with the per-block file detail
+ * behind a toggle.
  */
 
 type TerrainData = { [field: string]: unknown };
@@ -34,16 +36,6 @@ const OTHER_ORDER = [
   "script",
   "mapScripts",
 ];
-
-/** Whether a field is absent or empty — it has nothing to say */
-function isEmpty(value: unknown): boolean {
-  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
-}
-
-/** A scalar or a one-value list, as a list */
-function asItems(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [value];
-}
 
 /** A comma list of data-set names in their rul spelling */
 function DataSetList({ value }: { value: unknown }): ReactNode {

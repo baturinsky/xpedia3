@@ -1,6 +1,5 @@
 import type { Manufacture } from "../rul/Entry";
-import { asSubTable } from "./ArticleComponent";
-import MainTable, { type MainTableRenderer } from "./MainTable";
+import MainTable, { asSubTable, type MainTableRenderer } from "./MainTable";
 import { Val } from "./Val";
 
 /** Manufacture table, follows old `Manufacture.svelte` */

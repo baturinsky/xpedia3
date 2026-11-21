@@ -1663,6 +1663,7 @@ ol > li:last-child::after {
  */
 .deployment-cards {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.6rem;
 }
 
@@ -1670,6 +1671,9 @@ ol > li:last-child::after {
   border: solid 1px var(--border);
   background: var(--table-main);
   padding: 0.4rem 0.6rem 0.5rem;
+  /* A grid item's automatic minimum size is its content's, so a wide table
+     inside would widen the track and the page. Clamp it to the column. */
+  min-width: 0;
   break-inside: avoid;
 }
 
@@ -1682,13 +1686,8 @@ ol > li:last-child::after {
   margin: 0 0 0.3rem;
 }
 
-/* A rank whose loadout is stated as empty sets: the engine spawns the unit
-   bare-handed, so the note stands where the loadouts list would go. */
-.deployment-no-items {
-  margin: 0 0 0.3rem;
-  font-style: italic;
-  opacity: 0.85;
-}
+/* The per-cents of `deployment-levels` are centred under their level
+   numbers, while the last column is the items list. */
 
 /* Deployment loadouts and map-block rolls stacked under their card's
    summary: a gap between sets is what tells one from the next now that
@@ -1706,6 +1705,17 @@ ol > li:last-child::after {
   display: block;
   font-variant: small-caps;
   margin-block-end: 0.2rem;
+}
+
+/* The toggle over a map block's placed `items` and over the whole
+   terrain's "file details": both reveal what only a reader comparing with
+   the ruleset text needs. */
+.details-toggle {
+  margin-block-start: 0.25rem;
+  font: inherit;
+  font-size: 85%;
+  padding: 0.05rem 0.4rem;
+  cursor: pointer;
 }
 
 .mapscript-commands > li::after {
@@ -3362,6 +3372,23 @@ table.mission-raceweights td {
 table.mission-raceweights td.mission-race-month {
   text-align: left;
   white-space: nowrap;
+}
+
+/* `deployment-levels` is a chance table like `raceWeights`, but its last
+   column is a long items list, so it cannot sit at `max-content`: that
+   single-line width exceeds the card and pushes the page sideways. It
+   fills the card instead, with the per-cents centred under their level
+   numbers and the items list taking the width left over. */
+table.deployment-levels {
+  width: 100%;
+}
+table.deployment-levels > thead > tr > :not(:last-child),
+table.deployment-levels > tbody > tr > :not(:last-child) {
+  text-align: center;
+}
+table.deployment-levels > thead > tr > :last-child,
+table.deployment-levels > tbody > tr > :last-child {
+  text-align: left;
 }
 
 .mission-notes {

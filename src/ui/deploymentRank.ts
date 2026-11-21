@@ -16,6 +16,8 @@
  * can print the name instead of the index.
  */
 
+import { sharePercent } from "./value";
+
 /** The slice of a race a rank resolves against */
 export type RankRace = {
   members?: unknown;
@@ -301,7 +303,7 @@ function chancesForRow(row: number[], setCount: number): number[] {
     const set = Math.min(Math.max(value, 0), setCount - 1);
     counts[set] += 1;
   }
-  return counts.map((count) => Math.round((count / row.length) * 100));
+  return counts.map((count) => sharePercent(count, row.length));
 }
 
 /**

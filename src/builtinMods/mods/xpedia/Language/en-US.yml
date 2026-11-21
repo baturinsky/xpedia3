@@ -2998,9 +2998,21 @@ en-US:
   xpediaAtHard: "at hard"
   xpediaRandomQty: random
   xpediaOutsideUfo: outside the UFO
+  xpediaLoadouts: Loadouts
+  xpediaFuse: fuse
+  xpediaRandomItems: random items from
+  xpediaRandomItemsOne: random item from
+  xpediaRandomCopies: copies of the one random item from
+  xpediaRandomCopiesOne: copy of the one random item from
+  xpediaNotAllPrimed: not all primed
+  xpediaShowFileDetails: Show file details
+  xpediaHideFileDetails: Hide file details
+  xpediaShowCoordinates: Show coordinates
+  xpediaHideCoordinates: Hide coordinates
   xpediaLoadoutsByTechLevel: Loadouts by alien tech level
   xpediaLoadoutByTechLevel: Loadout
   xpediaNoLoadoutItems: No items in loadout
+  tip_xpediaLoadouts: "Loadouts<br><br>Several loadout sets, listed in the pack's order. The mod states no usable alienItemLevels table, so no per-level chances are counted for them here."
   tip_xpediaLoadoutsByTechLevel: "Loadouts by alien tech level<br><br>Each spawned alien carries one of these sets, chosen by the alien tech level the game has reached (alienItemLevels), not by difficulty and not by alien rank. Sets are listed weakest first; late in the campaign the last set is the one that spawns. The table counts each set's chance at every tech level from the mod's alienItemLevels table: tech level 1 is the first month of the campaign, and the columns after it are the following months."
   tip_xpediaLoadoutByTechLevel: "Loadout<br><br>The one set this alien always carries, at every tech level. With several sets a tech level would pick one of them (see 'Loadouts by alien tech level')."
   nextStage: Next stage

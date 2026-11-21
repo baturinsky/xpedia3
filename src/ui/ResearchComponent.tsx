@@ -47,10 +47,12 @@ export const ResearchComponent = ({ entry }: { entry: Entry }) => {
     <MainTable
       of={entry}
       title="Research"
-      sort={{ last: longLists, exclude: ["name"] }}
+      sort={{ last: longLists }}
       wide={wide}
       special={special}
       rows={{
+        // `getOneFreeProtected` draws several rows of its own, which `wide`
+        // cannot (its content sits inside one cell), so it stays a `rows` field.
         getOneFreeProtected: () =>
           groups == null ? null : (
             <>

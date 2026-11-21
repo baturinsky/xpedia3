@@ -1,8 +1,8 @@
 import type { MissionScript } from "../rul/Entry";
-import MainTable, { type MainTableRenderer } from "./MainTable";
+import MainTable, { asSubTable } from "./MainTable";
 import { calendarMonth, monthWindow, researchGate, runLimit, scriptDelay } from "./schedule";
 import { formatDelay, formatMinutes } from "./timing";
-import { Tr, Val } from "./Val";
+import { Percent, Tr, Val } from "./Val";
 
 /**
  * A mission script: the scheduler that decides whether an alien mission happens
@@ -155,7 +155,7 @@ function OddsRow({ entry }: { entry: MissionScript }) {
         <Tr text="xpediaScriptOdds" capital={true} />
       </td>
       <td>
-        <em className="num">{Number(entry.executionOdds)}%</em>
+        <Percent value={entry.executionOdds} field="executionOdds" />
         <div className="mission-note">
           <Tr text="xpediaScriptOddsNote" />
         </div>
@@ -341,45 +341,44 @@ function TableRow({ entry }: { entry: MissionScript }) {
   );
 }
 
-/** A nested table, for the weights this article shows as their own block */
-const asSubTable: MainTableRenderer = ({ val }) => <MainTable of={val} />;
-
 /** Mission script table: the schedule, with the timing fields spelled out */
 export default function MissionScriptComponent({ entry }: { entry: MissionScript }) {
   return (
     <MainTable
       of={entry}
       title="MISSION_SCRIPTS"
-      sort={{ exclude: ["id", "researchNeeded", "researchForbidden"] }}
-      special={{ missionWeights: asSubTable, regionWeights: asSubTable }}
-      rows={{
+      sort={{
         // The fields that read as something they are not are replaced by the rows
-        // above, in the same order the engine checks them. Listed here so the raw
-        // table does not print them a second time underneath.
-        startDelay: () => null,
-        randomDelay: () => null,
-        firstMonth: () => null,
-        lastMonth: () => null,
-        executionOdds: () => null,
-        maxRuns: () => null,
-        researchTriggers: () => null,
-        useTable: () => null,
-        // Every one of these is folded into the "Also requires" row
-        itemTriggers: () => null,
-        facilityTriggers: () => null,
-        baseFunctionTriggers: () => null,
-        soldierTypeTriggers: () => null,
-        xcomBaseInRegionTriggers: () => null,
-        xcomBaseInCountryTriggers: () => null,
-        pactCountryTriggers: () => null,
-        // And these into "Only while"
-        minScore: () => null,
-        maxScore: () => null,
-        minFunds: () => null,
-        maxFunds: () => null,
-        minDifficulty: () => null,
-        maxDifficulty: () => null,
+        // above, in the same order the engine checks them. Excluded here so the
+        // raw table does not print them a second time underneath.
+        exclude: [
+          "id",
+          "researchNeeded",
+          "researchForbidden",
+          "startDelay",
+          "randomDelay",
+          "firstMonth",
+          "lastMonth",
+          "executionOdds",
+          "maxRuns",
+          "researchTriggers",
+          "useTable",
+          "itemTriggers",
+          "facilityTriggers",
+          "baseFunctionTriggers",
+          "soldierTypeTriggers",
+          "xcomBaseInRegionTriggers",
+          "xcomBaseInCountryTriggers",
+          "pactCountryTriggers",
+          "minScore",
+          "maxScore",
+          "minFunds",
+          "maxFunds",
+          "minDifficulty",
+          "maxDifficulty",
+        ],
       }}
+      special={{ missionWeights: asSubTable, regionWeights: asSubTable }}
       before={
         <>
           <tr>

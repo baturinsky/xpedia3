@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import type { MainTableRenderer } from "./MainTable";
-import { formatNumber, TipScopeProvider, Val } from "./Val";
+import { formatNumber, Percent, TipScopeProvider, Val } from "./Val";
+import { asItems } from "./value";
 
 /**
  * The map-script commands of one `mapScripts` entry, in execution order.
@@ -77,11 +78,6 @@ function isDefault(field: string, value: unknown): boolean {
   if (field === "canBeSkipped" && value === true) return true;
   if (field === "markAsReinforcementsBlock" && value === false) return true;
   return false;
-}
-
-/** A scalar or a one-value list, as a list — groups and friends take both */
-function asItems(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [value];
 }
 
 /** A comma list of `Val`s, for the parallel `groups`/`blocks`/`freqs` lists */
@@ -234,7 +230,7 @@ function FieldValue({ field, value }: { field: string; value: unknown }): ReactN
     return <TunnelData value={value} />;
   }
   if (field === "size") return <Size value={value} />;
-  if (field === "executionChances") return <em className="num">{formatNumber(value)}%</em>;
+  if (field === "executionChances") return <Percent value={value} />;
   if (
     field === "conditionals" ||
     field === "groups" ||

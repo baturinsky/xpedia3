@@ -14,6 +14,8 @@
  * base or the mission script that starts the mission.
  */
 
+import { sharePercent } from "./value";
+
 /** One month slice of `raceWeights`, parsed for the table */
 export type RaceMonth = {
   /** Months passed at which this row starts (the ruleset key) */
@@ -51,6 +53,5 @@ export function parseRaceWeights(value: unknown): { months: RaceMonth[]; races: 
 
 /** A race's share of a month row, as a per cent of the row's total weight */
 export function raceWeightPercent(weight: number, total: number): number {
-  if (!Number.isFinite(weight) || !Number.isFinite(total) || total <= 0) return 0;
-  return Math.round((weight / total) * 100);
+  return sharePercent(weight, total);
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { MainTableRenderer } from "./MainTable";
 import { TipScopeProvider, Val } from "./Val";
+import { isEmpty } from "./value";
 
 /**
  * The `environmentalConditions` of one `enviroEffects` entry, as a table.
@@ -33,11 +34,6 @@ const FIELD_ORDER = [
   "weaponOrAmmo",
   "message",
 ];
-
-/** Whether a field is absent or empty — it has nothing to say */
-function isEmpty(value: unknown): boolean {
-  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
-}
 
 /**
  * The table's rows: every field stated anywhere, in reading order. A field
@@ -92,7 +88,7 @@ function EnviroConditionsView({ conditions }: { conditions: unknown }): ReactNod
                     : ({} as Condition);
                 return (
                   <td key={faction}>
-                    {isEmpty(condition[field]) ? null : <Val of={condition[field]} field={field} />}
+                    {isEmpty(condition[field]) ? "—" : <Val of={condition[field]} field={field} />}
                   </td>
                 );
               })}

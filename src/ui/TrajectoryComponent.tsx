@@ -420,10 +420,11 @@ export default function TrajectoryComponent({ entry }: { entry: UfoTrajectory })
       <MainTable
         of={entry}
         title="UFO_TRAJECTORIES"
-        sort={{ last: ["waypoints"], exclude: ["id", "groundTimer"] }}
+        sort={{ last: ["waypoints"], exclude: ["groundTimer"] }}
         rows={{
           // The flight plan leads, because it is what the page is about; the
-          // declared lines and the raw timer fields follow it.
+          // declared lines and the raw timer fields follow it. Several rows,
+          // so `rows` rather than `wide`.
           waypoints: () => (
             <>
               {flies && (
