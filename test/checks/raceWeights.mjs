@@ -135,4 +135,39 @@ eq(
   "a delete clears the inherited table",
 );
 
+// Globe textures are parsed off the merged `globe` node: a site mission with
+// no `siteType` fights whatever its area's texture rolls, so the pedia keeps
+// the texture → deployments map the engine rolls from.
+const textured = await testPack({
+  rul: [
+    "globe:",
+    "  textures:",
+    "    - id: -47",
+    "      deployments:",
+    "        STR_LOC_COMMS_TOWER_COLD: 100",
+    "    - id: -300",
+    "      deployments:",
+    "        STR_LOC_SPACE_STATION_1: 20",
+    "        STR_LOC_SPACE_STATION_2: 20",
+    "    - id: 0",
+    "",
+  ].join("\n"),
+});
+eq(
+  textured.textures["-47"],
+  { deployments: { STR_LOC_COMMS_TOWER_COLD: 100 } },
+  "a texture keeps its deployments map",
+);
+eq(
+  textured.textures["-300"],
+  { deployments: { STR_LOC_SPACE_STATION_1: 20, STR_LOC_SPACE_STATION_2: 20 } },
+  "a multi-deployment texture keeps every entry",
+);
+eq(textured.textures["0"], {}, "a texture with no deployments stays bare");
+eq(
+  [...Object.keys(textured.textures)].sort(),
+  ["-300", "-47", "0"].sort(),
+  "every texture id is kept",
+);
+
 report();

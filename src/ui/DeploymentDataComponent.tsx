@@ -3,6 +3,7 @@ import type { AlienDeployment } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import {
   deploymentRaces,
+  hasTechLevelDistinction,
   loadoutIsEmpty,
   type RankDeployment,
   rankUnits,
@@ -375,9 +376,11 @@ function DeploymentDataView({
             (!itemSetsPresent || itemSetsEmpty) &&
             (!extraPresent || extraEmpty);
           // The "by alien tech level" label is only honest when the levels
-          // were actually counted: with several sets but no usable
-          // `alienItemLevels` table the sets just list, and the label drops
-          // the "by alien tech level". A single set is a single loadout.
+          // actually distinguish something: several sets with a usable table
+          // of more than one level. A single-level table counts the same
+          // chance at every level, so the label drops the "by alien tech
+          // level" while the counted table stays. A single set is a single
+          // loadout.
           const setCount = asItems(row.itemSets).length;
           const chances =
             itemSetsPresent && !itemSetsEmpty
@@ -412,7 +415,7 @@ function DeploymentDataView({
                     <Tr
                       text={
                         setCount > 1
-                          ? chances
+                          ? hasTechLevelDistinction(chances)
                             ? "xpediaLoadoutsByTechLevel"
                             : "xpediaLoadouts"
                           : "xpediaLoadoutByTechLevel"

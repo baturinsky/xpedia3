@@ -326,6 +326,16 @@ export default class Ruleset {
    */
   alienItemLevels: number[][] = [];
   ufos: { [key: string]: Entry } = {};
+  /**
+   * Globe texture id -> the site deployments that texture can roll.
+   *
+   * A mission with no `siteType` fights whatever its area's texture rolls
+   * (`AlienMission::spawnMissionSite`), which is how the climate variants of
+   * a location (`STR_LOC_COMMS_TOWER_COLD` and friends) reach the deployment
+   * table at all. Textures live in the `globe` node, so the merge files them
+   * under `raw.globe.textures` and this is the parsed lookup over them.
+   */
+  textures: { [key: string]: { deployments?: { [deployment: string]: number } } } = {};
   regions: { [key: string]: Region } = {};
   ufoTrajectories: { [key: string]: UfoTrajectory } = {};
   /** Cache for `missionsIn`, built on first use: packs take thousands of lookups */
@@ -365,6 +375,14 @@ export default class Ruleset {
   /** Language names already run through `convertLang` */
   convertedLangs: { [langName: string]: boolean } = {};
 
+  /**
+   * Cache of the duplicate-translation index over the active language: the
+   * exact string a key translates to, and every other key with the very same.
+   * Rebuilt whenever the active language changes (`selectLang` replaces
+   * `this.lang`, so a stale index would describe another language's lines).
+   */
+  sameTranslationIndex: { lang: LangMap; byValue: Map<string, string[]> } | null = null;
+
   constructor(processed?: ProcessedRuleset) {
     rul = this;
     if (processed) this.loadProcessedMods(processed);
@@ -395,6 +413,32 @@ export default class Ruleset {
     if (props?.capital) str = capital(str);
 
     return str;
+  }
+
+  /**
+   * Other keys that translate to exactly what `key` translates to, in file
+   * order — the tooltip's "also translated as" list. `tip_` keys hold tooltip
+   * texts, never a label a page could show, so they are not grouped; a key
+   * with no twin, or absent from the language, returns `undefined`.
+   */
+  sameTranslation(key: string): string[] | undefined {
+    if (key == null || !(key in this.lang)) return undefined;
+    const value = this.lang[key];
+    if (value == null || value === "" || value === key) return undefined;
+    if (this.sameTranslationIndex?.lang !== this.lang) {
+      const byValue = new Map<string, string[]>();
+      for (const [other, text] of Object.entries(this.lang)) {
+        if (other.startsWith("tip_")) continue;
+        if (text == null || text === "" || text === other) continue;
+        const list = byValue.get(text);
+        if (list) list.push(other);
+        else byValue.set(text, [other]);
+      }
+      this.sameTranslationIndex = { lang: this.lang, byValue };
+    }
+    const twins = this.sameTranslationIndex.byValue.get(value) ?? [];
+    const others = twins.filter((other) => other !== key);
+    return others.length > 0 ? others : undefined;
   }
 
   addCategory(catName: string, id: string, where?: { [cat: string]: string[] }) {
@@ -847,6 +891,31 @@ export default class Ruleset {
           rebuilt[String(month)] = Object.fromEntries(races);
         }
         if (Object.keys(rebuilt).length > 0) (entry as YamlObject).raceWeights = rebuilt;
+      }
+    }
+
+    // The globe's textures are read from the merged `globe` node rather than
+    // from entry tables: the `textures` list hangs off a singleton, not an
+    // entry collection, and `Texture::load` reads its `deployments` straight
+    // from it. An area with no texture element defaults to texture 0, which
+    // keeps its entry here like any other.
+    this.textures = {};
+    const globe = this.raw.globe;
+    const textureList =
+      globe != null && typeof globe === "object" && !Array.isArray(globe)
+        ? (globe as YamlObject).textures
+        : undefined;
+    if (Array.isArray(textureList)) {
+      for (const entry of textureList as YamlObject[]) {
+        if (entry == null || typeof entry !== "object" || Array.isArray(entry)) continue;
+        const id = entry.id;
+        if (id == null) continue;
+        const deployments = entry.deployments;
+        this.textures[String(id)] = {
+          ...(deployments != null && typeof deployments === "object" && !Array.isArray(deployments)
+            ? { deployments: deployments as { [deployment: string]: number } }
+            : {}),
+        };
       }
     }
 

@@ -12,9 +12,14 @@ import { ensureBuilt } from "../build.mjs";
 import { eq, report } from "../helpers/check.mjs";
 
 await ensureBuilt();
-const { deploymentRaces, loadoutIsEmpty, rankMembers, rankUnits, setChancesByLevel } = await import(
-  "../.gen/deploymentrank.mjs"
-);
+const {
+  deploymentRaces,
+  hasTechLevelDistinction,
+  loadoutIsEmpty,
+  rankMembers,
+  rankUnits,
+  setChancesByLevel,
+} = await import("../.gen/deploymentrank.mjs");
 
 // XPiratez `STR_BANDIT_TOWN`, verbatim and in order: 0 is the boss,
 // 6–7 are the terror units, 13 the humongous raider, 16 the punk.
@@ -646,6 +651,18 @@ eq(setChancesByLevel(5, undefined), undefined, "no table, no chances");
 eq(setChancesByLevel(5, []), undefined, "an empty table, no chances");
 eq(setChancesByLevel(1, pirateTable), undefined, "one set has no choice to count");
 
+eq(
+  hasTechLevelDistinction(setChancesByLevel(5, pirateTable)),
+  false,
+  "one row of alienItemLevels: the same chance at every level, no distinction",
+);
+eq(
+  hasTechLevelDistinction(setChancesByLevel(3, vanillaTable)),
+  true,
+  "two rows of alienItemLevels: chances differ by level",
+);
+eq(hasTechLevelDistinction(undefined), false, "no chances computed, no distinction");
+
 // --- a loadout stated as empty sets means a bare-handed spawn ------------
 // XPiratez `STR_LABYRINTHUS_NOCTIS`: both rows carry `itemSets:
 // *itemSetsEmpty`, five empty sets, so the card says "No items in loadout"
@@ -666,5 +683,131 @@ eq(
 );
 eq(loadoutIsEmpty(undefined), true, "no field at all is an empty loadout");
 eq(loadoutIsEmpty("STR_PIR_HEAVY_PLASMA"), false, "a lone item is not an empty loadout");
+
+// --- globe-texture routes: a site whose mission states no `siteType` fights
+// whatever the area's texture rolls. XPiratez texture -47 rolls only
+// `STR_LOC_COMMS_TOWER_COLD` and only `REGION_COMMS_TOWER_COLD` zones use
+// it, where the `commsTower` script pairs it with `STR_LOC_COMMS_TOWER` —
+// whose own `raceWeights` then roll the race. A texture's deployments map
+// tolerates several entries; the zone decides which missions can land there.
+const textureTables = {
+  alienRaces: {
+    STR_SECTOID_NONCOM: { members: ["STR_SECTOID_COMMANDER"] },
+    STR_CHURCH_NONCOM: { members: ["STR_CHURCH_COMMANDER"] },
+    STR_FLOATER_NONCOM: { members: ["STR_FLOATER_COMMANDER"] },
+  },
+  alienMissions: {
+    STR_LOC_COMMS_TOWER: {
+      objective: 3,
+      spawnZone: 0,
+      raceWeights: { 0: { STR_SECTOID_NONCOM: 25, STR_CHURCH_NONCOM: 35, STR_FLOATER_NONCOM: 35 } },
+    },
+    STR_OTHER_SITE: {
+      objective: 3,
+      spawnZone: 1,
+      raceWeights: { 0: { STR_SECTOID_NONCOM: 100 } },
+    },
+    STR_WRONG_OBJECTIVE: {
+      objective: 0,
+      spawnZone: 0,
+      raceWeights: { 0: { STR_SECTOID_NONCOM: 100 } },
+    },
+  },
+  textures: {
+    "-47": { deployments: { STR_LOC_COMMS_TOWER_COLD: 100 } },
+    "-99": { deployments: { STR_LOC_NOWHERE: 100 } },
+  },
+  regions: {
+    REGION_COMMS_TOWER_COLD: {
+      missionZones: [[[0, 10, 0, 10, -47]]],
+    },
+  },
+  missionScripts: {
+    commsTower: {
+      missionWeights: { 0: { STR_LOC_COMMS_TOWER: 100 } },
+      regionWeights: { 0: { REGION_COMMS_TOWER_COLD: 100 } },
+    },
+  },
+};
+eq(
+  deploymentRaces({ uid: "STR_LOC_COMMS_TOWER_COLD" }, textureTables),
+  ["STR_SECTOID_NONCOM", "STR_CHURCH_NONCOM", "STR_FLOATER_NONCOM"],
+  "texture + script pairing resolves the mission's races",
+);
+eq(
+  deploymentRaces({ uid: "STR_LOC_NOWHERE" }, textureTables),
+  [],
+  "a texture no region uses resolves nothing",
+);
+eq(
+  deploymentRaces(
+    { uid: "STR_LOC_COMMS_TOWER_COLD" },
+    {
+      ...textureTables,
+      missionScripts: {
+        commsTower: {
+          missionWeights: { 0: { STR_LOC_COMMS_TOWER: 100 } },
+          regionWeights: { 0: { REGION_OTHER: 100 } },
+        },
+      },
+    },
+  ),
+  [],
+  "a script that does not pick this region does not link",
+);
+// A script's own `raceWeights` override the mission's table (`processCommand`
+// rolls the script's first when it has one).
+eq(
+  deploymentRaces(
+    { uid: "STR_LOC_COMMS_TOWER_COLD" },
+    {
+      ...textureTables,
+      missionScripts: {
+        commsTower: {
+          missionWeights: { 0: { STR_LOC_COMMS_TOWER: 100 } },
+          raceWeights: { 0: { STR_FLOATER_NONCOM: 100 } },
+        },
+      },
+    },
+  ),
+  ["STR_FLOATER_NONCOM"],
+  "script raceWeights win over the mission's",
+);
+// A region's own `missionWeights` also links the mission, with no script.
+eq(
+  deploymentRaces(
+    { uid: "STR_LOC_COMMS_TOWER_COLD" },
+    {
+      ...textureTables,
+      regions: {
+        REGION_COMMS_TOWER_COLD: {
+          missionZones: [[[0, 10, 0, 10, -47]]],
+          missionWeights: { STR_LOC_COMMS_TOWER: 100 },
+        },
+      },
+      missionScripts: {},
+    },
+  ),
+  ["STR_SECTOID_NONCOM", "STR_CHURCH_NONCOM", "STR_FLOATER_NONCOM"],
+  "region missionWeights link the mission without a script",
+);
+// `refNode` parents contribute their memberships too.
+eq(
+  deploymentRaces(
+    { uid: "STR_LOC_COMMS_TOWER_COLD" },
+    {
+      ...textureTables,
+      missionScripts: {
+        commsTowerParent: {
+          missionWeights: { 0: { STR_LOC_COMMS_TOWER: 100 } },
+          raceWeights: { 0: { STR_SECTOID_NONCOM: 100 } },
+        },
+        commsTower: { refNode: "commsTowerParent" },
+      },
+    },
+  ),
+  ["STR_SECTOID_NONCOM"],
+  "a refNode parent's memberships are inherited",
+);
 
 report();

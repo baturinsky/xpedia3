@@ -1781,7 +1781,8 @@ ol > li:last-child::after {
   pointer-events: none;
 }
 
-[data-tooltip] {
+[data-tooltip],
+[data-tooltip-html] {
   cursor: default;
 }
 

@@ -33,6 +33,7 @@ export type RankMission = {
   siteType?: unknown;
   spawnUfo?: unknown;
   objective?: unknown;
+  spawnZone?: unknown;
 };
 
 /** The slice of a terrain a map script can be traced back through */
@@ -53,6 +54,25 @@ export type RankUfo = {
   missilePower?: unknown;
 };
 
+/** The slice of a globe texture that can roll a site deployment */
+export type RankTexture = {
+  deployments?: unknown;
+};
+
+/** The slice of a region that can host a texture's site */
+export type RankRegion = {
+  missionZones?: unknown;
+  missionWeights?: unknown;
+};
+
+/** The slice of a mission script that can select a mission into a region */
+export type RankMissionScript = {
+  missionWeights?: unknown;
+  regionWeights?: unknown;
+  raceWeights?: unknown;
+  refNode?: unknown;
+};
+
 /** The ruleset tables the resolution reads */
 export type RankTables = {
   alienRaces?: { [id: string]: RankRace | undefined };
@@ -61,6 +81,9 @@ export type RankTables = {
   terrains?: { [id: string]: RankTerrain | undefined };
   mapScripts?: { [id: string]: RankMapScript | undefined };
   ufos?: { [id: string]: RankUfo | undefined };
+  textures?: { [id: string]: RankTexture | undefined };
+  regions?: { [id: string]: RankRegion | undefined };
+  missionScripts?: { [id: string]: RankMissionScript | undefined };
 };
 
 /** A deployment entry, carrying the fields the resolution reads */
@@ -109,6 +132,147 @@ function missionRaces(mission: RankMission): string[] {
     for (const race of Object.keys(month)) if (race !== "") out.push(race);
   }
   return out;
+}
+
+/**
+ * Every id named in a weighted table, whatever shape the pack wrote it in:
+ * month buckets holding id → weight, or a flat id → weight map.
+ */
+function weightedIds(value: unknown): string[] {
+  const out: string[] = [];
+  if (typeof value !== "object" || value == null || Array.isArray(value)) return out;
+  for (const [key, bucket] of Object.entries(value as { [key: string]: unknown })) {
+    if (typeof bucket === "object" && bucket != null && !Array.isArray(bucket)) {
+      for (const id of Object.keys(bucket)) if (id !== "") out.push(id);
+    } else if (
+      typeof bucket === "number" ||
+      typeof bucket === "string" ||
+      typeof bucket === "boolean"
+    ) {
+      // A bare value is the weight of a flat id → weight map
+      if (key !== "") out.push(key);
+    }
+  }
+  return out;
+}
+
+/** A mission script's effective memberships, with `refNode` parents folded in */
+type ScriptMembership = {
+  missions: Set<string>;
+  /** Region weights, or `undefined` when none states any: the engine then picks from every region */
+  regions: Set<string> | undefined;
+  races: Set<string>;
+};
+
+/**
+ * A script's memberships, parents first: `RuleMissionScript::load` loads the
+ * `refNode` parent before the script's own tables, so every parent the chain
+ * names contributes, and the engine's own per-key merge never removes one.
+ */
+function scriptMembership(
+  scriptId: string,
+  tables: RankTables,
+  seen = new Set<string>(),
+): ScriptMembership {
+  const out: ScriptMembership = { missions: new Set(), regions: new Set(), races: new Set() };
+  if (seen.has(scriptId)) return out;
+  seen.add(scriptId);
+  const script = tables.missionScripts?.[scriptId];
+  if (script == null) return out;
+  const parent = asId(script.refNode);
+  if (parent) {
+    const inherited = scriptMembership(parent, tables, seen);
+    for (const mission of inherited.missions) out.missions.add(mission);
+    for (const race of inherited.races) out.races.add(race);
+    if (inherited.regions) for (const region of inherited.regions) out.regions.add(region);
+  }
+  for (const mission of weightedIds(script.missionWeights)) out.missions.add(mission);
+  for (const race of weightedIds(script.raceWeights)) if (race !== "") out.races.add(race);
+  for (const region of weightedIds(script.regionWeights)) out.regions.add(region);
+  if (out.regions.size === 0) out.regions = undefined;
+  return out;
+}
+
+/**
+ * The races that reach a deployment through the globe textures.
+ *
+ * `AlienMission::spawnMissionSite` picks a site deployment three ways: the
+ * wave's own (covered by the wave route), the mission's `siteType`, or — when
+ * the mission states neither — whatever the area's texture rolls from its
+ * `deployments` map. `chooseAlienBaseType` draws the same way for the base
+ * objectives. A mission only reaches that fallback with no `siteType` and a
+ * matching `spawnZone` (objectives 3/1/2 spawn sites and bases, the others do
+ * not), and only where the region's strategy lets it run: a mission script
+ * pairing the two, or the region's own `missionWeights`. The race then comes
+ * from the script's `raceWeights` when the script rolls one, else from the
+ * mission's own table, exactly as `processCommand` decides it.
+ */
+function textureRaces(deploymentId: string, tables: RankTables): string[] {
+  const servedTextures = new Set<string>();
+  for (const [textureId, texture] of Object.entries(tables.textures ?? {})) {
+    if (texture == null || typeof texture !== "object") continue;
+    const deployments = (texture as RankTexture).deployments;
+    if (typeof deployments !== "object" || deployments == null || Array.isArray(deployments)) {
+      continue;
+    }
+    if (deploymentId in (deployments as object)) servedTextures.add(textureId);
+  }
+  if (servedTextures.size === 0) return [];
+
+  // Scripts that can pair each mission with any region, in mission order
+  const scriptsByMission = new Map<string, ScriptMembership[]>();
+  for (const scriptId of Object.keys(tables.missionScripts ?? {})) {
+    const membership = scriptMembership(scriptId, tables);
+    for (const missionId of membership.missions) {
+      const list = scriptsByMission.get(missionId) ?? [];
+      list.push(membership);
+      scriptsByMission.set(missionId, list);
+    }
+  }
+
+  const found = new Set<string>();
+  for (const [regionId, region] of Object.entries(tables.regions ?? {})) {
+    if (region == null || typeof region !== "object") continue;
+    const zones = (region as RankRegion).missionZones;
+    if (!Array.isArray(zones)) continue;
+    // Areas with no stated texture default to texture 0, as the engine does
+    const zoneTexture = (area: unknown): string | undefined => {
+      if (!Array.isArray(area)) return undefined;
+      const stated = (area as unknown[])[4];
+      return stated == null ? "0" : String(stated);
+    };
+    const servedZones = new Set<number>();
+    zones.forEach((zone, index) => {
+      const areas = Array.isArray(zone) ? zone : (zone as { areas?: unknown } | undefined)?.areas;
+      if (!Array.isArray(areas)) return;
+      for (const area of areas) {
+        const texture = zoneTexture(area);
+        if (texture != null && servedTextures.has(texture)) servedZones.add(index);
+      }
+    });
+    if (servedZones.size === 0) continue;
+    const regionMissions = new Set(weightedIds((region as RankRegion).missionWeights));
+    for (const [missionId, mission] of Object.entries(tables.alienMissions ?? {})) {
+      if (mission == null || typeof mission !== "object") continue;
+      if (asId((mission as RankMission).siteType) != null) continue;
+      const objective = Number((mission as RankMission).objective);
+      if (objective !== 1 && objective !== 2 && objective !== 3) continue;
+      if (!servedZones.has(Number((mission as RankMission).spawnZone))) continue;
+      const scripts = scriptsByMission.get(missionId) ?? [];
+      const linking = scripts.filter(
+        (script) => script.regions == null || script.regions.has(regionId),
+      );
+      if (linking.length === 0 && !regionMissions.has(missionId)) continue;
+      for (const script of linking) {
+        // `processCommand` rolls the script's race table when it has one,
+        // the mission's own otherwise
+        const races = script.races.size > 0 ? [...script.races] : missionRaces(mission);
+        for (const race of races) found.add(race);
+      }
+      if (regionMissions.has(missionId)) for (const race of missionRaces(mission)) found.add(race);
+    }
+  }
+  return [...found];
 }
 
 /**
@@ -212,7 +376,9 @@ function ufoRaces(deploymentId: string, tables: RankTables): string[] {
  * deploy (`raceBonus[race].missionCustomDeploy` / `craftCustomDeploy` under
  * `ufos`, and an unconditional `missionCustomDeploy` / `craftCustomDeploy`
  * on the UFO's base stats, whose race comes from the missions that field
- * that UFO), and the deployment whose `nextStage` it is — a follow-on stage
+ * that UFO), the missions that can spawn it through their area's globe
+ * texture (no `siteType`, matching `spawnZone`, selectable in the region that
+ * maps the texture), and the deployment whose `nextStage` it is — a follow-on stage
  * is fought by the same mission site / alien base as the stage before it
  * when it states no race of its own (`BattlescapeGenerator::nextStage`),
  * so it inherits that stage's races, transitively down the chain.
@@ -320,6 +486,9 @@ function directRaces(
       found.add(raceId);
   }
   for (const race of ufoRaces(id, tables)) found.add(race);
+  // A site with no stated deployment is fought with whatever its area's
+  // globe texture rolls (`textureRaces` walks texture → region → mission).
+  for (const race of textureRaces(id, tables)) found.add(race);
   // A base defence is fought with the `STR_BASE_DEFENSE` deployment unless
   // the attacking retaliation UFO carries its own custom deploy with data —
   // so the surviving races are exactly the fallback set it computes.
@@ -525,6 +694,17 @@ export function setChancesByLevel(
 
   const perLevel = rows.map((row) => chancesForRow(row, setCount));
   return Array.from({ length: setCount }, (_, set) => perLevel.map((level) => level[set]));
+}
+
+/**
+ * Whether counted chances distinguish anything by tech level at all: more
+ * than one level column. A pack with a single `alienItemLevels` row has one
+ * column and the same chance at every level, so the loadouts carry no
+ * "by alien tech level" distinction — the caller labels them plain "Loadouts"
+ * while the counted table stays.
+ */
+export function hasTechLevelDistinction(chancesByLevel: number[][] | undefined): boolean {
+  return (chancesByLevel?.[0]?.length ?? 0) > 1;
 }
 
 export function rankUnits(

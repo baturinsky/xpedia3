@@ -1161,6 +1161,8 @@ en-US:
   tip_score__crafts: "score<br><br>Score lost when this craft is destroyed."
   tip_score__ufos: "score<br><br>Score gained when this UFO crash lands, doubled when it is destroyed."
   tip_selfRef: "Self-reference<br><br>Another entry with this name is also on this page, so it is shown as text instead of a link."
+  xpediaInternalName: "Internal name"
+  xpediaAlsoTranslatedAs: "Other ids with this text"
   tip_shieldBleedThrough: shieldBleedThrough<br><br>Defines the percent of damage that
     passes the shield when it goes down. A value of 0 means that with even just 1 shield
     point, any single hit will be blocked, while 100 means 100% of the damage left after
@@ -3013,7 +3015,7 @@ en-US:
   xpediaLoadoutsByTechLevel: Loadouts by alien tech level
   xpediaLoadoutByTechLevel: Loadout
   xpediaNoLoadoutItems: No items in loadout
-  tip_xpediaLoadouts: "Loadouts<br><br>Several loadout sets, listed in the pack's order. The mod states no usable alienItemLevels table, so no per-level chances are counted for them here."
+  tip_xpediaLoadouts: "Loadouts<br><br>Several loadout sets, listed in the pack's order. Chances are counted from the mod's alienItemLevels table. The 'by alien tech level' label is used only when the mod states more than one tech level; with a single row the chances are the same at every level, so no distinction is drawn."
   tip_xpediaLoadoutsByTechLevel: "Loadouts by alien tech level<br><br>Each spawned alien carries one of these sets, chosen by the alien tech level the game has reached (alienItemLevels), not by difficulty and not by alien rank. Sets are listed weakest first; late in the campaign the last set is the one that spawns. The table counts each set's chance at every tech level from the mod's alienItemLevels table: tech level 1 is the first month of the campaign, and the columns after it are the following months."
   tip_xpediaLoadoutByTechLevel: "Loadout<br><br>The one set this alien always carries, at every tech level. With several sets a tech level would pick one of them (see 'Loadouts by alien tech level')."
   nextStage: Next stage

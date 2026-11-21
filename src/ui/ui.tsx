@@ -788,12 +788,20 @@ window.addEventListener("pointermove", async (e) => {
   const tooltip = document.getElementById("xpediaTooltip");
   if (tooltip) {
     let el = e.target as HTMLElement;
-    while (el && !el.dataset?.tooltip) el = el.parentNode as HTMLElement;
+    while (el && !el.dataset?.tooltip && !el.dataset?.tooltipHtml)
+      el = el.parentNode as HTMLElement;
 
-    if (el?.dataset?.tooltip) {
+    if (el?.dataset?.tooltip || el?.dataset?.tooltipHtml) {
       const id = el.dataset.tooltip;
+      const html = el.dataset.tooltipHtml;
       const rect = el.getBoundingClientRect();
-      toggleTooltip(id in rul.lang && !e.shiftKey ? rul.lang[id] : id.substring(4));
+      toggleTooltip(
+        !e.shiftKey && html
+          ? html
+          : id != null && id in rul.lang && !e.shiftKey
+            ? rul.lang[id]
+            : (el.dataset.tooltipName ?? id?.substring(4) ?? ""),
+      );
 
       tooltip.style.left = `${Math.max(200, rect.left + rect.width / 2)}px`;
       // Normally the tip opens below the element it explains; near the bottom

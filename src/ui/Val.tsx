@@ -332,9 +332,33 @@ export function Tr({
   );
 
   const tipKey = text != null ? tipKeyFor(text, scope) : undefined;
-  if (!notip && tipKey != null && tipKey in rul.lang) {
+  const hasTip = !notip && tipKey != null && tipKey in rul.lang;
+
+  // A translation shared with other lines ("The Academy" standing for several
+  // ids) is ambiguous on its own: the tooltip names this line's internal id
+  // and lists the others with the very same text. When the field already has
+  // its own tip, the duplicates go last, after that tip's text, whose header
+  // already names the field; without one, the tooltip opens with the internal
+  // name instead, as every tip opens with its field name.
+  const twins = !notip && !state.revealed && text != null ? rul.sameTranslation(text) : undefined;
+
+  if (hasTip || (twins != null && twins.length > 0)) {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const list =
+      twins != null && twins.length > 0
+        ? `<br><br><b>${esc(rul.tr("xpediaAlsoTranslatedAs") ?? "")}:</b><br>` +
+          twins.map((twin) => esc(twin)).join("<br>")
+        : "";
+    const head = hasTip
+      ? ""
+      : `<b>${esc(rul.tr("xpediaInternalName") ?? "")}</b>: ${esc(text ?? "")}`;
+    const tooltipHtml = (hasTip ? (rul.lang[tipKey ?? ""] ?? "") : head) + list;
     element = (
-      <span data-tooltip={tipKey}>
+      <span
+        data-tooltip-html={tooltipHtml}
+        data-tooltip-name={text}
+        {...(hasTip && !twins?.length ? { "data-tooltip": tipKey } : {})}
+      >
         {element}
         <sup className="tipmark">?</sup>
       </span>
