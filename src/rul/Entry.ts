@@ -1246,6 +1246,8 @@ export class AlienDeployment extends Entry {
   startingCondition?: string;
   data?: { itemSets?: unknown }[];
   loot: string[];
+  alertBackground?: string;
+  briefing?: { background?: string };
 
   constructor(raw: RawEntry) {
     super("alienDeployments");

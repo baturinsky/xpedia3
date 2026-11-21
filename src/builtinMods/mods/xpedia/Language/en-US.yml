@@ -1163,6 +1163,7 @@ en-US:
   tip_selfRef: "Self-reference<br><br>Another entry with this name is also on this page, so it is shown as text instead of a link."
   xpediaInternalName: "Internal name"
   xpediaAlsoTranslatedAs: "Other ids with this text"
+  xpediaSameAsAlert: same as on the alert
   tip_shieldBleedThrough: shieldBleedThrough<br><br>Defines the percent of damage that
     passes the shield when it goes down. A value of 0 means that with even just 1 shield
     point, any single hit will be blocked, while 100 means 100% of the damage left after
@@ -2034,7 +2035,7 @@ en-US:
   tip_xpediaDeploymentRank: "Rank<br><br>Rank this deployment slot uses, as an index into the member list of the alien race."
   tip_xpediaDeploymentQuantity: "Quantity<br><br>Aliens spawned for this rank: base count by difficulty (easy..medium..hard, equal neighbours collapsed) plus each random bonus as +🎲0–N (dQty, then extraQty, each an independent roll of 0..N). A missing or zero block is omitted."
   tip_xpediaDeploymentOutside: "Outside<br><br>Share of the aliens spawned outside the UFO, in per cent."
-  tip_raceWeights: "Race weights<br><br>Which race flies this mission in each phase of the campaign. A row holds from its month until the next row starts. The number in a cell is the race's share of all the weights in that row, as a per cent — the engine rolls the race with that chance each time the mission is created, so 90 next to 10 means 90% against 10%."
+  tip_raceWeights: "Race weights<br><br>Which race flies this mission in each phase of the campaign. A column holds from its month until the next month starts. The number in a cell is the race's share of all the weights in that column, as a per cent — the engine rolls the race with that chance each time the mission is created, so 90 next to 10 means 90% against 10%."
   tip_randomProducedItems: "randomProducedItems<br><br>Alternative results of this project with their chances, used instead of a fixed set of produced items."
   tip_regionWeight: "regionWeight<br><br>Weight of this region when the game picks one for an alien mission."
   tip_relatedScripts: "relatedScripts<br><br>Event scripts connected to this entry: the scripts that can fire this event, or the scripts a research topic appears in."
@@ -2867,7 +2868,7 @@ en-US:
   missionRegion: Mission region
   missionWeights: Mission weights
   missionZones: Mission zones
-  raceWeights: Race weights
+  raceWeights: Race/Month
   waves: Waves
   ufo: UFO
   count: UFO count
@@ -2909,18 +2910,18 @@ en-US:
   xpediaObjective5: Supply
   xpediaObjective6: Instant retaliation
   xpediaObjectiveUnknown: Unknown objective
-  xpediaWave: Wave
-  xpediaWaveGround: On the ground
-  xpediaWaveLands: lands
-  xpediaWaveNoLanding: never lands
+  xpediaWaveEffects: Effects
+  xpediaWaveGround: Ground time
   xpediaWaveSite: mission site, not a UFO
-  xpediaWaveNoUfo: no UFO of this id, so the site is built from the region
+  xpediaWaveRegionSpawn: spawns depending on the region
+  xpediaPossibleSpawns: Possible spawns
+  tip_xpediaPossibleSpawns: "Possible spawns<br><br>The sites this mission can build when it states no site deployment of its own: the deployments the area's globe texture can roll, each with its share of that texture's roll. Which one appears depends on the region the mission lands in."
   xpediaWaveObjective: carries out the objective
   xpediaWaveLandingSite: site exactly where it lands
   xpediaWaveXcomBase: site on an XCOM base
   xpediaWaveEscort: escorts other UFOs
-  xpediaWaveHunter: hunter-killer chance
-  xpediaWaveInterrupt: chance a shoot-down ends the mission
+  xpediaWaveHunter: hunter-killer
+  xpediaWaveInterrupt: shot down ends the mission
   xpediaAtOnce: at once
   xpediaMissionPoints: score the aliens gain when this mission succeeds
   xpediaRaceMonth: Month
@@ -2956,7 +2957,7 @@ en-US:
   xpediaLegEnds: vanishes
   xpediaLegHere: here
   xpediaLegRepeats: waits, then the same zone again
-  xpediaLegNeverLands: This path never lands a UFO, so nothing it carries can be found on the ground.
+  xpediaLegNeverLands: never lands
   xpediaLegLandsFor: lands for
   # A trajectory of one line is not an error: it is how a pack has a mission
   # appear on the ground with no UFO at all. There is no flight to draw, so the

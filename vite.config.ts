@@ -267,29 +267,29 @@ function builtinModsFolder() {
     },
 
     // A language file has no module of its own to update, so a change to one
-    // reloads the page instead of leaving the old strings on screen. Nothing
-    // imports these files directly, so the watcher has to be told about the
-    // folder: otherwise the first edit after starting the server is missed.
-    //
-    // `addWatchFile` above only re-runs this module for a file that the last
-    // build already walked. A file added afterwards is therefore never picked
-    // up, and neither is a parent folder the watcher did not know about — a
-    // brand new `Ruleset/Xpedia.rul` was silently left out of the container
-    // until the dev server restarted. Watching the folder itself covers both,
-    // so the container is rebuilt and the page reloaded.
+    // reloads the page instead of leaving the old strings on screen. But a
+    // reload on its own is not enough: an edit to a file already walked by the
+    // last build left the virtual module cached in the module graph, and the
+    // reload re-read that cached payload, so the old strings came back until
+    // the dev server was restarted. The module has to be invalidated too, so
+    // the reload re-runs `load` and re-packs the edited files. Nothing imports
+    // these files directly, so the watcher has to be told about the folder:
+    // otherwise the first edit after starting the server is missed, and a file
+    // added afterwards — which the last build never walked and never registered
+    // with `addWatchFile` — would stay out of the container until a restart.
+    // A deletion is the same case, so `unlink` is included.
     configureServer(server: ViteDevServer) {
       const root = `${__dirname}/src/builtinMods`;
       server.watcher.add(root);
-      server.watcher.on("add", (file: string) => {
+      const rebuild = (file: string) => {
         if (!file.replace(/\\/g, "/").includes("/src/builtinMods/")) return;
         const module = server.moduleGraph.getModuleById(virtualId);
         if (module) server.moduleGraph.invalidateModule(module);
         server.ws.send({ type: "full-reload" });
-      });
-      server.watcher.on("change", (file: string) => {
-        if (file.replace(/\\/g, "/").includes("/src/builtinMods/"))
-          server.ws.send({ type: "full-reload" });
-      });
+      };
+      server.watcher.on("add", rebuild);
+      server.watcher.on("change", rebuild);
+      server.watcher.on("unlink", rebuild);
     },
   };
 }

@@ -1254,6 +1254,13 @@ button.modpack-name {
   margin: -0.3rem 0 -0.6rem 0;
 }
 
+/* The doppelgangers of a shared title, under the sections: a second line of
+   the same small size, so it reads as part of the title block rather than a
+   new section of the page. */
+.article-title .title-same-name {
+  margin-block-start: 0.15rem;
+}
+
 /* The section's article list is one flowing list of links across the whole
    page width, as in old `Article.svelte`; it must not be split into narrow
    newspaper columns. */
@@ -1626,6 +1633,14 @@ ol > li:last-child::after {
   list-style: none;
   margin-block-start: 0;
   margin-block-end: 0;
+  padding-inline-start: 0;
+}
+
+/* A list nested inside another list's item keeps its indent — that is the
+   only level marker these marker-less lists have — while a list that starts
+   a cell or a card sits flush with the text around it. */
+.mapscript-nested > li > .mapscript-nested,
+.data-nested > li > .data-nested {
   padding-inline-start: 1rem;
 }
 
@@ -3396,13 +3411,17 @@ table.mission-raceweights {
 table.mission-raceweights th {
   text-align: center;
 }
-table.mission-raceweights th:first-child {
-  text-align: left;
-}
 table.mission-raceweights td {
   text-align: center;
 }
-table.mission-raceweights td.mission-race-month {
+table.mission-raceweights td:first-child {
+  text-align: left;
+  /* In-between widths: a name a little too long for the column should
+     break into balanced lines, not one full line plus a short orphan. */
+  text-wrap: balance;
+}
+table.mission-raceweights td.mission-race-month,
+table.mission-raceweights th.mission-race-month {
   text-align: left;
   white-space: nowrap;
 }

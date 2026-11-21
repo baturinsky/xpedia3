@@ -5,6 +5,7 @@ import {
   deploymentRaces,
   hasTechLevelDistinction,
   loadoutIsEmpty,
+  missionsSpawningDeployment,
   type RankDeployment,
   rankUnits,
   setChancesByLevel,
@@ -448,18 +449,79 @@ function DeploymentDataView({
  * to it — to resolve each rank to the unit it spawns.
  */
 export default function DeploymentComponent({ entry }: { entry: AlienDeployment }) {
+  // A deployment no wave names is still reachable: the engine draws it from the
+  // `deployments` table of whatever globe texture the site lands on, so which
+  // site a mission builds depends on the region rather than on any stated id.
+  // The page would otherwise show no route to this deployment at all, so it
+  // says that much in one line — without naming textures or weights.
+  const uid = entry.uid;
+  const byTexture =
+    uid != null && Object.values(rul?.textures ?? {}).some((t) => t.deployments?.[uid] != null);
+  const missions = (entry as { missions?: string[] }).missions;
+  const textureOnly = byTexture && !missions?.length;
+  // The way back for a texture-rolled site: the missions that can build it,
+  // named as links under the same label the wave-named backlink uses. A
+  // deployment the waves already name renders that field itself, so this
+  // stays out to avoid drawing the missions twice.
+  const spawners = textureOnly && uid != null ? missionsSpawningDeployment(uid, rul ?? {}) : [];
   return (
     <MainTable
       of={entry}
       title="alienDeployments"
       sort={{ first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] }}
+      before={
+        spawners.length > 0 ? (
+          <tr>
+            <td className="row-name">
+              <Tr text="missions" />
+            </td>
+            <td>
+              <ul className="data-nested">
+                {spawners.map((mission) => (
+                  <li key={mission}>
+                    <Val of={mission} />
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : textureOnly ? (
+          <tr>
+            <td colSpan={2}>
+              <div className="mission-note">
+                <Tr text="xpediaWaveRegionSpawn" />
+              </div>
+            </td>
+          </tr>
+        ) : undefined
+      }
       special={{
         // Keyed on the deployment: the picker is per-article state, and the
         // app keeps the same component position while navigating.
         data: ({ val }) => (
           <DeploymentDataView data={val} deployment={entry} key={entry.uid ?? ""} />
         ),
-        briefing: asSubTable,
+        // The briefing's background is often the very image the alert
+        // already showed above it — drawn twice the page ends up stacking
+        // two big images out of line with each other. When the ids match,
+        // the briefing row says so instead of loading the image again.
+        briefing: ({ val }) => {
+          if (isEmpty(val) || (typeof val === "object" && Object.keys(val as object).length === 0))
+            return null;
+          const background = (val as { background?: unknown } | undefined)?.background;
+          const alert = entry.alertBackground;
+          if (background != null && alert != null && String(background) === String(alert)) {
+            return (
+              <MainTable
+                of={val}
+                special={{
+                  background: () => <Tr text="xpediaSameAsAlert" />,
+                }}
+              />
+            );
+          }
+          return asSubTable({ val });
+        },
       }}
     />
   );

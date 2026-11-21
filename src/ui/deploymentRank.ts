@@ -255,6 +255,10 @@ function textureRaces(deploymentId: string, tables: RankTables): string[] {
     for (const [missionId, mission] of Object.entries(tables.alienMissions ?? {})) {
       if (mission == null || typeof mission !== "object") continue;
       if (asId((mission as RankMission).siteType) != null) continue;
+      // A wave naming a deployment overrides the texture roll outright
+      // (`spawnMissionSite` takes the wave's deployment first), so the
+      // mission builds that one and never rolls a texture's table.
+      if (waveUfos(mission).some((id) => tables.alienDeployments?.[id] != null)) continue;
       const objective = Number((mission as RankMission).objective);
       if (objective !== 1 && objective !== 2 && objective !== 3) continue;
       if (!servedZones.has(Number((mission as RankMission).spawnZone))) continue;
@@ -273,6 +277,96 @@ function textureRaces(deploymentId: string, tables: RankTables): string[] {
     }
   }
   return [...found];
+}
+
+/** One site a mission can build through its area's globe texture */
+export type TextureSpawn = {
+  id: string;
+  /** Share of that texture's roll, as a percentage (`Texture::getRandomDeployment` normalises the weights) */
+  percent: number;
+};
+
+/**
+ * The deployments a mission can spawn through the globe textures, in id order.
+ *
+ * This is `textureRaces` read forward: the same eligibility (`siteType`
+ * unstated, objective 1/2/3, matching `spawnZone`, a script pairing the mission
+ * with the region or the region's own `missionWeights`), but the result is the
+ * textures' `deployments` entries themselves, each with its share of its
+ * texture's roll. A deployment reached from several textures keeps the largest
+ * share — the list names what can appear, not a combined chance.
+ */
+export function textureSpawns(missionId: string, tables: RankTables): TextureSpawn[] {
+  const mission = tables.alienMissions?.[missionId];
+  if (mission == null || typeof mission !== "object") return [];
+  if (asId((mission as RankMission).siteType) != null) return [];
+  // A wave naming a deployment overrides the texture roll outright
+  // (`spawnMissionSite` takes the wave's deployment first), so the
+  // mission builds that one and never rolls a texture's table.
+  if (waveUfos(mission).some((id) => tables.alienDeployments?.[id] != null)) return [];
+  const objective = Number((mission as RankMission).objective);
+  if (objective !== 1 && objective !== 2 && objective !== 3) return [];
+  const spawnZone = Number((mission as RankMission).spawnZone);
+
+  const scriptsByMission = new Map<string, ScriptMembership[]>();
+  for (const scriptId of Object.keys(tables.missionScripts ?? {})) {
+    const membership = scriptMembership(scriptId, tables);
+    for (const id of membership.missions) {
+      const list = scriptsByMission.get(id) ?? [];
+      list.push(membership);
+      scriptsByMission.set(id, list);
+    }
+  }
+  const scripts = scriptsByMission.get(missionId) ?? [];
+
+  const found = new Map<string, number>();
+  for (const [regionId, region] of Object.entries(tables.regions ?? {})) {
+    if (region == null || typeof region !== "object") continue;
+    const zones = (region as RankRegion).missionZones;
+    if (!Array.isArray(zones)) continue;
+    const zone = zones[spawnZone];
+    const areas = Array.isArray(zone) ? zone : (zone as { areas?: unknown } | undefined)?.areas;
+    if (!Array.isArray(areas)) continue;
+    const regionMissions = new Set(weightedIds((region as RankRegion).missionWeights));
+    const linking = scripts.filter(
+      (script) => script.regions == null || script.regions.has(regionId),
+    );
+    if (linking.length === 0 && !regionMissions.has(missionId)) continue;
+    for (const area of areas) {
+      if (!Array.isArray(area)) continue;
+      // Areas with no stated texture default to texture 0, as the engine does
+      const stated = (area as unknown[])[4];
+      const texture = tables.textures?.[stated == null ? "0" : String(stated)];
+      const deployments = (texture as RankTexture | undefined)?.deployments;
+      if (typeof deployments !== "object" || deployments == null || Array.isArray(deployments))
+        continue;
+      const entries = Object.entries(deployments as { [id: string]: unknown });
+      const total = entries.reduce((sum, [, weight]) => sum + Math.max(0, Number(weight) || 0), 0);
+      if (total <= 0) continue;
+      for (const [id, weight] of entries) {
+        if (id === "" || !(Number(weight) > 0)) continue;
+        const percent = sharePercent(Number(weight), total);
+        const known = found.get(id);
+        if (known == null || percent > known) found.set(id, percent);
+      }
+    }
+  }
+  return [...found.entries()]
+    .map(([id, percent]) => ({ id, percent }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * The missions that can spawn a deployment through the globe textures — the
+ * backlink `textureSpawns` reads the other way.
+ */
+export function missionsSpawningDeployment(deploymentId: string, tables: RankTables): string[] {
+  const out: string[] = [];
+  for (const missionId of Object.keys(tables.alienMissions ?? {})) {
+    if (textureSpawns(missionId, tables).some((spawn) => spawn.id === deploymentId))
+      out.push(missionId);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
 }
 
 /**

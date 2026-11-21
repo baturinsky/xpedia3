@@ -1150,6 +1150,18 @@ export default class Ruleset {
       this.ufos,
       "missions",
     );
+    // The other kind of wave target: a wave that builds a site names an
+    // `alienDeployments` entry instead of a UFO, and from that deployment's
+    // article the backlink to the mission that spawns it is the way back.
+    crosslink(
+      this.alienMissions,
+      (t) =>
+        ((t.waves ?? []) as { ufo?: string }[])
+          .map((w) => w?.ufo)
+          .filter((id): id is string => !!id && !!this.alienDeployments[id]),
+      this.alienDeployments,
+      "missions",
+    );
     crosslink(this.alienMissions, "interruptResearch", this.research, "stopsMissions");
 
     crosslink(this.alienDeployments, "customUfo", this.ufos, "deployments");

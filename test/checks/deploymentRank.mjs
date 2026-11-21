@@ -16,9 +16,11 @@ const {
   deploymentRaces,
   hasTechLevelDistinction,
   loadoutIsEmpty,
+  missionsSpawningDeployment,
   rankMembers,
   rankUnits,
   setChancesByLevel,
+  textureSpawns,
 } = await import("../.gen/deploymentrank.mjs");
 
 // XPiratez `STR_BANDIT_TOWN`, verbatim and in order: 0 is the boss,
@@ -808,6 +810,99 @@ eq(
   ),
   ["STR_SECTOID_NONCOM"],
   "a refNode parent's memberships are inherited",
+);
+
+// --- the same route read forward: what a mission can spawn ------------------
+// `textureSpawns` lists the texture's deployments with each one's share of
+// the roll, for the mission page; `missionsSpawningDeployment` is the
+// backlink from a deployment page.
+eq(
+  textureSpawns("STR_LOC_COMMS_TOWER", textureTables),
+  [{ id: "STR_LOC_COMMS_TOWER_COLD", percent: 100 }],
+  "a single-deployment texture rolls it at 100%",
+);
+eq(
+  missionsSpawningDeployment("STR_LOC_COMMS_TOWER_COLD", textureTables),
+  ["STR_LOC_COMMS_TOWER"],
+  "the deployment links back to its mission",
+);
+eq(
+  missionsSpawningDeployment("STR_LOC_NOWHERE", textureTables),
+  [],
+  "a texture no region uses links nowhere",
+);
+eq(
+  textureSpawns("STR_OTHER_SITE", textureTables),
+  [],
+  "a spawnZone the region has no zone for spawns nothing",
+);
+eq(textureSpawns("STR_WRONG_OBJECTIVE", textureTables), [], "a score mission builds no site");
+eq(textureSpawns("STR_NOPE", textureTables), [], "an unknown mission spawns nothing");
+// A mission stating `siteType` names its site outright, so the texture roll
+// never applies to it
+eq(
+  textureSpawns("STR_LOC_COMMS_TOWER", {
+    ...textureTables,
+    alienMissions: {
+      STR_LOC_COMMS_TOWER: {
+        objective: 3,
+        spawnZone: 0,
+        siteType: "STR_LOC_COMMS_TOWER_COLD",
+      },
+    },
+  }),
+  [],
+  "siteType names the site, so the texture roll does not apply",
+);
+// Shares normalise over the texture's weights, rounded like every other
+// chance in the pedia
+eq(
+  textureSpawns("STR_LOC_COMMS_TOWER", {
+    ...textureTables,
+    textures: {
+      "-47": { deployments: { STR_LOC_A: 20, STR_LOC_B: 10 } },
+    },
+  }),
+  [
+    { id: "STR_LOC_A", percent: 67 },
+    { id: "STR_LOC_B", percent: 33 },
+  ],
+  "weights become shares of the texture's roll",
+);
+eq(
+  missionsSpawningDeployment("STR_LOC_B", {
+    ...textureTables,
+    textures: {
+      "-47": { deployments: { STR_LOC_A: 20, STR_LOC_B: 10 } },
+    },
+  }),
+  ["STR_LOC_COMMS_TOWER"],
+  "a share of a multi-deployment texture still links back",
+);
+// A wave naming a deployment overrides the texture roll: such a mission
+// builds that deployment and never rolls the texture's table, so it appears
+// in neither direction
+const waveNamedTables = {
+  ...textureTables,
+  alienMissions: {
+    STR_LOC_COMMS_TOWER: {
+      objective: 3,
+      spawnZone: 0,
+      waves: [{ ufo: "STR_LOC_COMMS_TOWER_COLD", count: 1 }],
+      raceWeights: { 0: { STR_SECTOID_NONCOM: 100 } },
+    },
+  },
+  alienDeployments: { STR_LOC_COMMS_TOWER_COLD: { uid: "STR_LOC_COMMS_TOWER_COLD" } },
+};
+eq(
+  textureSpawns("STR_LOC_COMMS_TOWER", waveNamedTables),
+  [],
+  "a wave-named deployment never rolls the texture",
+);
+eq(
+  missionsSpawningDeployment("STR_LOC_COMMS_TOWER_COLD", waveNamedTables),
+  [],
+  "a wave-named deployment links through its wave, not the texture",
 );
 
 report();

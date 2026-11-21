@@ -1,5 +1,6 @@
 import type { UfoTrajectory } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
+import { textureSpawns } from "./deploymentRank";
 import MainTable, { type MainTableRenderer } from "./MainTable";
 import { parseRaceWeights, raceWeightPercent } from "./raceWeights";
 import { formatDelay, formatSeconds, waveDelay } from "./timing";
@@ -64,7 +65,7 @@ export type MissionWave = {
  * `waves` is a list of `MissionWave`s. The rest of the entry is whatever the
  * ruleset states, so the index signature keeps the type honest.
  */
-export type AlienMission = { waves?: MissionWave[]; [field: string]: unknown };
+export type AlienMission = { uid?: string; waves?: MissionWave[]; [field: string]: unknown };
 
 /** The label for an objective number, or nothing when the pack states none */
 export function objectiveName(value: unknown) {
@@ -94,7 +95,9 @@ export function groundSeconds(path?: UfoTrajectory) {
 }
 
 /**
- * The wave's UFO, which may be a site deployment instead of a flying craft.
+ * The wave's UFO with its count, "×2 Heavy Gunship" rather than a separate
+ * count column. The count rides along so a one-craft wave is read as one
+ * craft without hunting for a number in its own column.
  *
  * A wave's `ufo` is not always a UFO: a deployment id means the wave creates a
  * site without any craft, and an id that exists nowhere is the documented way to
@@ -104,11 +107,20 @@ export function groundSeconds(path?: UfoTrajectory) {
 function waveUfo(wave: MissionWave) {
   const id = wave?.ufo;
   if (!id) return null;
-  if (rul.ufos?.[id]) return <Val of={id} />;
+  const name = <Val of={id} />;
+  const count = wave?.count == null ? null : <span className="mission-delay">×{wave.count} </span>;
+  if (rul.ufos?.[id])
+    return (
+      <>
+        {count}
+        {name}
+      </>
+    );
   if (rul.alienDeployments?.[id])
     return (
       <>
-        <Val of={id} />
+        {count}
+        {name}
         <div className="mission-note">
           <Tr text="xpediaWaveSite" />
         </div>
@@ -117,21 +129,23 @@ function waveUfo(wave: MissionWave) {
   return (
     <>
       <span className="mission-dangling">
-        <Val of={id} />
+        {count}
+        {name}
       </span>
       <div className="mission-note">
-        <Tr text="xpediaWaveNoUfo" />
+        <Tr text="xpediaWaveRegionSpawn" />
       </div>
     </>
   );
 }
 
 /**
- * The flags a wave sets, as short notes under its landing column.
- *
- * These are the fields a player can actually feel: which wave carries out the
- * mission's objective, whether the site follows the craft down, whether the
- * craft hunts, and the chance that shooting it down ends the whole mission.
+ * What a wave does once it gets there: the flags a player can actually feel —
+ * which wave carries out the mission's objective, whether the site follows the
+ * craft down, whether the craft hunts, and the chance that shooting it down
+ * ends the whole mission. These are not footnotes to some other column: they
+ * read as their own column, one phrase per line, so an interrupt chance is not
+ * buried under a ground-time cell.
  */
 function waveNotes(wave: MissionWave) {
   const notes: { key: string; text?: string; percent?: number }[] = [];
@@ -160,10 +174,11 @@ function waveNotes(wave: MissionWave) {
  *
  * A wave's `timer` is the gap *before* it, which is the number a player cares
  * about: the wave table reads as a schedule, so the delay belongs to the row it
- * delays rather than to the mission as a whole. Its headers are ordinary
- * `data-table` headers like the map-block tables — left-aligned
- * `th`, content-width columns — rather than the large centred `table-header`
- * row other tables use for a title.
+ * delays rather than to the mission as a whole. There is no wave-number column:
+ * the rows are in order and the trajectory column says which path each is. Its
+ * headers are ordinary `data-table` headers like the map-block tables —
+ * left-aligned `th`, content-width columns — rather than the large centred
+ * `table-header` row other tables use for a title.
  */
 function WaveTable({ waves }: { waves: MissionWave[] }) {
   if (!waves.length) return null;
@@ -172,13 +187,7 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
       <thead>
         <tr>
           <th scope="col">
-            <Tr text="xpediaWave" />
-          </th>
-          <th scope="col">
             <Tr text="ufo" />
-          </th>
-          <th scope="col">
-            <Tr text="count" />
           </th>
           <th scope="col">
             <Tr text="trajectory" />
@@ -189,6 +198,9 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
           <th scope="col">
             <Tr text="xpediaWaveGround" />
           </th>
+          <th scope="col">
+            <Tr text="xpediaWaveEffects" />
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -198,23 +210,12 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
             : undefined;
           const notes = waveNotes(wave);
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a wave is identified by its number, the position the row prints; waves carry no id
+            // biome-ignore lint/suspicious/noArrayIndexKey: waves carry no id, and the table no longer numbers them
             <tr key={i}>
-              <td className="mission-wave-number">
-                <Val of={i + 1} />
-              </td>
               <td>{waveUfo(wave)}</td>
-              <td>
-                <Val of={wave?.count} />
-              </td>
               <td>{wave?.trajectory ? <Val of={wave.trajectory} /> : null}</td>
               <td>
                 <span className="mission-delay">{delayText(wave?.timer)}</span>
-                {wave?.timer != null && (
-                  <div className="mission-raw">
-                    <Val of={wave.timer} />
-                  </div>
-                )}
               </td>
               <td>
                 {grounded == null ? (
@@ -225,21 +226,19 @@ function WaveTable({ waves }: { waves: MissionWave[] }) {
                     <span className="mission-delay">{formatSeconds(grounded)}</span>
                   </>
                 )}
-                {notes.length > 0 && (
-                  <div className="mission-notes">
-                    {notes.map((note) => (
-                      <div key={note.key} className="mission-note">
-                        <Tr text={note.text} />
-                        {note.percent != null && (
-                          <>
-                            {" "}
-                            <Percent value={note.percent} />
-                          </>
-                        )}
-                      </div>
-                    ))}
+              </td>
+              <td>
+                {notes.map((note) => (
+                  <div key={note.key} className="mission-note">
+                    <Tr text={note.text} />
+                    {note.percent != null && (
+                      <>
+                        {" "}
+                        <Percent value={note.percent} />
+                      </>
+                    )}
                   </div>
-                )}
+                ))}
               </td>
             </tr>
           );
@@ -263,28 +262,19 @@ function RaceWeights({ value }: { value: unknown }) {
       <thead>
         <tr>
           <th scope="col">
-            <Tr text="xpediaRaceMonth" />
+            <Tr text="raceWeights" />
           </th>
-          {races.map((race) => (
-            <th scope="col" key={race}>
-              <Val of={race} />
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {months.map((row, i) => {
-          const next = months[i + 1]?.month;
-          const start = row.month + 1;
-          const end = next != null ? next : null;
-          return (
-            <tr key={row.month}>
-              <td className="mission-race-month">
-                <Val of={start} />
+          {months.map((row, i) => {
+            const next = months[i + 1]?.month;
+            const start = row.month + 1;
+            const end = next != null ? next : null;
+            return (
+              <th scope="col" key={row.month} className="mission-race-month">
+                {start}
                 {end != null ? (
                   <>
                     {"–"}
-                    <Val of={end} />
+                    {end}
                   </>
                 ) : (
                   <>
@@ -292,20 +282,29 @@ function RaceWeights({ value }: { value: unknown }) {
                     <Tr text="xpediaRaceOnwards" />
                   </>
                 )}
-              </td>
-              {races.map((race) => {
-                const weight = row.weights.get(race);
-                if (weight == null) return <td key={race}>—</td>;
-                const pct = raceWeightPercent(weight, row.total);
-                return (
-                  <td key={race}>
-                    <Percent value={pct} />
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
+              </th>
+            );
+          })}
+        </tr>
+      </thead>
+      <tbody>
+        {races.map((race) => (
+          <tr key={race}>
+            <td className="row-name">
+              <Val of={race} />
+            </td>
+            {months.map((month) => {
+              const weight = month.weights.get(race);
+              if (weight == null) return <td key={month.month}>—</td>;
+              const pct = raceWeightPercent(weight, month.total);
+              return (
+                <td key={month.month}>
+                  <Percent value={pct} />
+                </td>
+              );
+            })}
+          </tr>
+        ))}
       </tbody>
     </table>
   );
@@ -316,6 +315,11 @@ const asRaceWeights: MainTableRenderer = ({ val }) => <RaceWeights value={val} /
 /** Alien mission table: the fields, with the waves drawn as a schedule */
 export default function MissionComponent({ entry }: { entry: AlienMission }) {
   const waves: MissionWave[] = entry.waves ?? [];
+  // A mission that states no site deployment builds its site from the area's
+  // globe texture instead, so the deployments it can actually fight are the
+  // texture's roll — listed here with each one's share of that roll, rather
+  // than left as a dangling wave id.
+  const spawns = entry.uid != null ? textureSpawns(entry.uid, rul ?? {}) : [];
 
   return (
     <MainTable
@@ -323,6 +327,24 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
       title="ALIEN_MISSIONS"
       sort={{ last: ["waves"] }}
       wide={["waves"]}
+      before={
+        spawns.length > 0 ? (
+          <tr>
+            <td className="row-name">
+              <Tr text="xpediaPossibleSpawns" />
+            </td>
+            <td>
+              <ul className="data-nested">
+                {spawns.map((spawn) => (
+                  <li key={spawn.id}>
+                    <Val of={spawn.id} /> <Percent value={spawn.percent} />
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : undefined
+      }
       special={{
         raceWeights: asRaceWeights,
         waves: () => <WaveTable waves={waves} />,

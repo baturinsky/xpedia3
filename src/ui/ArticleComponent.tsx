@@ -1,5 +1,6 @@
 import {
   createElement,
+  Fragment,
   type ReactNode,
   type RefObject,
   useEffect,
@@ -58,6 +59,12 @@ export function ArticleTitle() {
   );
   // Old `Article.svelte` filtered out the article's own section from the list
   const sectionIds = article?.sections?.map((s) => s.id).filter((id) => id !== article?.id) ?? [];
+  // A title whose translation is shared with other lines is vague on its
+  // own: the twins are listed under the sections by their internal names —
+  // as links where an article exists — so the reader can tell which entry
+  // this is. `Val`/`Tr` would translate them back to the same text, so the
+  // raw `code` ids are drawn directly.
+  const sameName = article?.id ? rul.sameTranslation(article.id) : undefined;
   if (onLandingPage()) {
     return (
       <>
@@ -85,7 +92,26 @@ export function ArticleTitle() {
         <div className="central">
           <Tr text={article?.id} nobr={100} />
         </div>
-        <div className="sections">{sectionIds.length > 0 && <Val of={sectionIds} />}</div>
+        <div className="sections">
+          {sectionIds.length > 0 && <Val of={sectionIds} />}
+          {sameName && sameName.length > 0 && (
+            <div className="title-same-name">
+              <Tr text="xpediaAlsoTranslatedAs" />:{" "}
+              {sameName.map((id, i) => (
+                <Fragment key={id}>
+                  {i > 0 && ", "}
+                  {rul.article(id) ? (
+                    <a href={`##${id}`}>
+                      <code>{id}</code>
+                    </a>
+                  ) : (
+                    <code>{id}</code>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="right">{right && <NearbyLink target={right} postfix={">"} />}</div>
       </div>
     );
