@@ -768,6 +768,88 @@ export default class Ruleset {
       }
     }
 
+    // `raceWeights` is merged per month and per race by the engine, not
+    // replaced by the last mod that states it: `RuleAlienMission::load` folds
+    // every layer's table into the distribution the earlier layers built, and
+    // `WeightedOptions::set` replaces a race's weight (0 removing the race).
+    // An empty `raceWeights: {}` is therefore the inherit-base spelling — it
+    // keeps everything the base layers stated — while the merge above files
+    // the last block's `{}` and loses it. Replaying the layers the engine saw
+    // restores what `generateRace` would roll: Piratez `STR_SUPPLY_SHIP`
+    // inherits `STR_ALIEN_SUPPLY`'s weights through its own empty table.
+    const weightsByMission = new Map<string, Map<number, Map<string, number>>>();
+    for (const mod of mods) {
+      for (const file of mod.rul) {
+        const category = (file as YamlObject | undefined)?.alienMissions;
+        if (category == null || typeof category !== "object") continue;
+        // The array form lists blocks; the object form keys them by id. A
+        // block's `uid` was stamped while the rules were merged, so it is the
+        // id this block was filed under.
+        const blocks: YamlObject[] = Array.isArray(category)
+          ? (category as YamlObject[])
+          : Object.values(category as YamlObject).filter(
+              (b): b is YamlObject => b != null && typeof b === "object" && !Array.isArray(b),
+            );
+        for (const block of blocks) {
+          if (block == null || typeof block !== "object" || Array.isArray(block)) continue;
+          const id = typeof block.uid === "string" && block.uid !== "" ? block.uid : undefined;
+          if (!id) continue;
+          // Deleting a mission deletes its distribution with it: the engine
+          // drops the rule, and a later block of the same id starts afresh.
+          if (block.delete) {
+            weightsByMission.delete(id);
+            continue;
+          }
+          const weights = block.raceWeights;
+          if (weights == null || typeof weights !== "object" || Array.isArray(weights)) continue;
+          const mission = (weightsByMission.get(id) ?? new Map()) as Map<
+            number,
+            Map<string, number>
+          >;
+          for (const [monthKey, bucket] of Object.entries(weights as YamlObject)) {
+            const month = Number(monthKey);
+            if (!Number.isInteger(month) || month < 0) continue;
+            if (bucket == null || typeof bucket !== "object" || Array.isArray(bucket)) continue;
+            for (const [race, rawWeight] of Object.entries(bucket as YamlObject)) {
+              const weight = Number(rawWeight);
+              if (!Number.isFinite(weight)) continue;
+              if (weight <= 0) mission.get(month)?.delete(race);
+              else {
+                let monthWeights = mission.get(month);
+                if (!monthWeights) {
+                  monthWeights = new Map();
+                  mission.set(month, monthWeights);
+                }
+                monthWeights.set(race, weight);
+              }
+            }
+            // An empty bucket is dropped, like the engine does after a load.
+            if (mission.get(month)?.size === 0) mission.delete(month);
+          }
+          if (mission.size > 0) weightsByMission.set(id, mission);
+          else weightsByMission.delete(id);
+        }
+      }
+    }
+    const missionsTable = this.raw.alienMissions;
+    if (
+      missionsTable != null &&
+      typeof missionsTable === "object" &&
+      !Array.isArray(missionsTable)
+    ) {
+      for (const [id, mission] of weightsByMission) {
+        const entry = (missionsTable as YamlObject)[id];
+        if (entry == null || typeof entry !== "object" || Array.isArray(entry)) continue;
+        const rebuilt: { [month: string]: { [race: string]: number } } = {};
+        for (const month of [...mission.keys()].sort((a, b) => a - b)) {
+          const races = mission.get(month);
+          if (!races || races.size === 0) continue;
+          rebuilt[String(month)] = Object.fromEntries(races);
+        }
+        if (Object.keys(rebuilt).length > 0) (entry as YamlObject).raceWeights = rebuilt;
+      }
+    }
+
     // Sounds are read from the mods rather than from `this.raw`: a slot's file
     // path is relative to the mod folder that declares it, and merging the
     // `extraSounds` blocks into one table loses which mod that was.

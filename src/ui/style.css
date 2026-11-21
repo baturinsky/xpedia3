@@ -3106,6 +3106,38 @@ tr.highlight td {
   cursor: pointer;
 }
 
+/* Which race a multi-race deployment is read as. A fieldset, because the
+   choice is one of a set and the browser already knows how to make that
+   accessible. */
+.deployment-race {
+  border: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  font-size: 95%;
+}
+
+.deployment-race legend {
+  float: left;
+  margin-right: 0.9rem;
+  padding: 0;
+}
+
+.deployment-race-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.deployment-race-choice input {
+  margin: 0;
+  cursor: pointer;
+}
+
 /* The flight as a strip: stop, leg, stop, leg, … in flight order.
    A chip-per-zone row said which zones existed; this says what the UFO did, which
    is what the picture above it says too.

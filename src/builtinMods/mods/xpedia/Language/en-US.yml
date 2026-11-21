@@ -2924,6 +2924,7 @@ en-US:
   xpediaRaceMonth: Month
   xpediaRaceOnwards: onwards
   xpediaRaceWeightsEmpty: No race stated, so the race comes from the alien base or the mission script that starts this mission.
+  xpediaDeploymentRace: Alien race
   xpediaSpawnZoneNote: the site or alien base this mission creates appears inside this zone of the region, not anywhere in the whole region — see the region's mission zones on its map.
   # Altitudes a UFO flies at. The game names them with the engine keys
   # STR_GROUND/STR_VERY_LOW/STR_LOW_UC/STR_HIGH_UC/STR_VERY_HIGH, which a pack is

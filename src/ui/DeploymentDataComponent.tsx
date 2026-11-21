@@ -1,7 +1,8 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ReactNode, useId, useState } from "react";
 import type { AlienDeployment } from "../rul/Entry";
 import { rul } from "../rul/Ruleset";
 import {
+  deploymentRaces,
   loadoutIsEmpty,
   type RankDeployment,
   rankUnits,
@@ -269,17 +270,19 @@ function RankTitle({
   row,
   index,
   deployment,
+  race,
 }: {
   row: DeploymentRow;
   index: number;
   deployment: RankDeployment | undefined;
+  race?: string;
 }): ReactNode {
   const rank = asNumber(row.alienRank) ?? index;
   const custom =
     typeof row.customUnitType === "string" && row.customUnitType !== ""
       ? row.customUnitType
       : undefined;
-  const units = custom ? [custom] : rankUnits(deployment, rank, rul ?? {});
+  const units = custom ? [custom] : rankUnits(deployment, rank, rul ?? {}, race);
   if (!units || units.length === 0) return <Val of={row.alienRank ?? index} field="alienRank" />;
   return (
     <>
@@ -302,6 +305,12 @@ function DeploymentDataView({
   data: unknown;
   deployment: RankDeployment | undefined;
 }): ReactNode {
+  // Hooks first: an article with no rows still renders nothing, but the
+  // picker state must stay mounted in the same order either way. `useId`
+  // makes the radio name unique to this instance, so several pickers on one
+  // page never trade their selection.
+  const group = useId();
+  const [race, setRace] = useState<string | undefined>(undefined);
   const list = asItems(data).filter(
     (item): item is DeploymentRow => typeof item === "object" && item != null,
   );
@@ -321,8 +330,32 @@ function DeploymentDataView({
         a.origIndex - b.origIndex,
     );
   const otherFields = otherFieldsOf(rows.map(({ row }) => row));
+  const races = deploymentRaces(deployment, rul ?? {});
+  // Joining three or more candidates in every title is unreadable; the reader
+  // picks one race and the titles show that race alone. Two stay joined.
+  const picker = races.length > 2;
+  const shown = race && races.includes(race) ? race : race == null && picker ? races[0] : race;
   return (
     <TipScopeProvider scope="deploymentData">
+      {picker && (
+        <fieldset className="deployment-race">
+          <legend>
+            <Tr text="xpediaDeploymentRace" />
+          </legend>
+          {races.map((id) => (
+            <label key={id} className="deployment-race-choice">
+              <input
+                type="radio"
+                name={group}
+                value={id}
+                checked={shown === id}
+                onChange={() => setRace(id)}
+              />
+              <Val of={id} />
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className="deployment-cards">
         {rows.map(({ row, origIndex }) => {
           // A rank can state its loadout explicitly as empty sets — XPiratez
@@ -353,7 +386,7 @@ function DeploymentDataView({
           return (
             <section className="deployment-card" key={origIndex}>
               <h3 className="deployment-card-title">
-                <RankTitle row={row} index={origIndex} deployment={deployment} />
+                <RankTitle row={row} index={origIndex} deployment={deployment} race={shown} />
               </h3>
               <Summary row={row} />
               {otherFields
@@ -418,7 +451,11 @@ export default function DeploymentComponent({ entry }: { entry: AlienDeployment 
       title="alienDeployments"
       sort={{ first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] }}
       special={{
-        data: ({ val }) => <DeploymentDataView data={val} deployment={entry} />,
+        // Keyed on the deployment: the picker is per-article state, and the
+        // app keeps the same component position while navigating.
+        data: ({ val }) => (
+          <DeploymentDataView data={val} deployment={entry} key={entry.uid ?? ""} />
+        ),
         briefing: asSubTable,
       }}
     />

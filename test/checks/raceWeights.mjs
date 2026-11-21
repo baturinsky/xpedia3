@@ -8,6 +8,7 @@
  */
 import { ensureBuilt } from "../build.mjs";
 import { eq, report } from "../helpers/check.mjs";
+import { testPack } from "../helpers/packs.mjs";
 
 await ensureBuilt();
 const { parseRaceWeights, raceWeightPercent } = await import("../.gen/raceweights.mjs");
@@ -47,5 +48,91 @@ eq(parseRaceWeights(undefined).months, [], "no table, no races");
 eq(parseRaceWeights({ 0: { STR_A: 0, STR_B: -5 } }).months, [], "non-positive weights are dropped");
 eq(parseRaceWeights({ x: { STR_A: 10 } }).months, [], "a non-month key is dropped");
 eq(parseRaceWeights([["STR_A", 10]]).months, [], "a list is not a table");
+
+// The engine merges each layer's `raceWeights` month by month and race by
+// race (`RuleAlienMission::load`), so a later `raceWeights: {}` keeps the
+// base table. The ruleset merge used to file the last block's `{}`; the
+// replay in `parseRuls` restores the inherited table. Blocks of one file
+// merge in file order, so they stand in for successive mod layers here.
+
+// Inherit through `{}`: the second block is the Piratez supply-ship shape
+const inherited = await testPack({
+  rul: [
+    "alienMissions:",
+    "  - type: STR_INHERITED_MISSION",
+    "    raceWeights:",
+    "      0:",
+    "        STR_A: 70",
+    "        STR_B: 30",
+    "      3:",
+    "        STR_A: 50",
+    "        STR_C: 50",
+    "  - type: STR_INHERITED_MISSION",
+    "    raceWeights: {}",
+    "  - type: STR_NO_WEIGHTS_MISSION",
+    "    raceWeights: {}",
+    "",
+  ].join("\n"),
+});
+eq(
+  inherited.alienMissions.STR_INHERITED_MISSION.raceWeights,
+  { 0: { STR_A: 70, STR_B: 30 }, 3: { STR_A: 50, STR_C: 50 } },
+  "an empty table inherits the base weights",
+);
+eq(
+  inherited.alienMissions.STR_NO_WEIGHTS_MISSION.raceWeights,
+  {},
+  "a mission with no weights anywhere stays empty",
+);
+
+// A later layer reweights one race, zeroes another away, and adds a month:
+// everything the earlier layers stated and the override did not touch stays.
+const overridden = await testPack({
+  rul: [
+    "alienMissions:",
+    "  - type: STR_OVERRIDDEN_MISSION",
+    "    raceWeights:",
+    "      0:",
+    "        STR_A: 100",
+    "        STR_B: 50",
+    "      2:",
+    "        STR_A: 10",
+    "  - type: STR_OVERRIDDEN_MISSION",
+    "    raceWeights:",
+    "      0:",
+    "        STR_A: 20",
+    "        STR_B: 0",
+    "      4:",
+    "        STR_C: 5",
+    "",
+  ].join("\n"),
+});
+eq(
+  overridden.alienMissions.STR_OVERRIDDEN_MISSION.raceWeights,
+  { 0: { STR_A: 20 }, 2: { STR_A: 10 }, 4: { STR_C: 5 } },
+  "later layers merge per race, and weight 0 removes",
+);
+
+// A deleted mission starts afresh: the block after the delete owns the table.
+const recreated = await testPack({
+  rul: [
+    "alienMissions:",
+    "  - type: STR_RECREATED_MISSION",
+    "    raceWeights:",
+    "      0:",
+    "        STR_A: 100",
+    "  - delete: STR_RECREATED_MISSION",
+    "  - type: STR_RECREATED_MISSION",
+    "    raceWeights:",
+    "      0:",
+    "        STR_B: 10",
+    "",
+  ].join("\n"),
+});
+eq(
+  recreated.alienMissions.STR_RECREATED_MISSION.raceWeights,
+  { 0: { STR_B: 10 } },
+  "a delete clears the inherited table",
+);
 
 report();

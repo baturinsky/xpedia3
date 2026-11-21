@@ -345,7 +345,273 @@ eq(
   "Nazi rank 1 lists both races",
 );
 
-// --- the loadout chances, counted from the tech-level table ------------------
+// --- the Nazi raid: a custom deploy keyed by race under a UFO -----------------
+// XPiratez `STR_ATTACK_NAZI_RAID` is reached only as
+// `ufos.STR_VESSEL_PROBE_DISTRESS.raceBonus.STR_NAZIS.missionCustomDeploy` —
+// no `race`, no mission, no wave names it. The key of the bonus is the race.
+const naziRaid = {
+  alienRaces: { STR_NAZIS: { members: nazis } },
+  alienMissions: {},
+  ufos: {
+    STR_VESSEL_PROBE_DISTRESS: {
+      raceBonus: {
+        STR_NAZIS: { missionCustomDeploy: "STR_ATTACK_NAZI_RAID" },
+        STR_BANDIT: { missionCustomDeploy: "STR_ATTACK_BANDIT_RAID" },
+      },
+    },
+  },
+};
+eq(
+  deploymentRaces({ uid: "STR_ATTACK_NAZI_RAID" }, naziRaid),
+  ["STR_NAZIS"],
+  "raceBonus key is the race",
+);
+eq(
+  rankUnits({ uid: "STR_ATTACK_NAZI_RAID" }, 5, naziRaid),
+  ["STR_NAZI_SOLDIER"],
+  "raid rank 5 is the soldier",
+);
+eq(
+  rankUnits({ uid: "STR_ATTACK_NAZI_RAID" }, 3, naziRaid),
+  ["STR_NAZI_SS"],
+  "raid rank 3 is the SS",
+);
+
+// An unconditional `missionCustomDeploy` on a UFO's base stats gives no key:
+// the race is that of the missions that field the UFO.
+eq(
+  deploymentRaces(
+    { uid: "STR_ATTACK_NAZI_RAID" },
+    {
+      alienRaces: { STR_NAZIS: { members: nazis } },
+      alienMissions: {
+        STR_MISSION_NAZI: {
+          waves: [{ ufo: "STR_VESSEL_PROBE_DISTRESS", count: 1 }],
+          raceWeights: { 0: { STR_NAZIS: 100 } },
+        },
+      },
+      ufos: { STR_VESSEL_PROBE_DISTRESS: { missionCustomDeploy: "STR_ATTACK_NAZI_RAID" } },
+    },
+  ),
+  ["STR_NAZIS"],
+  "an unconditional UFO custom deploy takes the missions' race",
+);
+
+// --- `siteType` names the site's deployment from the mission side -------------
+eq(
+  deploymentRaces(
+    { uid: "STR_LOC_MEDIUM_SCOUT_VR" },
+    {
+      alienRaces: { STR_SECTOID: { members: ["STR_SECTOID_COMMANDER"] } },
+      alienMissions: {
+        STR_MISSION_MEDIUM_SCOUT: {
+          siteType: "STR_LOC_MEDIUM_SCOUT_VR",
+          raceWeights: { 0: { STR_SECTOID: 100 } },
+        },
+      },
+    },
+  ),
+  ["STR_SECTOID"],
+  "siteType names the site deployment",
+);
+
+// --- the retaliation vessel: named only as a mission's `spawnUfo` -------------
+// XPiratez `STR_VESSEL_BOARDING_TORPEDO` / `STR_VESSEL_BREAKER`: no wave names
+// them; the retaliation mission spells `spawnUfo` and its raceWeights roll the
+// race. The craft type is the deployment id, so the race is the mission's.
+eq(
+  deploymentRaces(
+    { uid: "STR_VESSEL_BOARDING_TORPEDO" },
+    {
+      alienRaces: {
+        STR_SECTOID: { members: ["STR_SECTOID_COMMANDER"] },
+        STR_FLOATER: { members: ["STR_FLOATER_COMMANDER"] },
+      },
+      alienMissions: {
+        STR_ALIEN_RETALIATION_S: {
+          spawnUfo: "STR_VESSEL_BOARDING_TORPEDO",
+          raceWeights: { 0: { STR_SECTOID: 50, STR_FLOATER: 50 } },
+        },
+      },
+    },
+  ),
+  ["STR_SECTOID", "STR_FLOATER"],
+  "spawnUfo names the vessel's mission",
+);
+
+// --- `randomRace` rolls the race, ignoring `race` -----------------------------
+eq(
+  deploymentRaces(
+    { uid: "STR_ANYWHERE", race: "STR_SECTOID", randomRace: ["STR_FLOATER", "STR_MUTON"] },
+    piratez,
+  ),
+  ["STR_FLOATER", "STR_MUTON"],
+  "randomRace is rolled and wins over race",
+);
+eq(
+  rankUnits(
+    { uid: "STR_ANYWHERE", race: "STR_SECTOID", randomRace: ["STR_BANDIT_TOWN"] },
+    0,
+    piratez,
+  ),
+  ["STR_BANDIT_BOSS"],
+  "a one-entry randomRace resolves like a race",
+);
+
+// --- `nextStage`: a follow-on stage inherits the stage before it -------------
+// XPiratez `STR_LOC_TEC_BASE_*` / `STR_NINJA_BASE_HQ_*`: only the first
+// stage of the chain has a route; the successors state no race, so the
+// engine keeps the site's race down the chain.
+const stageTables = {
+  alienRaces: {
+    STR_TECHNOCRACY: { members: ["STR_TECH_BOSS"] },
+    STR_NINJA: { members: ["STR_NINJA_BOSS"] },
+  },
+  alienMissions: {
+    STR_STAGE_ONE: {
+      waves: [{ ufo: "STR_STAGE_ONE" }],
+      raceWeights: { 0: { STR_TECHNOCRACY: 100 } },
+    },
+  },
+  alienDeployments: {
+    STR_STAGE_ONE: { uid: "STR_STAGE_ONE", nextStage: "STR_STAGE_TWO" },
+    STR_STAGE_TWO: { uid: "STR_STAGE_TWO", nextStage: "STR_STAGE_THREE" },
+    STR_STAGE_THREE: { uid: "STR_STAGE_THREE" },
+    STR_STAGE_STATED: { uid: "STR_STAGE_STATED", race: "STR_NINJA" },
+  },
+};
+eq(
+  deploymentRaces({ uid: "STR_STAGE_TWO" }, stageTables),
+  ["STR_TECHNOCRACY"],
+  "a nextStage successor inherits the predecessor's race",
+);
+eq(
+  deploymentRaces({ uid: "STR_STAGE_THREE" }, stageTables),
+  ["STR_TECHNOCRACY"],
+  "the chain resolves transitively to the first stage",
+);
+eq(
+  rankUnits({ uid: "STR_STAGE_THREE" }, 0, stageTables),
+  ["STR_TECH_BOSS"],
+  "a third-stage rank resolves through the chain",
+);
+eq(
+  deploymentRaces({ uid: "STR_STAGE_TWO", race: "STR_NINJA" }, stageTables),
+  ["STR_NINJA"],
+  "a successor stating its own race keeps it",
+);
+eq(
+  deploymentRaces(
+    { uid: "STR_STAGE_TWO" },
+    {
+      ...stageTables,
+      alienDeployments: {
+        ...stageTables.alienDeployments,
+        STR_STAGE_ONE: { uid: "STR_STAGE_ONE", nextStage: "STR_STAGE_TWO" },
+        STR_STAGE_TWO: { uid: "STR_STAGE_TWO", nextStage: "STR_STAGE_ONE" },
+        STR_STAGE_THREE: { uid: "STR_STAGE_THREE" },
+      },
+    },
+  ),
+  ["STR_TECHNOCRACY"],
+  "a nextStage cycle terminates",
+);
+
+// --- base defence: fallback races from the retaliation assault -------------
+// XPiratez `STR_BASE_DEFENSE`: fought with that data whenever the attacking
+// `spawnUfo` battleship carries no custom deploy with data for the mission's
+// race. One race has its own deploy, so it does not fall back; a missile UFO
+// strikes instead of fighting; a non-retaliation mission never attacks.
+const baseTables = {
+  alienRaces: {
+    STR_SECTOID: { members: ["STR_SECTOID_COMMANDER"] },
+    STR_MUTON: { members: ["STR_MUTON_COMMANDER"] },
+    STR_BANDIT: { members: ["STR_BANDIT_BOSS"] },
+  },
+  alienMissions: {
+    STR_ALIEN_RETALIATION: {
+      objective: 4,
+      spawnUfo: "STR_BATTLESHIP",
+      raceWeights: { 0: { STR_SECTOID: 50, STR_MUTON: 50 } },
+    },
+    STR_MISSILE_STRIKE: {
+      objective: 4,
+      spawnUfo: "STR_MISSILE_BOAT",
+      raceWeights: { 0: { STR_BANDIT: 100 } },
+    },
+    STR_TRANSPORT: {
+      objective: 1,
+      spawnUfo: "STR_BATTLESHIP",
+      raceWeights: { 0: { STR_BANDIT: 100 } },
+    },
+  },
+  alienDeployments: {
+    STR_CRACKDOWN: { uid: "STR_CRACKDOWN", data: [{ alienRank: 1 }] },
+    STR_EMPTY_DEPLOY: { uid: "STR_EMPTY_DEPLOY", data: [] },
+  },
+  ufos: {
+    STR_BATTLESHIP: {
+      raceBonus: { STR_SECTOID: { missionCustomDeploy: "STR_CRACKDOWN" } },
+    },
+    STR_MISSILE_BOAT: { missilePower: 1 },
+  },
+};
+eq(
+  deploymentRaces({ uid: "STR_BASE_DEFENSE", data: [{ alienRank: 0 }] }, baseTables),
+  ["STR_MUTON"],
+  "only the race with no custom deploy falls back to STR_BASE_DEFENSE",
+);
+eq(
+  deploymentRaces(
+    { uid: "STR_BASE_DEFENSE", data: [{ alienRank: 0 }] },
+    {
+      ...baseTables,
+      ufos: {
+        STR_BATTLESHIP: { raceBonus: { STR_SECTOID: { missionCustomDeploy: "STR_EMPTY_DEPLOY" } } },
+      },
+    },
+  ),
+  ["STR_SECTOID", "STR_MUTON"],
+  "a custom deploy without data falls back too",
+);
+eq(
+  deploymentRaces(
+    { uid: "STR_BASE_DEFENSE", data: [{ alienRank: 0 }] },
+    {
+      ...baseTables,
+      ufos: { STR_BATTLESHIP: { missionCustomDeploy: "STR_CRACKDOWN" } },
+    },
+  ),
+  [],
+  "an unconditional custom deploy removes the fallback",
+);
+eq(
+  rankUnits(
+    { uid: "STR_BASE_DEFENSE", data: [{ alienRank: 0 }] },
+    0,
+    {
+      ...baseTables,
+      ufos: { STR_BATTLESHIP: {} },
+    },
+    "STR_MUTON",
+  ),
+  ["STR_MUTON_COMMANDER"],
+  "a pinned race shows that race's member alone",
+);
+eq(
+  rankUnits(
+    { uid: "STR_BASE_DEFENSE", data: [{ alienRank: 0 }] },
+    0,
+    {
+      ...baseTables,
+      ufos: { STR_BATTLESHIP: {} },
+    },
+    "STR_BANDIT",
+  ),
+  undefined,
+  "a race that does not lead here keeps the number",
+);
+
 // XPiratez states one row, so every spawn lands on the same odds
 const pirateTable = [[0, 0, 0, 1, 1, 1, 2, 2, 3, 4]];
 eq(
