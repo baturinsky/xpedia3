@@ -157,9 +157,10 @@ function base64Loader() {
     resolveId(id: string, importer?: string) {
       const [file, query] = id.split("?");
       if (query !== "base64") return null;
-      const resolved = importer && (file.startsWith(".") || file.startsWith("/"))
-        ? path.resolve(path.dirname(importer.split("?")[0]), file)
-        : file;
+      const resolved =
+        importer && (file.startsWith(".") || file.startsWith("/"))
+          ? path.resolve(path.dirname(importer.split("?")[0]), file)
+          : file;
       return prefix + resolved;
     },
     load(id: string) {

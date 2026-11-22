@@ -13,9 +13,8 @@ import { builtinFilesFor } from "./builtin.mjs";
 
 await ensureBuilt();
 
-const { buildPackData, mergeBuiltinFiles, modDirs, unpackZip, unpackRar } = await import(
-  "../.gen/packbuild.mjs"
-);
+const { buildPackData, mergeBuiltinFiles, modDirs, unpackZip, unpackRar, unpackTarGzip } =
+  await import("../.gen/packbuild.mjs");
 const { default: Ruleset } = await import("../.gen/engine.mjs");
 
 /** `node-unrar-js` wants the wasm binary rather than importing it itself */
@@ -84,17 +83,19 @@ export function examplePack(name) {
 /**
  * A pack from an archive or a folder, with the builtin mods merged underneath it.
  *
- * `.zip` and `.rar` are both accepted, as is a directory of already-unpacked
- * files, which is what the CLI serves.
+ * `.zip`, `.rar` and `.tar.gz` are all accepted, as is a directory of
+ * already-unpacked files, which is what the CLI serves.
  */
 export async function loadPack(path) {
   const own = /\.zip$/i.test(path)
     ? unpackZip(toArrayBuffer(readFileSync(path)))
     : /\.rar$/i.test(path)
       ? await unpackRar(toArrayBuffer(readFileSync(path)), unrarWasm(), {})
-      : readFolder(path);
+      : /(\.tar\.gz|\.tgz)$/i.test(path)
+        ? unpackTarGzip(toArrayBuffer(readFileSync(path)))
+        : readFolder(path);
 
-  const packName = path.replace(/^.*[\\/]/, "").replace(/\.(zip|rar)$/i, "");
+  const packName = path.replace(/^.*[\\/]/, "").replace(/(\.(zip|rar)|(\.tar\.gz|\.tgz))$/i, "");
   const builtin = builtinFilesFor(packName);
 
   // A path the pack brings itself replaces the builtin one at the same path

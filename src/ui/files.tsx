@@ -228,9 +228,19 @@ function ModpackList() {
           const current = pack.pack === state.packName;
           const permanent = isPermanentPack(pack.pack);
           return (
+            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the tile click is a pointer affordance; the pack name inside is the keyboard control for the same switch, so the div needs neither a tab stop nor a key handler
+            // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard switching goes through the name button, whose click bubbles here
+            // biome-ignore lint/a11y/noStaticElementInteractions: same as above; the name button inside is the semantic control
             <div
               key={pack.pack}
               className={`modpack-panel${current ? " current" : ""}${permanent ? " permanent" : ""}`}
+              // The whole tile switches the pack: the size/current lines and the
+              // empty space are clickable like the name, not just the title.
+              // The name stays a real button for keyboard users — Enter/Space
+              // fires a click that bubbles here. Only the delete button stops
+              // propagation, so deleting never also opens the pack.
+              onClick={() => selectPack(pack.pack)}
+              title={current ? "Currently shown" : "Click to show this modpack"}
             >
               {/* The inlined pack comes from the HTML file itself, so it has no
               delete button: there is nothing separate to remove */}
@@ -252,7 +262,6 @@ function ModpackList() {
                 type="button"
                 className="modpack-name"
                 title={current ? "Currently shown" : "Click to show this modpack"}
-                onClick={() => selectPack(pack.pack)}
               >
                 {pack.pack}
               </button>
@@ -309,7 +318,7 @@ function UploadTile() {
       <button
         type="button"
         className={`modpack-panel modpack-add${dragging ? " dragging" : ""}`}
-        title="Add a modpack: choose a zip or rar file, or drag one onto the page"
+        title="Add a modpack: choose a zip, rar or tar.gz file, or drag one onto the page"
         onClick={() => input.current?.click()}
       >
         <Tr text="STR_ABOUT_UPLOAD" nobr={false} />
@@ -320,7 +329,7 @@ function UploadTile() {
       <input
         ref={input}
         type="file"
-        accept=".zip,.rar"
+        accept=".zip,.rar,.tar.gz,.tgz"
         hidden
         onChange={(e) => {
           const files = e.target.files;

@@ -1,5 +1,4 @@
 import * as fflate from "fflate";
-import { type FileTypeResult, fileTypeFromBuffer } from "file-type";
 import builtinModsPayload from "./builtinMods?builtinMods";
 import {
   applySavedLanguage,
@@ -12,12 +11,14 @@ import {
   wipeAssets,
 } from "./idb";
 import {
+  archiveKind,
   buildPackData,
   filterBuiltinMods,
   mergeBuiltinMods as mergeBuiltinData,
   mergeBuiltinFiles,
   unpackBuiltinMods,
   unpackRar as unpackRarFiles,
+  unpackTarGzip as unpackTarGzipFiles,
   unpackZip as unpackZipFiles,
 } from "./packBuild";
 import type { Mod, ProcessedRuleset } from "./rul/Ruleset";
@@ -161,16 +162,14 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
   reportStage("Reading archive", 0, `${packName ?? ""} (${asMB(data.byteLength)})`);
   await nextPaint();
 
-  const fileType = await fileTypeFromBuffer(data).catch(
-    () => undefined as FileTypeResult | undefined,
-  );
+  const kind = archiveKind(data);
 
   let files: { [name: string]: Uint8Array };
 
   try {
-    if (!fileType) throw new Error("Unknown file type");
+    if (!kind) throw new Error("Unknown file type");
     await beginStage("Unpacking", `${packName ?? "archive"} (${asMB(data.byteLength)})`);
-    if (fileType.ext === "rar") {
+    if (kind === "rar") {
       files = await unpackRarFiles(data, unrarWasm(), {
         checkCancelled: throwIfCancelled,
         onProgress: async (done, total, name) => {
@@ -182,6 +181,8 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
           );
         },
       });
+    } else if (kind === "targz") {
+      files = unpackTarGzipFiles(data);
     } else {
       files = unpackZipFiles(data);
     }
@@ -191,7 +192,7 @@ async function unpackArchive(packName: string, data: ArrayBuffer) {
     if (e instanceof LoadCancelled) throw e;
     console.error(e);
     update({
-      slowProcessStatus: `Could not unpack ${packName}: only RAR and ZIP archives are supported`,
+      slowProcessStatus: `Could not unpack ${packName}: only RAR, ZIP and TAR.GZ archives are supported`,
       slowProcessDone: true,
       slowProcessError: true,
       slowProcessProgress: undefined,

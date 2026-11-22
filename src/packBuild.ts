@@ -624,6 +624,98 @@ export function mergeBuiltinMods(
 /* Archives                                                            */
 /* ------------------------------------------------------------------ */
 
+/** What an uploaded file is, from its first bytes; `undefined` for anything else */
+export type ArchiveKind = "zip" | "rar" | "targz";
+
+/**
+ * The `ZIP`/`RAR`/`TAR.GZ` magic of an archive, so `file-type` is not needed:
+ * a ZIP starts with `PK` and a third byte 3, 5 or 7 (local header, empty
+ * archive, spanned), a RAR with `Rar!`, and a gzip with `1F 8B`.
+ */
+export function archiveKind(data: ArrayBuffer | Uint8Array): ArchiveKind | undefined {
+  const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+  if (u8.length >= 6 && u8[0] === 0x1f && u8[1] === 0x8b) return "targz";
+  if (
+    u8.length >= 4 &&
+    u8[0] === 0x50 &&
+    u8[1] === 0x4b &&
+    (u8[2] === 0x03 || u8[2] === 0x05 || u8[2] === 0x07)
+  )
+    return "zip";
+  if (
+    u8.length >= 6 &&
+    u8[0] === 0x52 &&
+    u8[1] === 0x61 &&
+    u8[2] === 0x72 &&
+    u8[3] === 0x21 &&
+    u8[4] === 0x1a &&
+    u8[5] === 0x07
+  )
+    return "rar";
+  return;
+}
+
+/** A zero-padded numeric tar field, octal, or base-256 when its high bit is set */
+function tarNumber(data: Uint8Array, start: number, length: number): number {
+  if (data[start] & 0x80) {
+    let value = 0;
+    for (let i = 0; i < length; i++) value = value * 256 + (data[start + i] & 0x7f);
+    return value;
+  }
+  let value = 0;
+  for (let i = 0; i < length && data[start + i] !== 0; i++) {
+    const digit = data[start + i] - 0x30;
+    if (digit < 0 || digit > 7) break;
+    value = value * 8 + digit;
+  }
+  return value;
+}
+
+function tarString(data: Uint8Array, start: number, length: number): string {
+  let end = start;
+  while (end < start + length && data[end] !== 0) end++;
+  return new TextDecoder().decode(data.subarray(start, end));
+}
+
+/**
+ * Unpacks a gzipped tar (`*.tar.gz`, `*.tgz`): the gzip needs no new code
+ * (fflate is already bundled for ZIP), and the tar is a sequence of 512-byte
+ * blocks, so a reader over it is small. Only the files `usefulFileName`
+ * keeps are inflated at all — the header walks the whole archive without
+ * copying the data of files that will be dropped.
+ */
+export function unpackTarGzip(data: ArrayBuffer): { [name: string]: Uint8Array } {
+  const raw = fflate.gunzipSync(new Uint8Array(data));
+  const out: { [name: string]: Uint8Array } = {};
+  let offset = 0;
+  // The name the next header takes when it is too long for its own field:
+  // a GNU `L` entry carries it in its data, a pax `x` entry a `path=` record
+  let nextName: string | undefined;
+  while (offset + 512 <= raw.length) {
+    const header = raw.subarray(offset, offset + 512);
+    if (header.every((b) => b === 0)) break; // the two empty blocks end the archive
+    const size = tarNumber(raw, offset + 124, 12);
+    const type = String.fromCharCode(header[156]);
+    const dataStart = offset + 512;
+    if (type === "L") {
+      nextName = tarString(raw, dataStart, size);
+    } else if (type === "x") {
+      const records = new TextDecoder().decode(raw.subarray(dataStart, dataStart + size));
+      const path = /path=([^\n]+)/.exec(records);
+      if (path) nextName = path[1];
+    } else if (type === "0" || type === "\0") {
+      const prefix = tarString(raw, offset + 345, 155);
+      const name =
+        nextName ??
+        (prefix ? `${prefix}/${tarString(raw, offset, 100)}` : tarString(raw, offset, 100));
+      if (usefulFileName(name)) out[name] = raw.slice(dataStart, dataStart + size);
+      nextName = undefined;
+    }
+    offset = dataStart + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
 export function unpackZip(data: ArrayBuffer): { [name: string]: Uint8Array } {
   const u8 = new Uint8Array(data);
   // Filter before inflating: large packs are mostly sounds and maps that would

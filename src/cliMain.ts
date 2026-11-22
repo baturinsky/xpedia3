@@ -4,7 +4,6 @@ import zlib from "node:zlib";
 import builtinModsPayload from "xpedia:builtin-mods";
 import shellPayload from "xpedia:shell";
 import unrarWasmPayload from "xpedia:unrar-wasm";
-import { fileTypeFromBuffer } from "file-type";
 import { UsageError } from "./cliError";
 import { buildExport } from "./cliExport";
 import { layoutOf, listFiles, readFolderPack } from "./cliFolder";
@@ -12,11 +11,13 @@ import { resolveLanguages } from "./cliLanguages";
 import { servePack } from "./cliServe";
 import { type AppShell, type ExportFile, exportedPackName, zipFiles } from "./exportCore";
 import {
+  archiveKind,
   buildPackData,
   filterBuiltinMods,
   mergeBuiltinFiles,
   unpackBuiltinMods,
   unpackRar,
+  unpackTarGzip,
   unpackZip,
 } from "./packBuild";
 import { defaultLanguage } from "./rul/Ruleset";
@@ -33,11 +34,11 @@ import { defaultLanguage } from "./rul/Ruleset";
 const helpText = `xpedia-cli - export an XPedia modpack as a standalone reference
 
 Usage:
-  xpedia-cli <pack.zip|pack.rar|folder> <target> [options]
+  xpedia-cli <pack.zip|pack.rar|pack.tar.gz|folder> <target> [options]
   xpedia-cli --serve[=<folder>] [options]
 
 Arguments:
-  <pack>                 Modpack archive (ZIP or RAR), or a folder laid out the
+  <pack>                 Modpack archive (ZIP, RAR or TAR.GZ), or a folder laid out the
                          way --serve reads one: a game root with user/mods, a
                          folder of mod folders, or a single mod folder.
   <target>               Output directory, or the path of a file to write. A
@@ -362,13 +363,12 @@ function checkDirectory(dir: string) {
 async function readArchive(file: string, report: ReturnType<typeof makeReporter>) {
   const data = fs.readFileSync(file);
   const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-  const type = await fileTypeFromBuffer(buffer).catch(() => undefined);
-  if (!type || (type.ext !== "zip" && type.ext !== "rar"))
-    throw new UsageError(`${file} is not a ZIP or RAR archive`);
+  const kind = archiveKind(buffer);
+  if (!kind) throw new UsageError(`${file} is not a ZIP, RAR or TAR.GZ archive`);
 
   report.info(`Reading ${path.basename(file)} (${(data.length / 1e6).toFixed(1)} MB)`);
   let files: { [name: string]: Uint8Array };
-  if (type.ext === "rar") {
+  if (kind === "rar") {
     const wasm = Buffer.from(unrarWasmPayload, "base64");
     files = await unpackRar(
       buffer,
@@ -380,7 +380,8 @@ async function readArchive(file: string, report: ReturnType<typeof makeReporter>
           ),
       },
     );
-  } else files = unpackZip(buffer);
+  } else if (kind === "targz") files = unpackTarGzip(buffer);
+  else files = unpackZip(buffer);
   report.endProgress();
 
   if (!Object.keys(files).length) throw new UsageError(`Nothing usable found in ${file}`);
@@ -414,7 +415,7 @@ function readFolder(dir: string, report: ReturnType<typeof makeReporter>) {
 
 /** The modpack's own name, which decides the builtin helpers and the page title */
 function packNameOf(file: string) {
-  return path.basename(path.normalize(file)).replace(/\.(zip|rar)$/i, "");
+  return path.basename(path.normalize(file)).replace(/(\.(zip|rar)|(\.tar\.gz|\.tgz))$/i, "");
 }
 
 /**

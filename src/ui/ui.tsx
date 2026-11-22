@@ -177,17 +177,16 @@ export function LandingPage() {
         <>
           <ModsList />
           <ExportButton />
-          <SectionsList />
         </>
       )}
+      {/* Without a pack the builtin ruleset is still loaded, so its sections
+        show too — the bare list, without the headings, below. */}
+      {rul && <SectionsList />}
 
       {/*<p className="modpack-hint">
       Drag and drop modpack files in zip or rar format anywhere on this page to add them.
     </p>*/}
 
-      <div className="pedia-intro">
-        <Tr text="STR_ABOUT_XPEDIA" />
-      </div>
       <ArchiveFiles />
       {state.devView && <CurrentAssets />}
       {state.imagePreview && <img src={state.imagePreview} alt="Sprite preview"></img>}
@@ -646,6 +645,18 @@ function SectionsList() {
   const categories = rul
     .typeSectionOrder(state.alphabeticalSort)
     .filter((s) => s.id !== "CATEGORIES");
+  // With no pack the only sections are XPedia's own (currently just About
+  // Xpedia), so the landing page shows the bare list of links: no "Pedia
+  // sections" and "Categories" headings, and no empty categories column.
+  if (!state.packName) {
+    return (
+      <div className="sections-list">
+        <div>
+          <Val of={rul.sectionsOrder} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="sections-list">
       <div>

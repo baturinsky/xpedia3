@@ -33,7 +33,7 @@ export const inlineSuffix = ".inline";
  */
 export function exportedPackName(pack: string) {
   if (pack.endsWith(inlineSuffix)) return pack;
-  return pack.replace(/\.(zip|rar)$/i, "") + inlineSuffix;
+  return pack.replace(/(\.(zip|rar)|(\.tar\.gz|\.tgz))$/i, "") + inlineSuffix;
 }
 
 /** One inline script or style of a page, ready to be copied verbatim */

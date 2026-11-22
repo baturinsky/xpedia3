@@ -258,7 +258,9 @@ export class Search {
       .split(/[\s_]+/)
       .filter((word) => word.length > 0);
     if (words.length === 0) return this.haystacks.map(([id]) => id);
-    return this.haystacks.filter(([, text]) => words.every((word) => text.includes(word))).map(([id]) => id);
+    return this.haystacks
+      .filter(([, text]) => words.every((word) => text.includes(word)))
+      .map(([id]) => id);
   }
 }
 
