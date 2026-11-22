@@ -2,9 +2,9 @@
  * Bundles the few modules the checks run against, into `test/.gen` (ignored).
  *
  * The checks are plain Node programs, but the code under test is browser code:
- * `src/rul` is TypeScript, and `js-worker-search` is CommonJS. esbuild turns both
- * into an ESM module Node can import, which keeps the checks dependent on the
- * real sources rather than on a copy of them.
+ * `src/rul` is TypeScript. esbuild turns it into an ESM module Node can import,
+ * which keeps the checks dependent on the real sources rather than on a copy
+ * of them.
  */
 
 import path from "node:path";
@@ -14,8 +14,6 @@ import * as esbuild from "esbuild";
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, "..");
 export const gen = path.join(here, ".gen");
-
-const shim = path.join(here, "helpers", "js-worker-search.mjs");
 
 /** The modules a check imports, by the name it imports them under */
 const modules = [
@@ -27,14 +25,6 @@ const modules = [
   ["src/ui/deploymentRank.ts", "deploymentrank.mjs"],
   ["src/ui/raceWeights.ts", "raceweights.mjs"],
 ];
-
-/** `js-worker-search` ships as CommonJS whose default export is the class */
-const redirectSearch = {
-  name: "js-worker-search",
-  setup(build) {
-    build.onResolve({ filter: /^js-worker-search$/ }, () => ({ path: shim }));
-  },
-};
 
 /**
  * `node-unrar-js` mixes `require` with top-level await once bundled, which Node
@@ -55,7 +45,6 @@ export async function build() {
         format: "esm",
         outfile: path.join(gen, outfile),
         external: ["node-unrar-js"],
-        plugins: [redirectSearch],
         banner: nodeInterop,
         logLevel: "warning",
       }),

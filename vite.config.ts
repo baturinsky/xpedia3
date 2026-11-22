@@ -5,7 +5,6 @@ import react from "@vitejs/plugin-react";
 import type { NormalizedOutputOptions, OutputBundle, PluginContext } from "rollup";
 import { type Connect, defineConfig, type UserConfig, type ViteDevServer } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
-import topLevelAwait from "vite-plugin-top-level-await";
 import { builtinModsPayload } from "./scripts/builtinMods.mjs";
 import { devBuildNumber as nextDevBuildNumber, versionDefines } from "./scripts/version.mjs";
 
@@ -13,7 +12,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       viteSingleFile({ removeViteModuleLoader: true }),
-      topLevelAwait(),
       react({}),
       base64Loader(),
       builtinModsFolder(),
@@ -65,14 +63,15 @@ function outputName() {
     name: "output-name",
     apply: "build" as const,
     // After `vite-plugin-singlefile`, which builds the page in its own
-    // `generateBundle`; renaming earlier would have it re-emit `index.html`
+    // `generateBundle`; renaming earlier would have it re-emit `index.html`.
+    // Re-emit through `emitFile`: assigning a new key onto `bundle` is
+    // ignored by Rolldown (Vite 8), but `emitFile` is the supported way.
     enforce: "post" as const,
-    generateBundle(_options: NormalizedOutputOptions, bundle: OutputBundle) {
+    generateBundle(this: PluginContext, _options: NormalizedOutputOptions, bundle: OutputBundle) {
       for (const [key, asset] of Object.entries(bundle)) {
         if (asset.fileName !== "index.html") continue;
-        asset.fileName = "xpedia.html";
+        this.emitFile({ type: "asset", fileName: "xpedia.html", source: asset.source });
         delete bundle[key];
-        bundle["xpedia.html"] = asset;
       }
     },
   };
@@ -128,7 +127,7 @@ function builtPage() {
     apply: "serve" as const,
     configureServer(server: ViteDevServer) {
       server.middlewares.use("/xpedia-built.html", (_req: IncomingMessage, res: ServerResponse) => {
-        const file = `${__dirname}/build/xpedia.html`;
+        const file = `${import.meta.dirname}/build/xpedia.html`;
         if (!fs.existsSync(file)) {
           res.statusCode = 404;
           res.end("Run `npm run build` first");
@@ -141,16 +140,32 @@ function builtPage() {
   };
 }
 
+/**
+ * `?base64` imports (wasm payloads): Vite 7's asset plugin resolved the
+ * query, but Rolldown (Vite 8) tries to open the file literally — including
+ * the `?` — and fails on Windows (os error 123). So the plugin has to claim
+ * the id itself and read the file in `load`, before any fs access.
+ */
 function base64Loader() {
+  const prefix = "\0base64:";
   return {
     name: "base64-loader",
-    transform(_code: string, id: string) {
-      const [path, query] = id.split("?");
+    // Must claim the id before Vite's own asset resolver returns it with the
+    // query still attached: Rolldown then tries to open that path on disk,
+    // and `?` is illegal in a Windows filename (os error 123).
+    enforce: "pre" as const,
+    resolveId(id: string, importer?: string) {
+      const [file, query] = id.split("?");
       if (query !== "base64") return null;
-
-      const data = fs.readFileSync(path);
-      const base64 = data.toString("base64");
-
+      const resolved = importer && (file.startsWith(".") || file.startsWith("/"))
+        ? path.resolve(path.dirname(importer.split("?")[0]), file)
+        : file;
+      return prefix + resolved;
+    },
+    load(id: string) {
+      if (!id.startsWith(prefix)) return null;
+      const file = id.slice(prefix.length);
+      const base64 = fs.readFileSync(file).toString("base64");
       return `export default '${base64}';`;
     },
   };
@@ -187,7 +202,7 @@ function examplePacks() {
     },
 
     configureServer(server: ViteDevServer) {
-      const root = `${__dirname}/misc/modpackExamples`;
+      const root = `${import.meta.dirname}/misc/modpackExamples`;
       server.middlewares.use(
         prefix,
         (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
@@ -260,7 +275,7 @@ function builtinModsFolder() {
     load(this: PluginContext, id: string) {
       if (id !== virtualId) return null;
 
-      const root = `${__dirname}/src/builtinMods`;
+      const root = `${import.meta.dirname}/src/builtinMods`;
       // A change to a file has to rebuild this module, not serve a stale copy
       const gzipped = builtinModsPayload(root, (full) => this.addWatchFile(full));
       return `export default '${gzipped}';`;
@@ -279,7 +294,7 @@ function builtinModsFolder() {
     // with `addWatchFile` — would stay out of the container until a restart.
     // A deletion is the same case, so `unlink` is included.
     configureServer(server: ViteDevServer) {
-      const root = `${__dirname}/src/builtinMods`;
+      const root = `${import.meta.dirname}/src/builtinMods`;
       server.watcher.add(root);
       const rebuild = (file: string) => {
         if (!file.replace(/\\/g, "/").includes("/src/builtinMods/")) return;

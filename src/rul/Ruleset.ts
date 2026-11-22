@@ -1,5 +1,3 @@
-//@ts-expect-error
-import SearchApi from "js-worker-search";
 import { emptyImg } from "../imgPlaceholders";
 import * as util from "../util";
 import { addAllIfNew, capital, gameRelativePath, getFlagEmoji } from "../util";
@@ -227,17 +225,20 @@ export function sortFirstLast(
 
 export class Search {
   /**
-   * The index defaults to tokenizing on whitespace only, which turns every
-   * article id into a single very long token. The engine indexes every
-   * substring of a token, so a 30 character id costs 465 entries on its own,
-   * and ids were a third of the whole index. Splitting on `_` as well keeps
-   * the index a third the size for the same matches.
+   * One lowercase haystack per article (id, type, title, text). A query
+   * matches an article when every whitespace/`_`–delimited word of it
+   * appears somewhere in the haystack — substring matching, all words
+   * required, case-insensitive. That is exactly what `js-worker-search`
+   * (ALL_SUBSTRINGS mode) did, at 3k articles a linear scan over
+   * precomputed strings is sub-millisecond, so no inverted index — and no
+   * CommonJS dependency whose default export is not a constructor under
+   * some bundlers — is needed.
    *
-   * Only `_` is added on purpose: splitting on all punctuation would make a
-   * query like `x-com` become `x` AND `com`, which turns 8 precise hits into
-   * 662 fuzzy ones.
+   * Only whitespace and `_` split the query, on purpose: splitting on all
+   * punctuation would make a query like `x-com` become `x` AND `com`,
+   * turning 8 precise hits into 662 fuzzy ones.
    */
-  articles = new SearchApi({ tokenizePattern: /[\s_]+/ });
+  private haystacks: [id: string, text: string][] = [];
 
   constructor() {
     for (const a of Object.values(rul.articles)) {
@@ -247,12 +248,17 @@ export class Search {
       const texts = ["id", "type", "title", "text"]
         .map((key) => String(fields[key]).toLowerCase())
         .join(" ");
-      this.articles.indexDocument(a.id, texts);
+      this.haystacks.push([a.id, texts]);
     }
   }
 
   async findArticles(query: string) {
-    return this.articles.search(query.toLowerCase());
+    const words = query
+      .toLowerCase()
+      .split(/[\s_]+/)
+      .filter((word) => word.length > 0);
+    if (words.length === 0) return this.haystacks.map(([id]) => id);
+    return this.haystacks.filter(([, text]) => words.every((word) => text.includes(word))).map(([id]) => id);
   }
 }
 
