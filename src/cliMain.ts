@@ -34,8 +34,8 @@ import { defaultLanguage } from "./rul/Ruleset";
 const helpText = `xpedia-cli - export an XPedia modpack as a standalone reference
 
 Usage:
-  xpedia-cli <pack.zip|pack.rar|pack.tar.gz|folder> <target> [options]
-  xpedia-cli --serve[=<folder>] [options]
+  node xpedia-cli.mjs <pack.zip|pack.rar|pack.tar.gz|folder> <target> [options]
+  node xpedia-cli.mjs --serve[=<folder>] [options]
 
 Arguments:
   <pack>                 Modpack archive (ZIP, RAR or TAR.GZ), or a folder laid out the
@@ -104,13 +104,13 @@ The served page uses this for its own export button, and it can be called
 directly, for example to fetch a size without writing anything out.
 
 Examples:
-  xpedia-cli "Dioxine_XPiratez.zip" public/pedia
-  xpedia-cli pack.zip site --assets --lang ru,en-US
-  xpedia-cli pack.zip site --split --lang ru,de,pl
-  xpedia-cli pack.rar pedia.zip --zip
-  xpedia-cli "D:/OpenXcom/user/mods/MyMod" site
-  xpedia-cli --serve "D:/OpenXcom/user/mods/MyMod"
-  xpedia-cli --serve --port 8080
+  node xpedia-cli.mjs "Dioxine_XPiratez.zip" public/pedia
+  node xpedia-cli.mjs pack.zip site --assets --lang ru,en-US
+  node xpedia-cli.mjs pack.zip site --split --lang ru,de,pl
+  node xpedia-cli.mjs pack.rar pedia.zip --zip
+  node xpedia-cli.mjs "D:/OpenXcom/user/mods/MyMod" site
+  node xpedia-cli.mjs --serve "D:/OpenXcom/user/mods/MyMod"
+  node xpedia-cli.mjs --serve --port 8080
 
 The page is the XPedia app compiled into this file, so a new UI build means a new
 CLI: rebuild it with \`npm run cli\`.

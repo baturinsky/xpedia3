@@ -603,6 +603,31 @@ export class DamageType extends Entry {
 }
 
 /**
+ * One set of voiced unit responses, listed in `voiceSets:`.
+ *
+ * Each set names four BATTLE.CAT sound slots (`selectUnit`, `startMoving`,
+ * `selectWeapon`, `annoyed`), each of which may hold a list of options, and
+ * the unit kinds it applies to. The sound ids themselves are bare CAT
+ * indices — no pack ships the CAT's contents — so the restriction lists are
+ * the meaningful half of the entry.
+ */
+export class VoiceSet extends Entry {
+  selectUnit?: number | number[];
+  startMoving?: number | number[];
+  selectWeapon?: number | number[];
+  annoyed?: number | number[];
+  allowedGenders?: string[];
+  allowedSoldierTypes?: string[];
+  allowedUnitTypes?: string[];
+  allowedArmorTypes?: string[];
+
+  constructor(raw: RawEntry) {
+    super("voiceSets");
+    this.from(raw);
+  }
+}
+
+/**
  * One globe area with every number in it actually a number.
  *
  * Packs write coordinates as strings as readily as numbers — TFTD has
@@ -1267,6 +1292,8 @@ export class CraftWeapon extends Entry {
   weaponType: string = "";
   launcher?: string;
   requiresBuyBaseFunc?: string[];
+  /** Alternate UFOpaedia article the game opens for this weapon */
+  ufopediaType?: string;
 
   constructor(raw: RawEntry) {
     super("craftWeapons");
@@ -1315,6 +1342,8 @@ export class Facility extends Entry {
   requiresBaseFunc?: string[];
   forbiddenBaseFunc?: string[];
   buildCostItems?: { [key: string]: { [key: string]: number } };
+  /** Alternate UFOpaedia article the game opens for this facility */
+  ufopediaType?: string;
 
   constructor(raw: RawEntry) {
     super("facilities");
@@ -1633,6 +1662,8 @@ export class Armor extends Entry {
   stats?: { [stat: string]: number };
   /** Free-form pack tags (`ARMOR_ENERGY_SHIELD_CAPACITY` and the like) */
   tags?: { [tag: string]: number | string };
+  /** Alternate UFOpaedia article the game opens for this armor */
+  ufopediaType?: string;
 
   constructor(raw: RawEntry) {
     super("armors");
@@ -1799,6 +1830,8 @@ export class Item extends Entry {
   kneelBonus?: number;
   turretType?: number;
   costPrime?: { time: number; [resource: string]: number };
+  /** Alternate UFOpaedia article the game opens for this item */
+  ufopediaType?: string;
 
   get sprite() {
     if (this.bigSprite) {

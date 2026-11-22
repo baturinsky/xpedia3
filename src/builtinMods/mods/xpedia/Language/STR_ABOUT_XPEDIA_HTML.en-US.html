@@ -1,5 +1,71 @@
 <h4 id="xpediaTitle">XPedia ${xpediaVersion}</h4>
 
+<h4 id="how-to-use">How to use XPedia</h4>
+
+<p>XPedia is a reference for OpenXcom / OXCE modpacks. There are four ways to
+use it; they all read the same files and produce the same pages.</p>
+
+<h4 id="in-browser">In your browser</h4>
+
+<p>Drop a modpack archive — <strong>zip</strong>, <strong>rar</strong> or
+<strong>tar.gz</strong> — anywhere on this page (or click the <strong>+</strong>
+tile and choose the file). Loading takes a moment; the page then shows that
+pack. Click a pack tile to switch between packs, <strong>×</strong> to delete
+one. Note some packs in this list didn't come from a file (they are <strong>the
+pedia itself</strong>, or one served by the command line tool), so they have
+no delete button.</p>
+
+<p>Use the search box or the section/category lists to find articles; the
+<strong>&lt;</strong> / <strong>&gt;</strong> arrows step through them. The
+language can be switched from the top menu. Everything is stored in your
+browser — nothing is uploaded anywhere.</p>
+
+<h4 id="export">Exporting a standalone page</h4>
+
+<p>The <strong>Export</strong> button makes a page that works without XPedia:
+either one HTML file, or a zip. By default images are read from your OpenXcom
+installation, so open the file from the game root for pictures to appear; tick
+<strong>Also keep the images</strong> to bundle them in (the file gets much
+larger). Audio is never bundled — only referenced.</p>
+
+<p>Exports are always minified, whatever the page you exported from.</p>
+
+<h4 id="command-line">From the command line (<code>xpedia-cli</code>)</h4>
+
+<pre>
+node xpedia-cli.mjs --help                               # documentation
+
+node xpedia-cli.mjs pack.zip out                         # export to a folder (. to use current folder as source or target)
+node xpedia-cli.mjs pack.zip out --assets                # bundle images
+node xpedia-cli.mjs pack.zip out --lang ru,en-US         # export only ru and en-US 
+node xpedia-cli.mjs pack.zip out --split                 # languages are exported as separate js files, loaded only when necessary
+node xpedia-cli.mjs pack.zip out.zip --zip               # single zip archive
+node xpedia-cli.mjs pack pedia.zip --zip                 # folder / rar / tar.gz  sources work too
+</pre>
+
+<p>A folder may be a game root (<code>user/mods/…</code>), a folder of mod
+folders, or one mod folder. <code>--split</code> keeps the page English-sized
+and writes other languages as separate files that load on demand.
+<code>--url https://…/</code> adds link-preview tags for that address.
+
+<h4 id="live-preview">Live preview (<code>xpedia-cli --serve</code>)</h4>
+
+<pre>
+node xpedia-cli.mjs --serve                          # current folder, port 9391
+node xpedia-cli.mjs --serve "D:/OpenXcom/user/mods/MyMod"
+</pre>
+
+<p>Serves the folder as a live pedia: edit a ruleset file, reload the page, see
+the change — no repacking. Exporting from that page is handled by the same
+process, so the result still gets the images. <code>GET /xpedia-export</code>
+on the same port builds an export over HTTP.</p>
+
+<h4 id="details">Details &amp; rules</h4>
+
+<p>What a pack needs to be understood: which file types are read (rulesets,
+languages, images, globe data), which are ignored (sounds), and how mod folders
+are recognised — these are the same rules in every mode.</p>
+
 <h4 id="whats-new">What's new</h4>
 <ul>
   <li>More user-friendly pack upload. All you need is drop the modpack on the page. </li>

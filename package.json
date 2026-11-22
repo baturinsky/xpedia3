@@ -10,6 +10,8 @@
     "build": "vite build",
     "min": "vite build --mode=min",
     "cli": "vite build && node scripts/build-cli.mjs",
+    "cli:exe": "npm run cli && bun build --compile cli/xpedia-cli.mjs --outfile cli/xpedia-cli.exe",
+    "cli:sea": "vite build && node scripts/build-cli-sea.mjs",
     "check": "tsc -p src/tsconfig.json --noEmit && tsc -p tsconfig.tools.json",
     "format": "biome format --write .",
     "lint": "biome check .",
@@ -39,6 +41,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.3.0",
     "esbuild": "^0.27.2",
+    "postject": "^1.0.0-alpha.6",
     "typescript": "^5.9.3",
     "vite": "^8.3.8",
     "vite-plugin-singlefile": "^2.3.0"

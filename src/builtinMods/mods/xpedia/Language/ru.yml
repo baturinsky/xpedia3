@@ -34,6 +34,7 @@ ru:
   MANUFACTURE: ПРОИЗВОДСТВО
   RESEARCH: ИССЛЕДОВАНИЕ
   STATS: ПАРАМЕТРЫ ЮНИТА
+  VOICE_SETS: НАБОРЫ ГОЛОСОВ
 
   STR_ABOUT_XPEDIA: "Об XPedia"
   Thanks to: "Спасибо"
@@ -1048,6 +1049,23 @@ ru:
     предметов и стоимость производства."
   tip_sizeChange: "sizeChange<br><br>Изменение общего объёма склада за каждую
     выпущенную единицу: вычисляется как произведённые предметы минус требуемые."
+  tip_allowedArmorTypes: "allowedArmorTypes<br><br>Список доспехов, которым
+    разрешён этот набор голосов. Пустой означает все доспехи."
+  tip_allowedGenders: "allowedGenders<br><br>Список полов, которым разрешён
+    этот набор голосов. Пустой означает все полы."
+  tip_allowedUnitTypes: "allowedUnitTypes<br><br>Список типов юнитов, которым
+    разрешён этот набор голосов. Пустой означает все типы юнитов."
+  tip_annoyed: "annoyed<br><br>ID звука из BATTLE.CAT при многократном ручном
+    выборе юнита. Может быть списком вариантов."
+  tip_selectUnit: "selectUnit<br><br>ID звука из BATTLE.CAT при ручном выборе
+    юнита. Может быть списком вариантов."
+  tip_selectWeapon: "selectWeapon<br><br>ID звука из BATTLE.CAT при выборе
+    оружия юнита. Может быть списком вариантов."
+  tip_startMoving: "startMoving<br><br>ID звука из BATTLE.CAT при начале
+    движения юнита. Может быть списком вариантов."
+  tip_ufopediaType: "ufopediaType<br><br>Статья Уфопедии, которую игра открывает
+    для этой записи (например, по средней кнопке мыши на базах), вместо статьи,
+    названной именем самой записи."
   xpediaColumns: Столбцы
   xpediaColumnsAll: Все
   xpediaColumnsNone: Ничего

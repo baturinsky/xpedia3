@@ -35,8 +35,10 @@ export default defineConfig(({ mode }) => {
     build: {
       assetsInlineLimit: 1000000,
       sourcemap: true,
-      minify: mode === "min",
-      cssMinify: mode === "min",
+      // Always minified: the single file, the exported pages and the CLI shell
+      // all carry this bundle, so readable output would bloat every one of them
+      minify: true,
+      cssMinify: true,
       outDir: `../build`,
       emptyOutDir: true,
       rollupOptions: {

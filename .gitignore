@@ -4,6 +4,9 @@
 /old
 # Build output; `dist` is the old location, kept ignored in case it lingers
 /build
+# The compiled CLI executables, rebuilt by `npm run cli:exe` / `npm run cli:sea`
+/cli/xpedia-cli.exe
+/cli/xpedia-cli-sea.exe
 AGENTS.md
 build-number.txt
 # Bundled test modules, rebuilt by `npm test`

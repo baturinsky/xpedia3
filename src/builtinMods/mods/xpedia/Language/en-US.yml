@@ -1958,6 +1958,15 @@ en-US:
   tip_profit: profit<br><br>Money gained per produced item, calculated from the sell value of the produced items minus the value of the required items and the production cost.
   tip_sizeChange: sizeChange<br><br>Change in total Stores size per produced item, calculated from the produced items minus the required items.
   #==================================================================================================================
+  tip_allowedArmorTypes: "allowedArmorTypes<br><br>List of armors that may use this voice set. Empty means all armors."
+  tip_allowedGenders: "allowedGenders<br><br>List of genders that may use this voice set. Empty means all genders."
+  tip_allowedUnitTypes: "allowedUnitTypes<br><br>List of unit types that may use this voice set. Empty means all unit types."
+  tip_annoyed: "annoyed<br><br>Sound ID(s) from BATTLE.CAT played when a unit is repeatedly manually selected. May be a list of options."
+  tip_selectUnit: "selectUnit<br><br>Sound ID(s) from BATTLE.CAT played when a unit is manually selected. May be a list of options."
+  tip_selectWeapon: "selectWeapon<br><br>Sound ID(s) from BATTLE.CAT played when a weapon of a unit is selected. May be a list of options."
+  tip_startMoving: "startMoving<br><br>Sound ID(s) from BATTLE.CAT played when a unit starts moving. May be a list of options."
+  tip_ufopediaType: "ufopediaType<br><br>UFOpaedia article the game opens for this entry (e.g. on a middle-button click in base screens) instead of the article named after the entry itself."
+  #==================================================================================================================
   tip_alienRank: "alienRank<br><br>Rank this deployment slot uses, as an index into the member list of the alien race."
   tip_allWeaponTypes: "allWeaponTypes<br><br>Every weapon type this craft can mount, collected from all of its weapon slots."
   tip_allowedArmors: "allowedArmors<br><br>List of armors that crew may wear under this starting condition."
@@ -2783,6 +2792,7 @@ en-US:
   xpediaAudioNote: The pack's audio is not included in the pedia, which keeps exports small. Only the name and location are stored.
   xpediaAudioMusicHint: SOUND folder
   REGIONS: REGIONS
+  VOICE_SETS: VOICE SETS
   UFO_TRAJECTORIES: UFO TRAJECTORIES
   INVENTORY_SECTIONS: INVENTORY SECTIONS
   xpediaRegionMapNote: The solid boxes are the region's own outline, not a place anything is put. The game asks one question of them — is this point in this region — and uses the answer to price a base built there, to credit a UFO's activity to this region's graph, and to keep a landing inside the region the flight is in. The dashed boxes are the region's mission zones, which serve two purposes — a UFO trajectory steers by them, and missions may put their objectives in them. A region with no solid boxes is a technical one, used only to weight missions and hold zones. No flight is drawn here — a trajectory is a list of zone numbers rather than places, so it can only be pictured against one chosen region, which each flight's own page does.
@@ -3123,6 +3133,15 @@ en-US:
   forbiddenSoldierTypes: Forbidden crew types
   blocksTransformations: Blocks transformations
   forbiddenPreviousTransformations: Forbidden prior transformations
+  #Voice sets
+  annoyed: Annoyed sound
+  allowedArmorTypes: Allowed armors
+  allowedGenders: Allowed genders
+  allowedUnitTypes: Allowed unit types
+  selectUnit: Select unit sound
+  selectWeapon: Select weapon sound
+  startMoving: Start moving sound
+  ufopediaType: UFOpaedia article
   #Manufacture
   chanceSum: Total chance
   time: Man-hours

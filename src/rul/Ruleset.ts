@@ -30,6 +30,7 @@ import {
   stampUid,
   UfoTrajectory,
   Unit,
+  VoiceSet,
 } from "./Entry";
 import { Section } from "./Section";
 import { Sprite } from "./Sprite";
@@ -313,6 +314,7 @@ export default class Ruleset {
   battleTypes: { [key: string]: Entry } = {};
   countries: { [key: string]: Entry } = {};
   damageTypes: { [key: string]: DamageType } = {};
+  voiceSets: { [key: string]: VoiceSet } = {};
   research: { [key: string]: Research } = {};
   soldierBonuses: { [key: string]: Entry } = {};
   commendations: { [key: string]: Commendation } = {};
@@ -1754,6 +1756,7 @@ export const entryConstructors: {
   research: Research,
   manufacture: Manufacture,
   damageTypes: DamageType,
+  voiceSets: VoiceSet,
   // Before `commendations`: a `Commendation` looks up its stages in
   // `rul.soldierBonuses` while it is being constructed, so the bonuses have to
   // exist by then
