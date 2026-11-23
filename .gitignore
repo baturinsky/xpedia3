@@ -6,7 +6,7 @@
 /build
 # The compiled CLI executables, rebuilt by `npm run cli:exe` / `npm run cli:sea`
 /cli/xpedia-cli.exe
-/cli/xpedia-cli-sea.exe
+/cli/xpedia-cli-bun.exe
 AGENTS.md
 build-number.txt
 # Bundled test modules, rebuilt by `npm test`

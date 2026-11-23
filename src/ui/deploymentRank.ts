@@ -743,8 +743,8 @@ export function rankMembers(
  * With one race it is that race's member at the rank. With several races —
  * a mission that fields more than one — it is the union of their members at
  * the rank, duplicates collapsed and in race order, so the card can list
- * `A / B` beside the raw number (the same join `RankTitle` already uses for
- * a `membersRandom` roll) instead of falling back to a bare number. `undefined`
+ * `A / B` (the same join `RankTitle` already uses for a `membersRandom`
+ * roll) instead of falling back to a bare number. `undefined`
  * is then the honest answer only when no race leads here or no race has a
  * member at that rank — the table then keeps showing the raw number rather
  * than guessing. A row's `customUnitType` override is handled by the caller,

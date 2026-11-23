@@ -1270,6 +1270,7 @@ export class Research extends Entry {
 export class AlienDeployment extends Entry {
   startingCondition?: string;
   data?: { itemSets?: unknown }[];
+  reinforcements?: unknown;
   loot: string[];
   alertBackground?: string;
   briefing?: { background?: string };

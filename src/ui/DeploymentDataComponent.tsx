@@ -30,13 +30,15 @@ import { asItems, asNumber, isEmpty } from "./value";
  * to. A card keeps its title, its numbers and its loadouts in one place.
  *
  * A rank is an index into the alien race's member list, so the title prints
- * the member the index resolves to (see `deploymentRank.ts`), with the rank
- * itself kept beside it the way `MissionComponent` keeps an objective's raw
- * number beside its name. `customUnitType` overrides the lookup in the
- * engine, so when a row states one it is the title itself. When the missions
- * field more than one race, the title lists each race's member at that rank
- * (`A / B`); only when no race leads here, or none has a member at the rank,
- * does the title fall back to the raw number.
+ * the member the index resolves to (see `deploymentRank.ts`). The rank
+ * itself is not shown beside it: once the member is named, the index only
+ * repeats what the race list already says, and with `customUnitType` it
+ * names a member the engine does not spawn at all, which is misleading.
+ * `customUnitType` overrides the lookup in the engine, so when a row
+ * states one it is the title itself. When the missions field more than one
+ * race, the title lists each race's member at that rank (`A / B`); only
+ * when no race leads here, or none has a member at the rank, does the
+ * title fall back to the raw number.
  *
  * The quantity in the summary is the base count by difficulty
  * (`lowQty..medQty..highQty`, equal neighbours collapsed, a missing
@@ -229,7 +231,7 @@ function Summary({ row }: { row: DeploymentRow }): ReactNode {
   for (const die of dice) {
     parts.push(
       <span className="nobr" data-tooltip={die.tip}>
-        +0–
+        +<Val of="0"/>–
         <Val of={die.n} /> <Tr text="xpediaRandomQty" />
         <sup className="tipmark">?</sup>
       </span>,
@@ -257,7 +259,7 @@ function Summary({ row }: { row: DeploymentRow }): ReactNode {
 }
 
 /**
- * The card's title: the unit the rank spawns, with the rank kept beside it.
+ * The card's title: the unit the rank spawns.
  *
  * `customUnitType` wins outright in the engine, so it needs no race at all;
  * otherwise the rank resolves through the deployment's race (see
@@ -295,7 +297,6 @@ function RankTitle({
           <Val of={unit} />
         </Fragment>
       ))}
-      <span className="mission-raw"> ({rank})</span>
     </>
   );
 }
@@ -443,6 +444,160 @@ function DeploymentDataView({
 }
 
 /**
+ * Waves from a `ReinforcementsData` node (AlienDeployment.h), in file
+ * order: the engine runs each wave in turn, so the order is the call
+ * order. Every key except `data` and `type` is wave schedule/spawn
+ * state; `type` is the title and `data` reuses the rank cards, exactly
+ * like the deployment's own `data`. The listed order matches the
+ * struct (AlienDeployment.cpp `read(ReinforcementsData*)`), so defaults
+ * the struct fills in (`minTurn 0`, `executionOdds 100`, `maxRuns -1`)
+ * stay out unless the pack wrote them — a line of blanks would repeat
+ * the engine's own defaults.
+ */
+const WAVE_FIELDS = [
+  "minDifficulty",
+  "maxDifficulty",
+  "objectiveDestroyed",
+  "turns",
+  "minTurn",
+  "maxTurn",
+  "executionOdds",
+  "maxRuns",
+  "useSpawnNodes",
+  "mapBlockFilterType",
+  "spawnBlocks",
+  "spawnBlockGroups",
+  "spawnNodeRanks",
+  "spawnZLevels",
+  "randomizeZLevels",
+  "minDistanceFromXcomUnits",
+  "maxDistanceFromBorders",
+  "forceSpawnNearFriend",
+];
+
+/**
+ * `mapBlockFilterType` in words (AlienDeployment.h `MapBlockFilterType`).
+ * The number is the engine value, the words are what it means (see the
+ * field's tooltip for the numbers). An unknown value keeps just its
+ * number, which is all that can be said of it.
+ */
+const MFT_LABELS: Record<string, string> = {
+  "0": "xpediaMftNone",
+  "1": "xpediaMftByMapscript",
+  "2": "xpediaMftByReinforcements",
+  "3": "xpediaMftByBothUnion",
+  "4": "xpediaMftByBothIntersection",
+};
+
+/**
+ * One wave field's value. Most go through `Val` as before; the block
+ * filter is the one field whose bare number says nothing, so it keeps
+ * its number beside its words.
+ */
+function WaveFieldValue({ field, value }: { field: string; value: unknown }): ReactNode {
+  if (field === "mapBlockFilterType") {
+    const n = asNumber(value);
+    const label = n != null ? MFT_LABELS[String(n)] : undefined;
+    if (label) {
+      return (
+        <>
+          <Val of={n} />
+          {" ("}
+          <Tr text={label} />
+          {")"}
+        </>
+      );
+    }
+  }
+  return <Val of={value} field={field} />;
+}
+
+/**
+ * One `reinforcements` wave: its schedule and spawn state as a small
+ * definition list, its briefing as the usual sub-table, and its `data`
+ * with the same rank cards as the deployment's own `data`.
+ */
+function ReinforcementWave({
+  wave,
+  deployment,
+}: {
+  wave: DeploymentRow;
+  deployment: RankDeployment | undefined;
+}): ReactNode {
+  const type = typeof wave.type === "string" && wave.type !== "" ? wave.type : undefined;
+  const fields = WAVE_FIELDS.filter((field) => !isEmpty(wave[field]));
+  const briefing = wave.briefing;
+  const hasBriefing =
+    !isEmpty(briefing) &&
+    !(typeof briefing === "object" && Object.keys(briefing as object).length === 0);
+  const hasData = !isEmpty(wave.data);
+  if (fields.length === 0 && !hasBriefing && !hasData) return null;
+  return (
+    <TipScopeProvider scope="reinforcementWave">
+      <section className="deployment-card">
+        {type ? (
+          <h3 className="deployment-card-title">
+            <span data-tooltip="tip_reinforcementWaveType">
+              <Val of={type} />
+              <sup className="tipmark">?</sup>
+            </span>
+          </h3>
+        ) : null}
+        {fields.length > 0 && (
+          <dl className="data-fields">
+            {fields.map((field) => (
+              <Fragment key={field}>
+                <dt>
+                  <Val of={field} capital={true} />
+                </dt>
+                <dd>
+                  <WaveFieldValue field={field} value={wave[field]} />
+                </dd>
+              </Fragment>
+            ))}
+          </dl>
+        )}
+        {hasBriefing ? asSubTable({ val: briefing }) : null}
+        {hasData ? <DeploymentDataView data={wave.data} deployment={deployment} /> : null}
+      </section>
+    </TipScopeProvider>
+  );
+}
+
+/**
+ * A deployment's `reinforcements`: extra waves that arrive after the
+ * site is built (XPiratez `STR_LOC_REDHOUSE`'s cannon/quad waves in
+ * Piratez_Factions.rul). Each wave is one card — schedule above, rank
+ * cards below — so a wave's loadouts sit with their wave the way the
+ * deployment's sit with their rank.
+ */
+function ReinforcementsView({
+  waves,
+  deployment,
+}: {
+  waves: unknown;
+  deployment: RankDeployment | undefined;
+}): ReactNode {
+  const list = asItems(waves).filter(
+    (wave): wave is DeploymentRow => typeof wave === "object" && wave != null,
+  );
+  if (list.length === 0) return null;
+  return (
+    <>
+      <p className="mission-note">
+        <Tr text="xpediaReinforcementWaveHeader" />
+      </p>
+      <div className="deployment-cards">
+        {list.map((wave, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a wave is identified by its position in the call order, the order the file writes them
+          <ReinforcementWave wave={wave} deployment={deployment} key={i} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/**
  * An `alienDeployments` article: the entry's fields, with `data` drawn as
  * the rank cards above. A component rather than a table config, because the
  * cards need the deployment itself — its `race`, and the missions that lead
@@ -468,7 +623,10 @@ export default function DeploymentComponent({ entry }: { entry: AlienDeployment 
     <MainTable
       of={entry}
       title="alienDeployments"
-      sort={{ first: ["startingCondition", "loot"], last: ["data", "alertBackground", "briefing"] }}
+      sort={{
+        first: ["startingCondition", "loot"],
+        last: ["data", "reinforcements", "alertBackground", "briefing"],
+      }}
       before={
         spawners.length > 0 ? (
           <tr>
@@ -500,6 +658,9 @@ export default function DeploymentComponent({ entry }: { entry: AlienDeployment 
         // app keeps the same component position while navigating.
         data: ({ val }) => (
           <DeploymentDataView data={val} deployment={entry} key={entry.uid ?? ""} />
+        ),
+        reinforcements: ({ val }) => (
+          <ReinforcementsView waves={val} deployment={entry} key={entry.uid ?? ""} />
         ),
         // The briefing's background is often the very image the alert
         // already showed above it — drawn twice the page ends up stacking

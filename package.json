@@ -1,6 +1,6 @@
 {
   "name": "xpedia3",
-  "version": "3.0.0-alpha.9",
+  "version": "3.0.0-alpha.10",
   "description": "OpenXCom reference engine",
   "main": "main.js",
   "type": "module",
@@ -10,7 +10,7 @@
     "build": "vite build",
     "min": "vite build --mode=min",
     "cli": "vite build && node scripts/build-cli.mjs",
-    "cli:exe": "npm run cli && bun build --compile cli/xpedia-cli.mjs --outfile cli/xpedia-cli.exe",
+    "cli:exe": "npm run cli && bun build --compile cli/xpedia-cli.mjs --outfile cli/xpedia-cli-bun.exe",
     "cli:sea": "vite build && node scripts/build-cli-sea.mjs",
     "check": "tsc -p src/tsconfig.json --noEmit && tsc -p tsconfig.tools.json",
     "format": "biome format --write .",

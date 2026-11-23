@@ -66,6 +66,140 @@ export type YamlObject = { [key: string]: YamlValue };
 /** One parsed `rul` file: its top-level keys are the tables it declares */
 export type RulFile = YamlObject;
 
+/**
+ * OXCE merge tags (`Mod.cpp` `AddTag`/`RemoveTag`): a field written as
+ * `getOneFree: !add` appends to the inherited list instead of replacing it,
+ * and `!remove` deletes the listed items (or map keys). `loadYaml` keeps
+ * them as a one-key marker object so `combineModRuls` can apply them;
+ * without the marker a later mod's short list would silently overwrite an
+ * earlier mod's long one (XPiratez `STR_DATA_DISK_B` lost hundreds of free
+ * blueprints to a one-item `!add` list). `!info` only logs in the game, so
+ * it is unwrapped at parse time and never becomes a marker.
+ */
+export const ADD_MARKER = "__pediaAdd";
+export const REMOVE_MARKER = "__pediaRemove";
+
+/** Whether a parsed value is an `!add`/`!remove` marker holding `value` */
+export function taggedValue(value: YamlValue | undefined): {
+  kind: "add" | "remove";
+  value: YamlValue;
+} | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
+  const keys = Object.keys(value);
+  if (keys.length !== 1) return null;
+  if (keys[0] === ADD_MARKER) return { kind: "add", value: (value as YamlObject)[ADD_MARKER] };
+  if (keys[0] === REMOVE_MARKER)
+    return { kind: "remove", value: (value as YamlObject)[REMOVE_MARKER] };
+  return null;
+}
+
+function isPlainObject(value: YamlValue | undefined): value is YamlObject {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function deepEqual(a: YamlValue | undefined, b: YamlValue | undefined): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b))
+    return a.length === b.length && a.every((item, i) => deepEqual(item, b[i]));
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    return aKeys.length === bKeys.length && aKeys.every((key) => deepEqual(a[key], b[key]));
+  }
+  return false;
+}
+
+/**
+ * A tagged value with nothing inherited behind it: `!add` starts from the
+ * value itself, `!remove` from empty. Nested markers are unwrapped the
+ * same way, so no marker survives into the merged ruleset.
+ */
+function resolveNoOld(value: YamlValue | undefined): YamlValue | undefined {
+  const tagged = taggedValue(value);
+  if (tagged) {
+    if (tagged.kind === "remove")
+      return Array.isArray(tagged.value) ? [] : isPlainObject(tagged.value) ? {} : undefined;
+    return resolveNoOld(tagged.value);
+  }
+  if (Array.isArray(value)) return value.map((item) => resolveNoOld(item)) as YamlValue;
+  if (isPlainObject(value)) {
+    const out: YamlObject = {};
+    for (const key of Object.keys(value)) out[key] = resolveNoOld(value[key]) as YamlValue;
+    return out;
+  }
+  return value;
+}
+
+const NOT_TAGGED = Symbol("not-tagged");
+
+/** Applies an `!add`/`!remove` marker to the inherited value, if it is one */
+function applyTagged(
+  oldValue: YamlValue | undefined,
+  newValue: YamlValue,
+): YamlValue | typeof NOT_TAGGED {
+  const tagged = taggedValue(newValue);
+  if (!tagged) return NOT_TAGGED;
+  const added = tagged.value;
+  if (tagged.kind === "add") {
+    if (Array.isArray(oldValue) && Array.isArray(added)) return [...oldValue, ...added];
+    if (isPlainObject(oldValue) && isPlainObject(added)) {
+      const merged: YamlObject = { ...oldValue };
+      for (const key of Object.keys(added)) merged[key] = resolveNoOld(added[key]) as YamlValue;
+      // A nested marker under an `!add` map merges against the old nested
+      // value instead of starting from empty
+      for (const key of Object.keys(added)) {
+        const inner = taggedValue(added[key]);
+        if (inner) merged[key] = mergeValue(oldValue[key], added[key]);
+      }
+      return merged;
+    }
+    return resolveNoOld(added);
+  }
+  // `!remove`: a list deletes its items, a map deletes its keys (the game
+  // writes the keys as a list, see `Mod.cpp` `LoadFuncEditable`)
+  if (Array.isArray(oldValue)) {
+    if (!Array.isArray(added)) return oldValue;
+    return oldValue.filter((item) => !added.some((doomed) => deepEqual(item, doomed)));
+  }
+  if (isPlainObject(oldValue)) {
+    const out: YamlObject = { ...oldValue };
+    const keys = Array.isArray(added) ? added : isPlainObject(added) ? Object.keys(added) : [];
+    for (const key of keys) delete out[key as string];
+    return out;
+  }
+  return Array.isArray(added) ? [] : isPlainObject(added) ? {} : undefined;
+}
+
+/**
+ * One field's merge, following the game's `loadHelper` dispatch: an
+ * untagged value replaces (a plain nested map clears the old one), while
+ * `!add`/`!remove` combine with what the earlier mods stated. A plain map
+ * still walks its keys so a marker nested inside it is honoured.
+ */
+function mergeValue(oldValue: YamlValue | undefined, newValue: YamlValue): YamlValue | undefined {
+  const applied = applyTagged(oldValue, newValue);
+  if (applied !== NOT_TAGGED) return applied;
+  if (isPlainObject(oldValue) && isPlainObject(newValue)) {
+    const out: YamlObject = {};
+    for (const key of Object.keys(newValue))
+      out[key] = mergeValue(oldValue[key], newValue[key]) as YamlValue;
+    return out;
+  }
+  if (Array.isArray(newValue)) return resolveNoOld(newValue);
+  return resolveNoOld(newValue);
+}
+
+/** Two blocks of one entry: unmentioned fields survive, mentioned ones merge */
+function mergeBlock(oldBlock: YamlObject, newBlock: YamlObject): YamlObject {
+  const merged: YamlObject = { ...oldBlock };
+  for (const key of Object.keys(newBlock)) {
+    const value = mergeValue(oldBlock[key], newBlock[key]);
+    if (value === undefined) delete merged[key];
+    else merged[key] = value;
+  }
+  return merged;
+}
+
 type StringValue = [string, unknown];
 export const defaultLanguage = "en-US";
 
@@ -756,12 +890,14 @@ export default class Ruleset {
               if (!old) {
                 category[id] = data;
               } else {
-                // A repeat of the same id merges: array data is concatenated,
-                // object data is merged field by field
+                // A repeat of the same id merges field by field, honouring
+                // the game's own `!add`/`!remove` tags (`mergeValue`): a
+                // later mod's `!add` list appends to the inherited one
+                // instead of replacing it.
                 if (Array.isArray(data)) {
                   category[id] = [...(old as YamlValue[]), ...data];
                 } else {
-                  category[id] = { ...(old as YamlObject), ...block };
+                  category[id] = mergeBlock(old as YamlObject, block);
                 }
               }
             }
@@ -784,6 +920,13 @@ export default class Ruleset {
                   !(block as YamlObject).uid
                 )
                   stampUid(categoryName, Object.assign(block as YamlObject, { uid: id }));
+                // The object form repeats an id the same way the list form
+                // does, so it merges instead of replacing — a later mod's
+                // `!add` field appends to what the earlier mods stated.
+                const old = category[id];
+                if (old && isPlainObject(old) && isPlainObject(block as YamlValue)) {
+                  (rawCategory as YamlObject)[id] = mergeBlock(old, block as YamlObject);
+                }
               }
             Object.assign(category, rawCategory as object);
           }

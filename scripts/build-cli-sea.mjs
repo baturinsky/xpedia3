@@ -1,5 +1,5 @@
 /**
- * Builds `cli/xpedia-cli-sea.exe`, the same CLI as a single executable that
+ * Builds `cli/xpedia-cli.exe`, the same CLI as a single executable that
  * runs without Node installed (Node's SEA: Single Executable Applications).
  *
  * The steps: bundle the CLI to a single CommonJS file, compact it into a
@@ -27,7 +27,7 @@ const seaDir = path.join(root, "build", "sea");
 const bundleFile = path.join(seaDir, "cli.cjs");
 const configFile = path.join(seaDir, "sea-config.json");
 const blobFile = path.join(seaDir, "sea-prep.blob");
-const outFile = path.join(root, "cli", "xpedia-cli-sea.exe");
+const outFile = path.join(root, "cli", "xpedia-cli.exe");
 
 fs.mkdirSync(seaDir, { recursive: true });
 
@@ -80,4 +80,4 @@ execFileSync(
 );
 
 const size = fs.statSync(outFile).size;
-console.log(`cli/xpedia-cli-sea.exe: ${(size / 1048576).toFixed(1)} MB`);
+console.log(`cli/xpedia-cli.exe: ${(size / 1048576).toFixed(1)} MB`);

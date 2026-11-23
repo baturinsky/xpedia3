@@ -2,10 +2,12 @@ import * as fflate from "fflate";
 import JSYaml from "js-yaml";
 import * as unrar from "node-unrar-js";
 import Ruleset, {
+  ADD_MARKER,
   defaultLanguage,
   type Langs,
   type Mod,
   type ProcessedRuleset,
+  REMOVE_MARKER,
   type RulFile,
   type YamlObject,
   type YamlValue,
@@ -255,9 +257,50 @@ export function disabledMods(files: { [name: string]: Uint8Array }): Set<string>
  * type per table — is what lets a pack add a table the pedia does not know
  * about without failing to load.
  */
+/**
+ * OXCE's merge tags as js-yaml types: the same tag can sit on a list or a
+ * map, so each kind gets its own type under the one tag name. `!add` and
+ * `!remove` keep their payload under the marker key `combineModRuls`
+ * reads; `!info` only logs in the game, so its payload unwraps as usual.
+ */
+const oxceTagTypes = (["!add", "!remove", "!info"] as const).flatMap((name) =>
+  (["sequence", "mapping", "scalar"] as const).map(
+    (kind) =>
+      new (
+        JSYaml as unknown as {
+          Type: new (
+            name: string,
+            opts: {
+              kind: string;
+              resolve: () => boolean;
+              construct: (data: unknown) => unknown;
+              predicate: () => boolean;
+            },
+          ) => unknown;
+        }
+      ).Type(name, {
+        kind,
+        resolve: () => true,
+        construct: (data: unknown) =>
+          name === "!add"
+            ? { [ADD_MARKER]: data }
+            : name === "!remove"
+              ? { [REMOVE_MARKER]: data }
+              : data,
+        predicate: () => true,
+      }),
+  ),
+);
+
+const oxceSchema = (
+  JSYaml as unknown as {
+    JSON_SCHEMA: { extend: (types: unknown[]) => unknown };
+  }
+).JSON_SCHEMA.extend(oxceTagTypes);
+
 export function loadYaml(text: string): YamlValue {
-  text = text.replace(/!(add|info|remove)/g, "");
   return JSYaml.load(text, {
+    schema: oxceSchema as never,
     json: true,
     onWarning: (e) => {
       console.error(e.message);
