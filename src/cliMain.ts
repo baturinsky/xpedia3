@@ -315,8 +315,11 @@ function extractShell(html: string): AppShell {
   while (true) {
     match = styleRe.exec(html);
     if (match === null) break;
+    // The bundle's own `renderPage` template wraps style tags in backticks, so
+    // the literal text `<style>${e}</style>` in the bundle matches here first
+    // with `${e}` as its content: half a template literal, not a stylesheet
     const content = (match[2] ?? "").replace(/\/\*# sourceMappingURL=\S+\*\//g, "");
-    if (content) styles.push(content);
+    if (content && !content.includes("${")) styles.push(content);
   }
 
   if (!scripts.some((s) => s.content.length > 50_000))

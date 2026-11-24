@@ -389,7 +389,7 @@ export async function renderPage(
   // The payload must exist before the app starts. Module scripts run after
   // parsing, so a plain script above them is always safe.
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="utf-8" />
@@ -465,7 +465,7 @@ export function renderArticlePreview(options: {
   const { title, description, url, image, target } = options;
   const ogImage = image ? `\n  <meta property="og:image" content="${escapeHtml(image)}" />` : "";
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="utf-8" />

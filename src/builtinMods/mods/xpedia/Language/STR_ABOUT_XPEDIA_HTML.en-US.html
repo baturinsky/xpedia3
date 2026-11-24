@@ -5,14 +5,14 @@ It harvests the data from the modpacks themselves, all you need is to provide it
 
 <h4 id="whats-new">Features</h4>
 <ul>
-  <li>Entire modpack data, displayed in human-readable and serachable way.</li>
+  <li>Entire modpack ruleset data, displayed in human-readable and searchable way.</li>
   <li>HTML, node.js and exe versions.</li>
   <li>Reads packs in Zip,Rar and Tar.gz archives.</li>
   <li>In command line version - also accept directories and OpenXCom installations.</li>
   <li>Very flexible export function to create xpedia versions with inlined mod data, to bundle with your mod or publish in the web.</li>
 </ul>
 
-Project canonical home, best place to give feedback is through "Issues" there: <a href="https://github.com/baturinsky/xpedia3">https://github.com/baturinsky/xpedia3</a></br>
+Project canonical home, best place to give feedback is through "Issues" there: <a href="https://github.com/baturinsky/xpedia3">https://github.com/baturinsky/xpedia3</a><br />
 
 Live online versions for Xcom Files and X-Piratez: <a href="https://baturinsky.gitlab.io/xpedia">https://baturinsky.gitlab.io/xpedia</a>
 
@@ -20,9 +20,6 @@ Live online versions for Xcom Files and X-Piratez: <a href="https://baturinsky.g
 
 
 <h4 id="how-to-use">How to use XPedia</h4>
-
-<p>XPedia is a reference for OpenXcom / OXCE modpacks. There are four ways to
-use it; they all read the same files and produce the same pages.</p>
 
 <h4 id="in-browser">In your browser</h4>
 
@@ -35,14 +32,14 @@ one.</p>
 <p>Use the search box or the section/category lists to find articles; the
 <strong>&lt;</strong> / <strong>&gt;</strong> arrows step through them. The
 language can be switched from the top menu. Pack data is stored in your
-browser — nothing is uploaded anywhere. Packs are automatically deleted from the disk 
-after a year of inactivity.</p>
+browser — nothing is uploaded anywhere. Packs are set to automatically delete from the disk 
+after a year of inactivity, but it cannot work on non-Chrome/Edge browsers.</p>
 
 <h4 id="export">Exporting a standalone page</h4>
 
 <p>The <strong>Export</strong> button makes a page that works without need for the modpack archive,
 either one HTML file, or a zip. By default, the images in the exported version are read from your OpenXcom
-installation, assuming that the HTML file is located in it's root directory. 
+installation, assuming that the HTML file is located in its root directory. 
 Tick <strong>Also keep the images</strong> to bundle them in (the file gets much
 larger). Audio is never bundled — only referenced.</p>
 
@@ -50,7 +47,7 @@ larger). Audio is never bundled — only referenced.</p>
 
 There are two CLI versions, with only difference that one is node.js script (and therefore needs node installed), and the other is exe (i.e. needs windows and much bigger).
 
-If you use the exe version, replace node `xpedia-cli.mjs` with `cpedia-cli.exe`
+If you use the exe version, replace node `xpedia-cli.mjs` with `xpedia-cli.exe`
 
 <pre>
 node xpedia-cli.mjs --help                               # documentation
@@ -65,15 +62,14 @@ node xpedia-cli.mjs pack pedia.zip --zip                 # folder / rar / tar.gz
 
 <p>A folder may be a game root (<code>user/mods/…</code>), a folder of mod
 folders, or one mod folder. <code>--split</code> keeps the page English-sized
-and writes other languages as separate files that load on demand.
-<code>--url https://…/</code> adds link-preview tags for that address.
+and writes the other languages as separate files that load on demand.
 
 <h4 id="live-preview">Live preview (<code>xpedia-cli --serve</code>)</h4>
 
 <pre>
-node xpedia-cli.mjs --serve                               # current folder, port 9391
-node xpedia-cli.mjs --serve "D:/OpenXcom/user/mods/MyMod" # --port 1234 #server specific mod on port 1234
-node xpedia-cli.mjs --serve "D:/OpenXcom                  # Serve all active mods in the installation
+node xpedia-cli.mjs --serve                                # current folder, port 9391
+node xpedia-cli.mjs --serve "D:/OpenXcom" --port 1234      # Serve all active mods in the installation on port 1234
+node xpedia-cli.mjs --serve "D:/OpenXcom/user/mods/MyMod"  # Serve specific mod
 </pre>
 
 <p>CLI version serves the folder as a live pedia: you can edit a ruleset file, reload the page, and see
