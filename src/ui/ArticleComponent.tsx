@@ -142,7 +142,7 @@ function NearbyLink(props: {
     >
       {props.prefix && <span className="nav-arrow">{props.prefix}</span>}
       <span className="nav-name">
-        <Tr text={target.id} />
+        <Tr text={target.id} notip />
       </span>
       {props.postfix && <span className="nav-arrow">{props.postfix}</span>}
     </a>

@@ -7,6 +7,7 @@
   --text: #ffffff;
   --background: hsl(var(--hue), var(--saturation), 10%);
   --border: hsl(var(--hue), var(--saturation), 40%);
+  --border-faded: hsl(var(--hue), var(--saturation), 40%, 0.3);
   --lighter: hsl(var(--hue), var(--saturation), 30%);
   --hover: hsl(var(--hue), var(--saturation), 30%);
   --scrollbar: hsl(var(--hue), var(--saturation), 20%);
@@ -35,6 +36,7 @@
   --text: #201810;
   --background: hsl(var(--hue), var(--saturation), 94%);
   --border: hsl(var(--hue), var(--saturation), 60%);
+  --border-faded: hsl(var(--hue), var(--saturation), 60%, 0.3);
   --lighter: hsl(var(--hue), var(--saturation), 78%);
   --hover: hsl(var(--hue), var(--saturation), 84%);
   --scrollbar: hsl(var(--hue), var(--saturation), 80%);
@@ -1203,6 +1205,7 @@ button.modpack-name {
   text-align: left;
   grid-column: 1;
   min-width: 0;
+  align-self: center;
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: `nav.top .right` never occurs inside `.article-title`, so it never competes with the title's side columns */
@@ -1210,6 +1213,7 @@ button.modpack-name {
   text-align: right;
   grid-column: 3;
   min-width: 0;
+  align-self: center;
 }
 
 /* Prev/next names stay on one line, cut with an ellipsis when too long.
@@ -1219,8 +1223,12 @@ button.modpack-name {
    inner `.nobr` span is what actually carries the ellipsis.
    Centred, not baseline-aligned: the name's `overflow: hidden` box makes
    baseline alignment use the box rather than its text line, which dropped
-   the `<`/`>` about a third of a line below the name. Both items carry the
-   same line-height, so centring their boxes also centres their glyphs. */
+   the `<`/`>` about a third of a line below the name. `.nav-name` is itself a
+   flex row for the same reason: as a block it sizes to its strut plus the
+   baseline-aligned `.nobr` inline-block, about 6px taller than the line-height
+   (32.95px against 26.88px), so centring the two boxes still left the glyphs
+   3px apart. As a flex item the `.nobr` is blockified and both boxes carry
+   the same line-height, so centring the boxes centres the glyphs. */
 .article-title .left a,
 .article-title .right a {
   display: flex;
@@ -1234,6 +1242,8 @@ button.modpack-name {
 }
 
 .article-title .nav-name {
+  display: flex;
+  align-items: center;
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -1241,7 +1251,18 @@ button.modpack-name {
   white-space: nowrap;
 }
 
+/* The next link's arrow is at the right edge, so its name must end at that
+   arrow, not start at the column's left edge: without this the short name
+   hugged the left side of the right column, leaving a gap of up to a whole
+   column between the end of the name and `>`. Prev keeps the default
+   `flex-start`, which already puts its name right after `<`. */
+.article-title .right .nav-name {
+  justify-content: flex-end;
+}
+
 .article-title .nav-name .nobr {
+  display: block;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2320,7 +2341,9 @@ table.section-table td {
 }
 
 /* A resistance bar behind a damage type title in the resists grid, one
-   rem wide per 50 resistance, drawn in the border colour behind the label */
+   rem wide per 50 resistance. The bar is a vertical gradient: narrow opaque
+   border-colour lines at the top and bottom, with the central 90% at 30%
+   opacity, so the label's own colour still reads through the bar. */
 .resist-title {
   position: relative;
 }
@@ -2329,11 +2352,18 @@ table.section-table td {
   position: absolute;
   inset-block: 0;
   left: 0;
-  background: var(--border);
+  top: 95%;
+  height: 15%;
+  background: linear-gradient(
+    to right,
+    var(--border-faded) 0 0,
+    var(--border) 90% 100%    
+  );
 }
 
 .resist-label {
   position: relative;
+  line-height: 1.4rem;
 }
 
 /** Tables inside tables, ported from old `main-old` */

@@ -156,7 +156,7 @@ const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) => (
       {sortFirstLast(modifiers).all.map(([key, val]) => (
         <React.Fragment key={key}>
           <div className="resist-title">
-            <span className="resist-bar" style={{ width: `${~~(Number(val) * 100) / 50}rem` }} />
+            <span className="resist-bar" style={{ width: `${~~(Math.min(2.7,Number(val)) * 4)}rem` }} />
             <span className="resist-label">
               <Val of={damageTypes[Number(key)]} icon="monospace" />
             </span>

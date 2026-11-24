@@ -12,14 +12,13 @@ It harvests the data from the modpacks themselves, all you need is to provide it
   <li>Very flexible export function to create xpedia versions with inlined mod data, to bundle with your mod or publish in the web.</li>
 </ul>
 
-Project canonical home, best place to give feedback is through "Issues" there: <a href="https://github.com/baturinsky/xpedia3">https://github.com/baturinsky/xpedia3</a><br />
+Project canonical home, best place to give feedback is through "Issues" here: <a href="https://github.com/baturinsky/xpedia3">https://github.com/baturinsky/xpedia3</a><br />
+
+The latest HTML version location is <a href="https://github.com/baturinsky/xpedia3/tree/main/build">https://github.com/baturinsky/xpedia3/tree/main/cli</a><br/>
 
 Live online versions for Xcom Files and X-Piratez: <a href="https://baturinsky.gitlab.io/xpedia">https://baturinsky.gitlab.io/xpedia</a>
 
-
-
-
-<h4 id="how-to-use">How to use XPedia</h4>
+<h3 id="how-to-use">How to use XPedia</h3>
 
 <h4 id="in-browser">In your browser</h4>
 
@@ -29,15 +28,13 @@ tile on the landing page and choose the file). Loading takes a moment; the page 
 pack. Click a pack tile or use the right drop down menu to switch between packs, <strong>×</strong> to delete
 one.</p>
 
-<p>Use the search box or the section/category lists to find articles; the
-<strong>&lt;</strong> / <strong>&gt;</strong> arrows step through them. The
-language can be switched from the top menu. Pack data is stored in your
-browser — nothing is uploaded anywhere. Packs are set to automatically delete from the disk 
-after a year of inactivity, but it cannot work on non-Chrome/Edge browsers.</p>
+The pack data is stored in your browser — nothing is uploaded anywhere. Packs are set to automatically delete from the disk 
+after a year of inactivity, but it can not work on non-Chrome/Edge browsers.</p>
 
 <h4 id="export">Exporting a standalone page</h4>
 
-<p>The <strong>Export</strong> button makes a page that works without need for the modpack archive,
+<p>The <strong>Export</strong> button creates a standalone xpedia HTML page for the current modpack,
+which works without need for the modpack archive,
 either one HTML file, or a zip. By default, the images in the exported version are read from your OpenXcom
 installation, assuming that the HTML file is located in its root directory. 
 Tick <strong>Also keep the images</strong> to bundle them in (the file gets much
@@ -45,9 +42,11 @@ larger). Audio is never bundled — only referenced.</p>
 
 <h4 id="command-line">From the command line (<code>xpedia-cli</code>)</h4>
 
-There are two CLI versions, with only difference that one is node.js script (and therefore needs node installed), and the other is exe (i.e. needs windows and much bigger).
+There are two CLI versions, with only difference that one is node.js script (and therefore needs node installed), and the other is exe (i.e. needs windows and much bigger).<br/>
 
-If you use the exe version, replace node `xpedia-cli.mjs` with `xpedia-cli.exe`
+They are located in <a href="https://github.com/baturinsky/xpedia3/tree/main/cli">https://github.com/baturinsky/xpedia3/tree/main/cli</a><br/>
+
+If you use the exe version, replace node `xpedia-cli.mjs` with `xpedia-cli.exe`<br/>
 
 <pre>
 node xpedia-cli.mjs --help                               # documentation
