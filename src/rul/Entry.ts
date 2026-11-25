@@ -1251,8 +1251,28 @@ export class Research extends Entry {
   getOneFree?: string[];
   unlocks?: string[];
   dependencies?: string[];
-  leadsTo?: string[];
-  freeFrom?: string[];
+  requires?: string[];
+  // Backlinks, built by `Ruleset` (see `backLink` calls there). The names carry
+  // the access rule: (all of `dependencies`) OR (any of `unlockedByAnyOf`), plus
+  // all of `requires`. `requiredTogetherFor` is who needs this one as part of
+  // their whole `dependencies` list, `unlockedByAnyOf` is who unlocks this one
+  // on their own, and `getForFreeFrom` is who may grant this one randomly.
+  requiredTogetherFor?: string[];
+  unlockedByAnyOf?: string[];
+  getForFreeFrom?: string[];
+  // Bottleneck scores (see `researchBottlenecks.ts`): stamped by `Ruleset`
+  // when this topic is a major gate — at least three topics sit behind it in
+  // their strict dependency cone (topics reachable without it, through a
+  // shortcut or a free grant, are not behind it), and it holds at least one
+  // per cent of the pack's heaviest bottleneck score. `gatesScore` is the
+  // cone weight (`gatesValue`) minus the heaviest strict dependent's, so a
+  // split point scores high and a single chain link scores only the next
+  // link's own weight.
+  gatesTopics?: number;
+  gatesValue?: number;
+  gatesScore?: number;
+  cost?: number;
+  points?: number;
   manufacture?: string[];
   requiresBaseFunc?: string[];
   lookup?: string;

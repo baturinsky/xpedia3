@@ -39,8 +39,8 @@ es-ES:
   dependencies: "Depende de:" #STR_DEPENDS_ON
   seeAlso: "Objeto requerido:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Servicios requeridos" #STR_SERVICES_REQUIRED
-  freeFrom: "Se consigue gratis de:" #STR_GET_FOR_FREE_FROM
-  leadsTo: "Lleva a:" #STR_LEADS_TO
+  getForFreeFrom: "Se consigue gratis de:" #STR_GET_FOR_FREE_FROM
+  requiredTogetherFor: "Lleva a:" #STR_LEADS_TO
   unlocks: "Desbloquea:" #STR_UNLOCKS
   disables: "Deshabilita:" #STR_DISABLES
   getOneFree: "Da uno gratis:" #STR_GIVES_ONE_FOR_FREE

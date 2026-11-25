@@ -38,7 +38,7 @@ import { mapBlocks } from "./MapBlockComponent";
 import { mapScriptCommands } from "./MapScriptComponent";
 import MissionComponent from "./MissionComponent";
 import MissionScriptComponent from "./MissionScriptComponent";
-import ResearchComponent from "./ResearchComponent";
+import ResearchComponent, { ResearchRoot } from "./ResearchComponent";
 import StartingConditionsComponent from "./StartingConditionsComponent";
 import { battlescapeTerrainData } from "./TerrainDataComponent";
 import TrajectoryComponent from "./TrajectoryComponent";
@@ -919,11 +919,21 @@ export function ArticleComponent() {
             <div className="articles-list">
               {/* The section's own order, so the list and `<`/`>` agree. It is
                 already sorted by `articles()`, which caches it per language. */}
-              <LinksPage
-                key={article.id}
-                preSorted
-                links={section?.articles(state.alphabeticalSort).map((a) => a.id) ?? []}
-              />
+              {article.id === "RESEARCH" ? (
+                <ResearchRoot>
+                  <LinksPage
+                    key={article.id}
+                    preSorted
+                    links={section?.articles(state.alphabeticalSort).map((a) => a.id) ?? []}
+                  />
+                </ResearchRoot>
+              ) : (
+                <LinksPage
+                  key={article.id}
+                  preSorted
+                  links={section?.articles(state.alphabeticalSort).map((a) => a.id) ?? []}
+                />
+              )}
             </div>
           )}
           {!isSectionPage && articleText}

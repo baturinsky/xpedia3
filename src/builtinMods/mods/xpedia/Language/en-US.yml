@@ -1792,8 +1792,8 @@ en-US:
   tip_refund: refund<br><br>Whether the resources needed for a project should be refunded
     when a project is cancelled before completion.
   tip_requiredItems: requiredItems<br><br>List of items required and consumed per production.
-  tip_requires: requires<br><br>List of topics that must be researched to unlock this
-    project.
+  tip_requires: requires<br><br>List of topics that must be researched before this
+    project becomes available. No shortcut bypasses these.
   tip_requiresBaseFunc: requiresBaseFunc<br><br>A list of services required (in the
     given base) to be able to start this project.
   tip_space: space<br><br>Amount of Workshop space required to begin this project.
@@ -1990,7 +1990,7 @@ en-US:
   tip_damageAlter: "damageAlter<br><br>Damage parameters of this attack: multipliers, armor effectiveness, blast radius and so on. They are listed under the attack table."
   tip_damageTypes: "damageTypes<br><br><ul><li>Item: damage types this item can deal.</li><li>Commendation: damage types kills can be earned with.</li><li>Enviro effect: damage types the effect deals through its conditions' weapon or ammo.</li></ul>"
   tip_data: "data<br><br>One entry per alien rank on this mission: how many aliens to spawn, which gear sets they use, how many appear outside the UFO and so on."
-  tip_dependencies: "dependencies<br><br>Research projects that unlock access to this one. It becomes available once the whole list is researched, or when any project leads to it."
+  tip_dependencies: "dependencies<br><br>Normal path: all of these must be completed before this project becomes available — unless one of the projects listed under 'Unlocked by any one of' unlocks it first. In addition, every topic in 'requires' must be done; no shortcut bypasses those."
   tip_deployments: "deployments<br><br>Alien deployments this starting condition may use."
   tip_eventWeights: "eventWeights<br><br>Weighted list of events this script can fire."
   tip_extraQty: "extraQty<br><br>Random extra aliens spawned on top of the minimum, like dQty: a second independent roll of 0..extraQty on every difficulty."
@@ -2000,9 +2000,12 @@ en-US:
   tip_forbiddenBaseFunc: "forbiddenBaseFunc<br><br>Services that prevent this facility from being built in the same Hideout."
   tip_forbiddenPreviousTransformations: "forbiddenPreviousTransformations<br><br>Transformations that must not have been applied before this one."
   tip_forbiddenSoldierTypes: "forbiddenSoldierTypes<br><br>Crew types that are not allowed under this starting condition."
-  tip_freeFrom: "freeFrom<br><br>Research projects that grant this one for free once completed."
+  tip_getForFreeFrom: "getForFreeFrom<br><br>Projects that may grant this one for free when completed. Random: at most one free topic per completion, and a free grant never counts as a dependency."
+  tip_gatesTopics: "gatesTopics<br><br>Other topics that strictly need this one on their normal road: each of them lists this topic, directly or through a chain, among the dependencies that must all be done, and none of them can be reached without it. A topic that can be reached another way — a shortcut ('Unlocked by any one of'), a free grant ('May be granted free by'), or through a topic that can — is not behind this gate. Only major gates are stamped: at least three topics behind them, and at least one per cent of this pack's heaviest bottleneck score behind them."
+  tip_gatesValue: "gatesValue<br><br>Summed cost (man-days) and points of those strictly gated topics, weighed together: a late gate behind a handful of elite topics can outweigh an early hub behind hundreds of one-point shadows."
+  tip_gatesScore: "gatesScore<br><br>The bottleneck score: the strictly gated topics' weight behind this topic (see 'Gated topics value') minus the heaviest weight of any single topic that directly and strictly needs this one. A split point — where the research tree divides into weighed branches — scores high; a link on a single chain scores only the next link's own weight, and an early hub scores little because one child holds almost everything."
   tip_frequency: "frequency<br><br>How often this map block is picked relative to the others."
-  tip_getOneFree: "getOneFree<br><br>Bonus research this project may grant when completed, for example a live alien handing over information about other races. Only applies to living aliens."
+  tip_getOneFree: "getOneFree<br><br>Bonus research this project may grant for free when completed, for example a live alien handing over information about other races. Random: at most one of the listed topics, and a free grant never counts as a dependency."
   tip_groundTimer: "groundTimer<br><br>Seconds the UFO spends on ground waypoints."
   tip_height: "height<br><br><ul><li>Map block: height in battlescape grid units.</li><li>Deployment: height of the battlescape map.</li><li>Sprite: height in pixels.</li></ul>"
   tip_height__mapBlock: "height<br><br>Height of this map block, in battlescape grid units."
@@ -2020,7 +2023,7 @@ en-US:
   tip_largeBlockLimit: "largeBlockLimit<br><br>Maximum number of large map blocks that may be placed when generating a map."
   tip_layersDefaultPrefix: "layersDefaultPrefix<br><br>String prefix used to name the paper-doll layers of this armor when no explicit layer is set."
   tip_layersDefinition: "layersDefinition<br><br>Paper-doll layers drawn over the inventory background for a unit wearing this armor, so one body sprite can be recoloured and combined."
-  tip_leadsTo: "leadsTo<br><br>Research projects this one unlocks directly."
+  tip_requiredTogetherFor: "requiredTogetherFor<br><br>Research projects that list this one among their dependencies. Completing this one only counts toward them on the normal path: all of their dependencies must be done together, or one of their shortcuts used."
   tip_length: "length<br><br><ul><li>Map block: length in battlescape grid units.</li><li>Deployment: length of the battlescape map.</li></ul>"
   tip_length__mapBlock: "length<br><br>Length of this map block, in battlescape grid units."
   tip_length__alienDeployments: "length<br><br>Length of the battlescape map for this deployment, in tiles."
@@ -2078,7 +2081,8 @@ en-US:
   tip_type__inventorySections: "type<br><br>Kind of inventory slot: 0 = slot, 1 = hand, 2 = ground."
   tip_type__mapBlock: "type<br><br>Kind of map block: -1 = undefined, 0 = default, 1 = landing zone, 2 = east-west road, 3 = north-south road, 4 = crossing, 5 = dirt, 6 = spawn point, 7 = alien base target, 8 = Cydonia target."
   tip_ufo: "ufo<br><br>UFO spawned in this wave."
-  tip_unlocks: "unlocks<br><br>Research projects this one unlocks when completed, regardless of their other dependencies."
+  tip_unlocks: "unlocks<br><br>Completing this project unlocks each of these at once, regardless of their other dependencies. Their 'requires' topics must still be done."
+  tip_unlockedByAnyOf: "unlockedByAnyOf<br><br>Completing any one of these unlocks this project at once, skipping its other dependencies. Its 'requires' topics must still be done."
   tip_waves: "waves<br><br>UFO waves spawned as this mission progresses, in order."
   tip_weapon: "weapon<br><br>Weapon this HWP article talks about. Only used on HWP articles."
   tip_width: "width<br><br><ul><li>Map block: width in battlescape grid units.</li><li>Deployment: width of the battlescape map.</li><li>Sprite: width in pixels.</li></ul>"
@@ -2151,7 +2155,7 @@ en-US:
   tip_fuseTriggerEvents: "fuseTriggerEvents<br><br>How fuse triggers behave: which of them are thrown, primed, stepped on or otherwise set off."
   tip_genMission: "genMission<br><br>Alien mission this Hideout generates, with its chances."
   tip_genMissionFreq: "genMissionFreq<br><br>Daily chance in per cent for that mission to be generated."
-  tip_getOneFreeProtected: "getOneFreeProtected<br><br>Bonus research that may be granted when this project is completed, each one gated behind another topic so the bonus can be timed."
+  tip_getOneFreeProtected: "getOneFreeProtected<br><br>Part of this project's random free-grant inventory that only joins the pool after its guard topic is researched: each row names the guard, and the listed topics cannot be granted before the guard is done, no matter how often this project is repeated."
   tip_hasThisRace: "hasThisRace<br><br>Races this unit appears in."
   tip_hasThisRank: "hasThisRank<br><br>Ranks this unit appears as."
   tip_hidePediaInfo: "hidePediaInfo<br><br>Hide this craft weapon's stats from its article."
@@ -2685,15 +2689,20 @@ en-US:
   spotter: Spotter (turns)
   standHeight: Stand height
   value: Value
-  dependencies: "Depends on:"
+  dependencies: "Requires all of:"
   seeAlso: "Item required:"
   requiresBaseFunc: "Services required:"
-  freeFrom: "Get for free from:"
-  leadsTo: "Leads to:"
-  unlocks: "Unlocks:"
-  unlockBy: "Unlocked by:"
+  getForFreeFrom: "May be granted free by:"
+  requiredTogetherFor: "Needed for, all together:"
+  unlocks: "Unlocks at once:"
+  unlockedByAnyOf: "Unlocked by any one of:"
   disables: "Disables:"
-  getOneFree: "Gives one for free:"
+  getOneFree: "May grant one free:"
+  gatesTopics: "Other topics gated:"
+  gatesValue: "Gated topics value:"
+  gatesScore: "Bottleneck score:"
+  allResearch: "All"
+  bottleneckResearch: "Bottlenecks"
   manufacture: "Manufacturing process:"
   randomProducedItems: Random production!
   providedBy: Provided by
@@ -3264,7 +3273,8 @@ en-US:
   fuseTriggerEvents: Fuse triggers
   genMission: Generated mission
   genMissionFreq: Mission frequency, %
-  getOneFreeProtected: Protected free research
+  getOneFreeProtected: "May grant one free, guarded by:"
+  ifResearched: "If researched:"
   hasThisRace: Races using this
   hasThisRank: Ranks using this
   hiddenOnMinimap: On minimap?

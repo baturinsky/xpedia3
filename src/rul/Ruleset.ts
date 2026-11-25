@@ -32,6 +32,7 @@ import {
   Unit,
   VoiceSet,
 } from "./Entry";
+import { computeResearchBottlenecks } from "./researchBottlenecks";
 import { Section } from "./Section";
 import { Sprite } from "./Sprite";
 
@@ -807,8 +808,8 @@ export default class Ruleset {
           dependencies: "STR_DEPENDS_ON",
           seeAlso: "STR_ITEM_REQUIRED",
           requiresBaseFunc: "STR_SERVICES_REQUIRED",
-          freeFrom: "STR_GET_FOR_FREE_FROM",
-          leadsTo: "STR_LEADS_TO",
+          getForFreeFrom: "STR_GET_FOR_FREE_FROM",
+          requiredTogetherFor: "STR_LEADS_TO",
           unlocks: "STR_UNLOCKS",
           disables: "STR_DISABLES",
           getOneFree: "STR_GIVES_ONE_FOR_FREE",
@@ -1417,8 +1418,9 @@ export default class Ruleset {
     }
 
     for (const research of [...Object.values(this.research)]) {
-      backLink(research.name, research.dependencies ?? null, rul.research, "leadsTo");
-      backLink(research.name, research.getOneFree ?? null, rul.research, "freeFrom");
+      backLink(research.name, research.dependencies ?? null, rul.research, "requiredTogetherFor");
+      backLink(research.name, research.unlocks ?? null, rul.research, "unlockedByAnyOf");
+      backLink(research.name, research.getOneFree ?? null, rul.research, "getForFreeFrom");
 
       if (research.lookup && research.name !== research.lookup && this.research[research.lookup]) {
         const lookup = this.research[research.lookup];
@@ -1440,6 +1442,43 @@ export default class Ruleset {
         item.spawnedBy = item.spawnedBy || [];
         item.spawnedBy.push(research.name);
       }
+    }
+
+    // A dependency list that shares a topic with its own shortcut list is
+    // dead: completing all of the dependencies already completes that shared
+    // topic, which unlocks the project on its own. (ALL of `dependencies`) OR
+    // (ANY of `unlockedByAnyOf`) with a shared member collapses to the
+    // shortcut, so pointing back at the dependency list would mislead the
+    // player into farming requirements they do not need.
+    for (const research of Object.values(this.research)) {
+      if (!research.requiredTogetherFor?.length) continue;
+      research.requiredTogetherFor = research.requiredTogetherFor.filter((id) => {
+        const target = this.research[id];
+        if (!target) return true;
+        const shortcuts = new Set(target.unlockedByAnyOf ?? []);
+        return !(target.dependencies ?? []).some((d) => shortcuts.has(d));
+      });
+    }
+
+    // Bottleneck points of interest (see `researchBottlenecks.ts`): a topic
+    // whose strict dependency cone holds other topics gates them — topics
+    // reachable without it (shortcut unlocks, free grants) are behind no
+    // gate. Stamped only for majors — at least three topics behind them, and
+    // a bottleneck score (`gatesScore`, the cone weight minus the heaviest
+    // strict dependent's) of at least one per cent of the pack's heaviest —
+    // so the article only raises the flag where a branch, not a single
+    // dependent, is held.
+    const bottlenecks = computeResearchBottlenecks(this.research);
+    let heaviest = 0;
+    for (const stats of bottlenecks.values()) heaviest = Math.max(heaviest, stats.score);
+    const gateFloor = heaviest * 0.01;
+    for (const [name, stats] of bottlenecks) {
+      if (stats.dominated < 3 || stats.score < gateFloor) continue;
+      const topic = this.research[name];
+      if (!topic) continue;
+      topic.gatesTopics = stats.dominated;
+      topic.gatesValue = stats.weight;
+      topic.gatesScore = stats.score;
     }
 
     this.ourArmors = Object.values(this.armors)

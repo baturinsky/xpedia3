@@ -421,8 +421,8 @@ pl:
   dependencies: "Wymagane odkrycia:" #STR_DEPENDS_ON
   seeAlso: "Wymagane przedmioty:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Wymagane funkcje kryjówki:" #STR_SERVICES_REQUIRED
-  freeFrom: "Za darmo od:" #STR_GET_FOR_FREE_FROM
-  leadsTo: "Prowadzi do:" #STR_LEADS_TO
+  getForFreeFrom: "Za darmo od:" #STR_GET_FOR_FREE_FROM
+  requiredTogetherFor: "Prowadzi do:" #STR_LEADS_TO
   unlocks: "Odblokowuje:" #STR_UNLOCKS
   disables: "Wyłącza:" #STR_DISABLES
   getOneFree: "Daje jedno za darmo:" #STR_GIVES_ONE_FOR_FREE

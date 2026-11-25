@@ -36,6 +36,11 @@ export type Selections = {
   turretDirection?: number;
   /** Step held of the sprite animation, 0 meaning "play it" */
   frame?: number;
+  /**
+   * Which research list the `RESEARCH` section page shows: every topic, or
+   * only the bottleneck gates.
+   */
+  researchView?: "all" | "bottlenecks";
 };
 
 export type SelectionKey = keyof Selections;
@@ -246,6 +251,8 @@ function readSelection(raw: unknown): Selections {
   const stored = raw as { [key: string]: unknown };
   for (const key of ["region", "regionsMap", "pose"] as const)
     if (typeof stored[key] === "string" && stored[key]) out[key] = stored[key] as string;
+  if (stored.researchView === "all" || stored.researchView === "bottlenecks")
+    out.researchView = stored.researchView;
   for (const key of ["direction", "turretDirection", "frame"] as const) {
     const value = stored[key];
     if (typeof value === "number" && Number.isInteger(value) && value >= 0) out[key] = value;

@@ -39,8 +39,8 @@ cs:
   dependencies: "Závisí na:" #STR_DEPENDS_ON
   seeAlso: "Potřebný předmět:" #STR_ITEM_REQUIRED
   requiresBaseFunc: "Požadované služby" #STR_SERVICES_REQUIRED
-  freeFrom: "Obdrž zdarma za:" #STR_GET_FOR_FREE_FROM
-  leadsTo: "Vede k:" #STR_LEADS_TO
+  getForFreeFrom: "Obdrž zdarma za:" #STR_GET_FOR_FREE_FROM
+  requiredTogetherFor: "Vede k:" #STR_LEADS_TO
   unlocks: "Odemyká:" #STR_UNLOCKS
   disables: "Znepřístupňuje:" #STR_DISABLES
   getOneFree: "Dává zdarma jeden z:" #STR_GIVES_ONE_FOR_FREE

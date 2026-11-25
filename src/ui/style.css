@@ -2354,11 +2354,7 @@ table.section-table td {
   left: 0;
   top: 95%;
   height: 15%;
-  background: linear-gradient(
-    to right,
-    var(--border-faded) 0 0,
-    var(--border) 90% 100%    
-  );
+  background: linear-gradient(to right, var(--border-faded) 0 0, var(--border) 90% 100%);
 }
 
 .resist-label {
@@ -3181,6 +3177,33 @@ tr.highlight td {
 }
 
 .deployment-race-choice input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* The RESEARCH section page's view switch: every topic, or the bottleneck
+   gates only. A fieldset, because the choice is one of a set and the browser
+   already knows how to make that accessible — same pattern as
+   `.deployment-race`, minus the legend. */
+.research-view {
+  border: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  font-size: 95%;
+}
+
+.research-view-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.research-view-choice input {
   margin: 0;
   cursor: pointer;
 }
