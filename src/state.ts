@@ -37,11 +37,63 @@ export type Selections = {
   /** Step held of the sprite animation, 0 meaning "play it" */
   frame?: number;
   /**
-   * Which research list the `RESEARCH` section page shows: every topic, or
-   * only the bottleneck gates.
+   * Which research list the `RESEARCH` section page shows: every topic, the
+   * bottleneck gates, or one of the other points of interest (shortcut hubs,
+   * slot machines, deep chains, cycles, wide lists, total grind, unlock and
+   * production hubs, free prizes / free-only / unreachable, expensive topics,
+   * roots, leaves, disablers, long `requires` lists).
    */
-  researchView?: "all" | "bottlenecks";
+  researchView?: ResearchView;
 };
+
+/** The `RESEARCH` page's view switch values, see `Selections.researchView` */
+export type ResearchView =
+  | "all"
+  | "bottlenecks"
+  | "shortcuts"
+  | "free"
+  | "deep"
+  | "cycles"
+  | "wide"
+  | "grind"
+  | "unlockHubs"
+  | "missions"
+  | "production"
+  | "buying"
+  | "freePrizes"
+  | "freeOnly"
+  | "unreachable"
+  | "expensiveCost"
+  | "expensivePoints"
+  | "roots"
+  | "leaves"
+  | "disablers"
+  | "longRequires";
+
+/** The switch's values; kept beside the type so storage validation matches */
+export const researchViews: ResearchView[] = [
+  "all",
+  "bottlenecks",
+  "shortcuts",
+  "free",
+  "deep",
+  "cycles",
+  "wide",
+  "grind",
+  "unlockHubs",
+  "missions",
+  "production",
+  "buying",
+  "freePrizes",
+  "freeOnly",
+  "unreachable",
+  "expensiveCost",
+  "expensivePoints",
+  "roots",
+  "leaves",
+  "disablers",
+  "longRequires",
+];
 
 export type SelectionKey = keyof Selections;
 
@@ -251,8 +303,8 @@ function readSelection(raw: unknown): Selections {
   const stored = raw as { [key: string]: unknown };
   for (const key of ["region", "regionsMap", "pose"] as const)
     if (typeof stored[key] === "string" && stored[key]) out[key] = stored[key] as string;
-  if (stored.researchView === "all" || stored.researchView === "bottlenecks")
-    out.researchView = stored.researchView;
+  if (researchViews.includes(stored.researchView as ResearchView))
+    out.researchView = stored.researchView as ResearchView;
   for (const key of ["direction", "turretDirection", "frame"] as const) {
     const value = stored[key];
     if (typeof value === "number" && Number.isInteger(value) && value >= 0) out[key] = value;

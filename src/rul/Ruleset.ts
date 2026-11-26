@@ -33,6 +33,11 @@ import {
   VoiceSet,
 } from "./Entry";
 import { computeResearchBottlenecks } from "./researchBottlenecks";
+import {
+  computeResearchInterest,
+  INTEREST_THRESHOLDS,
+  type ResearchInterest,
+} from "./researchInterest";
 import { Section } from "./Section";
 import { Sprite } from "./Sprite";
 
@@ -451,6 +456,16 @@ export default class Ruleset {
   damageTypes: { [key: string]: DamageType } = {};
   voiceSets: { [key: string]: VoiceSet } = {};
   research: { [key: string]: Research } = {};
+  /**
+   * Points of interest per research topic (see `researchInterest.ts`), kept
+   * only for topics worth showing in the `RESEARCH` page's view switch: a
+   * shortcut skipping `INTEREST_THRESHOLDS.shortcutValue` or more
+   * prerequisites, a free-grant pool of that many topics, a prerequisite
+   * chain that deep, a dependency cycle, or a dependency list that wide.
+   * Separate from the entries on purpose — these are page views, not article
+   * rows.
+   */
+  researchInterest: { [key: string]: ResearchInterest } = {};
   soldierBonuses: { [key: string]: Entry } = {};
   commendations: { [key: string]: Commendation } = {};
   soldierTransformation: { [key: string]: SoldierTransformation } = {};
@@ -1479,6 +1494,39 @@ export default class Ruleset {
       topic.gatesTopics = stats.dominated;
       topic.gatesValue = stats.weight;
       topic.gatesScore = stats.score;
+    }
+
+    // Interest points of interest (see `researchInterest.ts`): shortcut hubs,
+    // free-grant pools, deep chains, cycles, wide lists, total grind, unlock
+    // and production hubs, free prizes / free-only / unreachable, expensive
+    // topics, roots, leaves, disablers and long `requires` lists. Kept only
+    // for topics clearing a view's threshold, so the views list the
+    // interesting few (roots and leaves are categories, kept whole).
+    const interest = computeResearchInterest(this.research);
+    for (const [name, stats] of interest) {
+      if (
+        stats.shortcutValue < INTEREST_THRESHOLDS.shortcutValue &&
+        stats.freePool < INTEREST_THRESHOLDS.freePool &&
+        stats.depth < INTEREST_THRESHOLDS.depth &&
+        stats.cycleSize < 2 &&
+        stats.depsWidth < INTEREST_THRESHOLDS.depsWidth &&
+        stats.coneSize < INTEREST_THRESHOLDS.coneSize &&
+        stats.unlockCount < INTEREST_THRESHOLDS.unlockCount &&
+        stats.missionCount < 1 &&
+        stats.manufactureCount < INTEREST_THRESHOLDS.manufactureCount &&
+        stats.buyingCount < INTEREST_THRESHOLDS.buyingCount &&
+        stats.cost < INTEREST_THRESHOLDS.cost &&
+        stats.points < INTEREST_THRESHOLDS.points &&
+        stats.disablesCount < INTEREST_THRESHOLDS.disablesCount &&
+        stats.requiresWidth < 1 &&
+        stats.freeGranters < INTEREST_THRESHOLDS.freeGranters &&
+        !stats.isRoot &&
+        !stats.isLeaf &&
+        !stats.freeOnly &&
+        !stats.unreachable
+      )
+        continue;
+      this.researchInterest[name] = stats;
     }
 
     this.ourArmors = Object.values(this.armors)

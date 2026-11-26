@@ -344,14 +344,19 @@ export function Tr({
 
   if (hasTip || (twins != null && twins.length > 0)) {
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Long ids (`STR_CBT_TOURNAMENT_CHALLENGER_BLACK_DRAGON_LOSE`) have no
+    // break opportunity, so they overrun the tooltip panel (`max-width:
+    // 20rem`): a `<wbr>` after each underscore lets them wrap at their own
+    // separators without splitting normal words.
+    const escId = (s: string) => esc(s).replace(/_/g, "_<wbr>");
     const list =
       twins != null && twins.length > 0
         ? `<br><br><b>${esc(rul.tr("xpediaAlsoTranslatedAs") ?? "")}:</b><br>` +
-          twins.map((twin) => esc(twin)).join("<br>")
+          twins.map((twin) => escId(twin)).join("<br>")
         : "";
     const head = hasTip
       ? ""
-      : `<b>${esc(rul.tr("xpediaInternalName") ?? "")}</b>: ${esc(text ?? "")}`;
+      : `<b>${esc(rul.tr("xpediaInternalName") ?? "")}</b>: ${escId(text ?? "")}`;
     const tooltipHtml = (hasTip ? (rul.lang[tipKey ?? ""] ?? "") : head) + list;
     element = (
       <span

@@ -3208,6 +3208,14 @@ tr.highlight td {
   cursor: pointer;
 }
 
+/* The one-line explanation of the current view, between the switch and the
+   list: what the view shows and what its numbers mean. */
+.research-view-desc {
+  margin: 0 0 0.6rem;
+  font-size: 95%;
+  opacity: 0.7;
+}
+
 /* The flight as a strip: stop, leg, stop, leg, … in flight order.
    A chip-per-zone row said which zones existed; this says what the UFO did, which
    is what the picture above it says too.
