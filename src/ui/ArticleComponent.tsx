@@ -436,15 +436,39 @@ function sectionTable() {
         ],
       );
     case "CRAFTS":
-      return table(Object.values(rul.crafts), [
-        "speedMax",
-        "soldiers",
-        "vehicles",
-        "weapons",
-        "damageMax",
-        "repairRate",
-        "costRent",
-      ]);
+      return table(
+        Object.values(rul.crafts),
+        [
+          "speedMax",
+          "soldiers",
+          "vehicles",
+          "weapons",
+          "damageMax",
+          "fuelMax",
+          "accel",
+          "pilots",
+          "radarRange",
+          "radarChance",
+          "repairRate",
+          "costRent",
+        ],
+        [
+          "refuelRate",
+          "score",
+          "transferTime",
+          "sightRange",
+          "avoidBonus",
+          "hitBonus",
+          "armor",
+          "shieldCapacity",
+          "costBuy",
+          "costSell",
+          "maxAltitude",
+          "allowLanding",
+          "undetectable",
+          "spacecraft",
+        ],
+      );
     case "CRAFT_WEAPONS":
       return table(
         Object.values(rul.craftWeapons),

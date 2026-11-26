@@ -1828,11 +1828,20 @@ ol > li:last-child::after {
 [data-tooltip],
 [data-tooltip-html] {
   cursor: default;
+  /* The anchor for the tooltip mark, which sits at its top-right corner */
+  position: relative;
 }
 
 .tipmark {
+  /* Out of flow, so the mark takes no space: it cannot wrap, cannot push the
+     text onto another line, and adds no line height. `top: 0; right: 0`
+     glues it to the corner of the text it marks, wherever that text itself
+     wraps or is aligned. */
+  position: absolute;
+  top: 0.3rem;
+  right: -0.3rem;
   opacity: 0.2;
-  font-size: 50%;
+  font-size: 60%;
 }
 
 .fadein.visible {
@@ -1915,15 +1924,29 @@ table.section-table td {
   cursor: move;
   border: solid 1px var(--border);
   padding: 0.1rem;
+  /* The header text starts on the same line in every column, whatever the
+     row's height, and the cell anchors the absolute sort arrow */
+  vertical-align: top;
+  position: relative;
 }
 
 .sort-order-arrow {
+  /* Out of flow, so it takes no space next to the label: the label neither
+     wraps around it nor shifts when it appears. Horizontally centred on the
+     label, below it when descending, above it when ascending. */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   opacity: 0.6;
   font-size: 70%;
 }
 
-.invisible {
-  visibility: hidden;
+.sort-order-arrow.desc {
+  top: 100%;
+}
+
+.sort-order-arrow.asc {
+  bottom: 100%;
 }
 
 /* Column picker above a section table. The whole row is a flex line, so the

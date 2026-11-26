@@ -1117,19 +1117,16 @@ export function SectionTable(props: SectionTableProps) {
                     }}
                     onClick={() => sortBy(field)}
                   >
-                    {/* Keeps the label centred whether or not an arrow shows, the
-                      same placeholder the old `SectionTable` used */}
-                    <span className="sort-order-arrow invisible">&#9660;</span>
+                    {/* The arrow is out of flow: below the label when
+                      descending, above it when ascending. Nothing is kept in
+                      the flow to balance it, so the label's centring and the
+                      line it sits on never depend on the arrow. */}
                     <Tr text={field} />
-                    <span className="sort-order-arrow">
-                      {sortField !== field ? (
-                        <span className="invisible">&#9660;</span>
-                      ) : sortDescending ? (
-                        "▼"
-                      ) : (
-                        "▲"
-                      )}
-                    </span>
+                    {sortField === field && (
+                      <span className={`sort-order-arrow ${sortDescending ? "desc" : "asc"}`}>
+                        {sortDescending ? "▼" : "▲"}
+                      </span>
+                    )}
                   </td>
                 ))}
               </tr>
