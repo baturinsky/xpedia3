@@ -13,8 +13,10 @@ export default function StartingConditionsComponent({
 }) {
   // Old `StartingConditions.svelte` compared against a never-filled copy of the
   // entry, so `forbidden*` was hidden whenever `allowed*` had any entries.
+  // The same mutual exclusion holds for item categories: a starting condition
+  // states one side or the other, never both.
   const exclude: string[] = [];
-  for (const k of ["Craft", "SoldierTypes", "Vehicles", "Armors"]) {
+  for (const k of ["Craft", "SoldierTypes", "Vehicles", "ItemCategories", "Armors"]) {
     exclude.push(
       ((entry[`allowed${k}`] as string[] | undefined)?.length ?? 0) > 0
         ? `forbidden${k}`
@@ -28,9 +30,24 @@ export default function StartingConditionsComponent({
       title={title}
       subtitle={subtitle}
       sort={{
-        first: ["deployments"],
+        // The allowed/forbidden pairs as five groups in a fixed order, so a
+        // reader meets the one stated side of each topic next to the others
+        // rather than finding it by alphabetical accident
+        first: [
+          "deployments",
+          "allowedCraft",
+          "forbiddenCraft",
+          "allowedSoldierTypes",
+          "forbiddenSoldierTypes",
+          "allowedVehicles",
+          "forbiddenVehicles",
+          "allowedItemCategories",
+          "forbiddenItemCategories",
+          "allowedArmors",
+          "forbiddenArmors",
+        ],
         exclude,
-        last: ["allowedArmors", "forbiddenArmors", "defaultArmor"],
+        last: ["defaultArmor"],
       }}
       wide={["defaultArmor"]}
       special={{

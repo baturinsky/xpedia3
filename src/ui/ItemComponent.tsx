@@ -7,6 +7,13 @@ import { AlterList, Img, Nobr, SecondaryTable, SpecialBonus } from "./components
 import MainTable, { type MainTableRenderer } from "./MainTable";
 import { Val } from "./Val";
 
+/** Battle type indices (`internalBattleTypes`): the ammo table is drawn
+ *  differently, and the one-handed penalty defaults by type. */
+const ammoBattleType = internalBattleTypes.indexOf("BT_AMMO");
+const meleeBattleType = internalBattleTypes.indexOf("BT_MELEE");
+/** One inventory slot is one 32×32 tile, as for the facility grid. */
+const inventoryCellSize = 32;
+
 const Damage = ({ attack }: { attack: Attack }) =>
   ("damage" in attack || "damageType" in attack) && (
     <>
@@ -166,7 +173,7 @@ const AttacksTable = ({
   <table className="attacks-table">
     <thead>
       <tr>
-        {entry.battleType === 2 ? (
+        {entry.battleType === ammoBattleType ? (
           <td colSpan={3} />
         ) : (
           <>
@@ -201,8 +208,8 @@ const AttacksTable = ({
                   <td className="item-ammo-img">
                     <Img
                       src={attack.item.sprite}
-                      maxWidth={32 * attack.item.invWidth}
-                      maxHeight={32 * attack.item.invHeight}
+                      maxWidth={inventoryCellSize * attack.item.invWidth}
+                      maxHeight={inventoryCellSize * attack.item.invHeight}
                       zoom={2}
                     />
                   </td>
@@ -262,14 +269,16 @@ const AttacksTable = ({
           </React.Fragment>
         );
       })}
-      {entry.damageAlter && entry.battleType !== 2 && <AlterList items={entry.damageAlter} />}
+      {entry.damageAlter && entry.battleType !== ammoBattleType && (
+        <AlterList items={entry.damageAlter} />
+      )}
     </tbody>
   </table>
 );
 
 const ItemComponent = ({ entry }: { entry: Item }) => {
   const attacks = entry.attacks().slice();
-  const ohpen = entry.oneHandedPenalty || entry.battleType === 3 ? 67 : 50;
+  const ohpen = entry.oneHandedPenalty || entry.battleType === meleeBattleType ? 67 : 50;
 
   const hand1bonus = entry.twoHanded
     ? entry.blockBothHands
@@ -311,13 +320,17 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
     />
   );
 
-  special.battleType = ({ val }) => `${val}: ${rul.tr(internalBattleTypes[val as number])}`;
+  special.battleType = ({ val }) => {
+    const id = internalBattleTypes[val as number];
+    return <Val of={id ?? val} />;
+  };
   special.prisonType = ({ val }) => <Val of={`prisonType${val}`} />;
-  special.experienceTrainingMode = ({ val }) => (
-    <>
-      <Val of={val} />: <Val of={`experienceTrainingMode${val}`} />
-    </>
-  );
+  special.experienceTrainingMode = ({ val }) => {
+    const id = `experienceTrainingMode${val}`;
+    // The name already says what the number means, so the number is kept only
+    // for a mode the language has no name for
+    return rul.lang[id] != null ? <Val of={id} /> : <Val of={val} />;
+  };
   special.costBuy = ({ val }) => (
     <>
       <Val of={val} /> <Val of={entry.requiresBuy || ""} />
@@ -391,6 +404,19 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
       pairs={pairs}
       header={<ItemHeader entry={entry} />}
       special={special}
+      // The long reference lists are subheader blocks rather than single
+      // long rows: each is one fact with its own heading, as `Research`
+      // already does with its lists
+      wide={[
+        "loot",
+        "ufos",
+        "terrains",
+        "corpseOf",
+        "salvagedFrom",
+        "craftWeapons",
+        "events",
+        "spawnUnit",
+      ]}
       rows={{
         ...rows,
         // The button row, which is why `pairs` carries a placeholder key

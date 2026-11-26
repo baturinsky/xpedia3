@@ -81,13 +81,44 @@ export const ResearchComponent = ({ entry }: { entry: Entry }) => {
     <MainTable
       of={entry}
       title="Research"
-      sort={{ last: longLists }}
+      // Cost and the infamy it pays are the topic's own numbers, so they lead
+      // the table rather than sitting in the alphabetical run of misc fields;
+      // the long lists stay last.
+      sort={{ first: ["cost", "points"], last: longLists }}
       wide={wide}
       special={special}
       rows={{
         // `dependencies` suppressed when subsumed (see `subsumed` above): a
         // plain row drawn by `MainTable` would otherwise still show it.
         ...(subsumed ? { dependencies: () => null } : {}),
+        // `needItem` and `destroyItem` are one fact, not two rows: the topic
+        // needs an item in stores, and whether that item is used up. The item
+        // is linked explicitly even when it shares this topic's id — the link
+        // lands on this page, where the item's own panel sits — so the reader
+        // sees which item is meant. `destroyItem` alone (without `needItem`)
+        // does nothing in the engine, so it draws no row of its own.
+        needItem: () => {
+          if (!entry.needItem) return null;
+          const itemId = (entry.neededItem as string | undefined) ?? entry.name;
+          return (
+            <tr>
+              <td className="row-name">
+                <Tr text="xpediaResearchUsesItem" capital={true} />
+              </td>
+              <td>
+                <a href={`##${itemId}`}>
+                  <Tr text={itemId} notip />
+                </a>{" "}
+                (
+                <Tr
+                  text={entry.destroyItem ? "xpediaResearchItemUsedUp" : "xpediaResearchItemKept"}
+                />
+                )
+              </td>
+            </tr>
+          );
+        },
+        destroyItem: () => null,
         // `getOneFreeProtected` draws several rows of its own, which `wide`
         // cannot (its content sits inside one cell), so it stays a `rows` field.
         // Instead of a common subheader, each row is titled by its columns:

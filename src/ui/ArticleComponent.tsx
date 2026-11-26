@@ -834,7 +834,10 @@ export function ArticleComponent() {
 
   // Old Article.svelte showed the item's inventory sprite next to the text,
   // unless the item is a craft weapon
-  const itemImage = item?.sprite && article?.text && item.battleType !== 2 ? item : null;
+  const itemImage =
+    item?.sprite && article?.text && item.battleType !== internalBattleTypes.indexOf("BT_AMMO")
+      ? item
+      : null;
 
   const articleText = article?.text && (
     <div className="main-table main-text">

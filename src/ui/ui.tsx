@@ -465,7 +465,7 @@ export function NavTop() {
                 className={`navbar-button${lang === currentLanguage ? " current" : ""}`}
                 onClick={() => selectLanguage(lang)}
               >
-                <Val of={lang} nobr />
+                <Val of={lang} nobr notip />
               </button>
             ))
           ) : (
@@ -480,7 +480,7 @@ export function NavTop() {
                 onClick={() => dropdownButtonClick("showLanguagesDropdown")}
               >
                 <big>
-                  <Val of={currentLanguage} />
+                  <Val of={currentLanguage} notip />
                 </big>
               </button>
               <div
@@ -494,7 +494,7 @@ export function NavTop() {
                     className={`clickable${lang === currentLanguage ? " current" : ""}`}
                     onClick={() => selectLanguage(lang)}
                   >
-                    <Val of={lang} nobr />
+                    <Val of={lang} nobr notip />
                   </button>
                 ))}
               </div>

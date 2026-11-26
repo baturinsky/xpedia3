@@ -228,6 +228,17 @@ function ExportDialogBody() {
     choose(selected.includes(lang) ? selected.filter((n) => n !== lang) : [...selected, lang]);
   }
 
+  /**
+   * A preset only ticks the boxes below; the export still needs the Export
+   * button, so the result stays visible and editable before anything is
+   * downloaded.
+   */
+  function applyPreset(nextSplit: boolean, nextImages: boolean) {
+    choose([...languages]);
+    setSplit(nextSplit);
+    setImages(nextImages);
+  }
+
   async function run() {
     setBusy(true);
     setError(undefined);
@@ -275,6 +286,15 @@ function ExportDialogBody() {
         <p className="export-note">
           The exported pedia shows itself as <b>{name}</b> in the modpack list.
         </p>
+
+        <div className="export-language-buttons">
+          <button type="button" onClick={() => applyPreset(false, false)}>
+            <Tr text="To include in pack" />
+          </button>
+          <button type="button" onClick={() => applyPreset(true, true)}>
+            <Tr text="To publish online" />
+          </button>
+        </div>
 
         <h4>
           <Tr text="Translations" />

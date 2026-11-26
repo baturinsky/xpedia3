@@ -27,7 +27,7 @@ function FacilitySprite(props: { size: number; prop: number; bottom?: boolean })
     for (let x = 0; x < size; x++) {
       // OpenXcom numbers a facility's frames row by row, x first:
       // frame = spriteShape + y * size + x, drawn at (x, y)
-      const num = props.prop * 1 + y * size + x;
+      const num = props.prop + y * size + x;
       const src = rul.obsSprite("base", num);
       const style = { position: "absolute" as const, left: x * cell, top: y * cell };
       // A missing frame would otherwise render as the 1x1 placeholder and
@@ -120,7 +120,18 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
       of={entry}
       title="Facility"
       sort={{
-        first: ["spriteShape"],
+        // The shape first, then the build decision (cost, upkeep, size),
+        // then the three service lists together — alphabetically they were
+        // scattered by monthlyCost/prisonType
+        first: [
+          "spriteShape",
+          "buildCost",
+          "monthlyCost",
+          "size",
+          "provideBaseFunc",
+          "requiresBaseFunc",
+          "forbiddenBaseFunc",
+        ],
         exclude: [
           "spriteFacility",
           "type",
@@ -136,6 +147,9 @@ export default function FacilityComponent({ entry }: { entry: Facility }) {
         requiresBaseFunc: ({ val }) => <Val of={val} vertical={true} />,
         forbiddenBaseFunc: ({ val }) => <Val of={val} vertical={true} />,
         spriteShape: sprites,
+        // The stored value is a number; name it (prisonType1/2), as `Item`
+        // already does for its own `prisonType`
+        prisonType: ({ val }) => <Val of={`prisonType${val}`} />,
       }}
     />
   );

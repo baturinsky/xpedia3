@@ -413,8 +413,8 @@ export default function TrajectoryComponent({ entry }: { entry: UfoTrajectory })
   // appear on the ground with no UFO, so there is nothing to draw and no error to
   // report. The declared lines, if the pack wrote any, are still worth printing.
   const flies = entry.legs.length > 0;
-  if (!flies) return;
-
+  // No early return: a path of one line is still an article — the
+  // `waypoints` rows below render the "no flight" note for it.
   return (
     <div className="trajectory-table">
       <MainTable

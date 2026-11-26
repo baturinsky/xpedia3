@@ -231,7 +231,7 @@ function Summary({ row }: { row: DeploymentRow }): ReactNode {
   for (const die of dice) {
     parts.push(
       <span className="nobr" data-tooltip={die.tip}>
-        +<Val of="0"/>–
+        +<Val of="0" />–
         <Val of={die.n} /> <Tr text="xpediaRandomQty" />
         <sup className="tipmark">?</sup>
       </span>,
@@ -513,6 +513,29 @@ function WaveFieldValue({ field, value }: { field: string; value: unknown }): Re
 }
 
 /**
+ * The merged `turns` row: the stated exact list, or — when there is none —
+ * the `minTurn`/`maxTurn` window as one `min`–`max`. A missing or -1
+ * `maxTurn` is open ended, the engine's "no last turn".
+ */
+function WaveTurnsValue({ wave, turnsStated }: { wave: DeploymentRow; turnsStated: boolean }) {
+  if (turnsStated) return <Val of={wave.turns} field="turns" />;
+  const min = asNumber(wave.minTurn) ?? 0;
+  const max = asNumber(wave.maxTurn) ?? -1;
+  return (
+    <>
+      <Val of={min} />
+      {max < 0 ? (
+        "+"
+      ) : (
+        <>
+          –<Val of={max} />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
  * One `reinforcements` wave: its schedule and spawn state as a small
  * definition list, its briefing as the usual sub-table, and its `data`
  * with the same rank cards as the deployment's own `data`.
@@ -525,7 +548,17 @@ function ReinforcementWave({
   deployment: RankDeployment | undefined;
 }): ReactNode {
   const type = typeof wave.type === "string" && wave.type !== "" ? wave.type : undefined;
-  const fields = WAVE_FIELDS.filter((field) => !isEmpty(wave[field]));
+  // `turns` and the `minTurn`/`maxTurn` window are one fact: a stated `turns`
+  // list replaces the window. Merged onto one row (label from `turns`, whose
+  // scoped tooltip states the rule), rather than shown as two empty beside
+  // the real one.
+  const turnsStated = !isEmpty(wave.turns);
+  const turnsWindowStated = !turnsStated && (!isEmpty(wave.minTurn) || !isEmpty(wave.maxTurn));
+  const fields = WAVE_FIELDS.filter((field) => {
+    if (isEmpty(wave[field])) return false;
+    if (field === "turns" || field === "minTurn" || field === "maxTurn") return false;
+    return true;
+  });
   const briefing = wave.briefing;
   const hasBriefing =
     !isEmpty(briefing) &&
@@ -543,8 +576,18 @@ function ReinforcementWave({
             </span>
           </h3>
         ) : null}
-        {fields.length > 0 && (
+        {(fields.length > 0 || turnsStated || turnsWindowStated) && (
           <dl className="data-fields">
+            {(turnsStated || turnsWindowStated) && (
+              <>
+                <dt>
+                  <Val of="turns" capital={true} />
+                </dt>
+                <dd>
+                  <WaveTurnsValue wave={wave} turnsStated={turnsStated} />
+                </dd>
+              </>
+            )}
             {fields.map((field) => (
               <Fragment key={field}>
                 <dt>

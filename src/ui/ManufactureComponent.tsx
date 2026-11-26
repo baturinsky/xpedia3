@@ -30,8 +30,19 @@ export default function ManufactureComponent({ entry }: { entry: Manufacture }) 
     <MainTable
       of={entry}
       title="Manufacture"
-      sort={{ exclude: ["chanceSum", "totalProducedItems"] }}
-      wide={entry.randomProducedItems ? ["randomProducedItems"] : []}
+      // The recipe first — what it costs, what it needs, what you get — before
+      // the alphabetical run of derived numbers (profit, sizeChange, ...).
+      // `spawnedSoldier` is `wide` so it gets the same subheader as
+      // `randomProducedItems` rather than a bare nested table in a value cell.
+      sort={{
+        first: ["cost", "time", "requiredItems", "producedItems"],
+        exclude: ["chanceSum", "totalProducedItems"],
+      }}
+      wide={
+        entry.randomProducedItems || entry.spawnedSoldier
+          ? ["randomProducedItems", "spawnedSoldier"]
+          : []
+      }
       special={{
         randomProducedItems,
         spawnedSoldier: asSubTable,

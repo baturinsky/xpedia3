@@ -92,8 +92,14 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
   // Each stage is the soldier bonus of that stage with the criteria copied in.
   // The list is indexed by stage number, so a stage with nothing to show leaves
   // a hole rather than shifting the later stages down.
+  // Each stage levels by index; the stage count comes from the data (the
+  // soldier bonus list and the per-criterion stage values), not a fixed ten
+  const stageCount = Math.max(
+    entry.soldierBonusTypes?.length ?? 0,
+    ...Object.values(entry.criteria ?? {}).map((values) => values.length),
+  );
   const bonuses: (StageBonus | undefined)[] = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < stageCount; i++) {
     const bonusName = entry.soldierBonusTypes?.[i];
     const b: StageBonus = {
       ...(bonusName ? rul.soldierBonuses[bonusName] : undefined),
@@ -138,6 +144,9 @@ export default function CommendationComponent({ entry }: { entry: Commendation }
                       <br />
                     </>
                   )}
+                  {/* Numbered like the stage tables below (`i + 1`), so a
+                      group's stage is visible without counting "or"s */}
+                  <strong>Stage {i + 1}:</strong>{" "}
                   {deeds.map((deed, j) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: the same deed can be listed twice within one stage group; the index keeps those entries distinct and the list never reorders
                     <span key={`${j}-${JSON.stringify(deed)}`}>

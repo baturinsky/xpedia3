@@ -26,6 +26,10 @@ const CountriesComponent = ({ entry }: { entry: Entry }) => {
     <MainTable
       of={entry}
       title="Country"
+      // `areas` as a subheader block at the end, so the crop gets the same
+      // weight as the wide lists elsewhere instead of sitting in a value cell
+      sort={{ last: ["areas"] }}
+      wide={draw ? ["areas"] : []}
       special={
         draw
           ? {
