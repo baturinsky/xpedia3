@@ -1276,6 +1276,13 @@ button.modpack-name {
   margin: -0.3rem 0 -0.6rem 0;
 }
 
+/* The per-section `<`/`>` arrows are small glyphs: horizontal padding on the
+   link itself (not margin), so the space around the glyph is part of the
+   clickable area and the glyph no longer hugs the section name. */
+.article-title .sections .section-nav-arrow {
+  padding: 0 0.4rem;
+}
+
 /* The doppelgangers of a shared title, under the sections: a second line of
    the same small size, so it reads as part of the title block rather than a
    new section of the page. */

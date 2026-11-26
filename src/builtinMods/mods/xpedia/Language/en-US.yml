@@ -2979,13 +2979,21 @@ en-US:
   # The missions 0..6 in `alienMissions.objective`. These are the engine's own
   # names for them (`MissionObjective`), spelled out for a reader.
   xpediaObjective0: Score
+  tip_xpediaObjective0: "objective: 0<br><br>The default. The UFOs fly their waves and the mission scores points; it builds no site, no alien base, and infiltrates nothing."
   xpediaObjective1: Infiltration
+  tip_xpediaObjective1: "objective: 1<br><br>After its waves, the mission builds an alien base for a country in the region that can be infiltrated. An endless infiltration loops its waves and keeps going."
   xpediaObjective2: Alien base
+  tip_xpediaObjective2: "objective: 2<br><br>After its waves, the mission builds one alien base in the region, in the mission's spawn zone."
   xpediaObjective3: Mission site
+  tip_xpediaObjective3: "objective: 3<br><br>The wave marked as carrying out the objective builds a mission site — a terror site or the like — in the mission's spawn zone, on an XCOM base if that wave says so."
   xpediaObjective4: Retaliation
+  tip_xpediaObjective4: "objective: 4<br><br>The UFOs target a discovered XCOM base in the region and fly straight at it to attack it."
   xpediaObjective5: Supply
+  tip_xpediaObjective5: "objective: 5<br><br>The UFOs fly to an existing alien base; the wave marked as carrying out the objective lands on that base to supply it. With no alien base to supply, that wave spawns nothing."
   xpediaObjective6: Instant retaliation
+  tip_xpediaObjective6: "objective: 6<br><br>Like retaliation, but the UFO appears at once at an XCOM base in the region — discovered or not — with no search for it first. With no base in the region, the mission ends at once."
   xpediaObjectiveUnknown: Unknown objective
+  tip_xpediaObjectiveUnknown: "An objective number with no engine name: the ruleset states a number outside 0–6."
   xpediaWaveEffects: Effects
   xpediaWaveGround: Ground time
   xpediaWaveSite: mission site, not a UFO

@@ -351,18 +351,11 @@ export default function MissionComponent({ entry }: { entry: AlienMission }) {
         objective: ({ val }) => {
           const name = objectiveName(val);
           // A pack that states no objective is running the default score mission,
-          // which is worth saying rather than leaving an empty row
-          return (
-            <>
-              <Val of={name ?? "xpediaObjective0"} />
-              {name && val != null && (
-                <span className="mission-raw">
-                  {" "}
-                  (<Val of={val} />)
-                </span>
-              )}
-            </>
-          );
+          // which is worth saying rather than leaving an empty row. The raw
+          // number is not printed beside the name: it lives in the name's
+          // tooltip (`tip_xpediaObjectiveN`), which states the number and what
+          // the mission does.
+          return <Val of={name ?? "xpediaObjective0"} />;
         },
       }}
       rows={{

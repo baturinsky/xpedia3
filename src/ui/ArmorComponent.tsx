@@ -156,7 +156,10 @@ const ResistGrid = ({ modifiers = [] }: { modifiers?: number[] }) => (
       {sortFirstLast(modifiers).all.map(([key, val]) => (
         <React.Fragment key={key}>
           <div className="resist-title">
-            <span className="resist-bar" style={{ width: `${~~(Math.min(2.7,Number(val)) * 4)}rem` }} />
+            <span
+              className="resist-bar"
+              style={{ width: `${~~(Math.min(2.7, Number(val)) * 4)}rem` }}
+            />
             <span className="resist-label">
               <Val of={damageTypes[Number(key)]} icon="monospace" />
             </span>
@@ -220,13 +223,25 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
     units: ({ val }) => (
       <Val of={(val as string[] | undefined)?.filter((s) => s.substr(0, 8) !== "INV_NULL")} />
     ),
-    recovery: ({ val }) => <RecoveryTable recovery={val as { [stat: string]: BonusMap }} />,
   };
 
   // A unit sheet is an atlas of body parts, not a picture: draw the figure the
   // game would assemble from it. Sheets of any other kind are still a single
   // image, shown as before. Both need the whole width of the table.
   const rows: { [field: string]: MainTableRenderer } = {
+    // Recovery is several rows of its own, which `wide` cannot draw (its
+    // content sits inside one cell, so the rows would land inside a `<td>`).
+    // It draws its subheader itself, and only when it states something.
+    recovery: ({ val }) => {
+      const recovery = val as { [stat: string]: BonusMap } | undefined;
+      if (recovery == null || Object.keys(recovery).length === 0) return null;
+      return (
+        <>
+          <Subheader text="recovery" />
+          <RecoveryTable recovery={recovery} />
+        </>
+      );
+    },
     spriteSheet: ({ key, val }) => {
       const composable = canComposeUnit(val as string, entry.drawingRoutine);
       return (
@@ -268,7 +283,6 @@ const ArmorComponent = ({ entry }: { entry: Entry }) => {
           <Val of={seeAlso} />
         </>
       }
-      wide={["recovery"]}
       sort={{
         first: ["builtInWeapons", "size"],
         last: ["recovery", "spriteSheet"],

@@ -94,7 +94,9 @@ export function ArticleTitle() {
           <Tr text={article?.id} nobr={100} />
         </div>
         <div className="sections">
-          {sectionIds.length > 0 && <Val of={sectionIds} />}
+          {sectionIds.map((id) => (
+            <SectionNavEntry key={id} id={id} />
+          ))}
           {sameName && sameName.length > 0 && (
             <div className="title-same-name">
               <Tr text="xpediaAlsoTranslatedAs" />:{" "}
@@ -117,6 +119,56 @@ export function ArticleTitle() {
       </div>
     );
   }
+}
+
+/**
+ * One entry of the sections list under the title: the section's own link,
+ * flanked by `<`/`>` links to the previous and next article *in that
+ * section*.
+ *
+ * The walk stays inside the section: unlike the title's own arrows, which
+ * cross into the neighbouring section at either end, these wrap within the
+ * one section they sit beside. The section being browsed is bold — the one
+ * `state.section` names, or, before any browsing choice, the article's
+ * first section, which is where the title's arrows would start from.
+ */
+function SectionNavEntry({ id }: { id: string }) {
+  const sec = rul.sections[id];
+  const activeId = (section ?? article?.sections[0])?.id;
+  const list = sec?.articles(state.alphabeticalSort) ?? [];
+  const index = article ? list.findIndex((a) => a.id === article.id) : -1;
+  // A one-article section has nowhere to step to; an article the section
+  // does not list (a redirect) has no neighbours to step between either.
+  const neighbour = (delta: number) =>
+    index >= 0 && list.length > 1 ? list[(index + delta + list.length) % list.length] : undefined;
+  const prev = neighbour(-1);
+  const next = neighbour(1);
+  const arrow = (target: Article, glyph: string) => (
+    <a
+      href={`##${target.id}`}
+      className="section-nav-arrow"
+      aria-label={target.id}
+      title={target.id}
+      onClick={() => sec && update({ section: sec })}
+    >
+      <span className="nav-arrow">{glyph}</span>
+    </a>
+  );
+  return (
+    <>
+      {prev && arrow(prev, "<")}
+      <a href={`##${id}`} className={rul.article(id) ? undefined : "dead"}>
+        {activeId === id ? (
+          <strong>
+            <Tr text={id} />
+          </strong>
+        ) : (
+          <Tr text={id} />
+        )}
+      </a>
+      {next && arrow(next, ">")}
+    </>
+  );
 }
 
 /**
