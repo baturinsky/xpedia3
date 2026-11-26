@@ -443,8 +443,28 @@ export class EventScript extends Entry {
    */
   eventWeights?: { [month: string]: { [id: string]: number } } | { [id: string]: number }[];
   oneTimeRandomEvents?: { [id: string]: number };
+  oneTimeSequentialEvents?: string[];
   researchTriggers?: { [id: string]: boolean };
+  itemTriggers?: { [id: string]: boolean };
+  facilityTriggers?: { [id: string]: boolean };
+  baseFunctionTriggers?: { [id: string]: boolean };
+  soldierTypeTriggers?: { [id: string]: boolean };
+  xcomBaseInRegionTriggers?: { [id: string]: boolean };
   xcomBaseInCountryTriggers?: { [country: string]: boolean };
+  pactCountryTriggers?: { [country: string]: boolean };
+  firstMonth?: number;
+  lastMonth?: number;
+  executionOdds?: number;
+  minDifficulty?: number;
+  maxDifficulty?: number;
+  minScore?: number;
+  maxScore?: number;
+  minFunds?: number;
+  maxFunds?: number;
+  missionVarName?: string;
+  missionMarkerName?: string;
+  counterMin?: number;
+  counterMax?: number;
   _xcomBaseInCountryTrue: string[] = [];
   _xcomBaseInCountryFalse: string[] = [];
 

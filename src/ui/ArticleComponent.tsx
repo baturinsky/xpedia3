@@ -30,9 +30,10 @@ import CraftWeaponComponent from "./CraftWeaponComponent";
 import { BaseService, Img, LinksPage, type SectionRow, SectionTable } from "./components";
 import DeploymentComponent from "./DeploymentDataComponent";
 import { environmentalConditions } from "./EnviroConditionsComponent";
+import EventScriptComponent from "./EventScriptComponent";
 import FacilityComponent from "./FacilityComponent";
 import ItemComponent from "./ItemComponent";
-import MainTable, { asSubTable, type MainTableRenderer } from "./MainTable";
+import MainTable, { type MainTableRenderer } from "./MainTable";
 import ManufactureComponent from "./ManufactureComponent";
 import { mapBlocks } from "./MapBlockComponent";
 import { mapScriptCommands } from "./MapScriptComponent";
@@ -247,12 +248,7 @@ const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig 
     },
   },
   events: {},
-  eventScripts: {
-    title: "Event Script",
-    special: {
-      eventWeights: asSubTable,
-    },
-  },
+  eventScripts: EventScriptComponent,
   inventorySections: {
     title: "INVENTORY_SECTIONS",
     sort: { last: ["invType", "slots", "costs", "items"] },

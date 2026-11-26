@@ -1,5 +1,5 @@
 import type { MissionScript } from "../rul/Entry";
-import MainTable, { asSubTable } from "./MainTable";
+import MainTable from "./MainTable";
 import { calendarMonth, monthWindow, researchGate, runLimit, scriptDelay } from "./schedule";
 import { formatDelay, formatMinutes } from "./timing";
 import { Percent, Tr, Val } from "./Val";
@@ -17,8 +17,75 @@ import { Percent, Tr, Val } from "./Val";
  * beside the answer.
  */
 
+// The rows below are exported for `EventScriptComponent`, which shares the
+// month sentence, the research gate, the world triggers and the limits: both
+// script kinds are checked by the same engine code in the same terms.
+
+type WeightBlock = { month: number; entries: [string, number][] };
+
+/**
+ * A `*Weights` map as a list of monthly blocks, in declared order.
+ *
+ * Every weighted choice in a script (missions, regions, events) is declared
+ * the same way: month -> id -> weight, or one flat map, with the list form
+ * some packs use instead. The engine takes the latest block whose month has
+ * been reached (`RuleMissionScript::generate`, `RuleEventScript::generate`),
+ * so a block's month is where it starts, not when it fires.
+ */
+export function weightBlocks(raw: unknown): WeightBlock[] {
+  if (raw == null || typeof raw !== "object") return [];
+  const blocks: WeightBlock[] = [];
+  if (Array.isArray(raw)) {
+    raw.forEach((weights, i) => {
+      if (weights == null || typeof weights !== "object") return;
+      const entries = Object.entries(weights as { [id: string]: number });
+      if (entries.length) blocks.push({ month: i, entries });
+    });
+    return blocks;
+  }
+  for (const [month, weights] of Object.entries(raw as { [month: string]: unknown })) {
+    if (weights == null || typeof weights !== "object") continue;
+    const entries = Object.entries(weights as { [id: string]: number });
+    if (entries.length) blocks.push({ month: Number(month) || 0, entries });
+  }
+  return blocks.sort((a, b) => a.month - b.month);
+}
+
+/**
+ * One weighted pick, in words.
+ *
+ * A single possible outcome is named plainly. Several are a weighted pick,
+ * so they are said to be picked at random with each one's share of the
+ * total, rather than listing bare weights that only matter relative to
+ * each other.
+ */
+export function WeightedPick({ entries }: { entries: [string, number][] }) {
+  const total = entries.reduce((sum, [, w]) => sum + (Number(w) || 0), 0);
+  if (entries.length === 1) {
+    const [id] = entries[0];
+    return <Val of={id} />;
+  }
+  return (
+    <>
+      <Tr text="xpediaScriptPickedRandom" />:{" "}
+      {entries.map(([id, weight], i) => (
+        <span key={id}>
+          {i > 0 && ", "}
+          <Val of={id} /> (
+          {total > 0 ? (
+            <Percent value={Math.round(((Number(weight) || 0) / total) * 100)} />
+          ) : (
+            <Val of={weight} />
+          )}
+          )
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** The month window as a sentence, or nothing when the script never stops */
-function MonthRow({ entry }: { entry: MissionScript }) {
+export function MonthRow({ entry }: { entry: MissionScript }) {
   const window = monthWindow(entry);
   const first = calendarMonth(window.first);
   const last = calendarMonth(window.last);
@@ -71,22 +138,24 @@ function MonthRow({ entry }: { entry: MissionScript }) {
           </>
         ) : // The founding run can be either end of a window, and it is not a month
         // number, so the sentence has to carry it as a phrase rather than as a
-        // value: "from the founding of the first base until month 7".
+        // value: "from the founding of the first base through month 7". Both
+        // ends are inclusive: the engine tests `firstMonth <= month <=
+        // lastMonth`, so "until" would leave the last month in doubt.
         first == null ? (
           <>
-            <Tr text="xpediaScriptUntilMonth" /> <em className="num">{last}</em>{" "}
-            <Tr text="xpediaScriptCountingStart" />
+            <Tr text="xpediaScriptFromFounding" /> <em className="num">{last}</em>
+          </>
+        ) : last == null ? (
+          // The window ends at the founding run itself, so it can only ever
+          // be that run — and only a window starting there can include it.
+          <>
+            <Tr text="xpediaScriptFromMonth" /> <em className="num">{first}</em>{" "}
+            <Tr text="xpediaScriptToFounding" />
           </>
         ) : (
           <>
-            <Tr text="xpediaScriptFromMonth" /> <em className="num">{first}</em>{" "}
-            {last == null ? (
-              <Tr text="xpediaScriptToFounding" />
-            ) : (
-              <>
-                <Tr text="xpediaScriptUntilMonth" /> <em className="num">{last}</em>
-              </>
-            )}
+            <Tr text="xpediaScriptMonthsRange" /> <em className="num">{first}</em>-
+            <em className="num">{last}</em> <Tr text="xpediaScriptInclusive" />
           </>
         )}
         {window.single && (
@@ -99,66 +168,41 @@ function MonthRow({ entry }: { entry: MissionScript }) {
   );
 }
 
-/** The delay before the first wave, and what a delay of zero really means */
+/** The delay before the first wave, named by which of the three ways it is set */
 function DelayRow({ entry }: { entry: MissionScript }) {
   const delay = scriptDelay(entry);
   if (entry?.startDelay == null && entry?.randomDelay == null) return null;
 
+  const duration = formatDelay({ min: delay.min, max: delay.max }) ?? formatMinutes(delay.min);
   const text = delay.delegates ? (
-    <Tr text="xpediaScriptNoDelay" />
+    <Tr text="xpediaScriptDelayMissionTimer" />
   ) : (
-    <span className="mission-delay">
-      {formatDelay({ min: delay.min, max: delay.max }) ?? formatMinutes(delay.min)}
-    </span>
+    <>
+      <Tr text={delay.min === delay.max ? "xpediaScriptDelayFixed" : "xpediaScriptDelayRolled"} />:{" "}
+      <span className="mission-delay">{duration}</span>
+    </>
   );
-
-  // A fixed delay and a rolled one are different promises: only the rolled one
-  // can land anywhere in a range, so only it gets the "rolled from this range"
-  // wording
-  const note = delay.delegates
-    ? "xpediaScriptNoDelayNote"
-    : delay.min === delay.max
-      ? "xpediaScriptFixedDelayNote"
-      : "xpediaScriptDelayNote";
 
   return (
     <tr>
       <td className="row-name">
         <Tr text="xpediaScriptDelay" capital={true} />
       </td>
-      <td>
-        {text}
-        <div className="mission-note">
-          <Tr text={note} />
-        </div>
-        {(entry?.startDelay != null || Number(entry?.randomDelay) > 0) && (
-          <div className="mission-raw">
-            <Val of={entry.startDelay ?? 0} />{" "}
-            {Number(entry?.randomDelay) > 0 && (
-              <>
-                + <Val of={entry.randomDelay} />
-              </>
-            )}
-          </div>
-        )}
-      </td>
+      <td>{text}</td>
     </tr>
   );
 }
 
 /** How often the script is even offered the chance to run */
-function OddsRow({ entry }: { entry: MissionScript }) {
+export function OddsRow({ entry }: { entry: MissionScript }) {
   if (entry?.executionOdds == null || Number(entry.executionOdds) === 100) return null;
   return (
     <tr>
       <td className="row-name">
-        <Tr text="xpediaScriptOdds" capital={true} />
+        <Tr text="xpediaScriptChanceToActivate" capital={true} />
       </td>
       <td>
-        <Percent value={entry.executionOdds} field="executionOdds" />
-        <div className="mission-note">
-          <Tr text="xpediaScriptOddsNote" />
-        </div>
+        <Percent value={entry.executionOdds} />
       </td>
     </tr>
   );
@@ -184,48 +228,48 @@ function RunsRow({ entry }: { entry: MissionScript }) {
 }
 
 /**
- * The research gate.
+ * The research gate, as two rows.
  *
- * A topic that must *not* be researched is as much a condition as one that must
- * be, and it is the half a reader is most likely to miss, so the two are listed
- * separately rather than merged into one list of ids.
+ * A topic that must *not* be researched is as much a condition as one that
+ * must be, so the two are separate rows — "Requires research" and "Blocked
+ * by research" — rather than one list of ids passing as instructions.
  */
-function ResearchRow({ entry }: { entry: MissionScript }) {
+export function ResearchRows({ entry }: { entry: MissionScript }) {
   const gate = researchGate(entry);
   if (!gate) return null;
   return (
-    <tr>
-      <td className="row-name">
-        <Tr text="researchTriggers" capital={true} />
-      </td>
-      <td>
-        {gate.needed.length > 0 && (
-          <div>
-            <Tr text="xpediaScriptNeeds" />{" "}
+    <>
+      {gate.needed.length > 0 && (
+        <tr>
+          <td className="row-name">
+            <Tr text="xpediaScriptRequiresResearch" capital={true} />
+          </td>
+          <td>
             {gate.needed.map((id, i) => (
               <span key={id}>
                 {i > 0 && ", "}
                 <Val of={id} />
               </span>
             ))}
-          </div>
-        )}
-        {gate.forbidden.length > 0 && (
-          <div>
-            <Tr text="xpediaScriptWithout" />{" "}
+          </td>
+        </tr>
+      )}
+      {gate.forbidden.length > 0 && (
+        <tr>
+          <td className="row-name">
+            <Tr text="xpediaScriptBlockedByResearch" capital={true} />
+          </td>
+          <td>
             {gate.forbidden.map((id, i) => (
               <span key={id}>
                 {i > 0 && ", "}
                 <Val of={id} />
               </span>
             ))}
-          </div>
-        )}
-        <div className="mission-note">
-          <Tr text="xpediaScriptResearchNote" />
-        </div>
-      </td>
-    </tr>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -236,7 +280,7 @@ function ResearchRow({ entry }: { entry: MissionScript }) {
  * look like this", so their wording belongs together: a pack that lists three of
  * them would otherwise produce three near-identical notes.
  */
-function TriggerRows({ entry }: { entry: MissionScript }) {
+export function TriggerRows({ entry }: { entry: MissionScript }) {
   const groups: { key: string; field: string }[] = [
     { key: "xpediaScriptItems", field: "itemTriggers" },
     { key: "xpediaScriptFacilities", field: "facilityTriggers" },
@@ -257,10 +301,15 @@ function TriggerRows({ entry }: { entry: MissionScript }) {
         <Tr text="xpediaScriptWorld" capital={true} />
       </td>
       <td>
-        {rows.map((group) => {
+        {rows.map((group, gi) => {
           const wanted = entry[group.field];
           return (
             <div key={group.field}>
+              {gi > 0 && (
+                <>
+                  <Tr text="xpediaScriptAnd" />{" "}
+                </>
+              )}
               <Tr text={group.key} />{" "}
               {Object.entries(wanted as { [id: string]: unknown }).map(([id, value], i) => (
                 <span key={id}>
@@ -277,16 +326,13 @@ function TriggerRows({ entry }: { entry: MissionScript }) {
             </div>
           );
         })}
-        <div className="mission-note">
-          <Tr text="xpediaScriptWorldNote" />
-        </div>
       </td>
     </tr>
   );
 }
 
 /** The score, funds and difficulty windows the script is limited by */
-function LimitsRow({ entry }: { entry: MissionScript }) {
+export function LimitsRow({ entry }: { entry: MissionScript }) {
   const parts: { key: string; field: string; format: (v: unknown) => unknown }[] = [
     { key: "xpediaScriptMinScore", field: "minScore", format: (v) => v },
     { key: "xpediaScriptMaxScore", field: "maxScore", format: (v) => v },
@@ -299,6 +345,8 @@ function LimitsRow({ entry }: { entry: MissionScript }) {
   // so only a stated limit is worth a line
   const stated = parts.filter((part) => entry?.[part.field] != null);
   if (!stated.length) return null;
+  // The first-month exception lives in the row name's tooltip, not as a
+  // footnote under every limits row.
   return (
     <tr>
       <td className="row-name">
@@ -310,9 +358,6 @@ function LimitsRow({ entry }: { entry: MissionScript }) {
             <Tr text={part.key} /> <Val of={part.format(entry[part.field])} />
           </div>
         ))}
-        <div className="mission-note">
-          <Tr text="xpediaScriptLimitsNote" />
-        </div>
       </td>
     </tr>
   );
@@ -320,22 +365,73 @@ function LimitsRow({ entry }: { entry: MissionScript }) {
 
 /**
  * The mission table row: `useTable` decides whether a mission this script creates
- * is struck off the region's table until every region has been drained.
+ * is struck off the region's table until every region has been drained. Only
+ * the "no" case is drawn: yes is the engine default. What each answer does
+ * lives in the row name's tooltip, not in a footnote under the value.
  */
 function TableRow({ entry }: { entry: MissionScript }) {
   if (entry?.useTable !== false) return null;
   return (
     <tr>
-      {/* The pack's own label already ends in a question mark, so the tooltip
-        marker would double it; the note below says the same thing. */}
       <td className="row-name">
-        <Tr text="useTable" notip={true} />
+        <Tr text="xpediaScriptUseTable" capital={true} />
       </td>
       <td>
         <Tr text="no" />
-        <div className="mission-note">
-          <Tr text="xpediaScriptNoTable" />
-        </div>
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * What a weighted choice does: the missions (or regions, or races) this
+ * script spawns, over the monthly blocks.
+ *
+ * A block applies from its month onwards until the next block replaces it,
+ * so each one is headed by its start — except one block from the start,
+ * where the header would say nothing. The row name is the plain thing being
+ * chosen ("Mission", "Region", "Race"), not the field name: the weights are
+ * the mechanism, and the pick plus its shares are already in the cell.
+ */
+function WeightsRow({
+  entry,
+  field,
+  label,
+}: {
+  entry: MissionScript;
+  field: string;
+  label: string;
+}) {
+  const blocks = weightBlocks(entry[field]);
+  if (!blocks.length) return null;
+  return (
+    <tr>
+      <td className="row-name">
+        <Tr text={label} capital={true} />
+      </td>
+      <td>
+        {blocks.map((block) => {
+          const showStart = blocks.length > 1 || block.month > 0;
+          return (
+            <div key={`${field}-${block.month}`}>
+              {showStart && (
+                <div>
+                  {block.month === 0 ? (
+                    <Tr text="xpediaEventFromFounding" />
+                  ) : (
+                    <>
+                      <Tr text="xpediaEventFromMonth" /> <em className="num">{block.month}</em>
+                    </>
+                  )}
+                  :
+                </div>
+              )}
+              <div>
+                <WeightedPick entries={block.entries} />
+              </div>
+            </div>
+          );
+        })}
       </td>
     </tr>
   );
@@ -343,6 +439,17 @@ function TableRow({ entry }: { entry: MissionScript }) {
 
 /** Mission script table: the schedule, with the timing fields spelled out */
 export default function MissionScriptComponent({ entry }: { entry: MissionScript }) {
+  // The "Mission triggered" sub-block is drawn only when the script actually
+  // says something about the mission it triggers: its first wave, what it
+  // spawns, how many it may create, or whether it is struck off the table.
+  const hasTriggered =
+    entry?.startDelay != null ||
+    entry?.randomDelay != null ||
+    weightBlocks(entry?.missionWeights).length > 0 ||
+    weightBlocks(entry?.regionWeights).length > 0 ||
+    weightBlocks(entry?.raceWeights).length > 0 ||
+    runLimit(entry).limited ||
+    entry?.useTable === false;
   return (
     <MainTable
       of={entry}
@@ -361,6 +468,9 @@ export default function MissionScriptComponent({ entry }: { entry: MissionScript
           "lastMonth",
           "executionOdds",
           "maxRuns",
+          "missionWeights",
+          "regionWeights",
+          "raceWeights",
           "researchTriggers",
           "useTable",
           "itemTriggers",
@@ -378,21 +488,25 @@ export default function MissionScriptComponent({ entry }: { entry: MissionScript
           "maxDifficulty",
         ],
       }}
-      special={{ missionWeights: asSubTable, regionWeights: asSubTable }}
       before={
         <>
-          <tr>
-            <td colSpan={2} className="table-subheader">
-              <Tr text="xpediaScriptSchedule" />
-            </td>
-          </tr>
           <MonthRow entry={entry} />
-          <DelayRow entry={entry} />
           <OddsRow entry={entry} />
-          <RunsRow entry={entry} />
-          <ResearchRow entry={entry} />
+          <ResearchRows entry={entry} />
           <TriggerRows entry={entry} />
           <LimitsRow entry={entry} />
+          {hasTriggered && (
+            <tr>
+              <td colSpan={2} className="table-subheader">
+                <Tr text="xpediaScriptMissionTriggered" />
+              </td>
+            </tr>
+          )}
+          <DelayRow entry={entry} />
+          <WeightsRow entry={entry} field="missionWeights" label="xpediaScriptMission" />
+          <WeightsRow entry={entry} field="regionWeights" label="xpediaScriptRegion" />
+          <WeightsRow entry={entry} field="raceWeights" label="xpediaScriptRace" />
+          <RunsRow entry={entry} />
           <TableRow entry={entry} />
         </>
       }
