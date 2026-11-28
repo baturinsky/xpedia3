@@ -30,11 +30,13 @@ const Damage = ({ attack }: { attack: Attack }) =>
   );
 
 /** Fields shown before the "See details" button, in the order old `Item.svelte`
- *  listed them */
+ *  listed them. Acquisition fields (buy cost, manufacture, event/mission/UFO/
+ *  terrain/corpse/salvage backlinks and research-spawned) are not here: they
+ *  are consumed by the "Procuring methods" subtable (`_procure`), which is
+ *  inserted before the first remaining subtable so it is the first of them. */
 const firstFields = [
   "fixedWeapon",
   "builtIn",
-  "costBuy",
   "costSell",
   "tuUse",
   "monthlySalary",
@@ -60,22 +62,31 @@ const firstFields = [
   "powerRangeReduction",
   "powerRangeThreshold",
   "commendations",
+  "craftWeapons",
+  "spawnUnit",
+  "componentOf",
+];
+
+/** Fields the header or the attacks table already show, or that describe the
+ *  ruleset rather than the item. The acquisition backlinks are excluded too:
+ *  they exist on the entry for the "Procuring methods" subtable (and for
+ *  crosslink consumers in `Ruleset`), but they must not fall through to the
+ *  alphabetical "misc" rows under "See details" once they leave
+ *  `firstFields`. */
+const hiddenFields = [
+  "requiresBuy",
+  "costBuy",
+  "manufacture",
+  "spawnedBy",
+  "events",
   "loot",
   "ufos",
   "terrains",
   "corpseOf",
   "salvagedFrom",
-  "craftWeapons",
-  "events",
-  "spawnUnit",
-  "manufacture",
-  "componentOf",
-];
-
-/** Fields the header or the attacks table already show, or that describe the
- *  ruleset rather than the item */
-const hiddenFields = [
-  "requiresBuy",
+  "capturedFrom",
+  "savedFrom",
+  "transformedFrom",
   "sprite",
   "type",
   "compatibleAmmo",
@@ -331,12 +342,6 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
     // for a mode the language has no name for
     return rul.lang[id] != null ? <Val of={id} /> : <Val of={val} />;
   };
-  special.costBuy = ({ val }) => (
-    <>
-      <Val of={val} /> <Val of={entry.requiresBuy || ""} />
-    </>
-  );
-
   for (const field of ["floorSprite", "handSprite"])
     special[field] = ({ val }) => (
       <>
@@ -355,10 +360,35 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
   // table of its own, so it needs more than one row
   const rows: { [field: string]: MainTableRenderer } = {};
 
-  // Old `Item.svelte` drew both of these under a subheader of their own
-  rows.manufacture = ({ key, val }) => (
-    <SecondaryTable text={key}>
-      {!Array.isArray(val) ? (
+  // How the item becomes available, in player terms: buying, crafting,
+  // research grants, captures, rescues, recovery transforms and the finds. Each row pairs a method with its sources
+  // (backlinks from `Ruleset`); usage backlinks (`craftWeapons`,
+  // `componentOf`, `spawnUnit`, `builtIn`) describe what the item is used
+  // for, not how to get it, so they stay as their own rows below. The
+  // framed with the section's `table-subheader` title, then one body row
+  // per method (method in the `row-name` column, sources beside it).
+  const procurement: { method: string; source: React.ReactNode }[] = [];
+  if (entry.costBuy) {
+    procurement.push({
+      method: "xpediaProcureBuy",
+      source: (
+        <>
+          <Val of={entry.costBuy} />
+          {entry.requiresBuy?.length ? (
+            <>
+              {" "}
+              <Val of={entry.requiresBuy} />
+            </>
+          ) : null}
+        </>
+      ),
+    });
+  }
+  if (entry.manufacture != null && Object.keys(entry.manufacture).length > 0) {
+    const val = entry.manufacture;
+    procurement.push({
+      method: "xpediaProcureManufacture",
+      source: !Array.isArray(val) ? (
         <Val of={val} />
       ) : (
         <table className="item-manufacture">
@@ -368,9 +398,48 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
             ))}
           </tbody>
         </table>
-      )}
-    </SecondaryTable>
-  );
+      ),
+    });
+  }
+  const linked = (
+    method: string,
+    val: unknown,
+  ): { method: string; source: React.ReactNode } | null =>
+    val != null && Array.isArray(val) && val.length > 0
+      ? { method, source: <Val of={val} /> }
+      : null;
+  for (const row of [
+    linked("xpediaProcureResearch", entry.spawnedBy),
+    linked("xpediaProcureEvent", entry.events),
+    linked("xpediaProcureCapture", entry.capturedFrom),
+    linked("xpediaProcureRescue", entry.savedFrom),
+    linked("xpediaProcureMission", entry.loot),
+    linked("xpediaProcureUfo", entry.ufos),
+    linked("xpediaProcureTerrain", entry.terrains),
+    linked("xpediaProcureCorpse", entry.corpseOf),
+    linked("xpediaProcureSalvage", entry.salvagedFrom),
+    linked("xpediaProcureTransform", entry.transformedFrom),
+  ])
+    if (row) procurement.push(row);
+
+  rows._procure = () =>
+    procurement.length === 0 ? null : (
+      <>
+        <tr>
+          <td colSpan={2} className="table-subheader">
+            <Val of="xpediaProcureTitle" />
+          </td>
+        </tr>
+        {procurement.map((row) => (
+          <tr key={row.method}>
+            <td className="row-name">
+              <Val of={row.method} capital={true} />
+            </td>
+            <td>{row.source}</td>
+          </tr>
+        ))}
+      </>
+    );
 
   rows.componentOf = ({ key, val }) => (
     <SecondaryTable text={key}>
@@ -388,11 +457,20 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
       );
 
   // The "See details" button splits the fields in two, so the rows are built
-  // here: the first block, the button, then the rest once it is expanded
+  // here: the first block, the button, then the rest once it is expanded. The
+  // procuring subtable is inserted before the first remaining subtable
+  // (`craftWeapons`/`spawnUnit`/`componentOf`), so it is the first subtable.
+  const firstPairs: [string, unknown][] = [...sorted.first];
+  if (procurement.length > 0) {
+    const subtableKeys = new Set(["craftWeapons", "spawnUnit", "componentOf"]);
+    const at = firstPairs.findIndex(([k]) => subtableKeys.has(k));
+    if (at === -1) firstPairs.push(["_procure", null]);
+    else firstPairs.splice(at, 0, ["_procure", null]);
+  }
   const pairs: [string, unknown][] =
     hidden.length === 0
-      ? sorted.first
-      : [...sorted.first, ["_details", null], ...(state.anal ? hidden : [])];
+      ? firstPairs
+      : [...firstPairs, ["_details", null], ...(state.anal ? hidden : [])];
 
   const showAttacks =
     !!(entry.sprite && entry.sprite !== "Resources/Blanks/Blank.png") || attacks.length > 0;
@@ -406,17 +484,9 @@ const ItemComponent = ({ entry }: { entry: Item }) => {
       special={special}
       // The long reference lists are subheader blocks rather than single
       // long rows: each is one fact with its own heading, as `Research`
-      // already does with its lists
-      wide={[
-        "loot",
-        "ufos",
-        "terrains",
-        "corpseOf",
-        "salvagedFrom",
-        "craftWeapons",
-        "events",
-        "spawnUnit",
-      ]}
+      // already does with its lists. Acquisition lists are drawn by the
+      // procuring subtable instead (see `_procure`).
+      wide={["craftWeapons", "spawnUnit"]}
       rows={{
         ...rows,
         // The button row, which is why `pairs` carries a placeholder key

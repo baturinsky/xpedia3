@@ -564,4 +564,52 @@ const rul = (t) => testPack({ rul: t });
   );
 }
 
+/**
+ * A topic granted outside the research tree — an event's `researchList` —
+ * needs no prerequisite at all, so nothing gates it or anything that only
+ * needed it with it.
+ */
+{
+  const granted = await rul(
+    [
+      "research:",
+      "  - name: STR_BN_EV_GATE",
+      "  - name: STR_BN_EV_A",
+      "    cost: 40",
+      "    dependencies: [STR_BN_EV_GATE]",
+      "  - name: STR_BN_EV_B",
+      "    dependencies: [STR_BN_EV_A]",
+      "  - name: STR_BN_EV_C",
+      "    dependencies: [STR_BN_EV_A]",
+      "  - name: STR_BN_EV_D",
+      "    dependencies: [STR_BN_EV_B]",
+      "  - name: STR_BN_EV_E",
+      "    dependencies: [STR_BN_EV_C]",
+      "  - name: STR_BN_PLAIN_GATE",
+      "  - name: STR_BN_P1",
+      "    cost: 10",
+      "    dependencies: [STR_BN_PLAIN_GATE]",
+      "  - name: STR_BN_P2",
+      "    cost: 10",
+      "    dependencies: [STR_BN_PLAIN_GATE]",
+      "  - name: STR_BN_P3",
+      "    cost: 10",
+      "    dependencies: [STR_BN_PLAIN_GATE]",
+      "events:",
+      "  - name: STR_BN_EV_TEST",
+      "    researchList: [STR_BN_EV_A]",
+    ].join("\n"),
+  );
+  eq(
+    granted.research.STR_BN_EV_GATE.gatesTopics,
+    undefined,
+    "the event grant bypasses the gate for the whole branch behind it",
+  );
+  eq(
+    granted.research.STR_BN_PLAIN_GATE.gatesTopics,
+    3,
+    "an ungranted chain in the same pack still gates its three dependents",
+  );
+}
+
 report();

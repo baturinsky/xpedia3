@@ -49,6 +49,28 @@ function hasShortcutOverlap(entry: Entry): boolean {
   return deps.some((d) => s.has(d));
 }
 
+/**
+ * A grant row: the events or mission deployments that hand this topic over
+ * for free, as backlinks (`Ruleset` crosslinks `events.researchList` and the
+ * deployments' `unlockedResearch*` onto the topic). A grant is its own
+ * road — not a prerequisite and not a loose association — so it reads under
+ * its own explicit label, not the backlink field's generic "Events" /
+ * "Allowed deployments".
+ */
+function grantRow(labelKey: string): MainTableRenderer {
+  return ({ val }) =>
+    !hasContent(val) ? null : (
+      <tr>
+        <td className="row-name">
+          <Tr text={labelKey} capital={true} />
+        </td>
+        <td>
+          <Val of={val} />
+        </td>
+      </tr>
+    );
+}
+
 /** Research table, follows old `Research.svelte` */
 export const ResearchComponent = ({ entry }: { entry: Entry }) => {
   // `getOneFreeProtected` maps a group name to the list it protects, so it
@@ -83,11 +105,14 @@ export const ResearchComponent = ({ entry }: { entry: Entry }) => {
       title="Research"
       // Cost and the infamy it pays are the topic's own numbers, so they lead
       // the table rather than sitting in the alphabetical run of misc fields;
-      // the long lists stay last.
-      sort={{ first: ["cost", "points"], last: longLists }}
+      // the grants (outside roads) follow them — how a topic becomes
+      // available is the fact the reader came for. The long lists stay last.
+      sort={{ first: ["cost", "points", "events", "deployments"], last: longLists }}
       wide={wide}
       special={special}
       rows={{
+        events: grantRow("xpediaResearchGrantedByEvent"),
+        deployments: grantRow("xpediaResearchGrantedByMission"),
         // `dependencies` suppressed when subsumed (see `subsumed` above): a
         // plain row drawn by `MainTable` would otherwise still show it.
         ...(subsumed ? { dependencies: () => null } : {}),

@@ -1245,6 +1245,39 @@ export default class Ruleset {
     crosslink(this.terrains, (t) => blockItems(t.mapBlocks), this.items, "terrains");
     crosslink(this.terrains, "civilianTypes", this.units, "terrains");
     crosslink(this.items, "spawnUnit", this.units, "spawnedBy");
+    // A unit with `spawnUnit` converts into the named unit when stunned, killed
+    // or captured (`BattleUnit::knockOut` / death handling), so the target
+    // names the units it turns from.
+    crosslink(
+      this.units,
+      (t) => (typeof t.spawnUnit === "string" && t.spawnUnit !== "" ? [t.spawnUnit] : []),
+      this.units,
+      "convertedFrom",
+    );
+    // A kill by an item with `zombieUnit` (or a per-armor/per-type variant)
+    // reanimates the victim as the named unit (`BattleUnit` death handling:
+    // `getZombieUnit`), so each zombie unit names the items that raise it.
+    crosslink(
+      this.items,
+      (t) => {
+        const out = new Set<string>();
+        const plain = t.zombieUnit;
+        if (typeof plain === "string" && plain !== "") out.add(plain);
+        for (const field of [
+          "zombieUnitByArmorMale",
+          "zombieUnitByArmorFemale",
+          "zombieUnitByType",
+        ]) {
+          const map = (t as { [key: string]: unknown })[field];
+          if (typeof map === "object" && map != null && !Array.isArray(map))
+            for (const id of Object.values(map as object))
+              if (typeof id === "string" && id !== "") out.add(id);
+        }
+        return [...out];
+      },
+      this.units,
+      "zombifiedBy",
+    );
     crosslink(this.items, "internalBattleType", "battleTypes", "items");
     crosslink(this.items, "supportedInventorySections", "inventorySections", "items");
     crosslink(this.commendations, "damageTypes", this.damageTypes, "commendations");
@@ -1306,7 +1339,79 @@ export default class Ruleset {
     // (`_UC` in Piratez) lists the parts it yields here instead, so this is not
     // always a corpse and must not share `corpseOf`
     crosslink(this.armors, "corpseGeo", this.items, "salvagedFrom");
-    crosslink(this.events, (t) => [t.randomItemList, t.everyItemList].flat(), this.items, "events");
+    // Capturing a unit alive yields its `liveAlien` item (`Unit::afterLoad`
+    // defaults that to the item sharing the unit's type, and `""` disables
+    // it; `DebriefingState::recoverAlien` adds it to stores). For the usual
+    // same-type prisoner items the backlink therefore names its own unit.
+    crosslink(
+      this.units,
+      (t) => {
+        if (typeof t.liveAlien === "string") return t.liveAlien === "" ? [] : [t.liveAlien];
+        const type = typeof t.type === "string" ? t.type : (t.uid as string);
+        return type ? [type] : [];
+      },
+      this.items,
+      "capturedFrom",
+    );
+    // Saving a knocked-out (or otherwise recovered) civilian yields its
+    // `civilianRecoveryType` instead of the prisoner item — a recruit or a
+    // scientist/engineer transfer if it names one (`Unit::afterLoad` tries
+    // the soldier table first; `STR_ENGINEER`/`STR_SCIENTIST` are transfers),
+    // otherwise the named item (`DebriefingState::recoverCivilian`).
+    crosslink(
+      this.units,
+      (t) => {
+        const name = t.civilianRecoveryType;
+        if (typeof name !== "string" || name === "") return [];
+        if (name === "STR_ENGINEER" || name === "STR_SCIENTIST") return [];
+        return this.soldiers[name] ? [] : [name];
+      },
+      this.items,
+      "savedFrom",
+    );
+    // A recovered item with `recoveryTransformations` turns into the named
+    // items instead of itself (`addItemsToBaseStores` with transformations,
+    // for battle loot, bounties, corpses and recovered prisoners alike), so
+    // each target is procured by recovering its source.
+    crosslink(
+      this.items,
+      (t) =>
+        t.recoveryTransformations != null && typeof t.recoveryTransformations === "object"
+          ? Object.keys(t.recoveryTransformations as object)
+          : [],
+      this.items,
+      "transformedFrom",
+    );
+    // Events hand items over through five lists in the engine (`RuleEvent`):
+    // two plain string lists plus three `{item: count/weight}` maps (and a
+    // list of maps for `randomMultiItemList`). Counting only the plain lists
+    // silently drops the bulk of X-Piratez's event grants (170
+    // `everyMultiItemList` entries), so all five feed the backlink.
+    crosslink(
+      this.events,
+      (t) => {
+        const keysOf = (v: unknown): string[] => {
+          if (v == null || typeof v !== "object") return [];
+          if (Array.isArray(v))
+            return v.flatMap((el) =>
+              el != null && typeof el === "object" && !Array.isArray(el)
+                ? Object.keys(el as object)
+                : typeof el === "string"
+                  ? [el]
+                  : [],
+            );
+          return Object.keys(v as object);
+        };
+        return [
+          ...[t.randomItemList, t.everyItemList].flat(),
+          ...keysOf(t.everyMultiItemList),
+          ...keysOf(t.randomMultiItemList),
+          ...keysOf(t.weightedItemList),
+        ];
+      },
+      this.items,
+      "events",
+    );
 
     // A wave's `ufo` may also name a deployment, and `dummy` exists in no table
     // at all; only the real UFOs get a link, the rest would become stub pages
@@ -1335,6 +1440,8 @@ export default class Ruleset {
 
     crosslink(this.alienDeployments, "customUfo", this.ufos, "deployments");
     crosslink(this.alienDeployments, "unlockedResearch", this.research, "deployments");
+    crosslink(this.alienDeployments, "unlockedResearchOnFailure", this.research, "deployments");
+    crosslink(this.alienDeployments, "unlockedResearchOnDespawn", this.research, "deployments");
     crosslink(this.alienDeployments, "script", this.mapScripts, "deployments");
     crosslink(this.terrains, "script", this.mapScripts, "terrains");
 
@@ -1447,15 +1554,23 @@ export default class Ruleset {
         article._text = lookUpArticle._text;
         article.image_id = lookUpArticle.image_id;
       }
-      if (research.spawnedItem) {
-        const item = rul.items[research.spawnedItem];
-        // A pack can be a submod of a master it does not ship, so a reference
-        // can point at an item only the missing master defines. The recipe is
-        // then simply out of scope for this pedia, the same way `crosslink`
-        // skips links it cannot resolve.
-        if (!item) continue;
-        item.spawnedBy = item.spawnedBy || [];
-        item.spawnedBy.push(research.name);
+      if (research.spawnedItem || research.spawnedItemList?.length) {
+        // `spawnedItemList` is the plural twin of `spawnedItem` (both add to
+        // hideout stores on completion, `SavedGame.cpp`), so both backlink.
+        const spawned = [
+          ...(research.spawnedItem ? [research.spawnedItem] : []),
+          ...(research.spawnedItemList ?? []),
+        ];
+        for (const itemName of spawned) {
+          const item = rul.items[itemName];
+          // A pack can be a submod of a master it does not ship, so a reference
+          // can point at an item only the missing master defines. The recipe is
+          // then simply out of scope for this pedia, the same way `crosslink`
+          // skips links it cannot resolve.
+          if (!item) continue;
+          item.spawnedBy = item.spawnedBy || [];
+          if (!item.spawnedBy.includes(research.name)) item.spawnedBy.push(research.name);
+        }
       }
     }
 
@@ -1475,6 +1590,28 @@ export default class Ruleset {
       });
     }
 
+    // Topics granted outside the research tree: events' `researchList` and
+    // mission deployments' `unlockedResearch*` (success, failure and despawn
+    // alike) finish the topic when they fire, whatever its `dependencies`
+    // say — X-Piratez's whole psi/magic cluster hangs off four topics only
+    // an event grants. Both research passes seed these as reachable roots.
+    const granted = new Set<string>();
+    for (const event of Object.values(this.events)) {
+      const list = event.researchList;
+      if (!Array.isArray(list)) continue;
+      for (const name of list) if (typeof name === "string") granted.add(name);
+    }
+    for (const deployment of Object.values(this.alienDeployments)) {
+      for (const field of [
+        "unlockedResearch",
+        "unlockedResearchOnFailure",
+        "unlockedResearchOnDespawn",
+      ]) {
+        const name = deployment[field];
+        if (typeof name === "string" && name) granted.add(name);
+      }
+    }
+
     // Bottleneck points of interest (see `researchBottlenecks.ts`): a topic
     // whose strict dependency cone holds other topics gates them — topics
     // reachable without it (shortcut unlocks, free grants) are behind no
@@ -1483,7 +1620,7 @@ export default class Ruleset {
     // strict dependent's) of at least one per cent of the pack's heaviest —
     // so the article only raises the flag where a branch, not a single
     // dependent, is held.
-    const bottlenecks = computeResearchBottlenecks(this.research);
+    const bottlenecks = computeResearchBottlenecks(this.research, granted);
     let heaviest = 0;
     for (const stats of bottlenecks.values()) heaviest = Math.max(heaviest, stats.score);
     const gateFloor = heaviest * 0.01;
@@ -1502,7 +1639,7 @@ export default class Ruleset {
     // topics, roots, leaves, disablers and long `requires` lists. Kept only
     // for topics clearing a view's threshold, so the views list the
     // interesting few (roots and leaves are categories, kept whole).
-    const interest = computeResearchInterest(this.research);
+    const interest = computeResearchInterest(this.research, granted);
     for (const [name, stats] of interest) {
       if (
         stats.shortcutValue < INTEREST_THRESHOLDS.shortcutValue &&
@@ -1532,6 +1669,24 @@ export default class Ruleset {
     this.ourArmors = Object.values(this.armors)
       .filter((a) => a.units)
       .map((a) => a.type);
+
+    // A unit whose armor lives on a separate article shows that armor
+    // inline, so the unit article borrows the armor article's sections;
+    // that keeps the categories under the title (and the prev/next links
+    // they produce) honest about what the page shows. One direction only:
+    // adding the unit to each armor section may list it there too, which is
+    // the point. A unit wearing an armor under its own id shares the
+    // article already, so its sections match by construction.
+    for (const unit of Object.values(this.units)) {
+      if (!unit.armor) continue;
+      const armorArticle = this.articles[unit.armor];
+      if (!armorArticle) continue;
+      const unitArticle = this.articles[unit.uid];
+      if (!unitArticle || unit.armor === unit.uid) continue;
+      for (const section of [...armorArticle.sections]) {
+        unitArticle.addToSection(section.id);
+      }
+    }
 
     for (const cat of Object.keys(this.categories)) {
       if (this.categories[cat].length) Article.create(cat, "CATEGORIES");

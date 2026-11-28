@@ -23,6 +23,7 @@ const modules = [
   ["src/ui/schedule.ts", "schedule.mjs"],
   ["src/ui/timing.ts", "timing.mjs"],
   ["src/ui/deploymentRank.ts", "deploymentrank.mjs"],
+  ["src/ui/unitEncounters.ts", "unitencounters.mjs"],
   ["src/ui/raceWeights.ts", "raceweights.mjs"],
 ];
 

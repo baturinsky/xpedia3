@@ -249,7 +249,15 @@ type ArticleComponentRenderer = (props: { entry: any; text?: string }) => ReactN
  */
 function collectionEntry(collection: string, id: string): Entry | undefined {
   const table = (rul as unknown as { [collection: string]: { [id: string]: Entry } })[collection];
-  return table?.[id];
+  if (table?.[id]) return table[id];
+  // A unit article draws its wearer's armor too, even though the armor
+  // carries a different id than the unit; the same-id hit above keeps the
+  // armor's own page resolving exactly as before.
+  if (collection === "armors") {
+    const armor = rul.units?.[id]?.armor;
+    if (armor && rul.armors?.[armor]) return rul.armors[armor];
+  }
+  return undefined;
 }
 
 const renderers: { [collection: string]: ArticleComponentRenderer | TableConfig } = {

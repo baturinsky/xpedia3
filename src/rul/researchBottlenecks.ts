@@ -10,8 +10,10 @@
  * *strictly* need it. A dependent that can be reached without the gate is
  * not behind it: through an "Unlocked by any one of" shortcut, through a
  * "May be granted free by" grant (including a guarded one, whose granter
- * and guard must both be reachable), or through another dependent that
- * itself can be reached without the gate. A bypass source that cannot be
+ * and guard must both be reachable), through a topic granted outside
+ * the research tree — an event's `researchList` or a deployment's
+ * `unlockedResearch*`, handed in as `granted` (see `Ruleset`) — or
+ * through another dependent that itself can be reached without the gate. A bypass source that cannot be
  * reached without the gate keeps the dependent strict, because every route
  * to it still runs through the gate. The strict cone is what is counted:
  *
@@ -73,15 +75,27 @@ export type BottleneckStats = {
  * transitively, through `dependencies` — minus the ones reachable without it
  * (see the header).
  *
+ * `granted` names the topics granted outside the research tree (see
+ * `Ruleset`): the grant finishes them without the gate, so they are
+ * acquirable roots like prerequisite-less topics.
+ *
  * Returns a map keyed by topic name; topics with no dependents get no entry,
  * so the caller can decide which majors are worth stamping.
  */
-export function computeResearchBottlenecks(research: {
-  [name: string]: BottleneckTopic;
-}): Map<string, BottleneckStats> {
+export function computeResearchBottlenecks(
+  research: {
+    [name: string]: BottleneckTopic;
+  },
+  granted: Iterable<string> = [],
+): Map<string, BottleneckStats> {
   const names = Object.keys(research);
   const index = new Map(names.map((name, i) => [name, i]));
   const n = names.length;
+  const grantedIdx = new Set<number>();
+  for (const name of granted) {
+    const i = index.get(name);
+    if (i != null) grantedIdx.add(i);
+  }
   const weightOf = new Array<number>(n).fill(0);
 
   // Edges run prerequisite -> dependent, the direction of availability.
@@ -282,7 +296,7 @@ export function computeResearchBottlenecks(research: {
         queue.push(t);
       }
     };
-    for (let i = 0; i < n; i++) if (remNormal[i] === 0) add(i);
+    for (let i = 0; i < n; i++) if (remNormal[i] === 0 || grantedIdx.has(i)) add(i);
     while (head < queue.length) {
       const p = queue[head++];
       for (const d of normalDependents[p]) if (!acquirable[d] && --remNormal[d] === 0) add(d);

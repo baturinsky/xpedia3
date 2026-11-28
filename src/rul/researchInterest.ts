@@ -47,9 +47,13 @@
  * - `isRoot` / `isLeaf`: no prerequisites at all, or nothing depends on
  *   this one in any way (`dependencies`, `unlocks`, `getOneFree`).
  * - `freeOnly` / `unreachable`: reachability on the normal road (ALL
- *   `dependencies`+`requires`, OR any `unlockedByAnyOf`). A topic that is
+ *   `dependencies`+`requires`, OR any `unlockedByAnyOf`), plus two roads
+ *   outside the research tree: a topic an event (`researchList`) or a mission
+ *   deployment (`unlockedResearch`, `unlockedResearchOnFailure`,
+ *   `unlockedResearchOnDespawn`) grants is finished the moment it fires, and
+ *   both are handed in as `granted` (see `Ruleset`). A topic that is
  *   not normally reachable but a normally reachable topic may grant it
- *   free is free-only; one with neither road is unreachable.
+ *   free is free-only; one with no other road is unreachable.
  *
  * A topic is worth showing in a view when its metric clears the matching
  * threshold in `INTEREST_THRESHOLDS`. The thresholds are absolute — a
@@ -139,12 +143,21 @@ export const INTEREST_THRESHOLDS = {
 /**
  * Scores every topic in `research` with the interest metrics above.
  *
+ * `granted` names the topics granted outside the research tree — events'
+ * `researchList` and mission deployments' `unlockedResearch*` (see
+ * `Ruleset`). A grant finishes the topic no matter what its `dependencies`
+ * say, so those topics seed the reachability pass below as if they were
+ * roots.
+ *
  * Returns a map keyed by topic name, for every topic in the pack — the caller
  * (`Ruleset`) decides which ones qualify for a view.
  */
-export function computeResearchInterest(research: {
-  [name: string]: InterestTopic;
-}): Map<string, ResearchInterest> {
+export function computeResearchInterest(
+  research: {
+    [name: string]: InterestTopic;
+  },
+  granted: Iterable<string> = [],
+): Map<string, ResearchInterest> {
   const names = Object.keys(research);
   const index = new Map(names.map((name, i) => [name, i]));
   const n = names.length;
@@ -287,6 +300,13 @@ export function computeResearchInterest(research: {
   // Normal-road reachability (see the header): ALL `dependencies`+
   // `requires`, OR any `unlockedByAnyOf`. A counter per topic, drained by
   // reachable prerequisites; an unlocker reaching a topic marks it at once.
+  // Topics granted outside the tree (`granted`) start reachable: the grant
+  // finishes them whether or not their prerequisites are done.
+  const grantedIdx = new Set<number>();
+  for (const name of granted) {
+    const i = index.get(name);
+    if (i != null) grantedIdx.add(i);
+  }
   const allPrereqs: number[][] = names.map((name) => [
     ...new Set([...known(research[name]?.dependencies), ...known(research[name]?.requires)]),
   ]);
@@ -300,7 +320,9 @@ export function computeResearchInterest(research: {
   );
   const reachable = new Array<boolean>(n).fill(false);
   const queue: number[] = [];
-  for (let i = 0; i < n; i++) if (remaining[i] === 0) queue.push(i);
+  for (let i = 0; i < n; i++) {
+    if (remaining[i] === 0 || grantedIdx.has(i)) queue.push(i);
+  }
   while (queue.length) {
     const i = queue.pop() as number;
     if (reachable[i]) continue;

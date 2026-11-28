@@ -1299,6 +1299,7 @@ export class Research extends Entry {
   seeAlso?: string[];
   allowsBuying?: string[];
   spawnedItem?: string;
+  spawnedItemList?: string[];
 
   constructor(raw: RawEntry) {
     super("research");

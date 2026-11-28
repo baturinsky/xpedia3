@@ -2667,6 +2667,30 @@ en-US:
   xpediaResearchUsesItem: Uses item
   xpediaResearchItemUsedUp: will be used up
   xpediaResearchItemKept: will NOT be used up
+  xpediaResearchGrantedByEvent: Granted by event
+  xpediaResearchGrantedByMission: Granted by mission
+  xpediaProcureTitle: Procuring methods
+  xpediaProcureBuy: Buy
+  xpediaProcureManufacture: Manufacture
+  xpediaProcureResearch: Granted by research
+  xpediaProcureEvent: Event
+  xpediaProcureCapture: Capture
+  xpediaProcureRescue: Rescue
+  xpediaProcureMission: Mission
+  xpediaProcureUfo: UFO
+  xpediaProcureTerrain: Terrain
+  xpediaProcureCorpse: Corpse
+  xpediaProcureSalvage: Salvage
+  xpediaProcureTransform: Recovery transform
+  xpediaEncounterTitle: Where encountered
+  xpediaEncounterMission: Mission
+  xpediaEncounterUfo: UFO
+  xpediaEncounterDeployment: Deployment
+  xpediaEncounterTerrain: Terrain
+  xpediaEncounterSpawnedBy: Spawned by item
+  xpediaEncounterConvertedFrom: Converted from
+  xpediaEncounterZombie: Zombie
+  ufos: UFOs
   spawnedItem: Item created
   category: Category
   producedItems: Produced items

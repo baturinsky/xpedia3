@@ -12,8 +12,10 @@
   --hover: hsl(var(--hue), var(--saturation), 30%);
   --scrollbar: hsl(var(--hue), var(--saturation), 20%);
 
-  --table-subheader: hsl(var(--hue), var(--saturation), 25%);
-  --table-header: hsl(var(--hue), var(--saturation), 25%);
+  /* Sub-table headers sit a step paler than `--table-header`, so they read as
+     subordinate to the entry title instead of a second title of the same weight. */
+  --table-subheader: hsl(var(--hue), var(--saturation), 18%);
+  --table-header: hsl(var(--hue), var(--saturation), 35%);
   --table-secondary: hsl(var(--hue), var(--saturation), 7%);
   --table-main: hsl(var(--hue), var(--saturation), 10%);
   --dead-link: #ffffff;
@@ -41,8 +43,10 @@
   --hover: hsl(var(--hue), var(--saturation), 84%);
   --scrollbar: hsl(var(--hue), var(--saturation), 80%);
 
-  --table-subheader: hsl(var(--hue), var(--saturation), 80%);
-  --table-header: hsl(var(--hue), var(--saturation), 80%);
+  /* Paired with the dark theme's paler sub-table headers: midway between the
+     page background and the entry title, instead of the title's own strength. */
+  --table-subheader: hsl(var(--hue), var(--saturation), 85%);
+  --table-header: hsl(var(--hue), var(--saturation), 75%);
   --table-secondary: hsl(var(--hue), var(--saturation), 90%);
   --table-main: hsl(var(--hue), var(--saturation), 96%);
   --dead-link: #7a6a58;
@@ -981,7 +985,9 @@ button.modpack-name {
 }
 
 .slow-process-status.done {
-  background: var(--table-subheader);
+  /* Was `--table-subheader` before that went paler for real sub-table headers;
+     this keeps the "done" bar at the strength it always had. */
+  background: var(--table-header);
 }
 
 .slow-process-status.error {
@@ -1394,11 +1400,11 @@ button.modpack-name {
 }
 
 /* Long text sits above the columns, see old `.main-text` */
-.main-text {
+.main-table.main-text {
   display: flex;
   flex-direction: row;
   align-items: center;
-  border: 0;
+  border: none;
   margin-bottom: 0.25rem;
 }
 
@@ -1523,9 +1529,18 @@ table.main-table td {
 }
 
 .main-table > thead,
-.table-header,
-.table-subheader {
+.table-header {
   background-color: var(--table-header);
+  text-align: center;
+  margin: 0.3rem 0rem;
+  font-variant: small-caps;
+}
+
+/* Sub-table headers (`wide` blocks and hand-rolled `rows` subtables) get the
+   paler `--table-subheader` background so they never read as a second entry
+   title; the `.main-table` scope keeps the more specific rule last. */
+.main-table .table-subheader {
+  background-color: var(--table-subheader);
   text-align: center;
   margin: 0.3rem 0rem;
   font-variant: small-caps;
@@ -1930,6 +1945,11 @@ table.section-table td {
   position: relative;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: `move` also over the label text, whose tooltip spans set `cursor: default`; a section-table header never occurs inside `.sidebar`, so this never competes with the sidebar's `.nobr *` rule above */
+.section-table > thead td * {
+  cursor: move;
+}
+
 .sort-order-arrow {
   /* Out of flow, so it takes no space next to the label: the label neither
      wraps around it nor shifts when it appears. Horizontally centred on the
@@ -1947,6 +1967,36 @@ table.section-table td {
 
 .sort-order-arrow.asc {
   bottom: 100%;
+}
+
+/* Drop-position markers, shown only while a column is dragged: an arrow above
+   the header row, pointing down at the gap between its two headers, on the
+   border they share. Out of flow, so the headers never move while dragging.
+   The gap a drop right now would use is drawn 1.5x (105% against the 70% of
+   the others), which is also where the drop lands. The padding widens the
+   drop target beyond the glyph. */
+.gap-arrow {
+  position: absolute;
+  bottom: 100%;
+  opacity: 0.6;
+  font-size: 70%;
+  padding: 0.15rem 0.25rem;
+  cursor: move;
+}
+
+.gap-arrow.left {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.gap-arrow.right {
+  right: 0;
+  transform: translateX(50%);
+}
+
+.gap-arrow.active {
+  font-size: 105%;
+  opacity: 1;
 }
 
 /* Column picker above a section table. The whole row is a flex line, so the

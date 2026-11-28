@@ -120,6 +120,15 @@ lines.push(
   "  - name: STR_PRODSINGLE",
   "  - name: STR_MISSIONTOPIC",
   "  - name: STR_BUYHUB",
+  "  - name: STR_EVGRANT",
+  "    dependencies: [STR_C1]",
+  "    unlocks: [STR_F0, STR_F1, STR_F2, STR_F3, STR_F4]",
+  "  - name: STR_EVDEP",
+  "    dependencies: [STR_EVGRANT]",
+  "  - name: STR_DEPLOYGRANT",
+  "    dependencies: [STR_C1]",
+  "  - name: STR_NOGRANT",
+  "    dependencies: [STR_C1]",
 );
 // A 501-topic chain: the last topic's cone is 500, the one before is 499.
 lines.push("  - name: STR_G0");
@@ -142,7 +151,9 @@ lines.push(
   "    researchTriggers:",
   "      STR_MISSIONTOPIC: true",
 );
-// Shop unlockers: BUYHUB opens three items for purchase.
+// Shop unlockers: BUYHUB opens three items for purchase. The event and the
+// deployment grant two of the cycle-stuck topics (EVGRANT, DEPLOYGRANT);
+// NOGRANT stays stuck.
 lines.push(
   "items:",
   "  - name: STR_BUY1",
@@ -151,6 +162,12 @@ lines.push(
   "    requiresBuy: [STR_BUYHUB]",
   "  - name: STR_BUY3",
   "    requiresBuy: [STR_BUYHUB]",
+  "events:",
+  "  - name: STR_EV_TEST",
+  "    researchList: [STR_EVGRANT]",
+  "alienDeployments:",
+  "  - type: str_test_deployment",
+  "    unlockedResearch: STR_DEPLOYGRANT",
 );
 
 const rul = await testPack({ rul: lines.join("\n") });
@@ -258,5 +275,36 @@ eq(interest.STR_REQMANY?.requiresWidth, 1, "a 'requires' entry qualifies for lon
 eq(interest.STR_FREEPRIZE?.freeGranters, 20, "twenty granters qualify as a free prize");
 eq(interest.STR_FREEONLY?.freeOnly, true, "unreachable normally but granted free is free-only");
 eq(interest.STR_FREEONLY?.unreachable, false, "free-only is not unreachable");
+eq(
+  interest.STR_EVGRANT?.unreachable,
+  false,
+  "an event grant finishes the topic: it is not unreachable",
+);
+eq(interest.STR_EVGRANT?.freeOnly, false, "an event grant is its own road, not a free grant");
+eq(
+  interest.STR_EVDEP?.unreachable,
+  false,
+  "a dependent of an event-granted topic becomes reachable",
+);
+eq(
+  interest.STR_DEPLOYGRANT?.unreachable,
+  false,
+  "a deployment grant finishes the topic: it is not unreachable",
+);
+eq(
+  interest.STR_NOGRANT?.unreachable,
+  true,
+  "stuck behind the hard cycle with no grant anywhere: still unreachable",
+);
+eq(
+  rul.research.STR_EVGRANT?.events,
+  ["STR_EV_TEST"],
+  "the granting event backlinks onto the topic",
+);
+eq(
+  rul.research.STR_DEPLOYGRANT?.deployments,
+  ["str_test_deployment"],
+  "the granting deployment backlinks onto the topic",
+);
 
 report();

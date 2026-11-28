@@ -910,6 +910,12 @@ export function SectionTable(props: SectionTableProps) {
   );
   const [filterId, setFilterId] = useState("");
 
+  // Column dragging: the field being dragged, and the gap (0 is before the
+  // first column, `shownFields.length` after the last) the dropped column
+  // would be inserted at. A gap is the index of the column it precedes.
+  const [dragField, setDragField] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
   // "auto" filter options are filled in from the entries themselves
   const filters: { [key: string]: string[] } = {};
   for (const [key, options] of Object.entries(props.filters ?? {})) {
@@ -1100,23 +1106,103 @@ export function SectionTable(props: SectionTableProps) {
           <table className="section-table">
             <thead>
               <tr>
-                {shownFields.map((field) => (
+                {shownFields.map((field, i) => (
                   // biome-ignore lint/a11y/noNoninteractiveElementInteractions: drag-to-reorder and click-to-sort header; the field checkboxes above are the keyboard control for which columns show
                   // biome-ignore lint/a11y/useKeyWithClickEvents: drag-to-reorder is a pointer gesture by nature; sorting is also reachable by clicking, and the checkboxes are the keyboard path for the columns
                   <td
                     key={field}
                     id={`thead ${field}`}
                     draggable="true"
-                    onDragStart={(e) => e.dataTransfer.setData("field", field)}
-                    onDrop={(e) =>
-                      moveField(shownFields, field, e.dataTransfer.getData("field"), setShownFields)
-                    }
+                    style={field === dragField ? { opacity: 0.5 } : undefined}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("field", field);
+                      setDragField(field);
+                    }}
+                    onDragEnd={() => {
+                      setDragField(null);
+                      setDropIndex(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const dragged = e.dataTransfer.getData("field");
+                      if (dragged) moveField(shownFields, dragged, i + 1, setShownFields);
+                      setDragField(null);
+                      setDropIndex(null);
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       e.dataTransfer.dropEffect = "move";
+                      setDropIndex(i + 1);
                     }}
                     onClick={() => sortBy(field)}
                   >
+                    {/* Drop markers, only while dragging: an arrow above every
+                      gap between (and beside) the headers, pointing down at
+                      the gap. The gap a drop right now would use is bigger
+                      (`.active`). The left-hand gap of the first column is
+                      what moving a column to the front drops on. The two gaps
+                      of the dragged column itself are not shown: dropping
+                      there would change nothing. */}
+                    {dragField != null && (
+                      <>
+                        {i === 0 && shownFields.indexOf(dragField) !== 0 && (
+                          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: a drag-only drop marker inside the header; the field checkboxes are the keyboard path for columns
+                          // biome-ignore lint/a11y/noStaticElementInteractions: drop marker inside the header; see above
+                          <span
+                            className={`gap-arrow left${dropIndex === 0 ? " active" : ""}`}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = "move";
+                              setDropIndex(0);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const dragged = e.dataTransfer.getData("field");
+                              if (dragged) moveField(shownFields, dragged, 0, setShownFields);
+                              setDragField(null);
+                              setDropIndex(null);
+                            }}
+                          >
+                            ▼
+                          </span>
+                        )}
+                        {(() => {
+                          const dragIdx = shownFields.indexOf(dragField);
+                          // The dragged column's own gaps (before it: the
+                          // previous column's right marker; after it: this
+                          // column's right marker) are no-ops, so they draw
+                          // no marker.
+                          return !(i === dragIdx || i === dragIdx - 1) ? (
+                            <>
+                              {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: a drag-only drop marker inside the header; the field checkboxes are the keyboard path for columns */}
+                              {/* biome-ignore lint/a11y/noStaticElementInteractions: drop marker inside the header; see above */}
+                              <span
+                                className={`gap-arrow right${dropIndex === i + 1 ? " active" : ""}`}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.dataTransfer.dropEffect = "move";
+                                  setDropIndex(i + 1);
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const dragged = e.dataTransfer.getData("field");
+                                  if (dragged)
+                                    moveField(shownFields, dragged, i + 1, setShownFields);
+                                  setDragField(null);
+                                  setDropIndex(null);
+                                }}
+                              >
+                                ▼
+                              </span>
+                            </>
+                          ) : null;
+                        })()}
+                      </>
+                    )}
                     {/* The arrow is out of flow: below the label when
                       descending, above it when ascending. Nothing is kept in
                       the flow to balance it, so the label's centring and the
@@ -1153,19 +1239,20 @@ export function SectionTable(props: SectionTableProps) {
   );
 }
 
-/** Moves a column so that it appears right after another one */
+/** Moves a column into a gap: 0 is before the first column,
+ *  `shownFields.length` after the last, `i` the gap before `shownFields[i]`.
+ *  The gap is counted in the order before the dragged column is removed, so
+ *  dropping a column into either of its own gaps leaves the order unchanged. */
 function moveField(
   shownFields: string[],
-  after: string,
   field: string,
+  gap: number,
   setShownFields: (v: string[]) => void,
 ) {
   const fi = shownFields.indexOf(field);
   if (fi === -1) return;
+  const target = gap > fi ? gap - 1 : gap;
   const next = shownFields.filter((f) => f !== field);
-  let ai = next.indexOf(after);
-  if (ai === -1) ai = 0;
-  else ai++;
-  next.splice(ai, 0, field);
+  next.splice(Math.min(target, next.length), 0, field);
   setShownFields(next);
 }

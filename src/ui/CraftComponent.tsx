@@ -37,6 +37,26 @@ function accelTier(val: number): string {
   return "double speed";
 }
 
+/**
+ * Refuelling adds `refuelRate` fuel every 30-minute step, consuming one
+ * `refuelItem` per step when the craft has one (`Craft::refuel`), so
+ * filling an empty tank takes ceil(fuelMax / refuelRate) steps — that many
+ * fuel items, and that many half-hours. A missing or non-positive input
+ * gives no reading rather than a quarter of an answer.
+ */
+function refuelSteps(fuelMax: number | undefined, refuelRate: number | undefined): number | null {
+  if (fuelMax == null || refuelRate == null || fuelMax <= 0 || refuelRate <= 0) return null;
+  return Math.ceil(fuelMax / refuelRate);
+}
+
+/** The 30-minute refuelling steps as a duration: hours and leftover minutes. */
+function refuelDurationText(steps: number): string {
+  const minutes = steps * 30;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+}
+
 /** Craft table, follows old `Craft.svelte` */
 export default function CraftComponent({ entry }: { entry: Craft }) {
   // The globe marker is drawn from its own sheet, which is a plain grid of
@@ -49,7 +69,17 @@ export default function CraftComponent({ entry }: { entry: Craft }) {
       of={entry}
       title="Craft"
       sort={{
-        first: ["speedMax", "soldiers", "damageMax", "fuelMax", "armor", "radarRange"],
+        // The fuel trio leads together: capacity first, then what fills it
+        first: [
+          "speedMax",
+          "soldiers",
+          "damageMax",
+          "fuelMax",
+          "refuelItem",
+          "refuelRate",
+          "armor",
+          "radarRange",
+        ],
         // The weapon slots close the table, after the starting-condition
         // lists: their column titles head only the slot rows, not those lists
         last: ["allowedIn", "forbiddenIn", "weaponTypes"],
@@ -110,12 +140,32 @@ export default function CraftComponent({ entry }: { entry: Craft }) {
       special={{
         // The rates and recharges state an amount per round; the number alone
         // says neither the amount nor the round, so the value carries its
-        // unit (and, for shield recharge, the decoded reading)
-        refuelRate: ({ val }) => (
-          <>
-            <Val of={val} /> <small>fuel per 30 min</small>
-          </>
-        ),
+        // unit (and, for shield recharge, the decoded reading). The fuel pair
+        // also states what filling an empty tank takes: the item count for
+        // the item, the time for the rate.
+        refuelItem: ({ val }) => {
+          const steps = refuelSteps(
+            entry.fuelMax as number | undefined,
+            entry.refuelRate as number | undefined,
+          );
+          return (
+            <>
+              <Val of={val} />
+              {steps != null && <small> ({steps} from empty)</small>}
+            </>
+          );
+        },
+        refuelRate: ({ val }) => {
+          const steps = refuelSteps(entry.fuelMax as number | undefined, val as number);
+          return (
+            <>
+              <Val of={val} />{" "}
+              <small>
+                fuel per 30 min{steps != null && ` (${refuelDurationText(steps)} from empty)`}
+              </small>
+            </>
+          );
+        },
         repairRate: ({ val }) => (
           <>
             <Val of={val} /> <small>damage per hour</small>

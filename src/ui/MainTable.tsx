@@ -59,7 +59,10 @@ interface MainTableProps {
    *  that must suppress the subheader when the value is empty. */
   wide?: string[];
   /** Fields that render every row they need, subheader included. Use only
-   *  when `wide` cannot: several rows, or no subheader for an empty value. */
+   *  when `wide` cannot: several rows, or no subheader for an empty value.
+   *  Both kinds of subtable go after the normal rows: there is no explicit
+   *  marker where the normal rows end, so a subtable placed earlier reads as
+   *  part of them. */
   rows?: { [field: string]: MainTableRenderer };
 }
 

@@ -165,6 +165,83 @@ type ScriptMembership = {
 };
 
 /**
+ * Per-ruleset caches: a pack's tables are fixed once loaded, and the texture
+ * routes rebuild the same script and texture indexes for every deployment
+ * (and for every mission inside them). Keyed by the tables object, so a new
+ * pack's tables start empty and a pack's caches drop with it.
+ */
+const membershipCache = new WeakMap<object, Map<string, ScriptMembership>>();
+const scriptsByMissionCache = new WeakMap<object, Map<string, ScriptMembership[]>>();
+const textureRacesCache = new WeakMap<object, Map<string, string[]>>();
+const ufoRacesCache = new WeakMap<object, Map<string, string[]>>();
+const stableCache = new WeakMap<object, string>();
+
+function cachedMembership(scriptId: string, tables: RankTables): ScriptMembership {
+  let cache = membershipCache.get(tables as object);
+  if (!cache) {
+    cache = new Map();
+    membershipCache.set(tables as object, cache);
+  }
+  const known = cache.get(scriptId);
+  if (known) return known;
+  const membership = scriptMembership(scriptId, tables);
+  cache.set(scriptId, membership);
+  return membership;
+}
+
+function cachedScriptsByMission(tables: RankTables): Map<string, ScriptMembership[]> {
+  let cached = scriptsByMissionCache.get(tables as object);
+  if (cached) return cached;
+  cached = new Map();
+  for (const scriptId of Object.keys(tables.missionScripts ?? {})) {
+    const membership = cachedMembership(scriptId, tables);
+    for (const missionId of membership.missions) {
+      const list = cached.get(missionId) ?? [];
+      list.push(membership);
+      cached.set(missionId, list);
+    }
+  }
+  scriptsByMissionCache.set(tables as object, cached);
+  return cached;
+}
+
+function cachedTextureRaces(deploymentId: string, tables: RankTables): string[] {
+  let cache = textureRacesCache.get(tables as object);
+  if (!cache) {
+    cache = new Map();
+    textureRacesCache.set(tables as object, cache);
+  }
+  const known = cache.get(deploymentId);
+  if (known) return known;
+  const races = textureRaces(deploymentId, tables);
+  cache.set(deploymentId, races);
+  return races;
+}
+
+function cachedUfoMissionRaces(ufoId: string, tables: RankTables): string[] {
+  let cache = ufoRacesCache.get(tables as object);
+  if (!cache) {
+    cache = new Map();
+    ufoRacesCache.set(tables as object, cache);
+  }
+  const known = cache.get(ufoId);
+  if (known) return known;
+  const races = ufoMissionRaces(ufoId, tables);
+  cache.set(ufoId, races);
+  return races;
+}
+
+function cachedStable(value: unknown): string {
+  if (typeof value !== "object" || value == null) return stable(value);
+  let known = stableCache.get(value);
+  if (known == null) {
+    known = stable(value);
+    stableCache.set(value, known);
+  }
+  return known;
+}
+
+/**
  * A script's memberships, parents first: `RuleMissionScript::load` loads the
  * `refNode` parent before the script's own tables, so every parent the chain
  * names contributes, and the engine's own per-key merge never removes one.
@@ -220,15 +297,7 @@ function textureRaces(deploymentId: string, tables: RankTables): string[] {
   if (servedTextures.size === 0) return [];
 
   // Scripts that can pair each mission with any region, in mission order
-  const scriptsByMission = new Map<string, ScriptMembership[]>();
-  for (const scriptId of Object.keys(tables.missionScripts ?? {})) {
-    const membership = scriptMembership(scriptId, tables);
-    for (const missionId of membership.missions) {
-      const list = scriptsByMission.get(missionId) ?? [];
-      list.push(membership);
-      scriptsByMission.set(missionId, list);
-    }
-  }
+  const scriptsByMission = cachedScriptsByMission(tables);
 
   const found = new Set<string>();
   for (const [regionId, region] of Object.entries(tables.regions ?? {})) {
@@ -308,16 +377,7 @@ export function textureSpawns(missionId: string, tables: RankTables): TextureSpa
   if (objective !== 1 && objective !== 2 && objective !== 3) return [];
   const spawnZone = Number((mission as RankMission).spawnZone);
 
-  const scriptsByMission = new Map<string, ScriptMembership[]>();
-  for (const scriptId of Object.keys(tables.missionScripts ?? {})) {
-    const membership = scriptMembership(scriptId, tables);
-    for (const id of membership.missions) {
-      const list = scriptsByMission.get(id) ?? [];
-      list.push(membership);
-      scriptsByMission.set(id, list);
-    }
-  }
-  const scripts = scriptsByMission.get(missionId) ?? [];
+  const scripts = cachedScriptsByMission(tables).get(missionId) ?? [];
 
   const found = new Map<string, number>();
   for (const [regionId, region] of Object.entries(tables.regions ?? {})) {
@@ -443,7 +503,7 @@ function ufoRaces(deploymentId: string, tables: RankTables): string[] {
       for (const [raceId, stats] of Object.entries(bonus as { [race: string]: unknown })) {
         if (!names(stats)) continue;
         if (raceId === "") {
-          for (const race of ufoMissionRaces(ufoId, tables)) found.add(race);
+          for (const race of cachedUfoMissionRaces(ufoId, tables)) found.add(race);
         } else {
           found.add(raceId);
         }
@@ -452,7 +512,7 @@ function ufoRaces(deploymentId: string, tables: RankTables): string[] {
     // Unconditional base stats (and the `_UNDERWATER` lookup) need the race
     // of whichever mission fields this UFO.
     if (names(ufo) || deploymentId === `${ufoId}_UNDERWATER`) {
-      for (const race of ufoMissionRaces(ufoId, tables)) found.add(race);
+      for (const race of cachedUfoMissionRaces(ufoId, tables)) found.add(race);
     }
   }
   return [...found];
@@ -582,7 +642,7 @@ function directRaces(
   for (const race of ufoRaces(id, tables)) found.add(race);
   // A site with no stated deployment is fought with whatever its area's
   // globe texture rolls (`textureRaces` walks texture → region → mission).
-  for (const race of textureRaces(id, tables)) found.add(race);
+  for (const race of cachedTextureRaces(id, tables)) found.add(race);
   // A base defence is fought with the `STR_BASE_DEFENSE` deployment unless
   // the attacking retaliation UFO carries its own custom deploy with data —
   // so the surviving races are exactly the fallback set it computes.
@@ -653,13 +713,13 @@ function mapScriptRaces(deployment: RankDeployment, tables: RankTables): string[
 function sharedDataRaces(deployment: RankDeployment, tables: RankTables): string[] {
   const id = asId(deployment.uid);
   if (!id || deployment.data == null) return [];
-  const own = stable(deployment.data);
+  const own = cachedStable(deployment.data);
   if (own === "[]" || own === "{}") return [];
 
   const found = new Set<string>();
   for (const [deploymentId, other] of Object.entries(tables.alienDeployments ?? {})) {
     if (other == null || deploymentId === id) continue;
-    if (stable(other.data) !== own) continue;
+    if (cachedStable(other.data) !== own) continue;
     for (const race of directRaces({ ...other, uid: asId(other.uid) ?? deploymentId }, tables))
       found.add(race);
   }
